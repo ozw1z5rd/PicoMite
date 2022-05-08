@@ -2124,7 +2124,7 @@ void cmd_adc(void){
         getargs(&tp,5,",");
         if(ADCopen)error("Already open");
         if(!(argc==3 || argc==5))error("Syntax");
-        int nbr=getint(argv[2],1,43); //number of ADC channels
+        int nbr=getint(argv[2],1,4); //number of ADC channels
         frequency=(float)getnumber(argv[0])*nbr;
         if(frequency<48000000.0/65536.0 || frequency> 48000000.0/96.0)error("Invalid frequency");
         if(!(ExtCurrentConfig[31] == EXT_ANA_IN || ExtCurrentConfig[31] == EXT_NOT_CONFIG)) error("Pin GP26 is not off or an ADC input");
@@ -2267,7 +2267,7 @@ void cmd_adc(void){
                     if(j==0)*a1float++ = (MMFLOAT)ADCbuffer[k++]/4095.0*VCC;
                     if(j==1)*a2float++ = (MMFLOAT)ADCbuffer[k++]/4095.0*VCC;
                     if(j==2)*a3float++ = (MMFLOAT)ADCbuffer[k++]/4095.0*VCC;
-                    if(j==2)*a4float++ = (MMFLOAT)ADCbuffer[k++]/4095.0*VCC;
+                    if(j==3)*a4float++ = (MMFLOAT)ADCbuffer[k++]/4095.0*VCC;
                 }
             }
             FreeMemory((void *)ADCbuffer);
