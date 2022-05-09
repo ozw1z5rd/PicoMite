@@ -16,7 +16,8 @@ Compiled version and documentation is available on https://geoffg.net/picomite.h
 Change list from V5.07.00
 ***********************************************************************************************************************
 V5.07.04
-PicoMite V5.07.04 Changes from V5.07.03
+
+V5.07.04 Changes from V5.07.03
 
 Bug Fixes and functional corrections. 
 Fixes bug where the system would lock up on booting if OPTION RTC AUTO was enabled but the RTC was missing. 
