@@ -15,41 +15,44 @@ Compiled version and documentation is available on https://geoffg.net/picomite.h
 
 Change list from V5.07.00
 ***********************************************************************************************************************
-5.07.04RC3
+V5.07.04
+PicoMite V5.07.04 Changes from V5.07.03
 
-Fixes an interaction between setpin FIN/PIN/CIN and PS2 keyboard. 
-Fixes an interaction between interrupts and error messages.
+Bug Fixes and functional corrections. 
+Fixes bug where the system would lock up on booting if OPTION RTC AUTO was enabled but the RTC was missing. 
+Now a warning will be printed and the option disabled. 
+Fixes bug in MM.INFO(FILESIZE and MM.INFO(MODIFIED. 
+Fixes an interaction between setpin FIN/PIN/CIN and PS2 keyboard usage. 
+Fixes an interaction between interrupts and error messages. 
+Fixes bug in ADC START command when more than 2 channels are specified and it is used in blocking mode. 
+Fixes bug in datetime$. 
+fixes bug in play wav command skipping a small amount of output at the beginning of playing. 
+Fixes bug that caused  tempr function to give pin reserved error under certain circumstances. 
+Fixes PS2 keyboard dropping characters under certain circumstances. 
+Changes to onewire timings to match CMM2. 
 
-5.07.04RC2
-
-Fixes bug where the system would lock up on booting if OPTION RTC AUTO was enabled but the RTC was missing. Now a warning will be printed and the option disabled. 
-
-5.07.04RC1
-
-Brings PicoMite up-to-fate with PicoMiteVGA changes
-
-5.07.04b7
-
-Adds support for 4-bit colour output in 640x480 resolution
-
-V5.07.04b5
-
-Implements READ SAVE and READ RESTORE.
+General changes. 
+Forces an option reset and clear flash if swapping between PicoMite and PicoMiteVGA firmware. 
+Implements READ SAVE and READ RESTORE. 
+These allow a subrountine to read its own data whilst preserving the data pointers for the main program. 
 Implements EXECUTE command. 
-Allows pins not broken out on the Pico to be assigned to special functions a boot (e.g. SYSTEM I2C)
+Enables pins that are not exposed on the Pico to be used for reserved functions (e.g.SYSTEM I2C). 
 
-V5.07.04b3
-
-Fixes bugs in fill colours in drawing commands using arrays as input
-
-V5.07.04b2
-
-Forces an option reset if changing between PicoMitte and PicoMiteVGA firmware
-
-V5.07.04b1
-
-Fixes bug in datetime$ function. 
-Fixes bug in Play wav
+VGA version changes. 
+Major re-write of the VGA driver to allow selection of foreground and backgound colours in 640x480 mode. 
+The colours can be set for the whole screen or individually for 16x16 pixel tiles. 
+Huge performance improvements. 
+GETSCANLINE function implemented. 
+Allows programmable switching between mode 1 (640x480) and mode 2 (320x240). 
+Use OPTION DEFAULT MODE 1 to boot in 640x480 mode. 
+Use OPTION DEFAULT MODE 2 to boot in 320x240 mode. 
+Use OPTION LCDPANEL CONSOLE n to set the default font to n. 
+To switch modes in a program use the new MODE command. 
+MODE 1 sets to 640x480. 
+MODE 2 sets to 320x240. 
+There is a new command TILE that can be used to set the foreground and background color of each 16x16 area in mode 1 (640x480). 
+TILE x, y [,foregroundcolour]  [,backgroundcolour] [,no_tiles_wide] [,no_tiles_high]. 
+This command is ignored in mode 2. 
 
 
 V5.07.03
