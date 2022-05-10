@@ -87,6 +87,8 @@ char *CSubInterrupt;
 volatile int CSubComplete=0;
 uint64_t timeroffset=0;
 int SaveOptionErrorSkip=0;
+char SaveErrorMessage[MAXERRMSG] = { 0 };
+int Saveerrno = 0;
 void integersort(int64_t *iarray, int n, long long *index, int flags, int startpoint){
     int i, j = n, s = 1;
     int64_t t;
@@ -1292,7 +1294,9 @@ void cmd_ireturn(void){
         DelayedDrawFmtBox = false;
     }
 #endif
-if(SaveOptionErrorSkip>0)OptionErrorSkip=SaveOptionErrorSkip+1;
+	if(SaveOptionErrorSkip>0)OptionErrorSkip=SaveOptionErrorSkip+1;
+    strcpy(MMErrMsg , SaveErrorMessage);
+    if(SaveOptionErrorSkip>0)OptionErrorSkip=SaveOptionErrorSkip+1;
 }
 
 
@@ -3086,6 +3090,10 @@ GotAnInterrupt:
     if(OptionErrorSkip>0)SaveOptionErrorSkip=OptionErrorSkip;
     else SaveOptionErrorSkip = 0;
     OptionErrorSkip=0;
+    strcpy(SaveErrorMessage , MMErrMsg);
+    Saveerrno = MMerrno;
+    *MMErrMsg = 0;
+    MMerrno = 0;
     InterruptReturn = nextstmt;                                     // for when IRETURN is executed
     // if the interrupt is pointing to a SUB token we need to call a subroutine
     if(*intaddr == cmdSUB) {
