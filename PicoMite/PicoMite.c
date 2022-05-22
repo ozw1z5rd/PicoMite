@@ -1154,23 +1154,49 @@ void __not_in_flash_func(QVgaLine0)()
 		// image scanlines
 		else
 		{
+            if(Option.CPU_Speed==252000){
 			// prepare image line
-            if(DISPLAY_TYPE==MONOVGA){
-            	int ytile=line>>4;
-                for(int i=0,j=0;i<80;i++,j+=2){
-                    int xtile=i>>1;
-                    int low= FrameBuf[line * 80 + i] & 0xF;
-                    int high=FrameBuf[line * 80 + i] >>4;
-                    int pos=ytile*40+xtile;
-                    fbuff[nextbuf][j]=(M_Foreground[low] & tilefcols[pos]) | (M_Background[low] & tilebcols[pos]) ;
-                    fbuff[nextbuf][j+1]=(M_Foreground[high]& tilefcols[pos]) | (M_Background[high] & tilebcols[pos]) ;
+                if(DISPLAY_TYPE==MONOVGA){
+                    int ytile=line>>4;
+                    for(int i=0,j=0;i<80;i++,j+=2){
+                        int xtile=i>>1;
+                        int low= (DisplayBuf[line * 80 + i] & 0xF) | (LayerBuf[line * 80 + i] & 0xF);
+                        int high=(DisplayBuf[line * 80 + i] >>4) | (LayerBuf[line * 80 + i] >>4);
+                        int pos=ytile*40+xtile;
+                        fbuff[nextbuf][j]=(M_Foreground[low] & tilefcols[pos]) | (M_Background[low] & tilebcols[pos]) ;
+                        fbuff[nextbuf][j+1]=(M_Foreground[high]& tilefcols[pos]) | (M_Background[high] & tilebcols[pos]) ;
+                    }
+                } else {
+                    line>>=1;
+                    for(int i=0;i<160;i++){
+                        int low= DisplayBuf[line * 160 + i] & 0xF;
+                        int high=DisplayBuf[line * 160 + i] >>4;
+                        int low2= LayerBuf[line * 160 + i] & 0xF;
+                        int high2=LayerBuf[line * 160 + i] >>4;
+                        if(low2)low=low2;
+                        if(high2)high=high2;
+                        fbuff[nextbuf][i]=(low | (low<<4) | (high<<8) | (high<<12));
+                    }
                 }
             } else {
-                line>>=1;
-                for(int i=0;i<160;i++){
-                    int low= FrameBuf[line * 160 + i] & 0xF;
-                    int high=FrameBuf[line * 160 + i] >>4;
-                    fbuff[nextbuf][i]=(low | (low<<4) | (high<<8) | (high<<12));
+			// prepare image line
+                if(DISPLAY_TYPE==MONOVGA){
+                    int ytile=line>>4;
+                    for(int i=0,j=0;i<80;i++,j+=2){
+                        int xtile=i>>1;
+                        int low= DisplayBuf[line * 80 + i] & 0xF;
+                        int high=DisplayBuf[line * 80 + i] >>4;
+                        int pos=ytile*40+xtile;
+                        fbuff[nextbuf][j]=(M_Foreground[low] & tilefcols[pos]) | (M_Background[low] & tilebcols[pos]) ;
+                        fbuff[nextbuf][j+1]=(M_Foreground[high]& tilefcols[pos]) | (M_Background[high] & tilebcols[pos]) ;
+                    }
+                } else {
+                    line>>=1;
+                    for(int i=0;i<160;i++){
+                        int low= DisplayBuf[line * 160 + i] & 0xF;
+                        int high=DisplayBuf[line * 160 + i] >>4;
+                        fbuff[nextbuf][i]=(low | (low<<4) | (high<<8) | (high<<12));
+                    }
                 }
             }
             if(nextbuf){
@@ -1482,7 +1508,7 @@ int main(){
     while((i=getConsole())!=-1){}
 #ifdef PICOMITEVGA
     multicore_launch_core1_with_stack(QVgaCore,core1stack,256);
-	memset(FrameBuf, 0, 38400);
+	memset(WriteBuf, 0, 38400);
     if(Option.DISPLAY_TYPE!=MONOVGA)ClearScreen(Option.DefaultBC);
 #endif
     if(!(_excep_code == RESTART_NOAUTORUN || _excep_code == WATCHDOG_TIMEOUT)){

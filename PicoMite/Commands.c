@@ -1354,7 +1354,7 @@ void cmd_subfun(void) {
 
 
 
-void __not_in_flash_func(cmd_gosub)(void) {
+void cmd_gosub(void) {
 	if(gosubindex >= MAXGOSUB) error("Too many nested GOSUB");
     errorstack[gosubindex] = CurrentLinePtr;
 	gosubstack[gosubindex++] = nextstmt;
