@@ -15,6 +15,13 @@ Compiled version and documentation is available on https://geoffg.net/picomite.h
 
 Change list from V5.07.00
 ***********************************************************************************************************************
+V5.07.05b1
+
+Fixes bug in PIO READ. 
+Allows a single integer variable to be used when nbr=1 in PIO READ. 
+Implements DRAW3D command and function (VGA version only). 
+Implements FRAMEBUFFER command (VGA version only). 
+
 V5.07.04
 
 V5.07.04 Changes from V5.07.03
