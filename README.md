@@ -15,6 +15,10 @@ Compiled version and documentation is available on https://geoffg.net/picomite.h
 
 Change list from V5.07.00
 ***********************************************************************************************************************
+V5.07.05b3
+
+Fixes bug in BITBANG LCD CMD and BITBANG LCD DATA. 
+
 V5.07.05b1
 
 Fixes bug in PIO READ. 
