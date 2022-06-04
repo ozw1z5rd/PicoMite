@@ -17,6 +17,11 @@ Change list from V5.07.00
 ***********************************************************************************************************************
 V5.07.05b3
 
+Implements SPRITE command and function in GA version
+
+
+V5.07.05b3
+
 Fixes bug in BITBANG LCD CMD and BITBANG LCD DATA. 
 
 V5.07.05b1
