@@ -555,7 +555,7 @@ int __not_in_flash_func(xmit_datablock)(	/* 1:OK, 0:Failed */
 /*-----------------------------------------------------------------------*/
 /* Send a command packet to MMC                                          */
 /*-----------------------------------------------------------------------*/
-BYTE __not_in_flash_func(send_cmd)(
+BYTE send_cmd(
 	BYTE cmd,		/* Command byte */
 	DWORD arg		/* Argument */
 )
@@ -959,7 +959,7 @@ void InitReservedIO(void) {
 		gpio_init(LCD_Reset_PIN);
 		gpio_put(LCD_Reset_PIN,GPIO_PIN_RESET);
 		gpio_set_dir(LCD_Reset_PIN, GPIO_OUT);
-		if(Option.E_INKbusy) {
+        if(Option.E_INKbusy) {
 			ExtCfg(Option.E_INKbusy, EXT_BOOT_RESERVED, 0);
 			LCD_E_INKbusy=PinDef[Option.E_INKbusy].GPno;
 			gpio_init(LCD_E_INKbusy);

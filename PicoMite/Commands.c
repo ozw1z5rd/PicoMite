@@ -59,6 +59,7 @@ int SaveNextData = 0;
 struct sa_data datastore[MAXRESTORE];
 int restorepointer = 0;
 
+
 // stack to keep track of nested FOR/NEXT loops
 struct s_forstack forstack[MAXFORLOOPS + 1];
 int forindex;
@@ -1350,9 +1351,6 @@ void cmd_subfun(void) {
         }
     }
 }
-
-
-
 
 void cmd_gosub(void) {
 	if(gosubindex >= MAXGOSUB) error("Too many nested GOSUB");

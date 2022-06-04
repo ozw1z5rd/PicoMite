@@ -963,6 +963,8 @@ void CloseAllFiles(void) {
   int i;
 #ifdef PICOMITEVGA
   closeall3d();
+  closeallsprites();
+  closeframebuffer();
 #endif
   for(i = 1; i <= MAXOPENFILES; i++) {
         if(FileTable[i].com != 0) {
@@ -1213,6 +1215,11 @@ void cmd_files(void){
     if(CurrentLinePtr) error("Invalid in a program");
     if(!InitSDCard()) error((char *)FErrorMsg[20]);					// setup the SD card
     if(flist)FreeMemorySafe((void **)&flist);
+    #ifdef PICOMITEVGA
+        closeallsprites();
+        closeframebuffer();
+  		closeall3d();
+    #endif
     flist=GetMemory(sizeof(s_flist)*MAXFILES);
     fullpath(q);
     MMPrintString("A:");

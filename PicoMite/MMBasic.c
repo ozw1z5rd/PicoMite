@@ -250,7 +250,7 @@ extern long long int CallCFunction(unsigned char *CmdPtr, unsigned char *ArgList
 //
 //void getexpr(unsigned char *);
 //void checktype(int *, int);
-unsigned char *getvalue(unsigned char *p, MMFLOAT *fa, long long int  *ia, unsigned char **sa, int *oo, int *ta);
+unsigned char __not_in_flash_func(*getvalue)(unsigned char *p, MMFLOAT *fa, long long int  *ia, unsigned char **sa, int *oo, int *ta);
 
 unsigned char tokenTHEN, tokenELSE, tokenGOTO, tokenEQUAL, tokenTO, tokenSTEP, tokenWHILE, tokenUNTIL, tokenGOSUB, tokenAS, tokenFOR;
 unsigned char cmdIF, cmdENDIF, cmdELSEIF, cmdELSE, cmdSELECT_CASE, cmdFOR, cmdNEXT, cmdWHILE, cmdENDSUB, cmdENDFUNCTION, cmdLOCAL, cmdSTATIC, cmdCASE, cmdDO, cmdLOOP, cmdCASE_ELSE, cmdEND_SELECT;
@@ -1042,6 +1042,11 @@ void  tokenise(int console) {
             } else if((tp2 = checkstring(p, "EXIT DO")) != NULL) {
                     match_i = GetCommandValue("Exit") - C_BASETOKEN;
                     match_p = p = tp2;
+#ifdef PICOMITEVGA
+            } else if((tp2 = checkstring(p, "BLIT")) != NULL) {
+                    match_i = GetCommandValue("SPRITE") - C_BASETOKEN;
+                    match_p = p = tp2;
+#endif
             } else if((tp2 = checkstring(p, "CAT")) != NULL) {
                     match_i = GetCommandValue("Inc") - C_BASETOKEN;
                     match_p = p = tp2;
@@ -1355,7 +1360,7 @@ unsigned char __not_in_flash_func(*doexpr)(unsigned char *p, MMFLOAT *fa, long l
 
 // get a value, either from a constant, function or variable
 // also returns the next operator to the right of the value or E_END if no operator
-unsigned char *getvalue(unsigned char *p, MMFLOAT *fa, long long int  *ia, unsigned char **sa, int *oo, int *ta) {
+unsigned char __not_in_flash_func(*getvalue)(unsigned char *p, MMFLOAT *fa, long long int  *ia, unsigned char **sa, int *oo, int *ta) {
     MMFLOAT f = 0;
     long long int  i64 = 0;
     unsigned char *s = NULL;
@@ -2755,9 +2760,6 @@ void ClearRuntime(void) {
     findlabel(NULL);                                                // clear the label cache
     OptionErrorSkip = 0;
     MMerrno = 0;                                                    // clear the error flags
-    #ifdef PICOMITEVGA
-        closeframebuffer();
-    #endif
     *MMErrMsg = 0;
 	#if defined(MMFAMILY) || defined(DOS)
 	    NbrModules = 0;

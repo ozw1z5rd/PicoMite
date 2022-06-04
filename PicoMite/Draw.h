@@ -65,7 +65,7 @@ void fun_at(void);
 void fun_pixel(void);
 void fun_getscanline(void);
 void fun_3D(void);
-
+void fun_sprite(void);
 #endif
 
 
@@ -91,16 +91,17 @@ void fun_3D(void);
   	{ (unsigned char *)"Triangle",       T_CMD,                      0, cmd_triangle   },
 	{ (unsigned char *)"Arc",            T_CMD,                      0, cmd_arc	},
 	{ (unsigned char *)"Polygon",        T_CMD,                  	0, cmd_polygon	},
-	{ (unsigned char *)"Blit",           T_CMD,                      0, cmd_blit	},
 #ifdef PICOMITEVGA
-  	{ (unsigned char *)"GUI",            T_CMD,                      0, cmd_guiMX170   },
+  	{ (unsigned char *)"GUI",            T_CMD,                      0, cmd_guiMX170  },
   	{ (unsigned char *)"TILE",            T_CMD,                     0, cmd_tile   },
   	{ (unsigned char *)"MODE",            T_CMD,                     0, cmd_mode   },
   	{ (unsigned char *)"FRAMEBUFFER",     T_CMD,                     0, cmd_framebuffer   },
     { (unsigned char *)"Draw3D",         T_CMD,                      0, cmd_3D },
+	{ (unsigned char *)"Sprite",           T_CMD,                      0, cmd_blit	},
 #else
   	{ (unsigned char *)"GUI",            T_CMD,                      0, cmd_gui   },
 	{ (unsigned char *)"Refresh",        T_CMD,                      0, cmd_refresh	},
+	{ (unsigned char *)"Blit",           T_CMD,                      0, cmd_blit	},
 #endif
 
 #endif
@@ -118,6 +119,7 @@ void fun_3D(void);
 #ifdef PICOMITEVGA
 	{ (unsigned char*)"DRAW3D(",	    T_FUN | T_INT,		0, fun_3D, },
 	{ (unsigned char *)"GetScanLine",	    	T_FNA | T_INT,		0, fun_getscanline 	    },
+	{ (unsigned char*)"sprite(",	    T_FUN | T_INT | T_NBR,		0, fun_sprite },
 #endif
 //	{ (unsigned char *)"MM.FontWidth",   T_FNA | T_INT,		0, fun_mmcharwidth 	},
 //	{ (unsigned char *)"MM.FontHeight",  T_FNA | T_INT,		0, fun_mmcharheight },
@@ -205,7 +207,7 @@ extern void SetFont(int fnt);
 extern void ResetDisplay(void);
 extern int GetFontWidth(int fnt);
 extern int GetFontHeight(int fnt);
-extern char * blitbuffptr[MAXBLITBUF];                                  //Buffer pointers for the BLIT command
+//extern char * blitbuffptr[MAXBLITBUF];                                  //Buffer pointers for the BLIT command
 extern int rgb(int r, int g, int b);
 extern void (*DrawRectangle)(int x1, int y1, int x2, int y2, int c);
 extern void (*DrawBitmap)(int x1, int y1, int width, int height, int scale, int fc, int bc, unsigned char *bitmap);
@@ -215,11 +217,11 @@ extern void (*ReadBuffer)(int x1, int y1, int x2, int y2, unsigned char *c);
 #define FONT_BUILTIN_NBR     8
 #define FONT_TABLE_SIZE      16
 #ifdef PICOMITEVGA
-    extern void (*DrawPixel)(int x1, int y1, int c);
+extern void (*DrawPixel)(int x1, int y1, int c);
 #else
-    extern void DrawPixel(int x, int y, int c);
-    extern void DrawRectangleUser(int x1, int y1, int x2, int y2, int c);
-    extern void DrawBitmapUser(int x1, int y1, int width, int height, int scale, int fc, int bc, unsigned char *bitmap);
+extern void DrawPixel(int x, int y, int c);
+extern void DrawRectangleUser(int x1, int y1, int x2, int y2, int c);
+extern void DrawBitmapUser(int x1, int y1, int width, int height, int scale, int fc, int bc, unsigned char *bitmap);
 #endif
 extern void DisplayPutC(char c);
 extern void GUIPrintString(int x, int y, int fnt, int jh, int jv, int jo, int fc, int bc, char *str);
@@ -281,7 +283,34 @@ typedef struct {
 }s_camera;
 extern struct D3D* struct3d[MAX3D + 1];
 extern s_camera camera[MAXCAM + 1];
+struct blitbuffer {
+    char* blitbuffptr; //points to the sprite image, set to NULL if not in use
+    short w;
+    short h;
+#ifdef PICOMITEVGA
+    char* blitstoreptr; //points to the stored background, set to NULL if not in use
+    char  collisions[MAXCOLLISIONS + 1]; //set to NULL if not in use, otherwise contains current collisions
+    int64_t master; //bitmask of which sprites are copies
+    uint64_t lastcollisions;
+    short x; //set to 1000 if not in use
+    short y;
+    short next_x; //set to 1000 if not in use
+    short next_y;
+    int bc; //background colour;
+    signed char layer; //defaults to 1 if not specified. If zero then scrolls with background
+    signed char mymaster; //number of master if this is a copy
+    char rotation;
+    char active;
+    char edges;
+#endif
+};
+extern struct blitbuffer blitbuff[MAXBLITBUF+1];
+//extern int layer_in_use[MAXLAYER + 1];
 extern void closeall3d(void);
 extern void closeframebuffer(void);
+extern void closeallsprites(void);
+extern char* COLLISIONInterrupt;
+extern int CollisionFound;
+
 #endif
 #endif

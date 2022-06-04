@@ -76,7 +76,7 @@ extern "C" {
 // define the maximum number of arguments to PRINT, INPUT, WRITE, ON, DIM, ERASE, DATA and READ
 // each entry uses zero bytes.  The number is limited by the length of a command line
 #define MAX_ARG_COUNT       50
-#define STR_AUTO_PRECISION  999 
+#define STR_AUTO_PRECISION  999
 #define STR_SIG_DIGITS 9                            // number of significant digits to use when converting MMFLOAT to a string
 #define NBRSETTICKS         4                       // the number of SETTICK interrupts available
 #define NBRPINS             44
@@ -136,6 +136,8 @@ extern "C" {
 #define PWM6B     (1 << 31)
 #define PWM7A     4294967296
 #define PWM7B     8589934592
+#define MAXCOLLISIONS 4
+#define MAXLAYER   4
 //#define DO_NOT_RESET (1 << 5)
 //#define HEARTBEAT    (1 << 6)
 #define HEARTBEATpin  43

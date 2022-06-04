@@ -1522,6 +1522,7 @@ void cmd_pwm(void){
     int div=1, high1, high2;
     MMFLOAT duty1=-1.0, duty2=-1.0;
     getargs(&cmdline,7,",");
+    if(!(argc==5 || argc==7))error("Syntax");
     int CPU_Speed=frequency_count_khz(CLOCKS_FC0_SRC_VALUE_CLK_PERI);
     int slice=getint(argv[0],0,7);
     if(slice==BacklightSlice)error("Channel in use for backlight");
@@ -2322,7 +2323,7 @@ void ClearExternalIO(void) {
     }
     CallBackEnabled &= (~32);
     for(i=0;i<MAXBLITBUF;i++){
-    	blitbuffptr[i] = NULL;
+    	blitbuff[i].blitbuffptr = NULL;
     }
     KeypadClose();
     if(*lcd_pins){

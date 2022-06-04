@@ -164,7 +164,20 @@ extern void setterminal(void);
 void cmd_edit(void) {
     unsigned char *fromp, *p;
     int y, x;
+#ifdef PICOMITEVGA
+    if(*cmdline){
+        int mode = getint(cmdline,1,2);
+        if(mode==2){
+            DISPLAY_TYPE=COLOURVGA; 
+        } else {
+            DISPLAY_TYPE=MONOVGA;
+        }
+        memset(WriteBuf, 0, 38400);
+        ResetDisplay();
+    }
+#else
     checkend(cmdline);
+#endif
     if(CurrentLinePtr) error("Invalid in a program");
     if(Option.ColourCode) {
         gui_fcolour = WHITE;
