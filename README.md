@@ -17,7 +17,8 @@ Change list from V5.07.00
 ***********************************************************************************************************************
 V5.07.05b3
 
-Implements SPRITE command and function in GA version
+Implements SPRITE command and function in GA version. 
+Note: the build now uses a non-standard build file to gain 4K of usable RAM
 
 
 V5.07.05b3
