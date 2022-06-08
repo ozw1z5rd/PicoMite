@@ -2565,8 +2565,10 @@ void BlitShowBuffer(int bnbr, int x1, int y1, int mode) {
                 }
             }
             contractpixel(d,r,w*h,0);
-            DrawBufferFast(x1, y1, x1 + w - 1, y1 + h - 1, 0, r);
-        } else DrawBufferFast(x1, y1, x1 + w - 1, y1 + h - 1, 0, blitbuff[bnbr].blitbuffptr);
+            DrawBufferFast(x1, y1, x1 + w - 1, y1 + h - 1, ((mode & 8)==0 ? 0 : -1), r);
+        } else {
+            DrawBufferFast(x1, y1, x1 + w - 1, y1 + h - 1,((mode & 8)==0 ? 0 : -1) , blitbuff[bnbr].blitbuffptr);
+        }
         if (!(mode & 4))blitbuff[bnbr].active = 1;
     }
 }
@@ -2807,29 +2809,47 @@ void ScrollBufferH(int pixels) {
     if (!pixels)return;
     uint8_t *s, *d, *l, *ss, *dd;
     int y;
-    ss=GetTempMemory(HRes);
-    dd=GetTempMemory(HRes);
-    if (pixels > 0) {
-        for (y = 0; y < VRes; y++) {
-            l = (((y * HRes )>>(HRes==320?1:3)) + FrameBuf);
-            s=ss;
-            d=dd + pixels;
-            expandpixel(l,s,HRes,(HRes==320?0:1));
-            memcpy(d,s,(HRes - pixels));
-            contractpixel(dd,l,HRes,(HRes==320?0:1));
+    if(HRes==320 && !(pixels & 1)){
+        if (pixels > 0) {
+            for (y = 0; y < VRes; y++) {
+                s = (((y * HRes )>>1) + FrameBuf);
+                d = s + (pixels>>1);
+                memmove(d,s,160-(pixels>>1));
+            }
+        } else {
+            pixels = -pixels;
+            for (y = 0; y < VRes; y++) {
+                s = (((y * HRes )>>1) + FrameBuf);
+                d=s;
+                s+=(pixels>>1);
+                memmove(d,s,160-(pixels>>1));
+            }
         }
     } else {
-        pixels = -pixels;
-        for (y = 0; y < VRes; y++) {
-            l = (((y * HRes )>>(HRes==320?1:3)) + FrameBuf);
-            s=ss;
-            d=dd;
-            expandpixel(l,s,HRes,(HRes==320?0:1));
-            s += pixels;
-            memcpy(d,s,(HRes - pixels));
-            contractpixel(d,l,HRes,(HRes==320?0:1));
-        }
-    }
+	    ss=GetTempMemory(HRes);
+	    dd=GetTempMemory(HRes);
+	    if (pixels > 0) {
+	        for (y = 0; y < VRes; y++) {
+	            l = (((y * HRes )>>(HRes==320?1:3)) + FrameBuf);
+	            s=ss;
+	            d=dd + pixels;
+	            expandpixel(l,s,HRes,(HRes==320?0:1));
+	            memcpy(d,s,(HRes - pixels));
+	            contractpixel(dd,l,HRes,(HRes==320?0:1));
+	        }
+	    } else {
+	        pixels = -pixels;
+	        for (y = 0; y < VRes; y++) {
+	            l = (((y * HRes )>>(HRes==320?1:3)) + FrameBuf);
+	            s=ss;
+	            d=dd;
+	            expandpixel(l,s,HRes,(HRes==320?0:1));
+	            s += pixels;
+	            memcpy(d,s,(HRes - pixels));
+	            contractpixel(d,l,HRes,(HRes==320?0:1));
+	        }
+	    }
+	}
 }
 
 void ScrollBufferV(int lines, int blank) {
@@ -4507,9 +4527,9 @@ void SetFont(int fnt) {
 
 
 void ResetDisplay(void) {
-    SetFont(Option.DefaultFont);
-    gui_fcolour = Option.DefaultFC;
-    gui_bcolour = Option.DefaultBC;
+        SetFont(Option.DefaultFont);
+        gui_fcolour = Option.DefaultFC;
+        gui_bcolour = Option.DefaultBC;
     PromptFont = Option.DefaultFont;
     PromptFC = Option.DefaultFC;
     PromptBC = Option.DefaultBC;
@@ -4660,6 +4680,7 @@ void ShowCursor(int show) {
     DrawLine(CurrentX, CurrentY + gui_font_height-1, CurrentX + gui_font_width, CurrentY + gui_font_height-1, (gui_font_height<=8 ? 1 : 2), visible ? gui_fcolour : gui_bcolour);
 }
 #ifdef PICOMITEVGA
+
 #define ABS(X) ((X)>0 ? (X) : (-(X)))
 
 void DrawPolygon(int n, short *xcoord, short *ycoord, int face){
@@ -5480,7 +5501,7 @@ void cmd_framebuffer(void){
         else if(checkstring(argv[2],"F"))d=FrameBuf;
         else error("Syntax");
         if(argc==5){
-            if(checkstring(argv[4],"B"))while(QVgaScanLine!=480){}
+            if(checkstring(argv[4],"B"))while(QVgaScanLine!=524){}
             else error("Syntax");
         }
         if(d!=s)memcpy(d,s,38400);

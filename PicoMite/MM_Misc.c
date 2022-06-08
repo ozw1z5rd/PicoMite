@@ -1294,7 +1294,7 @@ void cmd_ireturn(void){
         DelayedDrawFmtBox = false;
     }
 #endif
-    if(SaveOptionErrorSkip>0)OptionErrorSkip=SaveOptionErrorSkip+1;
+	if(SaveOptionErrorSkip>0)OptionErrorSkip=SaveOptionErrorSkip+1;
     strcpy(MMErrMsg , SaveErrorMessage);
     MMerrno = Saveerrno;
 }
@@ -1822,6 +1822,7 @@ void cmd_option(void) {
             for(int yp=0;yp<30;yp++){
                 tilefcols[yp*40+xp]=(uint16_t)fcolour;
                 tilebcols[yp*40+xp]=(uint16_t)bcolour;
+
             }
         }
         Option.VGAFC=fcolour;
@@ -2314,7 +2315,7 @@ void cmd_option(void) {
 }
 
 void fun_device(void){
-  sret = GetTempMemory(STRINGSIZE);                                        // this will last for the life of the command
+    sret = GetTempMemory(STRINGSIZE);                                        // this will last for the life of the command
 #ifdef PICOMITEVGA
     strcpy(sret, "PicoMiteVGA");
 #else

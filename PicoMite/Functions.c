@@ -1033,7 +1033,7 @@ void fun_max(void) {
 void fun_min(void) {
     do_max_min(0);
 }
-void fun_ternary(void){
+void __not_in_flash_func(fun_ternary)(void){
     MMFLOAT f = 0;
     long long int i64 = 0;
     unsigned char *s = NULL;

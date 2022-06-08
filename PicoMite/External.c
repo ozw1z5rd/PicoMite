@@ -1161,6 +1161,7 @@ void cmd_port(void) {
 	++cmdline;
 	if(!*cmdline) error("Invalid syntax");
 	value = getinteger(cmdline);
+    uint32_t mask=0,setmask=0, readmask=gpio_get_all();
 
     for(i = 0; i < argc; i += 4) {
     	code=0;
@@ -1174,12 +1175,17 @@ void cmd_port(void) {
         	else pin=pincode;
 //        	PIntComma(pin);
             if(IsInvalidPin(pin) || !(ExtCurrentConfig[pin] == EXT_DIG_OUT )) error("Invalid output pin");
-            ExtSet(pin, value & 1);
+            mask |=(1<<PinDef[pin].GPno);
+            if(value & 1)setmask |= (1<<PinDef[pin].GPno);
+//            ExtSet(pin, value & 1);
             value >>= 1;
             nbr--;
             pincode++;
         }
     } //MMPrintString("\r\n");
+    readmask &=mask;
+//    PIntH(mask);PIntHC(setmask);PIntHC(readmask);PIntHC(setmask ^ readmask); PRet();
+    gpio_xor_mask(setmask ^ readmask);
 }
 
 
