@@ -15,7 +15,11 @@ Compiled version and documentation is available on https://geoffg.net/picomite.h
 
 Change list from V5.07.00
 ***********************************************************************************************************************
-V5.07.05b3
+V5.07.05b6
+
+Re-engineering of PORT command to allow simultaneous update
+
+V5.07.05b5
 
 Implements SPRITE command and function in VGA version. 
 Note: the build now uses a non-standard build file to gain 4K of usable RAM
