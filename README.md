@@ -15,6 +15,11 @@ Compiled version and documentation is available on https://geoffg.net/picomite.h
 
 Change list from V5.07.00
 ***********************************************************************************************************************
+V5.07.05b7
+
+Fixed bug in PWM n,OFF requiring spurious extra parameter. 
+Fixed bug in sound command overdriving the PWM when > 2 channels are used and the volume isn't explicitly specified V5.07.05b6
+
 V5.07.05b6
 
 Re-engineering of PORT command to allow simultaneous update
