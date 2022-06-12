@@ -872,7 +872,14 @@ void __not_in_flash_func(CNInterrupt)(void) {
                         } else {
                           if(!(justset && c=='3')){
                             ConsoleRxBuf[ConsoleRxBufHead]  = c;        // store the byte in the ring buffer
-                            ConsoleRxBufHead = (ConsoleRxBufHead + 1) % CONSOLE_RX_BUF_SIZE;   // advance the head of the queue
+                            if(ConsoleRxBuf[ConsoleRxBufHead] ==keyselect && KeyInterrupt!=NULL){
+                                Keycomplete=1;  
+                            } else {
+                              ConsoleRxBufHead = (ConsoleRxBufHead + 1) % CONSOLE_RX_BUF_SIZE;   // advance the head of the queue
+                              if(ConsoleRxBufHead == ConsoleRxBufTail) {                           // if the buffer has overflowed
+                                ConsoleRxBufTail = (ConsoleRxBufTail + 1) % CONSOLE_RX_BUF_SIZE; // throw away the oldest char
+                              }
+                            }
                           } else justset=0;
                         }
 

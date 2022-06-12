@@ -1324,7 +1324,7 @@ void cmd_play(void) {
         	if(lastleft==(uint16_t *)nulltable)sound_PhaseAC_left[channel] = 0.0;
         	sound_PhaseM_left[channel] = PhaseM;
             if(argc==9)sound_v_left[channel]=getint(argv[8],0,100/MAXSOUNDS);
-            else sound_v_left[channel]=41;
+            else sound_v_left[channel]=25;
 			sound_v_left[channel]=sound_v_left[channel]*41/(100/MAXSOUNDS);
         }
         if(right){
@@ -1332,7 +1332,7 @@ void cmd_play(void) {
         	if(lastright==(uint16_t *)nulltable)sound_PhaseAC_right[channel] = 0.0;
         	sound_PhaseM_right[channel] = PhaseM;
             if(argc==9)sound_v_right[channel]=getint(argv[8],0,100/MAXSOUNDS);
-            else sound_v_right[channel]=41;
+            else sound_v_right[channel]=25;
 			sound_v_right[channel]=sound_v_right[channel]*41/(100/MAXSOUNDS);
         }
         if(!(CurrentlyPlaying == P_SOUND)){

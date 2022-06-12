@@ -128,7 +128,7 @@ BYTE MDD_SDSPI_WriteProtectState(void)
 {
 	return 0;
 }
-void on_pwm_wrap() {
+void on_pwm_wrap(void) {
 	static int repeatcount=1;
     // play a tone
     pwm_clear_irq(AUDIO_SLICE);
@@ -150,7 +150,6 @@ void on_pwm_wrap() {
 		if(--repeatcount)return;
 		repeatcount=audiorepeat;
         if(bcount[1]==0 && bcount[2]==0 && playreadcomplete==1){
-//        	HAL_TIM_Base_Stop_IT(&htim4);
     		pwm_set_irq_enabled(AUDIO_SLICE, false);
         }
         if(swingbuf){ //buffer is primed
@@ -186,8 +185,6 @@ void on_pwm_wrap() {
         	}
         }
     } else if(CurrentlyPlaying == P_SOUND) {
-    	static int noisedwellleft[MAXSOUNDS]={0}, noisedwellright[MAXSOUNDS]={0};
-    	static uint32_t noiseleft[MAXSOUNDS]={0}, noiseright[MAXSOUNDS]={0};
     	int i,j;
     	int leftv=0, rightv=0;
     	for(i=0;i<MAXSOUNDS;i++){ //first update the 8 sound pointers
@@ -211,8 +208,6 @@ void on_pwm_wrap() {
 		leftv=(leftv*AUDIO_WRAP)>>12;
 		rightv=(rightv*AUDIO_WRAP)>>12;
 		pwm_set_both_levels(AUDIO_SLICE,leftv,rightv);
-//    	HAL_DAC_SetValue(&hdac1,DAC_CHANNEL_1, DAC_ALIGN_12B_R, (uint16_t)leftv);
-//    	HAL_DAC_SetValue(&hdac1,DAC_CHANNEL_2, DAC_ALIGN_12B_R, (uint16_t)rightv);
     } else {
         // play must be paused
 		pwm_set_both_levels(AUDIO_SLICE,AUDIO_WRAP>>1,AUDIO_WRAP>>1);
