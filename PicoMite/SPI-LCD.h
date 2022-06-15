@@ -378,7 +378,6 @@ extern void set_cs(void);
 #define P_OFF				0
 #define P_I2C_SCL            0
 #define P_I2C_SDA            1
-extern int E_INK;
 extern void Display_Refresh(void);
 extern void waitwhilebusy(void);
 struct Displays {

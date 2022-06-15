@@ -2329,6 +2329,7 @@ void ClearExternalIO(void) {
     for(i=0;i<MAXBLITBUF;i++){
     	blitbuff[i].blitbuffptr = NULL;
     }
+    CallBackEnabled=0;
     KeypadClose();
     if(*lcd_pins){
         for(i = 0; i < 6; i++) {

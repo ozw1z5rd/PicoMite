@@ -953,7 +953,7 @@ void ForceFileClose(int fnbr) {
 // finds the first available free file number.  Throws an error if no free file numbers
 int FindFreeFileNbr(void) {
     int i;
-    for(i = 1; i <= MAXOPENFILES; i++)
+    for(i = MAXOPENFILES; i >= 1; i--)
         if(FileTable[i].com == 0) return i;
     error("Too many files open");
     return 0;

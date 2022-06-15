@@ -67,34 +67,9 @@ const struct Displays display_details[34]={
 int LCD_CS_PIN=0;
 int LCD_CD_PIN=0;
 int LCD_Reset_PIN=0;
-int LCD_E_INKbusy=0;
 
 unsigned char LCDBuffer[1440]={0};
 
-const uint8_t GDEH029A1_LUTDefault_full[] =
-{
-  WRITE_LUT_REGISTER,  // command
-  0x02, 0x02, 0x01, 0x11, 0x12, 0x12, 0x22, 0x22,
-  0x66, 0x69, 0x69, 0x59, 0x58, 0x99, 0x99, 0x88,
-  0x00, 0x00, 0x00, 0x00, 0xF8, 0xB4, 0x13, 0x51,
-  0x35, 0x51, 0x51, 0x19, 0x01, 0x00
-};
-
-const uint8_t GDEH029A1_LUTDefault_part[] =
-{
-  WRITE_LUT_REGISTER,  // command
-  0x10, 0x18, 0x18, 0x08, 0x18, 0x18, 0x08, 0x00,
-  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-  0x00, 0x00, 0x00, 0x00, 0x13, 0x14, 0x44, 0x12,
-  0x00, 0x00, 0x00, 0x00, 0x00, 0x00
-};
-
-const uint8_t GDEH029A1_GDOControl[] = {TERMINATE_FRAME_READ_WRITE, (GDEH029A1_Y_PIXELS - 1) % 256, (GDEH029A1_Y_PIXELS - 1) / 256, 0x00}; //for 2.9inch
-const uint8_t GDEH029A1_softstart[] = {TERMINATE_FRAME_READ_WRITE, 0xd7, 0xd6, 0x9d};
-const uint8_t GDEH029A1_VCOMVol[] = {TERMINATE_FRAME_READ_WRITE, 0xa8};  // VCOM 7c
-const uint8_t GDEH029A1_DummyLine[] = {TERMINATE_FRAME_READ_WRITE, 0x1a}; // 4 dummy line per gate
-const uint8_t GDEH029A1_Gatetime[] = {SET_GATE_TIME, 0x08};  // 2us per line
-const uint8_t GDEH029A1_DataEntryMode[] = {DATA_ENTRY_MODE_SETTING, 0x03};  // 2us per line
 
 
 void SetCS(void);
@@ -109,7 +84,7 @@ void waitwhilebusy(void);
 #define SPIsend(a) {uint8_t b=a;xmit_byte_multi(&b,1);}
 #define SPIqueue(a) {Option.DISPLAY_TYPE==ILI9488? xmit_byte_multi(a,3) : xmit_byte_multi(a,2) ;}
 #define SPIsend2(a) {SPIsend(0);SPIsend(a);}
-int E_INK=0;
+int PackHorizontal=0;
 int fullrefreshcount=0;
 void DrawRectangleMEM(int x1, int y1, int x2, int y2, int c);
 void DrawBitmapMEM(int x1, int y1, int width, int height, int scale, int fc, int bc, unsigned char *bitmap);
@@ -160,8 +135,6 @@ void ConfigDisplaySPI(unsigned char *p) {
         DISPLAY_TYPE = SSD1306SPI;
     } else if(checkstring(argv[0], "ST7920")) {
         DISPLAY_TYPE = ST7920;
-    } else if(checkstring(argv[0], "GDEH029A1")) {
-        DISPLAY_TYPE = GDEH029A1;
 	} else return;
 	if(!Option.SYSTEM_CLK)error("System SPI not configured");
     if(!(argc == 7 || argc == 9 || argc==11 || argc==13)) error("Argument count");
@@ -190,14 +163,7 @@ void ConfigDisplaySPI(unsigned char *p) {
 		if(argc>=11){
 			if(DISPLAY_TYPE == N5110)Option.LCDVOP=getint(argv[10],0,255);
 			else if(DISPLAY_TYPE == SSD1306SPI)Option.I2Coffset=getint(argv[10],0,10);
-			else if(DISPLAY_TYPE == GDEH029A1){
-				if(!(code=codecheck(argv[10])))argv[10]+=2;
-				BUSY = getinteger(argv[10]);
-				if(!code)BUSY=codemap(BUSY);
-				Option.fullrefresh=0;
-				if(argc==13)Option.fullrefresh=getint(argv[12],0,10000);
-			
-			} else  {
+			else  {
 				if(!(code=codecheck(argv[10])))argv[10]+=2;
 				BACKLIGHT = getinteger(argv[10]);
 				if(!code)BACKLIGHT=codemap(BACKLIGHT);
@@ -691,7 +657,7 @@ void InitDisplaySPI(int InitOnly) {
             spi_write_command(0xAF);//DISPLAYON
         	break;
         case ST7920:
-            E_INK=1;
+            PackHorizontal=1;
             gpio_put(LCD_CD_PIN,GPIO_PIN_RESET);
             uSec(40000);
             SetCS();
@@ -706,24 +672,6 @@ void InitDisplaySPI(int InitOnly) {
             uSec(20000);
 			ClearCS(Option.LCD_CD);
         	break;
-        case GDEH029A1:
-            E_INK=1;
-            ResetController();
-            spi_write_CommandData(GDEH029A1_GDOControl, sizeof(GDEH029A1_GDOControl));  // Panel configuration, Gate selection
-    		waitwhilebusy();
-            spi_write_CommandData(GDEH029A1_softstart, sizeof(GDEH029A1_softstart));  // X decrease, Y decrease
-    		waitwhilebusy();
-            spi_write_CommandData(GDEH029A1_VCOMVol, sizeof(GDEH029A1_VCOMVol));    // VCOM setting
-    		waitwhilebusy();
-            spi_write_CommandData(GDEH029A1_DummyLine, sizeof(GDEH029A1_DummyLine));  // dummy line per gate
-    		waitwhilebusy();
-            spi_write_CommandData(GDEH029A1_Gatetime, sizeof(GDEH029A1_Gatetime));    // Gate time setting
-    		waitwhilebusy();
-            spi_write_CommandData(GDEH029A1_DataEntryMode, sizeof(GDEH029A1_DataEntryMode)); //X increment; Y increment
-    		waitwhilebusy();
-            spi_write_CommandData(GDEH029A1_LUTDefault_full, sizeof(GDEH029A1_LUTDefault_part));    // Send the LUT
-    		waitwhilebusy();
-			break;
     }
     if(Option.DISPLAY_ORIENTATION & 1) {
         VRes=DisplayVRes;
@@ -784,12 +732,7 @@ void spi_write_cd(unsigned char command, int data, ...){
    for(i = 0; i < data; i++) spi_write_data((char)va_arg(ap, int));
    va_end(ap);
 }
-void waitwhilebusy(void){
-//	initusclock();
-//	while(HAL_GPIO_ReadPin(PinDef[Option.E_INKbusy].sfr, PinDef[Option.E_INKbusy].bitnbr)==GPIO_PIN_SET){
-//		if(readusclock()>10000000)error("Display busy timeout");
-//	}
-}
+
 void spi_write_CommandData(const uint8_t* pCommandData, uint8_t datalen){
 	int i;
 	spi_write_command(*pCommandData++);
@@ -1237,7 +1180,7 @@ void DrawRectangleMEM(int x1, int y1, int x2, int y2, int c){
     if(x2>high_x)high_x=x2;
      for(x=x1;x<=x2;x++){
         for(y=y1;y<=y2;y++){
-           if(!E_INK){
+           if(!PackHorizontal){
         	   loc=x+(y/8)*DisplayHRes; //get the byte address for this bit
                mask=1<<(y % 8); //get the bit position for this bit
            } else {
@@ -1281,7 +1224,7 @@ void DrawBitmapMEM(int x1, int y1, int width, int height, int scale, int fc, int
                     if(y>high_y)high_y=y;
                     if(x<low_x)low_x=x;
                     if(x>high_x)high_x=x;
-                    if(!E_INK){
+                    if(!PackHorizontal){
                  	   loc=x+(y/8)*DisplayHRes; //get the byte address for this bit
                        omask=1<<(y % 8); //get the bit position for this bit
                        amask=~omask;
@@ -1401,48 +1344,6 @@ void Display_Refresh(void){
 //			HAL_SPI_Transmit(&hspi3,x_array,33,500);
 			ClearCS(Option.LCD_CD);
 		}
-	}
-	if(Option.DISPLAY_TYPE==GDEH029A1){
-		int i;
-		if(Option.fullrefresh>=2){
-			if(fullrefreshcount==0){
-				spi_write_CommandData(GDEH029A1_LUTDefault_full, sizeof(GDEH029A1_LUTDefault_full));    // Send the LUT
-				waitwhilebusy();
-			}
-			if(fullrefreshcount==1){
-				spi_write_CommandData(GDEH029A1_LUTDefault_part, sizeof(GDEH029A1_LUTDefault_full));    // Send the LUT
-				waitwhilebusy();
-			}
-			fullrefreshcount++;
-			if(fullrefreshcount==Option.fullrefresh)fullrefreshcount=0;
-		}
-		unsigned char* p=(void *)((unsigned int)LCDBuffer);
-//Set memory area
-		spi_write_command(SET_RAM_X_ADD_START_END_POS);
-		spi_write_data(0);
-		spi_write_data((GDEH029A1_WIDTH-1) >> 3);
-		spi_write_command(SET_RAM_Y_ADD_START_END_POS);
-		spi_write_data(0);
-		spi_write_data(0);
-		spi_write_data((GDEH029A1_HEIGHT-1) & 0xff);
-		spi_write_data((GDEH029A1_HEIGHT-1)>>8);
-// Set memory pointer
-		spi_write_command(SET_RAM_X_ADDRESS_COUNTER);
-		spi_write_data(0);
-		spi_write_command(SET_RAM_Y_ADDRESS_COUNTER);
-		spi_write_data(0);
-		spi_write_data(0);
-// Write data
-		spi_write_command(WRITE_RAM);
-		for(i=0;i<GDEH029A1_HEIGHT*GDEH029A1_WIDTH;i+=8){
-			spi_write_data(~(*p++));
-		}
-// display frame
-		spi_write_command(DISPLAY_UPDATE_CONTROL_2);
-		spi_write_data(0xC4);
-		spi_write_command(MASTER_ACTIVATION);
-		spi_write_command(TERMINATE_FRAME_READ_WRITE);
-		waitwhilebusy();
 	}
     low_y=2000; high_y=0; low_x=2000; high_x=0;
 
