@@ -15,6 +15,13 @@ Compiled version and documentation is available on https://geoffg.net/picomite.h
 
 Change list from V5.07.00
 ***********************************************************************************************************************
+V5.07.05b8
+
+Fixes crashing bug if edit is used after running a program with IR input. 
+Removes support for the GDEH029A1 display as this controller is now obsolete. 
+Reduces available RAM for VGA version from 108Kb to 104Kb to solve memory corruption issue. 
+Build file reverts to default.
+
 V5.07.05b7
 
 Fixed bug in PWM n,OFF requiring spurious extra parameter. 
