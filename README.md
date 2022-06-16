@@ -15,6 +15,10 @@ Compiled version and documentation is available on https://geoffg.net/picomite.h
 
 Change list from V5.07.00
 ***********************************************************************************************************************
+V5.07.05b9
+
+Improved error checking for SETPIN command. Updated SPI.h in SDK to fix issue with clock
+
 V5.07.05b8
 
 Fixes crashing bug if edit is used after running a program with IR input. 
