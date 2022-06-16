@@ -1,7 +1,6 @@
 Files to build the PicoMite. MMBasic running on the Raspberry Pi Pico
 
-NB: This should be built against pico-sdk version 1.3. 
-Previous versions were built against a modified sdk version 1.2. V1.3 now works out-of-the-box
+NB: This should be built against pico-sdk version 1.3. with spi.h replaced with the attached.
 
 The file layout should be:
 
