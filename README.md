@@ -17,7 +17,7 @@ Change list from V5.07.00
 ***********************************************************************************************************************
 V5.07.05b9
 
-Improved error checking for SETPIN command. Updated SPI.h in SDK to fix issue with clock
+Improved error checking for SETPIN command. Updated SPI.h in SDK to fix issue with clock (pico-sdk\src\rp2_common\hardware_spi\include\hardware\spi.h)
 
 V5.07.05b8
 
