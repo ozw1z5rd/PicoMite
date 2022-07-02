@@ -14,7 +14,18 @@ Compiled version and documentation is available on https://geoffg.net/picomite.h
 
 Change list from V5.07.00
 ***********************************************************************************************************************
-V5.07.05b9
+PicoMite V5.07.05b13
+
+Adds support for the 480x320 IPS ILI9341 display (use code ILI9341N). 
+Modifies the port function to read all pins simultaneously. 
+Updates SDK to V1.4. 
+Updates Compiler to version 11.2.1. 
+
+PicoMite V5.07.05b11
+
+Fixes bug when using "ON KEY int" command. 
+Enables operation up to 378MHz. 
+V5.07.05b9. 
 
 Improved error checking for SETPIN command. Updated SPI.h in SDK to fix issue with clock (pico-sdk\src\rp2_common\hardware_spi\include\hardware\spi.h)
 
