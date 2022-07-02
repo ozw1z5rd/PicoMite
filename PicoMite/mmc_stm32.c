@@ -128,7 +128,7 @@ BYTE MDD_SDSPI_WriteProtectState(void)
 {
 	return 0;
 }
-void on_pwm_wrap(void) {
+void __not_in_flash_func(on_pwm_wrap)(void) {
 	static int repeatcount=1;
     // play a tone
     pwm_clear_irq(AUDIO_SLICE);

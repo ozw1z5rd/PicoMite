@@ -78,7 +78,7 @@ extern volatile int wav_filesize;                                    // head and
 extern int trackplaying, trackstoplay;
 extern void checkWAVinput(void);
 extern volatile uint64_t SoundPlay;
-#define WAV_BUFFER_SIZE 16384
+#define WAV_BUFFER_SIZE 8192
 extern const unsigned short SineTable[4096];
 extern const unsigned short nulltable[4096];
 extern volatile uint64_t bcount[3];

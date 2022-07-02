@@ -4680,7 +4680,6 @@ void ShowCursor(int show) {
     DrawLine(CurrentX, CurrentY + gui_font_height-1, CurrentX + gui_font_width, CurrentY + gui_font_height-1, (gui_font_height<=8 ? 1 : 2), visible ? gui_fcolour : gui_bcolour);
 }
 #ifdef PICOMITEVGA
-
 #define ABS(X) ((X)>0 ? (X) : (-(X)))
 
 void DrawPolygon(int n, short *xcoord, short *ycoord, int face){
@@ -5471,7 +5470,7 @@ void cmd_framebuffer(void){
     } else if((p=checkstring(cmdline, "WAIT"))) {
             while(QVgaScanLine!=480){}
     } else if((p=checkstring(cmdline, "LAYER"))) {
-        if(Option.CPU_Speed!=252000)error("OPTION CPUSPEED 252000 required for layers");
+        if(Option.CPU_Speed==126000)error("CPUSPEED >=252000 for layers");
         if(LayerBuf==DisplayBuf){
             LayerBuf=GetMemory(38400);
         } else error("Layer already exists");

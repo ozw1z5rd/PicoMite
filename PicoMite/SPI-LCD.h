@@ -259,14 +259,15 @@ extern void set_cs(void);
 #define ST7789B         13
 #define ILI9488W        14
 #define GC9A01          15
-#define N5110			16
+#define ILI9481N        16
+#define N5110			17
 #define BufferedPanel	N5110
-#define SSD1306SPI      17
-#define ST7920			18
-#define GDEH029A1		19
-#define TOUCH           20
-#define SPIReadSpeed    21
-#define ST7789RSpeed 22
+#define SSD1306SPI      18
+#define ST7920			19
+#define GDEH029A1		20
+#define TOUCH           21
+#define SPIReadSpeed    22
+#define ST7789RSpeed    23
 #define DISP_USER       25
 #define MONOVGA         26
 #define VGADISPLAY      MONOVGA  
@@ -414,5 +415,7 @@ extern void __not_in_flash_func(HW0ReadSPI)(BYTE *buff, int cnt);
 extern void __not_in_flash_func(HW1ReadSPI)(BYTE *buff, int cnt);
 extern void __not_in_flash_func(BitBangReadSPI)(BYTE *buff, int cnt);
 extern void ScrollLCDSPI(int lines);
+extern void SetCS(void);
+
 #endif
 

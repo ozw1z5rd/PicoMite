@@ -1778,7 +1778,7 @@ void cmd_option(void) {
     }
     tp = checkstring(cmdline, "LCDPANEL CONSOLE");
     if(tp) {
-        if(!(Option.DISPLAY_TYPE==ST7789B || Option.DISPLAY_TYPE==ILI9488 || Option.DISPLAY_TYPE==ILI9341 || Option.DISPLAY_TYPE>=VGADISPLAY))error("Display does not support console");
+        if(!(Option.DISPLAY_TYPE==ST7789B || Option.DISPLAY_TYPE==ILI9488 || Option.DISPLAY_TYPE==ILI9341 || Option.DISPLAY_TYPE==ILI9481N || Option.DISPLAY_TYPE>=VGADISPLAY))error("Display does not support console");
         if(!Option.DISPLAY_ORIENTATION== DISPLAY_LANDSCAPE) error("Landscape only");
         skipspace(tp);
         Option.DefaultFC = WHITE;
@@ -1822,7 +1822,6 @@ void cmd_option(void) {
             for(int yp=0;yp<30;yp++){
                 tilefcols[yp*40+xp]=(uint16_t)fcolour;
                 tilebcols[yp*40+xp]=(uint16_t)bcolour;
-
             }
         }
         Option.VGAFC=fcolour;
@@ -1851,7 +1850,7 @@ void cmd_option(void) {
     tp = checkstring(cmdline, "CPUSPEED");
     if(tp) {
         int CPU_Speed=getinteger(tp);
-        if(!(CPU_Speed==126000 || CPU_Speed==252000))error("Speed must be 126000 or 252000");
+        if(!(CPU_Speed==126000 || CPU_Speed==252000 || CPU_Speed==378000))error("CpuSpeed 126000, 252000 or 378000 only");
         Option.CPU_Speed=CPU_Speed;
         SaveOptions();
         _excep_code = RESET_COMMAND;
@@ -2803,10 +2802,12 @@ unsigned int GetPeekAddr(unsigned char *p) {
     return i;
 }
 
+#define SPIsend(a) {uint8_t b=a;xmit_byte_multi(&b,1);}
+#define SPIsend2(a) {SPIsend(0);SPIsend(a);}
 
 // Will return a byte within the PIC32 virtual memory space.
 void fun_peek(void) {
-    char *p;
+    unsigned char *p;
     void *pp;
     getargs(&ep, 3, ",");
 

@@ -533,7 +533,7 @@ void cmd_clear(void) {
 }
 
 
-void __not_in_flash_func(cmd_goto)(void) {
+void __no_inline_not_in_flash_func(cmd_goto)(void) {
 	if(isnamestart(*cmdline))
 		nextstmt = findlabel(cmdline);								// must be a label
 	else

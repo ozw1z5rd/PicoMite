@@ -1220,6 +1220,7 @@ void cmd_files(void){
         closeframebuffer();
   		closeall3d();
     #endif
+    CloseAudio(1);
     flist=GetMemory(sizeof(s_flist)*MAXFILES);
     fullpath(q);
     MMPrintString("A:");

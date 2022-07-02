@@ -29,9 +29,9 @@ extern "C" {
 #endif
 #define FLASH_TARGET_OFFSET (1024 * 1024) 
 #ifdef PICOMITEVGA
-#define MagicKey 0x67CC22F4
+#define MagicKey 0x67DD22F4
 #else
-#define MagicKey 0x86CC33E7
+#define MagicKey 0x86FF33E7
 #endif
 
 #define MMFLOAT double
@@ -40,11 +40,11 @@ extern "C" {
 #define round3d roundf
 #define fabs3d fabsf
 #ifdef PICOMITEVGA
-#define ALL_MEMORY_SIZE (176*1024) 
-#define HEAP_MEMORY_SIZE (104*1024) 
+#define ALL_MEMORY_SIZE (172*1024) 
+#define HEAP_MEMORY_SIZE (100*1024) 
 #else
-#define ALL_MEMORY_SIZE (180*1024) 
-#define HEAP_MEMORY_SIZE (124*1024) 
+#define ALL_MEMORY_SIZE (176*1024) 
+#define HEAP_MEMORY_SIZE (120*1024) 
 #endif
 #define MAX_PROG_SIZE HEAP_MEMORY_SIZE
 #define SAVEDVARS_FLASH_SIZE 16384
@@ -94,7 +94,7 @@ extern "C" {
 #define MAXCFUNCTION	20
 #define SAVEDVARS_FLASH_SIZE 16384
 #define FLASH_ERASE_SIZE 4096
-#define MAX_CPU     252000
+#define MAX_CPU     378000
 #define MAX3D   8
 #define MAXCAM  3
 #define MAX_POLYGON_VERTICES 10
@@ -143,6 +143,7 @@ extern "C" {
 //#define HEARTBEAT    (1 << 6)
 #define HEARTBEATpin  43
 #define PROGSTART (FLASH_TARGET_OFFSET + FLASH_ERASE_SIZE + SAVEDVARS_FLASH_SIZE + ((MAXFLASHSLOTS) * MAX_PROG_SIZE))
+#define PATH_MAX 256
 #ifdef __cplusplus
 }
 #endif

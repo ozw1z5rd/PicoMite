@@ -40,10 +40,12 @@ extern "C" {
 #include "hardware/structs/systick.h"
 #include "hardware/structs/scb.h"
 #include "hardware/vreg.h"
+#include "hardware/structs/ssi.h"
 #include "pico/unique_id.h"
 #include <pico/bootrom.h>
 #include "hardware/irq.h"
 #include "class/cdc/cdc_device.h" 
+
 #ifdef PICOMITEVGA
 #include "Include.h"
 #define MES_SIGNON  "\rPicoMiteVGA MMBasic Version " VERSION "\r\n"\
@@ -414,7 +416,6 @@ if(!(c==0x1b))return c;
     c1 = '['; c2 = c; c3 = tc; c4 = ttc;
     return 0x1b;
 }
-
 // get a line from the keyboard or a serial file handle
 // filenbr == 0 means the console input
 void MMgetline(int filenbr, char *p) {
@@ -922,7 +923,7 @@ bool __not_in_flash_func(timer_callback)(repeating_timer_t *rt)
     ////////////////////////////////// this code runs once a second /////////////////////////////////
     if(++SecondsTimer >= 1000) {
         SecondsTimer -= 1000; 
-        if(ExtCurrentConfig[PinDef[HEARTBEATpin].pin]==EXT_HEARTBEAT)gpio_xor_mask(1<<PICO_DEFAULT_LED_PIN);
+        if(ExtCurrentConfig[PinDef[HEARTBEATpin].pin]==EXT_HEARTBEAT)gpio_xor_mask(1<<PinDef[HEARTBEATpin].GPno);
             // keep track of the time and date
         if(++second >= 60) {
             second = 0 ;
@@ -1517,6 +1518,12 @@ void __not_in_flash_func(QVgaCore)()
 }
 uint32_t core1stack[64];
 #endif
+void __no_inline_not_in_flash_func(modclock)(uint16_t speed){
+       ssi_hw->ssienr=0;
+       ssi_hw->baudr=0;
+       ssi_hw->baudr=speed;
+       ssi_hw->ssienr=1;
+}
 int main(){
     static int ErrorInPrompt;
     repeating_timer_t timer;
@@ -1533,7 +1540,7 @@ int main(){
     }
     m_alloc(M_PROG);                                           // init the variables for program memory
     busy_wait_ms(100);
-    if(Option.CPU_Speed>200000)vreg_set_voltage(VREG_VOLTAGE_1_20);
+    if(Option.CPU_Speed>200000)vreg_set_voltage(VREG_VOLTAGE_1_25);  // Std default @ boot is 1_10
     busy_wait_ms(100);
     set_sys_clock_khz(Option.CPU_Speed, true);
     pico_get_unique_board_id_string (id_out,12);
@@ -1546,9 +1553,11 @@ int main(){
     );
     systick_hw->csr = 0x5;
     systick_hw->rvr = 0x00FFFFFF;
+    if(Option.CPU_Speed<=252000)modclock(2);
     busy_wait_ms(100);
-    if(Option.CPU_Speed==252000)QVGA_CLKDIV=(Option.DISPLAY_TYPE == COLOURVGA ? 2	: 2);
-    else QVGA_CLKDIV=(Option.DISPLAY_TYPE  == COLOURVGA ? 1	: 1);
+    if(Option.CPU_Speed==378000)QVGA_CLKDIV= 3;
+    else if(Option.CPU_Speed==252000)QVGA_CLKDIV= 2;
+    else QVGA_CLKDIV= 1;
     ticks_per_second = Option.CPU_Speed*1000;
     // The serial clock won't vary from this point onward, so we can configure
     // the UART etc.

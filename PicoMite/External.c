@@ -105,6 +105,7 @@ volatile int INT2Count, INT2Value, INT2InitTimer, INT2Timer;
 volatile int INT3Count, INT3Value, INT3InitTimer, INT3Timer;
 volatile int INT4Count, INT4Value, INT4InitTimer, INT4Timer;
 uint64_t uSecoffset=0;
+uint32_t pinmask=0;
 volatile uint64_t IRoffset=0;
 void *IrDev, *IrCmd;
 volatile char IrVarType;
@@ -267,6 +268,11 @@ void __not_in_flash_func(ExtSet)(int pin, int val){
 
     if(ExtCurrentConfig[pin] == EXT_NOT_CONFIG || ExtCurrentConfig[pin] == EXT_DIG_OUT/* || ExtCurrentConfig[pin] == EXT_OC_OUT*/) {
         PinSetBit(pin, val ? LATSET : LATCLR);
+        if(ExtCurrentConfig[pin] == EXT_NOT_CONFIG){
+            pinmask|=(1<<PinDef[pin].GPno);
+            if(val)pinmask|=(1<<PinDef[pin].GPno);
+            else pinmask &= (~(1<<PinDef[pin].GPno));
+        }
 //        INTEnableInterrupts();
     }
     else if(ExtCurrentConfig[pin] == EXT_CNT_IN){ //allow the user to zero the count
@@ -706,6 +712,10 @@ void ExtCfg(int pin, int cfg, int option) {
     if(cfg<=EXT_INT_BOTH){
         //    *GetPortAddr(pin, ana ? ANSELCLR : ANSELSET) = (1 << GetPinBit(pin));// if ana = 1 then it is a digital I/O
         PinSetBit(pin, tris ? TRISSET : TRISCLR);                         // if tris = 1 then it is an input
+        if(!tris && (pinmask & (1<<PinDef[pin].GPno))){
+            gpio_put(PinDef[pin].GPno,GPIO_PIN_SET);
+        }
+        pinmask &= (~(1<<PinDef[pin].GPno));
         if(cfg == EXT_NOT_CONFIG) ExtSet(pin, 0);                         // set the default output to low
         if(ana==0)PinSetBit(pin, ANSELSET);
     }
@@ -1206,7 +1216,7 @@ void fun_port(void) {
 
 	getargs(&ep, NBRPINS * 4, ",");
 	if((argc & 0b11) != 0b11) error("Invalid syntax");
-
+    uint32_t pinstate=gpio_get_all();
     for(i = argc - 3; i >= 0; i -= 4) {
     	code=0;
     	if(!(code=codecheck(argv[i])))argv[i]+=2;
@@ -1220,7 +1230,7 @@ void fun_port(void) {
         	else pin=pincode;
             if(IsInvalidPin(pin) || !(ExtCurrentConfig[pin] == EXT_DIG_IN || ExtCurrentConfig[pin] == EXT_INT_HI || ExtCurrentConfig[pin] == EXT_INT_LO || ExtCurrentConfig[pin] == EXT_INT_BOTH)) error("Invalid input pin");
             value <<= 1;
-            value |= PinRead(pin);
+            value |= (pinstate & (1<<PinDef[pin].GPno)? 1:0);
             nbr--;
             pincode--;
         }
@@ -2343,7 +2353,6 @@ void ClearExternalIO(void) {
     if(CheckPin(44, CP_NOABORT | CP_IGNORE_INUSE | CP_IGNORE_RESERVED))ExtCfg(44,EXT_ANA_IN,0);
 	InterruptReturn = NULL;
 	InterruptUsed = false;
-//  OnKeyGOSUB = NULL;
     KeypadInterrupt = NULL;
 
     for(i = 0; i < NBRSETTICKS; i++) TickInt[i] = NULL;
@@ -2399,6 +2408,20 @@ void ClearExternalIO(void) {
     dmarunning=0;
     ADCInterrupt=NULL;
     KeyInterrupt=NULL;
+    OnKeyGOSUB=NULL;
+#ifdef PICOMITEVGA
+    CollisionFound = false;
+    COLLISIONInterrupt=NULL;
+#else
+    gui_int_down = false;
+    gui_int_up = false;
+    GuiIntDownVector=NULL;
+    GuiIntUpVector=NULL;
+#endif
+    dmarunning=0;
+    ADCInterrupt=NULL;
+    CSubInterrupt=NULL;
+    CSubComplete=0;
     keyselect=0;
     CMM1=0;
 }

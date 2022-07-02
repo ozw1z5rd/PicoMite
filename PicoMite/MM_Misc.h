@@ -169,5 +169,8 @@ void fun_format(void);
 	extern void disable_systemspi(void);
 	extern void disable_systemi2c(void);
 	extern void disable_audio(void);
+	extern char *CSubInterrupt;
+	extern volatile int CSubComplete;
+
 #endif
 #endif

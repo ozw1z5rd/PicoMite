@@ -305,27 +305,22 @@ BYTE BMP_bDecode(int x, int y, int fnbr)
                 bPadding = (4 - ((BmpDec.lWidth*3) % 4))%4;
                 for(wY = 0; wY < BmpDec.lHeight; wY++)
                 {
-                         IMG_vLoopCallback();
-                         IMG_vCheckAndAbort();
-                         FSerror = IMG_FREAD(IMG_FILE, linebuff, BmpDec.lWidth*3, &nbr); /* B */
- /*                        if((void *)DrawBuffer != (void *)DisplayNotSet) {
-                                 PInt(linebuff[0]);PIntComma(linebuff[1]);PIntComma(linebuff[2]);PRet();
-                             DrawBuffer(x, BmpDec.lHeight - wY - 1 + y, x+BmpDec.lWidth-1, BmpDec.lHeight - wY - 1 + y,  linebuff);
-                         } else */{ //must be a loadable driver so no helper function available
-                            pp=0;
-                            for(wX = 0; wX < BmpDec.lWidth; wX++)
-                            {
-                                colour.rgbbytes[0]=linebuff[pp++];
-                                colour.rgbbytes[1]=linebuff[pp++];
-                                colour.rgbbytes[2]=linebuff[pp++];
-                                IMG_vPutPixel(wX, BmpDec.lHeight - wY - 1);
-                            }
-                         }
-                         for(wX = 0; wX < bPadding; wX++)
-                         {
+                        IMG_vLoopCallback();
+                        IMG_vCheckAndAbort();
+                        FSerror = IMG_FREAD(IMG_FILE, linebuff, BmpDec.lWidth*3, &nbr); /* B */
+                        pp=0;
+                        for(wX = 0; wX < BmpDec.lWidth; wX++)
+                        {
+                            colour.rgbbytes[0]=linebuff[pp++];
+                            colour.rgbbytes[1]=linebuff[pp++];
+                            colour.rgbbytes[2]=linebuff[pp++];
+                            IMG_vPutPixel(wX, BmpDec.lHeight - wY - 1);
+                        }
+                        for(wX = 0; wX < bPadding; wX++)
+                        {
                                    BYTE bValue;
                                    FSerror = IMG_FREAD(IMG_FILE, &bValue,  1, &nbr);
-                         }
+                        }
                 }
         }
         else if(BmpDec.wPaletteEntries != 0 && BmpDec.bBitsPerPixel == 1) /* B/W Image */
