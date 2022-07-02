@@ -25,6 +25,7 @@ PicoMite V5.07.05b11
 
 Fixes bug when using "ON KEY int" command. 
 Enables operation up to 378MHz. 
+
 V5.07.05b9. 
 
 Improved error checking for SETPIN command. Updated SPI.h in SDK to fix issue with clock (pico-sdk\src\rp2_common\hardware_spi\include\hardware\spi.h)
