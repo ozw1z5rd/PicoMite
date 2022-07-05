@@ -1934,8 +1934,26 @@ normal_exit:
     ExtCfg(pin, EXT_NOT_CONFIG, 0);
     PinSetBit(pin, LATCLR);
 }
-
-void __not_in_flash_func(WS2812)(unsigned char *q){
+void WS2812e(int gppin, int T1H, int T1L, int T0H, int T0L, int nbr, char *p){
+    for(int i=0;i<nbr*3;i++){
+        for(int j=0;j<8;j++){
+            if(*p & 1){
+                gpio_put(gppin,true);
+                shortpause(T1H);
+                gpio_put(gppin,false);
+                shortpause(T1L);
+            } else {
+                gpio_put(gppin,true);
+                shortpause(T0H);
+                gpio_put(gppin,false);
+                shortpause(T0L);
+            }
+            *p>>=1;
+        }
+        p++;
+    }
+}
+void WS2812(unsigned char *q){
        void *ptr1 = NULL;
         int64_t *dest=NULL;
         uint32_t pin, red , green, blue, colour;
@@ -2003,33 +2021,72 @@ void __not_in_flash_func(WS2812)(unsigned char *q){
     	}
     	p-=(nbr*3);
         disable_interrupts();
-    	for(i=0;i<nbr*3;i++){
-    		for(j=0;j<8;j++){
-    			if(*p & 1){
-                    gpio_put(gppin,true);
-                    shortpause(T1H);
-                    gpio_put(gppin,false);
-                    shortpause(T1L);
-    			} else {
-                    gpio_put(gppin,true);
-                    shortpause(T0H);
-                    gpio_put(gppin,false);
-                    shortpause(T0L);
-    			}
-    			*p>>=1;
-    		}
-    		p++;
-    	}
+        WS2812e(gppin, T1H, T1L, T0H, T0L, nbr, p);
         enable_interrupts();
 }
-
+void __not_in_flash_func(bitstream)(int gppin, unsigned int *data, int num){
+    for(int i=0;i<num;i++){
+        gpio_xor_mask(gppin);
+        shortpause(data[i])
+    }
+}
+void __not_in_flash_func(serialtx)(int gppin, unsigned char *string, int bittime){
+    int mask;
+    int count = 0;
+    while(count++ < string[0]) {
+        systick_hw->cvr=0;
+        gpio_clr_mask(gppin);                                    // send the start bit
+        mask=1;
+        while(systick_hw->cvr>bittime){}; 
+        systick_hw->cvr=0;
+        for (mask=1;mask<0x100; mask<<=1) {
+            if(string[count] & mask) {                               // check the bit to send
+                gpio_set_mask(gppin);                                    // send the start bit
+            } else {
+                gpio_clr_mask(gppin);                                    // send the start bit
+            }
+            while(systick_hw->cvr>bittime){}; 
+            systick_hw->cvr=0;
+        }
+        gpio_set_mask(gppin);                                    // send the start bit
+        while(systick_hw->cvr>bittime){}; 
+    }
+}
 unsigned short FloatToUint32(MMFLOAT x) {
     if(x<0 || x > 4294967295)
         error("Number range");
     return (x >= 0 ? (unsigned int)(x + 0.5) : (unsigned int)(x - 0.5)) ;
 }
-
-void __not_in_flash_func(cmd_bitbang)(void){
+int __not_in_flash_func(serialrx)(int gppin, unsigned char *string, int timeout, int bittime, int half, int maxchars, char *termchars){
+    int i,c,count=0;
+    while(1){
+        while(gpio_get_all() & gppin) {                              // wait for the start bit
+            if(readusclock() >= timeout) return -1;                   // return if there is a timeout
+        }
+        systick_hw->cvr=0;
+        while(systick_hw->cvr>half){}; 
+        systick_hw->cvr=0;
+        if(gpio_get_all() & gppin) continue;                         // go around again if not low
+        c=0;
+        for(i = 0; i < 8; i++) {
+            while(systick_hw->cvr>bittime){}; 
+            systick_hw->cvr=0;
+            c |= (((gpio_get_all() & gppin) ? 1 : 0) << i);                      // and add this bit in
+        }
+        while(systick_hw->cvr>bittime){}; 
+        if(!(gpio_get_all() & gppin)) continue;                      // a framing error if not high
+        count++;
+        string[count] = c;                                          // save the character
+        string[0] = count;                                          // and update the numbers of characters in the string
+        if(count >= maxchars) return 2;                // do we have our maximun number of characters?
+        if(termchars) {
+            for(i = 0; i < termchars[0]; i++) {                     // check each terminating character
+                if(c == termchars[i + 1]) return 3;                 // and exit if this character is one of them
+            }
+        }
+    }
+}
+void cmd_bitbang(void){
 	unsigned char *tp;
 	tp = checkstring(cmdline, "WS2812");
 	if(tp) {
@@ -2044,6 +2101,63 @@ void __not_in_flash_func(cmd_bitbang)(void){
 	tp = checkstring(cmdline, "HUMID");
 	if(tp) {
 		DHT22(tp);
+		return;
+	}
+	tp = checkstring(cmdline, "SERIALRX");
+	if(tp) {
+        int maxchars=255;
+        char *termchars=NULL;
+		getargs(&tp, 13,",");
+		if(argc < 9) error("Argument count");
+        unsigned char code;
+        if(!(code=codecheck(argv[0])))argv[0]+=2;
+        int pin = getinteger(argv[0]);
+        if(!code)pin=codemap(pin);
+        if(IsInvalidPin(pin)) error("Invalid pin");
+        if(!(ExtCurrentConfig[pin] == EXT_DIG_IN || ExtCurrentConfig[pin] == EXT_NOT_CONFIG)) error("Pin is not off or an input");
+        if(ExtCurrentConfig[pin] == EXT_NOT_CONFIG)ExtCfg(pin, EXT_DIG_IN, CNPUSET);
+        int gppin=(1<<PinDef[pin].GPno);
+        int baudrate=getint(argv[2],110,230400);
+        char *string=NULL;
+        string = findvar(argv[4], V_FIND);
+	    if(!(vartbl[VarIndex].type & T_STR)) error("Invalid variable");
+        int timeout=getint(argv[6],1,100000)*1000;
+        void *status=findvar(argv[8], V_FIND);
+        int type=vartbl[VarIndex].type;
+	    if(!(type & T_NBR | T_INT)) error("Invalid variable");
+        if(argc>9 && *argv[10])maxchars=getint(argv[10],1,255);
+        if(argc==13)termchars=getstring(argv[12]);
+        writeusclock(0);
+        int bittime=16777215 + 12  - (ticks_per_second/baudrate) ;
+        int half = 16777215 + 12  - (ticks_per_second/(baudrate<<1)) ;
+        disable_interrupts();
+        int istat=serialrx(gppin, string, timeout, bittime, half, maxchars, termchars);
+        enable_interrupts();
+        if(type & T_INT)*(int64_t *)status=(int64_t)istat;
+        else *(MMFLOAT *)status=(MMFLOAT)istat;
+        return;
+    }
+	tp = checkstring(cmdline, "SERIALTX");
+	if(tp) {
+        int mask;
+		getargs(&tp, 5,",");
+		if(!(argc == 5)) error("Argument count");
+        unsigned char code;
+        int count = 0;
+        if(!(code=codecheck(argv[0])))argv[0]+=2;
+        int pin = getinteger(argv[0]);
+        if(!code)pin=codemap(pin);
+        if(IsInvalidPin(pin)) error("Invalid pin");
+        int gppin=(1<<PinDef[pin].GPno);
+        int baudrate=getint(argv[2],110,230400);
+        char *string=getstring(argv[4]);
+        if(!(ExtCurrentConfig[pin] == EXT_DIG_OUT || ExtCurrentConfig[pin] == EXT_NOT_CONFIG)) error("Pin is not off or an output");
+        if(ExtCurrentConfig[pin] == EXT_NOT_CONFIG)ExtCfg(pin, EXT_DIG_OUT, 0);
+        gpio_set_mask(gppin);                                    // send the start bit
+        int bittime=16777215 + 12  - (ticks_per_second/baudrate) ;
+        disable_interrupts();
+        serialtx(gppin,string, bittime);
+        enable_interrupts();
 		return;
 	}
 	tp = checkstring(cmdline, "BITSTREAM");
@@ -2096,13 +2210,11 @@ void __not_in_flash_func(cmd_bitbang)(void){
         }
 //        data[0]+=((ticks_per_millisecond/2000)+(250000-Option.CPU_Speed)/1000);
         disable_interrupts();
-    	for(i=0;i<num;i++){
-            gpio_xor_mask(gppin);
-            shortpause(data[i])
-    	}
+        bitstream(gppin,data,num);
         enable_interrupts();
 		return;
 	}
+    error("Syntax");
 }
 void cmd_adc(void){
 	unsigned char *tp;

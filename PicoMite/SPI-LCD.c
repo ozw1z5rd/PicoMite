@@ -45,7 +45,7 @@ const struct Displays display_details[35]={
 		{"ST7789_320", 20000000, 320, 240, 16, 0, SPI_POLARITY_LOW, SPI_PHASE_1EDGE},
 		{"ILI9488W", 40000000, 480, 320, 16, 0, SPI_POLARITY_LOW, SPI_PHASE_1EDGE},
 		{"GC9A01", LCD_SPI_SPEED, 240, 240, 16, 0, SPI_POLARITY_LOW, SPI_PHASE_1EDGE},
-		{"ILI9481N", 20000000, 480, 320, 16, 0, SPI_POLARITY_LOW, SPI_PHASE_1EDGE},
+		{"ILI9481IPS", 20000000, 480, 320, 16, 0, SPI_POLARITY_LOW, SPI_PHASE_1EDGE},
 		{"N5110", NOKIA_SPI_SPEED, 84, 48, 1, 1, SPI_POLARITY_LOW, SPI_PHASE_1EDGE},
 		{"SSD1306SPI", LCD_SPI_SPEED, 128, 64, 1, 1, SPI_POLARITY_LOW, SPI_PHASE_1EDGE},
 		{"ST7920", ST7920_SPI_SPEED, 128, 64, 1, 1, SPI_POLARITY_HIGH, SPI_PHASE_2EDGE},
@@ -82,7 +82,7 @@ void I2C_Send_Command(char command);
 extern int mmI2Cvalue;												// value of MM.I2C
 void waitwhilebusy(void);
 #define SPIsend(a) {uint8_t b=a;xmit_byte_multi(&b,1);}
-#define SPIqueue(a) {(Option.DISPLAY_TYPE==ILI9488 || Option.DISPLAY_TYPE==ILI9481N) ? xmit_byte_multi(a,3) : xmit_byte_multi(a,2) ;}
+#define SPIqueue(a) {(Option.DISPLAY_TYPE==ILI9488 || Option.DISPLAY_TYPE==ILI9481IPS) ? xmit_byte_multi(a,3) : xmit_byte_multi(a,2) ;}
 #define SPIsend2(a) {SPIsend(0);SPIsend(a);}
 int PackHorizontal=0;
 int fullrefreshcount=0;
@@ -119,8 +119,8 @@ void ConfigDisplaySPI(unsigned char *p) {
         DISPLAY_TYPE = ST7789A;
     } else if(checkstring(argv[0], "ST7789_320")) {
         DISPLAY_TYPE = ST7789B;
-    } else if(checkstring(argv[0], "ILI9481N")) {
-        DISPLAY_TYPE = ILI9481N;
+    } else if(checkstring(argv[0], "ILI9481IPS")) {
+        DISPLAY_TYPE = ILI9481IPS;
     } else if(checkstring(argv[0], "ILI9481")) {
         DISPLAY_TYPE = ILI9481;
     } else if(checkstring(argv[0], "ILI9488")) {
@@ -208,7 +208,7 @@ void InitDisplaySPI(int InitOnly) {
         	DrawRectangle = DrawRectangleSPI;
         	DrawBitmap = DrawBitmapSPI;
         	DrawBuffer = DrawBufferSPI;
-        	if(Option.DISPLAY_TYPE == ILI9341 || Option.DISPLAY_TYPE == ILI9481N || Option.DISPLAY_TYPE == ILI9488 || Option.DISPLAY_TYPE == ST7789B){
+        	if(Option.DISPLAY_TYPE == ILI9341 || Option.DISPLAY_TYPE == ILI9481IPS || Option.DISPLAY_TYPE == ILI9488 || Option.DISPLAY_TYPE == ST7789B){
 				ReadBuffer = ReadBufferSPI;
 				ScrollLCD = ScrollLCDSPI;
 			}
@@ -364,7 +364,7 @@ void InitDisplaySPI(int InitOnly) {
 				case RPORTRAIT:     spi_write_cd(ILI9341_MEMCONTROL,1,ILI9341_Portrait180); break;
 			}
  			break;
-		case ILI9481N:
+		case ILI9481IPS:
 			DisplayHRes = 480;
 			DisplayVRes = 320;
 			ResetController();
@@ -524,10 +524,10 @@ void InitDisplaySPI(int InitOnly) {
 			//spi_write_command(0x21);
 			spi_write_command(0x29);	
 			switch(Option.DISPLAY_ORIENTATION) {
-            	case LANDSCAPE:     spi_write_cd(ILI9341_MEMCONTROL,1,ILI9341_Landscape); break;
-            	case PORTRAIT:      spi_write_cd(ILI9341_MEMCONTROL,1,ILI9341_Portrait); break;
-            	case RLANDSCAPE:    spi_write_cd(ILI9341_MEMCONTROL,1,ILI9341_Landscape180); break;
-            	case RPORTRAIT:     spi_write_cd(ILI9341_MEMCONTROL,1,ILI9341_Portrait180); break;
+            	case LANDSCAPE:     spi_write_cd(ILI9341_MEMCONTROL,1,ILI9481_Landscape); break;
+            	case PORTRAIT:      spi_write_cd(ILI9341_MEMCONTROL,1,ILI9481_Portrait); break;
+            	case RLANDSCAPE:    spi_write_cd(ILI9341_MEMCONTROL,1,ILI9481_Landscape180); break;
+            	case RPORTRAIT:     spi_write_cd(ILI9341_MEMCONTROL,1,ILI9481_Portrait180); break;
 			}
 			break;
 		case ILI9481:
@@ -1070,7 +1070,7 @@ void DrawRectangleSPI(int x1, int y1, int x2, int y2, int c){
 	    if(y1 < 0) return;
 	    if(y1 >= VRes) return;
 		DefineRegionSPI(x1, y1, x2, y2, 1);
-		if(Option.DISPLAY_TYPE==ILI9488 || Option.DISPLAY_TYPE==ILI9481N ){
+		if(Option.DISPLAY_TYPE==ILI9488 || Option.DISPLAY_TYPE==ILI9481IPS ){
 			col[0]=(c>>16);
 			col[1]=(c>>8) & 0xFF;
 			col[2]=(c & 0xFF);
@@ -1098,7 +1098,7 @@ void DrawRectangleSPI(int x1, int y1, int x2, int y2, int c){
 		if(y2 < 0) y2 = 0;
 		if(y2 >= VRes) y2 = VRes - 1;
 		DefineRegionSPI(x1, y1, x2, y2, 1);
-		if(Option.DISPLAY_TYPE==ILI9488 || Option.DISPLAY_TYPE==ILI9481N ){
+		if(Option.DISPLAY_TYPE==ILI9488 || Option.DISPLAY_TYPE==ILI9481IPS ){
 			i = x2 - x1 + 1;
 			i*=3;
 			p=LCDBuffer;
@@ -1153,7 +1153,7 @@ void DrawBitmapSPI(int x1, int y1, int width, int height, int scale, int fc, int
         ReadBuffer(XStart, y1, XEnd, YEnd, p);
     }
     // convert the colours to 565 format
-	if(Option.DISPLAY_TYPE==ILI9488 || Option.DISPLAY_TYPE==ILI9481N ){
+	if(Option.DISPLAY_TYPE==ILI9488 || Option.DISPLAY_TYPE==ILI9481IPS ){
 		f[0]=(fc>>16);
 		f[1]=(fc>>8) & 0xFF;
 		f[2]=(fc & 0xFF);
@@ -1197,7 +1197,7 @@ void DrawBitmapSPI(int x1, int y1, int width, int height, int scale, int fc, int
                             c.rgbbytes[0] = p[n];
                             c.rgbbytes[1] = p[n+1];
                             c.rgbbytes[2] = p[n+2];
-							if(Option.DISPLAY_TYPE==ILI9488 || Option.DISPLAY_TYPE==ILI9481N ){
+							if(Option.DISPLAY_TYPE==ILI9488 || Option.DISPLAY_TYPE==ILI9481IPS ){
 								b[0]=c.rgbbytes[2];
 								b[1]=c.rgbbytes[1];
 								b[2]=c.rgbbytes[0];
@@ -1240,7 +1240,7 @@ void ReadBufferSPI(int x1, int y1, int x2, int y2, unsigned char* p) {
     N=(x2- x1+1) * (y2- y1+1) * 3;
     if(Option.DISPLAY_TYPE==ILI9341 || Option.DISPLAY_TYPE==ST7789B )spi_write_cd(ILI9341_PIXELFORMAT,1,0x66); //change to RDB666 for read
     DefineRegionSPI(x1, y1, x2, y2, 0);
-	SPISpeedSet( (Option.DISPLAY_TYPE==ST7789B || Option.DISPLAY_TYPE==ILI9481N) ? ST7789RSpeed : SPIReadSpeed); //need to slow SPI for read on this display
+	SPISpeedSet( (Option.DISPLAY_TYPE==ST7789B || Option.DISPLAY_TYPE==ILI9481IPS) ? ST7789RSpeed : SPIReadSpeed); //need to slow SPI for read on this display
 	rcvr_byte_multi((uint8_t *)p, 1);
     r=0;
 	rcvr_byte_multi((uint8_t *)p,N);
@@ -1287,7 +1287,7 @@ void DrawBufferSPI(int x1, int y1, int x2, int y2, unsigned char* p) {
 		c.rgbbytes[2]=*p++;
 	// convert the colours to 565 format
 		// convert the colours to 565 format
-		if(Option.DISPLAY_TYPE==ILI9488 || Option.DISPLAY_TYPE==ILI9481N ){
+		if(Option.DISPLAY_TYPE==ILI9488 || Option.DISPLAY_TYPE==ILI9481IPS ){
 			q[0]=c.rgbbytes[2];
 			q[1]=c.rgbbytes[1];
 			q[2]=c.rgbbytes[0];

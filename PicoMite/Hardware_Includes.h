@@ -154,6 +154,8 @@ extern void SRet(void);
 extern void SInt(int64_t n);
 extern void SIntComma(int64_t n);
 extern void PIntH(unsigned long long int n);
+extern void PIntB(unsigned long long int n);
+extern void PIntBC(unsigned long long int n);
 extern void PIntHC(unsigned long long int n) ;
 extern void PFlt(MMFLOAT flt);
 extern void PFltComma(MMFLOAT n) ;

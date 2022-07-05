@@ -1221,8 +1221,8 @@ void cmd_play(void) {
         
         f_left = getnumber(argv[0]);                         // get the arguments
         f_right = getnumber(argv[2]);
-        if(f_left<0.0 || f_left>20000.0)error("Valid is 0Hz to 20KHz");
-        if(f_right<0.0 || f_right>20000.0)error("Valid is 0Hz to 20KHz");
+        if(f_left<0.0 || f_left>22050.0)error("Valid is 0Hz to 20KHz");
+        if(f_right<0.0 || f_right>22050.0)error("Valid is 0Hz to 20KHz");
         if(argc > 4) PlayDuration = PWM_FREQ*getint(argv[4], 0, INT_MAX)/1000;
         if(argc == 7) {
             WAVInterrupt = GetIntAddress(argv[6]);					// get the interrupt location

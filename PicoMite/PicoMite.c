@@ -986,8 +986,16 @@ void PIntH(unsigned long long int n) {
     IntToStr(s, (int64_t)n, 16);
     MMPrintString(s);
 }
+void PIntB(unsigned long long int n) {
+    char s[65];
+    IntToStr(s, (int64_t)n, 2);
+    MMPrintString(s);
+}
 void PIntHC(unsigned long long int n) {
     MMPrintString(", "); PIntH(n);
+}
+void PIntBC(unsigned long long int n) {
+    MMPrintString(", "); PIntB(n);
 }
 
 void PFlt(MMFLOAT flt){

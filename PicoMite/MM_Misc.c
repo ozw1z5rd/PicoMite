@@ -1778,7 +1778,7 @@ void cmd_option(void) {
     }
     tp = checkstring(cmdline, "LCDPANEL CONSOLE");
     if(tp) {
-        if(!(Option.DISPLAY_TYPE==ST7789B || Option.DISPLAY_TYPE==ILI9488 || Option.DISPLAY_TYPE==ILI9341 || Option.DISPLAY_TYPE==ILI9481N || Option.DISPLAY_TYPE>=VGADISPLAY))error("Display does not support console");
+        if(!(Option.DISPLAY_TYPE==ST7789B || Option.DISPLAY_TYPE==ILI9488 || Option.DISPLAY_TYPE==ILI9341 || Option.DISPLAY_TYPE==ILI9481IPS || Option.DISPLAY_TYPE>=VGADISPLAY))error("Display does not support console");
         if(!Option.DISPLAY_ORIENTATION== DISPLAY_LANDSCAPE) error("Landscape only");
         skipspace(tp);
         Option.DefaultFC = WHITE;

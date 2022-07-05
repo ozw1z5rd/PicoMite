@@ -151,6 +151,11 @@ extern void set_cs(void);
 #define ILI9341_Portrait180     ILI9341_MADCTL_MY | ILI9341_MADCTL_BGR
 #define ILI9341_Landscape       ILI9341_MADCTL_MV | ILI9341_MADCTL_BGR
 #define ILI9341_Landscape180    ILI9341_MADCTL_MY | ILI9341_MADCTL_MX | ILI9341_MADCTL_MV | ILI9341_MADCTL_BGR
+
+#define ILI9481_Portrait        ILI9341_MADCTL_BGR
+#define ILI9481_Portrait180     ILI9341_MADCTL_MX | ILI9341_MADCTL_BGR
+#define ILI9481_Landscape       ILI9341_MADCTL_MV | ILI9341_MADCTL_BGR
+#define ILI9481_Landscape180    ILI9341_MADCTL_MX | ILI9341_MADCTL_MV | ILI9341_MADCTL_BGR
 //
 #define ILI9163_NOP             0x00//Non operation
 #define ILI9163_SWRESET 	0x01//Soft Reset
@@ -259,7 +264,7 @@ extern void set_cs(void);
 #define ST7789B         13
 #define ILI9488W        14
 #define GC9A01          15
-#define ILI9481N        16
+#define ILI9481IPS        16
 #define N5110			17
 #define BufferedPanel	N5110
 #define SSD1306SPI      18
