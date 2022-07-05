@@ -18,7 +18,7 @@ PicoMite V5.07.05b14
 
 New commands: 
 BITBANG SERIALTX pinno, baudrate, ostring$. 
-BITBANG SERIALRX pinno, baudrate, istring$, timeout_in_ms, status, [,nbr] [,terminators$]
+BITBANG SERIALRX pinno, baudrate, instring$ , timeout_in_ms, status, [,nbr] [,terminators$]
 
 PicoMite V5.07.05b13
 
