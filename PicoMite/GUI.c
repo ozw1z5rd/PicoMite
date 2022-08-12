@@ -1692,7 +1692,7 @@ char *FmtKeyCaption[12] = { "<<<", "0", "Can", "1", "2", "3", "4", "5", "6", "7"
 char FmtKeyEnabled[12];
 
 
-void DrawFmtKeypad(char x, char prev, GUIKeyDownn) {
+void DrawFmtKeypad(char x, char prev, int GUIKeyDown) {
     int i, dimfc, x1, y1, x2, y2;
 //    dp("1"); uSec(10000);
 

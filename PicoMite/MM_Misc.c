@@ -1840,12 +1840,11 @@ void cmd_option(void) {
         Option.VGABC=bcolour;
 #endif
         Option.DISPLAY_CONSOLE = true; 
-        ResetDisplay();
-        if(Option.DISPLAY_TYPE!=MONOVGA)ClearScreen(Option.DefaultBC);
         if(!CurrentLinePtr) {
+            ResetDisplay();
             setterminal();
             SaveOptions();
-            if(Option.DISPLAY_TYPE!=MONOVGA)ClearScreen(Option.DefaultBC);
+            if(!(Option.DISPLAY_TYPE==MONOVGA || Option.DISPLAY_TYPE==COLOURVGA))ClearScreen(Option.DefaultBC);
         }
         return;
     }
@@ -2406,14 +2405,16 @@ void fun_info(void){
 		int i,j;
 		DIR djd;
 		FILINFO fnod;
+		targ=T_INT;
+        if(!InitSDCard()) {iret= -1; return;}
 		memset(&djd,0,sizeof(DIR));
 		memset(&fnod,0,sizeof(FILINFO));
 		char *p = getCstring(tp);
+        if(p[1] == ':') *p = toupper(*p) - 'A' + '0';                   // convert a DOS style disk name to FatFs device number
 		FSerror = f_stat(p, &fnod);
 		if(FSerror != FR_OK){ iret=-1; targ=T_INT; strcpy(MMErrMsg,FErrorMsg[4]); return;}
 		if((fnod.fattrib & AM_DIR)){ iret=-2; targ=T_INT; strcpy(MMErrMsg,FErrorMsg[4]); return;}
 		iret=fnod.fsize;
-		targ=T_INT;
 		return;
 	}
 	tp=checkstring(ep, "MODIFIED");
@@ -2421,9 +2422,12 @@ void fun_info(void){
 		int i,j;
 	    DIR djd;
 	    FILINFO fnod;
+		targ=T_INT;
+        if(!InitSDCard()) {iret= -1; return;}
 		memset(&djd,0,sizeof(DIR));
 		memset(&fnod,0,sizeof(FILINFO));
 		char *p = getCstring(tp);
+        if(p[1] == ':') *p = toupper(*p) - 'A' + '0';                   // convert a DOS style disk name to FatFs device number
 		FSerror = f_stat(p, &fnod);
 		if(FSerror != FR_OK){ iret=-1; targ=T_STR; strcpy(MMErrMsg,FErrorMsg[4]); return;}
 //		if((fnod.fattrib & AM_DIR)){ iret=-2; targ=T_INT; strcpy(MMErrMsg,FErrorMsg[4]); return;}

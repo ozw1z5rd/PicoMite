@@ -158,7 +158,7 @@ void MarkMode(unsigned char *cb, unsigned char *buf);
 void PositionCursor(unsigned char *curp);
 extern void setterminal(void);
 
-
+#define MAXCLIP 16384-2
 // edit command:
 //  EDIT              Will run the full screen editor on the current program memory, if run after an error will place the cursor on the error line
 void cmd_edit(void) {
@@ -239,7 +239,9 @@ void cmd_edit(void) {
     printScreen();                                                  // draw the screen
     SCursor(x, y);
     drawstatusline = true;
+    m_alloc(M_VAR);                                                 //clean up clipboard usage
     FullScreenEditor();
+    m_alloc(M_VAR);                                                 //clean up clipboard usage
     memset(tknbuf, 0, STRINGSIZE);                                  // zero this so that nextstmt is pointing to the end of program
     MMCharPos = 0;
 }
@@ -248,12 +250,14 @@ void cmd_edit(void) {
 
 void FullScreenEditor(void) {
   int c, i;
-  unsigned char buf[STRINGSIZE + 2], clipboard[STRINGSIZE];
+  unsigned char *buf, *clipboard;
   unsigned char *p, *tp, BreakKeySave;
   unsigned char lastkey = 0;
   int y, statuscount;
-
+  clipboard=(char *)&AllMemory[HEAP_MEMORY_SIZE+1024];
+  buf=clipboard + MAXCLIP;
   clipboard[0] = 0;
+  buf[0]=0;
   insert = true;
   TextChanged = false;
     BreakKeySave = BreakKey;
@@ -657,8 +661,8 @@ void FullScreenEditor(void) {
             }
             lastkey = buf[0];
             if(buf[0] != UP && buf[0] != DOWN && buf[0] != CTRLKEY('E') && buf[0] != CTRLKEY('X')) tempx = curx;
-            buf[STRINGSIZE + 1] = 0;
-            for(i = 0; i < STRINGSIZE + 1; i++) buf[i] = buf[i + 1];                // suffle down the buffer to get the next char
+            buf[MAXCLIP + 1] = 0;
+            for(i = 0; i < MAXCLIP + 1; i++) buf[i] = buf[i + 1];                // suffle down the buffer to get the next char
         } while(*buf);
     }
 }
@@ -778,8 +782,8 @@ void MarkMode(unsigned char *cb, unsigned char *buf) {
             case CTRLKEY('Y'):
             case CTRLKEY('T'):
             case F5:
-            case F4:  if(txtp - mark > MAXSTRLEN || mark - txtp > MAXSTRLEN) {
-                          editDisplayMsg(" MARKED TEXT EXCEEDS 255 CHARACTERS ");
+            case F4:  if(txtp - mark > MAXCLIP || mark - txtp > MAXCLIP) {
+                          editDisplayMsg(" MARKED TEXT EXCEEDS CLIPBOARD BUFFER SIZE");
                           errmsg = true;
                           break;
                       }
