@@ -152,10 +152,13 @@ extern void set_cs(void);
 #define ILI9341_Landscape       ILI9341_MADCTL_MV | ILI9341_MADCTL_BGR
 #define ILI9341_Landscape180    ILI9341_MADCTL_MY | ILI9341_MADCTL_MX | ILI9341_MADCTL_MV | ILI9341_MADCTL_BGR
 
-#define ILI9481_Portrait        ILI9341_MADCTL_BGR
-#define ILI9481_Portrait180     ILI9341_MADCTL_MX | ILI9341_MADCTL_BGR
+#define ILI9481_MADCTL_FH       0x02
+#define ILI9481_MADCTL_FV       0x01
+
+#define ILI9481_Portrait        ILI9481_MADCTL_FH | ILI9341_MADCTL_BGR
+#define ILI9481_Portrait180     ILI9481_MADCTL_FV | ILI9341_MADCTL_BGR
 #define ILI9481_Landscape       ILI9341_MADCTL_MV | ILI9341_MADCTL_BGR
-#define ILI9481_Landscape180    ILI9341_MADCTL_MX | ILI9341_MADCTL_MV | ILI9341_MADCTL_BGR
+#define ILI9481_Landscape180    ILI9481_MADCTL_FV | ILI9481_MADCTL_FH | ILI9341_MADCTL_MV | ILI9341_MADCTL_BGR
 //
 #define ILI9163_NOP             0x00//Non operation
 #define ILI9163_SWRESET 	0x01//Soft Reset
@@ -269,10 +272,9 @@ extern void set_cs(void);
 #define BufferedPanel	N5110
 #define SSD1306SPI      18
 #define ST7920			19
-#define GDEH029A1		20
-#define TOUCH           21
-#define SPIReadSpeed    22
-#define ST7789RSpeed    23
+#define TOUCH           20
+#define SPIReadSpeed    21
+#define ST7789RSpeed    22
 #define DISP_USER       25
 #define MONOVGA         26
 #define VGADISPLAY      MONOVGA  
@@ -372,9 +374,8 @@ extern void set_cs(void);
 
 #define FLASH_SPI_SPEED 20000000
 #define LCD_SPI_SPEED   25000000                                   // the speed of the SPI bus when talking to an SPI LCD display controller
-#define TOUCH_SPI_SPEED 500000
+#define TOUCH_SPI_SPEED 5000000
 #define NOKIA_SPI_SPEED 4000000
-#define EINK_SPI_SPEED 400000
 #define ST7920_SPI_SPEED 1200000
 #define SDCARD_SPI_SPEED 0
 #define NONE_SPI_DEVICE -1
@@ -387,7 +388,8 @@ extern void set_cs(void);
 extern void Display_Refresh(void);
 extern void waitwhilebusy(void);
 struct Displays {
-	char name [14];
+    unsigned char ref;
+	char name [13];
     int speed;
     int horizontal;
     int vertical;

@@ -81,7 +81,9 @@ const char *PinFunction[] = {
         "PWM6A",
         "PWM6B",
         "PWM7A",
-        "PWM7B"
+        "PWM7B",
+        "PIO0",
+        "PIO1"
 };
 ;
 extern struct s_vartbl {                               // structure of the variable table
@@ -2456,7 +2458,7 @@ void ClearExternalIO(void) {
 
     if(CheckPin(41, CP_NOABORT | CP_IGNORE_INUSE | CP_IGNORE_RESERVED))ExtCfg(41,EXT_DIG_OUT,Option.PWM);
     if(CheckPin(42, CP_NOABORT | CP_IGNORE_INUSE | CP_IGNORE_RESERVED))ExtCfg(42,EXT_DIG_IN,0);
-    if(CheckPin(43, CP_NOABORT | CP_IGNORE_INUSE | CP_IGNORE_RESERVED)){
+    if(CheckPin(43, CP_NOABORT | CP_IGNORE_INUSE | CP_IGNORE_RESERVED) && !Option.NoHeartbeat){
         gpio_init(PinDef[HEARTBEATpin].GPno);
         gpio_set_dir(PinDef[HEARTBEATpin].GPno, GPIO_OUT);
         ExtCurrentConfig[PinDef[HEARTBEATpin].pin]=EXT_HEARTBEAT;

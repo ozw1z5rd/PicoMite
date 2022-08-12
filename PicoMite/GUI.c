@@ -117,7 +117,7 @@ int last_c1 = -1, last_c2, last_c3, last_c4;
 char last_units[32];
 
 // used for keypads
-int KeyDown = 0;                        // true if a key is down
+int GUIKeyDown = 0;                        // true if a key is down
 int KeyAltShift = 0;                    // true if in alt keypad layout
 int InvokingCtrl = 0;                   // the number of the control that invoked the keypad
 //int InCallback = 0;                     // true if we are running MM.KEYPRESS
@@ -446,7 +446,7 @@ void cmd_gui(void) {
             if(!InvokingCtrl) return;
             DrawKeyboard(KEY_KEY_CANCEL);
         } else if((pp = checkstring(p, "ACTIVATE"))) {
-            if(*pp == '#') p++;
+            if(*pp == '#') pp++;
             r = getint(pp, 1, Option.MaxCtrls - 1);
             if(Ctrl[r].type != CTRL_TEXTBOX) error("Not a TextBox");
             strcpy(CancelValue, Ctrl[r].s);                                     // save the current value in case the user cancels
@@ -454,7 +454,7 @@ void cmd_gui(void) {
             Ctrl[r].state |= CTRL_SELECTED;                                     // select the number text/box
             PopUpRedrawAll(r, true);
             CurrentRef = InvokingCtrl = r;                                      // tell the keypad what text/number box it is servicing
-            KeyDown = -1;
+            GUIKeyDown = -1;
             KeyAltShift = 0;
             DrawControl(r);
 //            ClickTimer += CLICK_DURATION;
@@ -531,8 +531,9 @@ void cmd_gui(void) {
             for(r = 1; r < Option.MaxCtrls; r++)
                 if(Ctrl[r].type != 0) {
                     SetCtrlState(r, CTRL_HIDDEN, true);
-                    FreeMemory(Ctrl[r].s);
-                    Ctrl[r].state = Ctrl[r].type = 0;
+                    FreeMemorySafe((void **)&Ctrl[r].s);
+                    if(Ctrl[r].fmt) FreeMemorySafe((void **)&Ctrl[r].fmt);
+                    memset(&Ctrl[r],0,sizeof(struct s_ctrl));
                 }
             return;
         } else {
@@ -540,8 +541,9 @@ void cmd_gui(void) {
                 if(*argv[i] == '#') argv[i]++;
                 r = getint(argv[i], 1, Option.MaxCtrls - 1);
                 SetCtrlState(r, CTRL_HIDDEN, true);
-                FreeMemory(Ctrl[r].s);
-                Ctrl[r].state = Ctrl[r].type = 0;
+                FreeMemorySafe((void **)&Ctrl[r].s);
+                if(Ctrl[r].fmt) FreeMemorySafe((void **)&Ctrl[r].fmt);
+                memset(&Ctrl[r],0,sizeof(struct s_ctrl));
             }
         }
         return;
@@ -1492,7 +1494,7 @@ void KeyPadErase(int is_alpha) {
     GetSingleKeyCoord(is_alpha ? 10:2, is_alpha, &j1, &j2, &x2, &y2);// get the bottom right coordinate of the key which is bottom right
     DrawBox(x1, y1, x2, y2, 0, 0, gui_bcolour);                     // erase the whole keyboard
 
-    KeyDown = -1;
+    GUIKeyDown = -1;
 }
 
 
@@ -1565,7 +1567,7 @@ void DrawKeyboard(int mode) {
 
     // special processing for KEY_KEY_UP when the numeric keypad is in alt mode
     // this switches back to number mode for everything except for backspace when there are still chars in the buffer
-    if(mode == KEY_KEY_UP && !is_alpha && KeyAltShift && KeyDown > 0 && (KeyDown != 9 || *Ctrl[InvokingCtrl].s == 0)) {
+    if(mode == KEY_KEY_UP && !is_alpha && KeyAltShift && GUIKeyDown > 0 && (GUIKeyDown != 9 || *Ctrl[InvokingCtrl].s == 0)) {
         KeyAltShift = false;                                        // redraw all keys in number mode
         mode = KEY_DRAW_ALL;                                        // drop thru to redraw all
     }
@@ -1576,17 +1578,17 @@ void DrawKeyboard(int mode) {
             GetSingleKeyCoord(i, is_alpha, &x1, &y1, &x2, &y2);
             DrawSingleKey(is_alpha, x1, y1, x2, y2, GetCaption(i, is_alpha, KeyAltShift), Ctrl[InvokingCtrl].fc, Ctrl[InvokingCtrl].bc);
         }
-        KeyDown = -1;                                               // no key to be down
+        GUIKeyDown = -1;                                               // no key to be down
         return;
     }
 
     // if a key has been released simply redraw it in normal mode and return immediately
     if(mode == KEY_KEY_UP) {
-        if(KeyDown >= 0) {
-            GetSingleKeyCoord(KeyDown, is_alpha, &x1, &y1, &x2, &y2);
-            DrawSingleKey(is_alpha, x1, y1, x2, y2, GetCaption(KeyDown, is_alpha, KeyAltShift), Ctrl[InvokingCtrl].fc, Ctrl[InvokingCtrl].bc);
+        if(GUIKeyDown >= 0) {
+            GetSingleKeyCoord(GUIKeyDown, is_alpha, &x1, &y1, &x2, &y2);
+            DrawSingleKey(is_alpha, x1, y1, x2, y2, GetCaption(GUIKeyDown, is_alpha, KeyAltShift), Ctrl[InvokingCtrl].fc, Ctrl[InvokingCtrl].bc);
         }
-        KeyDown = -1;
+        GUIKeyDown = -1;
         return;
     }
 
@@ -1606,34 +1608,34 @@ void DrawKeyboard(int mode) {
                         case 10: if(*Ctrl[InvokingCtrl].s == 0) return;
                     }
                 }
-                KeyDown = i;                                        // record the key that has been touched
+                GUIKeyDown = i;                                        // record the key that has been touched
                 ClickTimer += CLICK_DURATION;                       // make a click
                 DrawSingleKey(is_alpha, x1, y1, x2, y2, GetCaption(i, is_alpha, KeyAltShift), Ctrl[InvokingCtrl].bc, Ctrl[InvokingCtrl].fc);
             }
         }
 
-        if(KeyDown == -1) return;
+        if(GUIKeyDown == -1) return;
 
-        if(KeyDown == 0) {                                          // this is the alt key
+        if(GUIKeyDown == 0) {                                          // this is the alt key
             KeyAltShift = !(KeyAltShift & 1);                       // toggle alt/text bit, also resets shift to no shift
             DrawKeyboard(KEY_DRAW_ALL);                             // redraw the keyboard/keypad
             return;
         }
 
-        if(KeyDown == 21) {                                                         // if this is the shift key on a textbox
+        if(GUIKeyDown == 21) {                                                         // if this is the shift key on a textbox
             KeyAltShift = ((!(KeyAltShift & 0b10) << 1) | (KeyAltShift & 0b01));    // toggle the shift key
             DrawKeyboard(KEY_DRAW_ALL);                                             // redraw the keyboard/keypad
             return;
         }
     }
 
-    if(mode == KEY_KEY_CANCEL || (is_alpha && KeyDown == 11) || (!is_alpha && KeyAltShift && KeyDown == 1)) {        // the user has hit the cancel key
+    if(mode == KEY_KEY_CANCEL || (is_alpha && GUIKeyDown == 11) || (!is_alpha && KeyAltShift && GUIKeyDown == 1)) {        // the user has hit the cancel key
         strcpy(Ctrl[InvokingCtrl].s, CancelValue);                  // restore the current value
-        KeyDown = (is_alpha ? 10 : 2);                              // fake the Enter key
+        GUIKeyDown = (is_alpha ? 10 : 2);                              // fake the Enter key
     }
 
-    if(KeyDown == (is_alpha ? 10 : 2)) {                            // this is the enter key
-//        DoCallback(InvokingCtrl, GetCaption(KeyDown, is_alpha, KeyAltShift));
+    if(GUIKeyDown == (is_alpha ? 10 : 2)) {                            // this is the enter key
+//        DoCallback(InvokingCtrl, GetCaption(GUIKeyDown, is_alpha, KeyAltShift));
         if(!is_alpha) {
             int t = STR_AUTO_PRECISION;
             // get the number of digits that have been entered after the decimal point and use that to determine the precision of the display
@@ -1657,7 +1659,7 @@ void DrawKeyboard(int mode) {
         if(KeyAltShift) {
             // the keypad is in the alt mode
             // process the special keys
-            switch(KeyDown) {
+            switch(GUIKeyDown) {
                 case 3:  *p++ = '.'; break;
                 case 6:  *p++ = '+'; break;
                 case 7:  *p++ = '-'; break;
@@ -1667,21 +1669,21 @@ void DrawKeyboard(int mode) {
                 default: return;
             }
         } else {
-            *p++ = *GetCaption(KeyDown, is_alpha, KeyAltShift);     // otherwise use the caption
+            *p++ = *GetCaption(GUIKeyDown, is_alpha, KeyAltShift);     // otherwise use the caption
         }
     } else {
         // this is the text keyboard
-        if(KeyDown == 32) {                                         // is this the delete key
+        if(GUIKeyDown == 32) {                                         // is this the delete key
             if(strlen(Ctrl[InvokingCtrl].s)) *(--p) = 0;            // delete the char
-        } else if(KeyDown == 9) {                                   // if it is space
+        } else if(GUIKeyDown == 9) {                                   // if it is space
             *p++ = ' ';                                             // insert a space
         } else {
-            *p++ = *GetCaption(KeyDown, is_alpha, KeyAltShift);     // otherwise use the caption
+            *p++ = *GetCaption(GUIKeyDown, is_alpha, KeyAltShift);     // otherwise use the caption
         }
     }
     *p = 0;
 
-//    DoCallback(InvokingCtrl, GetCaption(KeyDown, is_alpha, KeyAltShift));
+//    DoCallback(InvokingCtrl, GetCaption(GUIKeyDown, is_alpha, KeyAltShift));
     DrawControl(InvokingCtrl);
 }
 
@@ -1690,7 +1692,7 @@ char *FmtKeyCaption[12] = { "<<<", "0", "Can", "1", "2", "3", "4", "5", "6", "7"
 char FmtKeyEnabled[12];
 
 
-void DrawFmtKeypad(char x, char prev, int keydown) {
+void DrawFmtKeypad(char x, char prev, GUIKeyDownn) {
     int i, dimfc, x1, y1, x2, y2;
 //    dp("1"); uSec(10000);
 
@@ -1752,7 +1754,7 @@ void DrawFmtKeypad(char x, char prev, int keydown) {
 //    dp("2"); uSec(10000);
         GetSingleKeyCoord(i, false, &x1, &y1, &x2, &y2);
 //    dp("3"); uSec(10000);
-        if(i == keydown)
+        if(i == GUIKeyDown)
             DrawSingleKey(false, x1, y1, x2, y2, FmtKeyCaption[i], Ctrl[InvokingCtrl].bc, Ctrl[InvokingCtrl].fc);
         else
             DrawSingleKey(false, x1, y1, x2, y2, FmtKeyCaption[i], FmtKeyEnabled[i] ? Ctrl[InvokingCtrl].fc:dimfc, Ctrl[InvokingCtrl].bc);
@@ -1793,12 +1795,12 @@ void DrawFmtBox(int mode) {
         p = Ctrl[InvokingCtrl].s;
         DrawFmtKeypad(*pfmt, 0, 99);                                // just draw all the buttons
         DrawFmtControl(InvokingCtrl, pfmt);
-        KeyDown = -1;                                               // no key to be down
+        GUIKeyDown = -1;                                               // no key to be down
         return;
     }
 
     if(mode == KEY_KEY_UP) {
-        if(KeyDown < 0) return;
+        if(GUIKeyDown < 0) return;
         DrawFmtKeypad(*pfmt, *(p - 1), 99);                         // just draw all the buttons to show that the key is up
         return;
     }
@@ -1842,7 +1844,7 @@ void DrawFmtBox(int mode) {
                     }
                     if(*pfmt == 0) break;                           // *pfmt == 0 means that we have reached the end of the format string
                 }
-                KeyDown = i;
+                GUIKeyDown = i;
                 DrawFmtControl(InvokingCtrl, pfmt);
                 return;
             }
@@ -1903,7 +1905,7 @@ void ProcessTouch(void) {
     static int repeat = 0;
     static int waiting = false;
     int r, spinup;
-    if(!Option.MaxCtrls || !TOUCH_GETIRQTRIS)return;
+//    if(!Option.MaxCtrls || !TOUCH_GETIRQTRIS)return;
     if(repeat) {
         if(TOUCH_DOWN)
             if(TouchTimer < repeat)
@@ -1947,7 +1949,7 @@ void ProcessTouch(void) {
                 if(!(CurrentPages & (1 << Ctrl[r].page))) continue;                            // ignore if the page is not displayed
                 if(Ctrl[r].state & (CTRL_DISABLED | CTRL_DISABLED2 | CTRL_HIDDEN)) continue;   // ignore if control is disabled
                 switch(Ctrl[r].type) {
-                    case CTRL_SWITCH:   if(!(TouchX >= Ctrl[r].min && TouchX <= Ctrl[r].max)) return;   // skip if it is not the touch sensitive area (depends on the switch state)                                        Ctrl[r].value = !Ctrl[r].value;
+                    case CTRL_SWITCH:   if(!(TouchX >= Ctrl[r].min && TouchX <= Ctrl[r].max)) return;   // skip if it is not the touch sensitive area (depends on the switch state)
                                         Ctrl[r].value = !Ctrl[r].value;
                                         break;
                     
@@ -1998,7 +2000,7 @@ void ProcessTouch(void) {
                                         Ctrl[r].state |= CTRL_SELECTED;                                     // select the number text/box
                                         PopUpRedrawAll(r, true);
                                         CurrentRef = InvokingCtrl = r;                                      // tell the keypad what text/number box it is servicing
-                                        KeyDown = -1;
+                                        GUIKeyDown = -1;
                                         KeyAltShift = 0;
                                         DrawControl(r);
                                         ClickTimer += CLICK_DURATION;
@@ -2013,7 +2015,7 @@ void ProcessTouch(void) {
                                         Ctrl[r].state |= CTRL_SELECTED;                                     // select the number text/box
                                         PopUpRedrawAll(r, true);
                                         CurrentRef = InvokingCtrl = r;                                      // save the format box being serviced
-                                        KeyDown = -1;
+                                        GUIKeyDown = -1;
                                         ClickTimer += CLICK_DURATION;
                                         if(GuiIntDownVector == NULL)
                                             DrawFmtBox(KEY_OPEN);                                           // initial draw of the keypad
@@ -2361,7 +2363,7 @@ void ResetGUI(void) {
     LastX = LastY = TOUCH_ERROR;
     gui_int_down = gui_int_up = false;
     GuiIntDownVector = GuiIntUpVector = NULL;
-    KeyDown = 0;
+    GUIKeyDown = 0;
     KeyAltShift = 0;
     last_x2 = 100;
     last_y2 = 100;

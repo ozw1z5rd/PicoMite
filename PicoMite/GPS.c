@@ -386,15 +386,15 @@ void GPS_parse(char *nmea) {
   uint8_t hour, minute, seconds, year=0, month=0, day=0;
   uint16_t __attribute__((unused)) milliseconds;
   // Floating point latitude and longitude value in degrees.
-  float __attribute__((unused)) latitude, longitude;
+  MMFLOAT __attribute__((unused)) latitude, longitude;
   // Fixed point latitude and longitude value with degrees stored in units of 1/100000 degrees,
   // and minutes stored in units of 1/100000 degrees.  See pull #13 for more details:
   //   https://github.com/adafruit/Adafruit-GPS-Library/pull/13
   int32_t __attribute__((unused)) latitude_fixed, longitude_fixed;
-  float latitudeDegrees=0.0, longitudeDegrees=0.0;
-  float geoidheight, altitude;
-  float speed, angle, HDOP;
-  float __attribute__((unused)) magvariation;
+  MMFLOAT latitudeDegrees=0.0, longitudeDegrees=0.0;
+  MMFLOAT geoidheight, altitude;
+  MMFLOAT speed, angle, HDOP;
+  MMFLOAT __attribute__((unused)) magvariation;
   char __attribute__((unused)) lat, lon;
   uint8_t fixquality, satellites;
   struct tm  *tm;
@@ -427,7 +427,7 @@ void GPS_parse(char *nmea) {
     char *p = nmea;
     // get time
     p = strchr(p, ',')+1;
-    float timef = atof(p);
+    MMFLOAT timef = atof(p);
     uint32_t time = timef;
     hour = time / 10000;
     minute = (time % 10000) / 100;
@@ -450,8 +450,8 @@ void GPS_parse(char *nmea) {
       minutes = 50 * atol(degreebuff) / 3;
       latitude_fixed = degree + minutes;
       latitude = degree / 100000 + minutes * 0.000006F;
-      latitudeDegrees = (latitude-100*(float)((int)(latitude/100)))/60.0;
-      latitudeDegrees += (float)((int)(latitude/100));
+      latitudeDegrees = (latitude-100*(MMFLOAT)((int)(latitude/100)))/60.0;
+      latitudeDegrees += (MMFLOAT)((int)(latitude/100));
     }
     
     p = strchr(p, ',')+1;
@@ -480,8 +480,8 @@ void GPS_parse(char *nmea) {
       minutes = 50 * atol(degreebuff) / 3;
       longitude_fixed = degree + minutes;
       longitude = degree / 100000 + minutes * 0.000006F;
-      longitudeDegrees = (longitude-100*(float)((int)(longitude/100)))/60.0;
-      longitudeDegrees += (float)((int)(longitude/100));
+      longitudeDegrees = (longitude-100*(MMFLOAT)((int)(longitude/100)))/60.0;
+      longitudeDegrees += (MMFLOAT)((int)(longitude/100));
     }
     
     p = strchr(p, ',')+1;
@@ -538,7 +538,7 @@ void GPS_parse(char *nmea) {
     int i, localGPSvalid=0;
     // get time
     p = strchr(p, ',')+1;
-    float timef = atof(p);
+    MMFLOAT timef = atof(p);
     uint32_t time = timef;
     hour = time / 10000;
     minute = (time % 10000) / 100;
@@ -580,8 +580,8 @@ void GPS_parse(char *nmea) {
       long minutes = 50 * atol(degreebuff) / 3;
       latitude_fixed = degree + minutes;
       latitude = degree / 100000 + minutes * 0.000006F;
-      latitudeDegrees = (latitude-100*(float)((int)(latitude/100)))/60.0;
-      latitudeDegrees += (float)((int)(latitude/100));
+      latitudeDegrees = (latitude-100*(MMFLOAT)((int)(latitude/100)))/60.0;
+      latitudeDegrees += (MMFLOAT)((int)(latitude/100));
     }
     
     p = strchr(p, ',')+1;
@@ -610,8 +610,8 @@ void GPS_parse(char *nmea) {
       minutes = 50 * atol(degreebuff) / 3;
       longitude_fixed = degree + minutes;
       longitude = degree / 100000 + minutes * 0.000006F;
-      longitudeDegrees = (longitude-100*(float)((int)(longitude/100)))/60.0;
-      longitudeDegrees += (float)((int)(longitude/100));
+      longitudeDegrees = (longitude-100*(MMFLOAT)((int)(longitude/100)))/60.0;
+      longitudeDegrees += (MMFLOAT)((int)(longitude/100));
     }
     
     p = strchr(p, ',')+1;

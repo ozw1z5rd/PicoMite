@@ -45,7 +45,6 @@ extern "C" {
 #include <pico/bootrom.h>
 #include "hardware/irq.h"
 #include "class/cdc/cdc_device.h" 
-
 #ifdef PICOMITEVGA
 #include "Include.h"
 #define MES_SIGNON  "\rPicoMiteVGA MMBasic Version " VERSION "\r\n"\
@@ -287,7 +286,7 @@ void __not_in_flash_func(routinechecks)(void){
 	if(GPSchannel)processgps();
     if(diskchecktimer== 0 || CurrentlyPlaying == P_WAV)CheckSDCard();
 #ifndef PICOMITEVGA
-        if(Ctrl)ProcessTouch();
+    if(Ctrl)ProcessTouch();
 #endif
         if(tud_cdc_connected() && USBKeepalive==0){
             SSPrintString(alive);
@@ -367,7 +366,7 @@ int __not_in_flash_func(MMInkey)(void) {
     }
 
     c = getConsole();                                               // do discarded chars so get the char
-if(!(c==0x1b))return c;
+    if(!(c==0x1b))return c;
     InkeyTimer = 0;                                             // start the timer
     while((c = getConsole()) == -1 && InkeyTimer < 30);         // get the second char with a delay of 30mS to allow the next char to arrive
     if(c == 'O'){   //support for many linux terminal emulators
@@ -1113,13 +1112,13 @@ uint16_t fbuff[2][160]={0};
 // VGA DMA handler - called on end of every scanline
 void __not_in_flash_func(QVgaLine0)()
 {
-    static int nextbuf=0,nowbuf=1,i,line,bufinx;
+    static int nextbuf=0,nowbuf=1;
+    int i,line,bufinx;
 	// Clear the interrupt request for DMA control channel
 	dma_hw->ints0 = (1u << QVGA_DMA_PIO);
 
 	// update DMA control channel and run it
 	dma_channel_set_read_addr(QVGA_DMA_CB, ScanLineCBNext, true);
-
 	// save integer divider state
 //	hw_divider_save_state(&SaveDividerState);
 
@@ -1165,28 +1164,99 @@ void __not_in_flash_func(QVgaLine0)()
 		{
         // prepare image line
             if(DISPLAY_TYPE==MONOVGA){
-                int ytile=line>>4;
-                for(int i=0,j=0;i<80;i++,j+=2){
-                    int xtile=i>>1;
-                    int low= DisplayBuf[line * 80 + i] & 0xF;
-                    int high=DisplayBuf[line * 80 + i] >>4;
-                    int pos=ytile*40+xtile;
-                    fbuff[nextbuf][j]=(M_Foreground[low] & tilefcols[pos]) | (M_Background[low] & tilebcols[pos]) ;
-                    fbuff[nextbuf][j+1]=(M_Foreground[high]& tilefcols[pos]) | (M_Background[high] & tilebcols[pos]) ;
+                int ytile=(line>>4)*40;
+                uint16_t *q=&fbuff[nextbuf][0];
+                unsigned char *p=&DisplayBuf[line * 80];
+                for(i=0;i<40;i++){
+                    register int pos=ytile+i;
+                    register int low= *p & 0xF;
+                    register int high=*p++ >>4;
+                    *q++=(M_Foreground[low] & tilefcols[pos]) | (M_Background[low] & tilebcols[pos]) ;
+                    *q++=(M_Foreground[high]& tilefcols[pos]) | (M_Background[high] & tilebcols[pos]) ;
+                    low= *p & 0xF;
+                    high=*p++ >>4;
+                    *q++=(M_Foreground[low] & tilefcols[pos]) | (M_Background[low] & tilebcols[pos]) ;
+                    *q++=(M_Foreground[high]& tilefcols[pos]) | (M_Background[high] & tilebcols[pos]) ;
                 }
+/*            } else {
+                gpio_set_mask(pin);
+                line>>=1;
+                register unsigned char *p=&DisplayBuf[line * 160];
+                register unsigned char *q=&LayerBuf[line * 160];
+                register uint16_t *r=fbuff[nextbuf];
+                for(int i=0;i<160;i++){
+                    register int low= *p & 0xF;
+                    register int high=*p++ >>4;
+                    register int low2= *q & 0xF;
+                    register int high2=*q++ >>4;
+                    if(low2)low=low2;
+                    if(high2)high=high2;
+                    *r++=(low | (low<<4) | (high<<8) | (high<<12));
+/*                    low= *p & 0xF;
+                    high=*p++ >>4;
+                    low2= *q & 0xF;
+                    high2=*q++ >>4;
+                    if(low2)low=low2;
+                    if(high2)high=high2;
+                    *r++=(low | (low<<4) | (high<<8) | (high<<12));
+                    low= *p & 0xF;
+                    high=*p++ >>4;
+                    low2= *q & 0xF;
+                    high2=*q++ >>4;
+                    if(low2)low=low2;
+                    if(high2)high=high2;
+                    *r++=(low | (low<<4) | (high<<8) | (high<<12));
+                    low= *p & 0xF;
+                    high=*p++ >>4;
+                    low2= *q & 0xF;
+                    high2=*q++ >>4;
+                    if(low2)low=low2;
+                    if(high2)high=high2;
+                    *r++=(low | (low<<4) | (high<<8) | (high<<12));
+                    low= *p & 0xF;
+                    high=*p++ >>4;
+                    low2= *q & 0xF;
+                    high2=*q++ >>4;
+                    if(low2)low=low2;
+                    if(high2)high=high2;
+                    *r++=(low | (low<<4) | (high<<8) | (high<<12));
+                     low= *p & 0xF;
+                    high=*p++ >>4;
+                    low2= *q & 0xF;
+                    high2=*q++ >>4;
+                    if(low2)low=low2;
+                    if(high2)high=high2;
+                    *r++=(low | (low<<4) | (high<<8) | (high<<12));
+                     low= *p & 0xF;
+                    high=*p++ >>4;
+                    low2= *q & 0xF;
+                    high2=*q++ >>4;
+                    if(low2)low=low2;
+                    if(high2)high=high2;
+                    *r++=(low | (low<<4) | (high<<8) | (high<<12));
+                     low= *p & 0xF;
+                    high=*p++ >>4;
+                    low2= *q & 0xF;
+                    high2=*q++ >>4;
+                    if(low2)low=low2;
+                    if(high2)high=high2;
+                    *r++=(low | (low<<4) | (high<<8) | (high<<12));
+                 }
+                gpio_clr_mask(pin);
+            }*/
             } else {
                 line>>=1;
+                register unsigned char *p=&DisplayBuf[line * 160];
+                register unsigned char *q=&LayerBuf[line * 160];
+                register uint16_t *r=fbuff[nextbuf];
                 for(int i=0;i<160;i++){
-                    int low= DisplayBuf[line * 160 + i] & 0xF;
-                    int high=DisplayBuf[line * 160 + i] >>4;
-                    fbuff[nextbuf][i]=(low | (low<<4) | (high<<8) | (high<<12));
+                    register int low= *p & 0xF;
+                    register int high=*p++ >>4;
+                    *r++=(low | (low<<4) | (high<<8) | (high<<12));
                 }
             }
-            if(nextbuf){
-                nextbuf=0;nowbuf=1;
-            } else {
-                nextbuf=1;nowbuf=0;
-            }
+            nextbuf ^=1;
+            nowbuf ^=1;
 
 			// HSYNC ... back porch ... image command
 			*cb++ = 3;
@@ -1263,32 +1333,37 @@ void __not_in_flash_func(QVgaLine1)()
 		{
 			// prepare image line
             if(DISPLAY_TYPE==MONOVGA){
-                int ytile=line>>4;
-                for(int i=0,j=0;i<80;i++,j+=2){
-                    int xtile=i>>1;
-                    int low= (DisplayBuf[line * 80 + i] & 0xF) | (LayerBuf[line * 80 + i] & 0xF);
-                    int high=(DisplayBuf[line * 80 + i] >>4) | (LayerBuf[line * 80 + i] >>4);
-                    int pos=ytile*40+xtile;
-                    fbuff[nextbuf][j]=(M_Foreground[low] & tilefcols[pos]) | (M_Background[low] & tilebcols[pos]) ;
-                    fbuff[nextbuf][j+1]=(M_Foreground[high]& tilefcols[pos]) | (M_Background[high] & tilebcols[pos]) ;
+                int ytile=(line>>4)*40;
+                uint16_t *q=&fbuff[nextbuf][0];
+                unsigned char *p=&DisplayBuf[line * 80];
+                for(i=0;i<40;i++){
+                    register int pos=ytile+i;
+                    register int low= *p & 0xF;
+                    register int high=*p++ >>4;
+                    *q++=(M_Foreground[low] & tilefcols[pos]) | (M_Background[low] & tilebcols[pos]) ;
+                    *q++=(M_Foreground[high]& tilefcols[pos]) | (M_Background[high] & tilebcols[pos]) ;
+                    low= *p & 0xF;
+                    high=*p++ >>4;
+                    *q++=(M_Foreground[low] & tilefcols[pos]) | (M_Background[low] & tilebcols[pos]) ;
+                    *q++=(M_Foreground[high]& tilefcols[pos]) | (M_Background[high] & tilebcols[pos]) ;
                 }
             } else {
                 line>>=1;
+                register unsigned char *p=&DisplayBuf[line * 160];
+                register unsigned char *q=&LayerBuf[line * 160];
+                register uint16_t *r=fbuff[nextbuf];
                 for(int i=0;i<160;i++){
-                    int low= DisplayBuf[line * 160 + i] & 0xF;
-                    int high=DisplayBuf[line * 160 + i] >>4;
-                    int low2= LayerBuf[line * 160 + i] & 0xF;
-                    int high2=LayerBuf[line * 160 + i] >>4;
+                    register int low= *p & 0xF;
+                    register int high=*p++ >>4;
+                    register int low2= *q & 0xF;
+                    register int high2=*q++ >>4;
                     if(low2)low=low2;
                     if(high2)high=high2;
-                    fbuff[nextbuf][i]=(low | (low<<4) | (high<<8) | (high<<12));
+                    *r++=(low | (low<<4) | (high<<8) | (high<<12));
                 }
             }
-            if(nextbuf){
-                nextbuf=0;nowbuf=1;
-            } else {
-                nextbuf=1;nowbuf=0;
-            }
+            nextbuf ^=1;
+            nowbuf ^=1;
 
 			// HSYNC ... back porch ... image command
 			*cb++ = 3;

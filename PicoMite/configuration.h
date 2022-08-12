@@ -142,8 +142,8 @@ extern "C" {
 //#define DO_NOT_RESET (1 << 5)
 //#define HEARTBEAT    (1 << 6)
 #define HEARTBEATpin  43
+#define PATH_MAX 1024
 #define PROGSTART (FLASH_TARGET_OFFSET + FLASH_ERASE_SIZE + SAVEDVARS_FLASH_SIZE + ((MAXFLASHSLOTS) * MAX_PROG_SIZE))
-#define PATH_MAX 256
 #ifdef __cplusplus
 }
 #endif

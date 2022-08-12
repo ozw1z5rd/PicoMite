@@ -4092,13 +4092,13 @@ void DrawBufferMonoFast(int x1, int y1, int x2, int y2, int blank, unsigned char
                 if(toggle){
                     if(*p++ & 0xF0){
                         WriteBuf[loc]|=mask;
-                    } else {
+                    } else if(blank==-1){
                         WriteBuf[loc]&=(~mask);
                     }
                 } else {
                     if(*p & 0xF){
                         WriteBuf[loc]|=mask;
-                    } else {
+                    } else  if(blank==-1){
                         WriteBuf[loc]&=(~mask);
                     }
                 }

@@ -114,7 +114,7 @@ struct option_s {
     unsigned char SDspeed;
     char LCDVOP;
     char I2Coffset;
-    unsigned char E_INKbusy;
+    unsigned char NoHeartbeat;
     char Refresh;
     unsigned char SYSTEM_I2C_SDA;
     unsigned char SYSTEM_I2C_SCL;
