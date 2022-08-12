@@ -14,6 +14,15 @@ Compiled version and documentation is available on https://geoffg.net/picomite.h
 
 Change list from V5.07.00
 ***********************************************************************************************************************
+PicoMite V5.07.05b16
+
+Fixes bug in GUI DELETE. 
+Fixes bug in passing string function to time$. 
+Fixes bug in OPTION LIST for some displays. 
+New command: OPTION HEARTBEAT ON/OFF. 
+Fixes bug in GUI TEXTBOX ACTIVATE not accepting # in the control number.
+
+
 PicoMite V5.07.05b14
 
 New commands: 
