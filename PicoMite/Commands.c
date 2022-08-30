@@ -477,10 +477,11 @@ void cmd_new(void) {
 	ClearProgram();
 	FlashLoad=0;
 	uSec(250000);
-	disable_interrupts();
-	flash_range_erase(PROGSTART, MAX_PROG_SIZE);
-	enable_interrupts();
-    memset(inpbuf,0,STRINGSIZE);
+    FlashWriteInit(PROGRAM_FLASH);
+    flash_range_erase(realflashpointer, MAX_PROG_SIZE);
+    FlashWriteByte(0); FlashWriteByte(0); FlashWriteByte(0);    // terminate the program in flash
+    FlashWriteClose();
+     memset(inpbuf,0,STRINGSIZE);
 	longjmp(mark, 1);							                    // jump back to the input prompt
 }
 

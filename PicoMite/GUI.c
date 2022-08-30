@@ -445,7 +445,7 @@ void cmd_gui(void) {
             if(!Option.MaxCtrls)error("No memory allocated for GUI controls");
             if(!InvokingCtrl) return;
             DrawKeyboard(KEY_KEY_CANCEL);
-        } else if((pp = checkstring(p, "ACTIVATE"))) {
+/*        } else if((pp = checkstring(p, "ACTIVATE"))) {
             if(*pp == '#') pp++;
             r = getint(pp, 1, Option.MaxCtrls - 1);
             if(Ctrl[r].type != CTRL_TEXTBOX) error("Not a TextBox");
@@ -462,7 +462,7 @@ void cmd_gui(void) {
                 DrawKeyboard(KEY_OPEN);                                         // initial draw of the keypad
             else
                 DelayedDrawKeyboard = true;                                     // leave it until after the keyboard interrupt
-            return;        
+            return; */       
         } else
             r = GetCtrlParams(CTRL_TEXTBOX, p);
         return;
@@ -916,6 +916,7 @@ void SpecialDrawTriangle(int x0, int y0, int x1, int y1, int x2, int y2, int c, 
         if(fill != gui_bcolour) fill = ChangeBright(fill, BTN_DISABLED);
     }
     DrawTriangle(x0, y0, x1, y1, x2, y2, c, fill);
+    DrawTriangle(x0, y0, x1, y1, x2, y2, c, -1);
 }
 
 
@@ -1502,15 +1503,15 @@ void DrawSingleKey(int is_alpha, int x1, int y1, int x2, int y2, char *s, int fc
     int fnt, i;
     fnt = gui_font;
     if(is_alpha) {
-        if(HRes > 600)
+        if(HRes > 400)
             SetFont(0x31);                                          // set a readable font
-        else if(HRes > 400)
-            SetFont(0x11);
+//        else if(HRes > 400)
+//            SetFont(0x41);
         else
              SetFont(0x01);
     } else {
         if(VRes > 240)
-            SetFont(0x31);                                          // set a readable font
+            SetFont(0x21);                                          // set a readable font
         else if(VRes > 160)
             SetFont(0x11);
         else

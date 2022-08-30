@@ -309,6 +309,14 @@ void cmd_flash(void){
         disable_interrupts();
         uint8_t *q=(uint8_t *)(flash_target_contents+(i-1)*MAX_PROG_SIZE);
         uint8_t *writebuff = GetTempMemory(4096);
+        if(*q==0xFF){
+            enable_interrupts();
+            FlashWriteInit(PROGRAM_FLASH);
+            flash_range_erase(realflashpointer, MAX_PROG_SIZE);
+            FlashWriteByte(0); FlashWriteByte(0); FlashWriteByte(0);    // terminate the program in flash
+            FlashWriteClose();
+            error("Flash slot empty");
+        }
         for(int k=0; k<MAX_PROG_SIZE; k+=4096){
             for(int j=0;j<4096;j++)writebuff[j]=*q++;
             flash_range_program((PROGSTART + k), writebuff, 4096);
@@ -1749,6 +1757,10 @@ void ResetAllFlash(void) {
         flash_range_erase(j, MAX_PROG_SIZE);
     }
     enable_interrupts();
+    FlashWriteInit(PROGRAM_FLASH);
+    flash_range_erase(realflashpointer, MAX_PROG_SIZE);
+    FlashWriteByte(0); FlashWriteByte(0); FlashWriteByte(0);    // terminate the program in flash
+    FlashWriteClose();
 }
 void FlashWriteInit(int region){
 	for(int i=0;i<64;i++)MemWord.i32[i]=0xFFFFFFFF;

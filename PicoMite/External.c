@@ -1936,7 +1936,8 @@ normal_exit:
     ExtCfg(pin, EXT_NOT_CONFIG, 0);
     PinSetBit(pin, LATCLR);
 }
-void WS2812e(int gppin, int T1H, int T1L, int T0H, int T0L, int nbr, char *p){
+void __not_in_flash_func(WS2812e)(int gppin, int T1H, int T1L, int T0H, int T0L, int nbr, char *p){
+    uSec(100);
     for(int i=0;i<nbr*3;i++){
         for(int j=0;j<8;j++){
             if(*p & 1){

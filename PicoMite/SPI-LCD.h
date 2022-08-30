@@ -374,7 +374,7 @@ extern void set_cs(void);
 
 #define FLASH_SPI_SPEED 20000000
 #define LCD_SPI_SPEED   25000000                                   // the speed of the SPI bus when talking to an SPI LCD display controller
-#define TOUCH_SPI_SPEED 5000000
+#define TOUCH_SPI_SPEED 1000000
 #define NOKIA_SPI_SPEED 4000000
 #define ST7920_SPI_SPEED 1200000
 #define SDCARD_SPI_SPEED 0
