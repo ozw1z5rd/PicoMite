@@ -14,6 +14,20 @@ Compiled version and documentation is available on https://geoffg.net/picomite.h
 
 Change list from V5.07.00
 ***********************************************************************************************************************
+PicoMite V5.07.05b18
+
+Change to better support modules with >2Mb Flash chips. 
+SPI for touch reduced in speed to 1MHz. 
+GUI TEXTBOX ACTIVATE removed. 
+Bug fix to GUI spinbox to erase triangle bounding line properly. 
+Fix to BITBANG WS2812 timings. 
+
+PicoMite V5.07.05b17
+
+Max editor clipboard size now 16384 characters. 
+Fixes bug in MM.INFO(filesize ... and MM.INFO(Modified ... 
+Max number of BLIT buffers now 32 (memory dependent). 
+
 PicoMite V5.07.05b16
 
 Fixes bug in GUI DELETE. 
