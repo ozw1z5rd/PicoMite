@@ -1505,8 +1505,6 @@ void DrawSingleKey(int is_alpha, int x1, int y1, int x2, int y2, char *s, int fc
     if(is_alpha) {
         if(HRes > 400)
             SetFont(0x31);                                          // set a readable font
-//        else if(HRes > 400)
-//            SetFont(0x41);
         else
              SetFont(0x01);
     } else {

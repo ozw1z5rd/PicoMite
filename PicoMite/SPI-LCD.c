@@ -1163,7 +1163,7 @@ void ReadBufferSPI(int x1, int y1, int x2, int y2, unsigned char* p) {
     N=(x2- x1+1) * (y2- y1+1) * 3;
     if(Option.DISPLAY_TYPE==ILI9341 || Option.DISPLAY_TYPE==ST7789B )spi_write_cd(ILI9341_PIXELFORMAT,1,0x66); //change to RDB666 for read
     DefineRegionSPI(x1, y1, x2, y2, 0);
-	SPISpeedSet( (Option.DISPLAY_TYPE==ST7789B || Option.DISPLAY_TYPE==ILI9481IPS) ? ST7789RSpeed : SPIReadSpeed); //need to slow SPI for read on this display
+	SPISpeedSet( (Option.DISPLAY_TYPE==ILI9488 || Option.DISPLAY_TYPE==ST7789B || Option.DISPLAY_TYPE==ILI9481IPS) ? ST7789RSpeed : SPIReadSpeed); //need to slow SPI for read on this display
 	rcvr_byte_multi((uint8_t *)p, 1);
     r=0;
 	rcvr_byte_multi((uint8_t *)p,N);
