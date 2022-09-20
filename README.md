@@ -14,6 +14,11 @@ Compiled version and documentation is available on https://geoffg.net/picomite.h
 
 Change list from V5.07.00
 ***********************************************************************************************************************
+PicoMite V5.07.05RC1
+
+OPTION LIST now shows version number and which firmware. 
+Fixes issue where connecting a USB CDC cable would cause the VGA version to Hardfault
+
 PicoMite V5.07.05b18
 
 Change to better support modules with >2Mb Flash chips. 
