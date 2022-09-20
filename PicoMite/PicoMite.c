@@ -263,11 +263,7 @@ const char DaysInMonth[] = { 0, 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31 }
 void __not_in_flash_func(routinechecks)(void){
     static int c,when=0;
     if(++when & 7 && CurrentLinePtr) return;
-#ifdef PICOMITEVGA
-    if(Option.SerialConsole==0){
-#else
     if(tud_cdc_connected() && Option.SerialConsole==0){
-#endif
         while(( c=tud_cdc_read_char())!=-1){
             ConsoleRxBuf[ConsoleRxBufHead] = c;
             if(BreakKey && ConsoleRxBuf[ConsoleRxBufHead] == BreakKey) {// if the user wants to stop the progran

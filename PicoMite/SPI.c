@@ -30,21 +30,7 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 
 unsigned int *GetSendDataList(unsigned char *p, unsigned int *nbr);
 long long int *GetReceiveDataBuffer(unsigned char *p, unsigned int *nbr);
-extern struct s_vartbl {                               // structure of the variable table
-	unsigned char name[MAXVARLEN];                       // variable's name
-	unsigned char type;                                  // its type (T_NUM, T_INT or T_STR)
-	unsigned char level;                                 // its subroutine or function level (used to track local variables)
-    unsigned char size;                         // the number of chars to allocate for each element in a string array
-    unsigned char dummy;
-    int __attribute__ ((aligned (4))) dims[MAXDIM];                     // the dimensions. it is an array if the first dimension is NOT zero
-    union u_val{
-        MMFLOAT f;                              // the value if it is a float
-        long long int i;                        // the value if it is an integer
-        MMFLOAT *fa;                            // pointer to the allocated memory if it is an array of floats
-        long long int *ia;                      // pointer to the allocated memory if it is an array of integers
-        unsigned char *s;                                // pointer to the allocated memory if it is a string
-    }  __attribute__ ((aligned (8))) val;
-} __attribute__ ((aligned (8))) s_vartbl_val;
+
 int spibits=8;
 int spi2bits=8;
 

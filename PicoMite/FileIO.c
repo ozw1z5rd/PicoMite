@@ -62,21 +62,7 @@ int16_t *gQuant1;
 uint8_t *gHuffVal2;
 uint8_t *gHuffVal3;
 uint8_t *gInBuf;
-extern struct s_vartbl {                               // structure of the variable table
-	unsigned char name[MAXVARLEN];                       // variable's name
-	unsigned char type;                                  // its type (T_NUM, T_INT or T_STR)
-	unsigned char level;                                 // its subroutine or function level (used to track local variables)
-    unsigned char size;                         // the number of chars to allocate for each element in a string array
-    unsigned char dummy;
-    int __attribute__ ((aligned (4))) dims[MAXDIM];                     // the dimensions. it is an array if the first dimension is NOT zero
-    union u_val{
-        MMFLOAT f;                              // the value if it is a float
-        long long int i;                        // the value if it is an integer
-        MMFLOAT *fa;                            // pointer to the allocated memory if it is an array of floats
-        long long int *ia;                      // pointer to the allocated memory if it is an array of integers
-        unsigned char *s;                                // pointer to the allocated memory if it is a string
-    }  __attribute__ ((aligned (8))) val;
-} __attribute__ ((aligned (8))) s_vartbl_val;
+
 volatile union u_flash {
   uint64_t i64[32];
   uint8_t  i8[256];

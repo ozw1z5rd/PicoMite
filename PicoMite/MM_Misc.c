@@ -45,21 +45,7 @@ struct s_inttbl inttbl[NBRINTERRUPTS];
 unsigned char *InterruptReturn;
 extern const char *FErrorMsg[];
 extern FRESULT FSerror;
-extern struct s_vartbl {                               // structure of the variable table
-	unsigned char name[MAXVARLEN];                       // variable's name
-	unsigned char type;                                  // its type (T_NUM, T_INT or T_STR)
-	unsigned char level;                                 // its subroutine or function level (used to track local variables)
-    unsigned char size;                         // the number of chars to allocate for each element in a string array
-    unsigned char dummy;
-    int __attribute__ ((aligned (4))) dims[MAXDIM];                     // the dimensions. it is an array if the first dimension is NOT zero
-    union u_val{
-        MMFLOAT f;                              // the value if it is a float
-        long long int i;                        // the value if it is an integer
-        MMFLOAT *fa;                            // pointer to the allocated memory if it is an array of floats
-        long long int *ia;                      // pointer to the allocated memory if it is an array of integers
-        unsigned char *s;                                // pointer to the allocated memory if it is a string
-    }  __attribute__ ((aligned (8))) val;
-} __attribute__ ((aligned (8))) s_vartbl_val;
+
 int TickPeriod[NBRSETTICKS];
 volatile int TickTimer[NBRSETTICKS];
 unsigned char *TickInt[NBRSETTICKS];
@@ -1354,6 +1340,11 @@ void PO5Int(char *s1, int n1, int n2, int n3, int n4) {
 void printoptions(void){
 //	LoadOptions();
     int i=Option.DISPLAY_ORIENTATION;
+#ifdef PICOMITEVGA
+    MMPrintString("\rPicoMiteVGA MMBasic Version " VERSION "\r\n");
+#else
+    MMPrintString("\rPicoMite MMBasic Version " VERSION "\r\n");
+#endif
     if(Option.SerialConsole){
         MMPrintString("OPTION SERIAL CONSOLE COM");
         MMputchar(Option.SerialConsole+48,1);
@@ -2211,7 +2202,7 @@ void cmd_option(void) {
         if(ExtCurrentConfig[pin3] != EXT_NOT_CONFIG)  error("Pin % is in use",pin3);
         if(!(code=codecheck(argv[6])))argv[6]+=2;
         pin4 = getinteger(argv[6]);
-        if(!code)pin3=codemap(pin4);
+        if(!code)pin4=codemap(pin4);
         if(IsInvalidPin(pin4)) error("Invalid pin");
         if(ExtCurrentConfig[pin4] != EXT_NOT_CONFIG)  error("Pin % is in use",pin4);
         if(pin1==pin2 || pin1==pin3 || pin1==pin4 || pin2==pin3 || pin2==pin4 || pin3==pin4)error("Pins must be unique");
