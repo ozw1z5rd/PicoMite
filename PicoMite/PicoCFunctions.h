@@ -1,73 +1,75 @@
 /*******************************************************************************************
  *
  *  Definitions used when calling MMBasic Interpreter API Functions from CFunctions
- *  For PicMite MMBasic V5.06.00
+ *  For PicoMite MMBasic V5.07.04
  *
  *  This file is public domain and may be used without license.
  *
- *	V1.5
- *	V1.6  Added parenthesis around (BaseAddress+0xx) expressions to force correct evaluation
- *	      Option Macro now -->  #define Option (*(struct option_s *)(unsigned int)Vector_Option)
- *        Use Option.DISPLAY_TYPE as syntax in lieu of Option->DISPLAY_TYPE
- *        Added #define NOP()  __asm volatile ("nop")
- *        USERLCDPANEL    16 Added
+ *  Use with AMRCFGENV144.bas
+ *
+ *	V1.6.1
+ *
  ******************************************************************************************/
 #define MAXVARLEN           32                      // maximum length of a variable name
 #define MAXDIM              5                       // maximum nbr of dimensions to an array
 #define MMFLOAT double
-
+#define MAXKEYLEN			64
 
 //Addresses in the API Table for the pointers to each function
 #define BaseAddress   0x1000030C
-#define Vector_uSec               (*(int*)(BaseAddress+0x00))       // void uSec(unsigned int us)
-#define Vector_putConsole         (*(int*)(BaseAddress+0x04))       // void putConsole(int c)
-#define Vector_getConsole         (*(int*)(BaseAddress+0x08))       // int getConsole(void)
-#define Vector_ExtCfg             (*(int*)(BaseAddress+0x0c))       // void ExtCfg(int pin, int cfg, int option)
-#define Vector_ExtSet             (*(int*)(BaseAddress+0x10))       // void ExtSet(int pin, int val)
-#define Vector_ExtInp             (*(int*)(BaseAddress+0x14))      // int ExtInp(int pin)
-#define Vector_PinSetBit          (*(int*)(BaseAddress+0x18))      // void PinSetBit(int pin, unsigned int offset)
-#define Vector_PinRead            (*(int*)(BaseAddress+0x1c))      // int PinRead(int pin)
-#define Vector_MMPrintString      (*(int*)(BaseAddress+0x20))      // void MMPrintString(char* s)
-#define Vector_IntToStr           (*(int*)(BaseAddress+0x24))      // void IntToStr(char *strr, long long int nbr, unsigned int base)
-#define Vector_CheckAbort         (*(int*)(BaseAddress+0x28))       // void CheckAbort(void)
-#define Vector_GetMemory          (*(int*)(BaseAddress+0x2c))       // void *GetMemory(size_t msize);
-#define Vector_GetTempMemory      (*(int*)(BaseAddress+0x30))      // void *GetTempMemory(int NbrBytes)
-#define Vector_FreeMemory         (*(int*)(BaseAddress+0x34))      // void FreeMemory(void *addr)
-#define Vector_DrawRectangle      *(unsigned int *)(int*)(BaseAddress+0x38)          // void DrawRectangle(int x1, int y1, int x2, int y2, int c)
-#define Vector_DrawBitmap         *(unsigned int *)(int*)(BaseAddress+0x3c)          // void DrawBitmap(int x1, int y1, int width, int height, int scale, int fg, int bg, unsigned char *bitmap )
-#define Vector_DrawLine           (*(int*)(BaseAddress+0x40))       // void DrawLine(int x1, int y1, int x2, int y2, int w, int c)
-#define Vector_FontTable          (*(int*)(BaseAddress+0x44))       // const unsigned char *FontTable[FONT_NBR]
-#define Vector_ExtCurrentConfig   (*(int*)(BaseAddress+0x48))       // int ExtCurrentConfig[NBRPINS + 1];
-#define Vector_HRes               (*(int*)(BaseAddress+0x4c))       // HRes
-#define Vector_VRes               (*(int*)(BaseAddress+0x50))       // VRes
-#define Vector_SoftReset          (*(int*)(BaseAddress+0x54))       // void SoftReset(void)
-#define Vector_error              (*(int*)(BaseAddress+0x58))       // void error(char *msg)
-#define Vector_ProgFlash          (*(int*)(BaseAddress+0x5c))       // ProgFlash
-#define Vector_vartbl             (*(int*)(BaseAddress+0x60))       // vartbl
-#define Vector_varcnt             (*(int*)(BaseAddress+0x64))       // varcnt
-#define Vector_DrawBuffer         *(unsigned int *)(int*)(BaseAddress+0x68)          // void DrawRectangle(int x1, int y1, int x2, int y2, int c)
-#define Vector_ReadBuffer         *(unsigned int *)(int*)(BaseAddress+0x6c)          // void DrawRectangle(int x1, int y1, int x2, int y2, int c)
-#define Vector_FloatToStr         (*(int*)(BaseAddress+0x70))     // convert a float to a string including scientific notation if necessary
-#define Vector_ExecuteProgram     (*(int*)(BaseAddress+0x74))       // void ExecuteProgram(char *fname)
-#define Vector_CFuncmSec          (*(int*)(BaseAddress+0x78))       // CFuncmSec
-#define Vector_CFuncRam           (*(int*)(BaseAddress+0x7C))       // StartOfCFuncRam
-#define Vector_ScrollLCD          *(unsigned int *)(int*)(BaseAddress+0x80)          // void scrollLCD(int lines, int blank)
-#define Vector_IntToFloat         (*(int*)(BaseAddress+0x84))       	// MMFLOAT IntToFloat(long long int a)
-#define Vector_FloatToInt         (*(int*)(BaseAddress+0x88))       	// long long int FloatToInt64(MMFLOAT x)
-#define Vector_Option             (*(int*)(BaseAddress+0x8c))       	// Option
-#define Vector_Sine               (*(int*)(BaseAddress+0x90))       	// MMFLOAT sin(MMFLOAT)
-#define Vector_DrawCircle         (*(int*)(BaseAddress+0x94))       	// DrawCircle(int x, int y, int radius, int w, int c, int fill, MMFLOAT aspect)
-#define Vector_DrawTriangle       (*(int*)BaseAddress+0x98))       	// DrawTriangle(int x0, int y0, int x1, int y1, int x2, int y2, int c, int fill)
-#define Vector_Timer   			  (*(int*)(BaseAddress+0x9C))       	// uint64_t timer(void)
-#define Vector_FMul   			  (*(int*)(BaseAddress+0xA0))       	// MMFLOAT FMul(MMFLOAT a, MMFLOAT b){ return a * b; }
-#define Vector_FAdd   			  (*(int*)(BaseAddress+0xA4))       	// MMFLOAT FAdd(MMFLOAT a, MMFLOAT b){ return a + b; }
-#define Vector_FSub   			  (*(int*)(BaseAddress+0xA8))       	// MMFLOAT FSub(MMFLOAT a, MMFLOAT b){ return a - b; }
-#define Vector_FDiv   			  (*(int*)(BaseAddress+0xAC))       	// MMFLOAT FDiv(MMFLOAT a, MMFLOAT b){ return a / b; }
-#define Vector_FCmp   			  (*(int*)(BaseAddress+0xB0))      	    // int   FCmp(MMFLOAT a,MMFLOAT b){if(a>b) return 1;else if(a<b)return -1; else return 0;}
-#define Vector_LoadFloat   	      (*(int*)(BaseAddress+0xB4))       	// MMFLOAT LoadFloat(unsigned long long c){union ftype{ unsigned long long a; MMFLOAT b;}f;f.a=c;return f.b; }
+#define Vector_uSec               (*(unsigned int *)(BaseAddress+0x00))       // void uSec(unsigned int us)
+#define Vector_putConsole         (*(unsigned int *)(BaseAddress+0x04))       // void putConsole(int C))
+#define Vector_getConsole         (*(unsigned int *)(BaseAddress+0x08))       // int getConsole(void)
+#define Vector_ExtCfg             (*(unsigned int *)(BaseAddress+0x0C))       // void ExtCfg(int pin, int cfg, int option)
+#define Vector_ExtSet             (*(unsigned int *)(BaseAddress+0x10))       // void ExtSet(int pin, int val)
+#define Vector_ExtInp             (*(unsigned int *)(BaseAddress+0x14))       // int ExtInp(int pin)
+#define Vector_PinSetBit          (*(unsigned int *)(BaseAddress+0x18))       // void PinSetBit(int pin, unsigned int offset)
+#define Vector_PinRead            (*(unsigned int *)(BaseAddress+0x1C))       // int PinRead(int pin)
+#define Vector_MMPrintString      (*(unsigned int *)(BaseAddress+0x20))       // void MMPrintString(char* s)
+#define Vector_IntToStr           (*(unsigned int *)(BaseAddress+0x24))       // void IntToStr(char *strr, long long int nbr, unsigned int base)
+#define Vector_CheckAbort         (*(unsigned int *)(BaseAddress+0x28))       // void CheckAbort(void)
+#define Vector_GetMemory          (*(unsigned int *)(BaseAddress+0x2C))       // void *GetMemory(size_t msize);
+#define Vector_GetTempMemory      (*(unsigned int *)(BaseAddress+0x30))       // void *GetTempMemory(int NbrBytes)
+#define Vector_FreeMemory         (*(unsigned int *)(BaseAddress+0x34))       // void FreeMemory(void *addr)
+#define Vector_DrawRectangle      *(unsigned int *)(BaseAddress+0x38 )         // void DrawRectangle(int x1, int y1, int x2, int y2, int C))
+#define Vector_DrawBitmap         *(unsigned int *)(BaseAddress+0x3c )         // void DrawBitmap(int x1, int y1, int width, int height, int scale, int fg, int bg, unsigned char *bitmap )
+#define Vector_DrawLine           (*(unsigned int *)(BaseAddress+0x40))       // void DrawLine(int x1, int y1, int x2, int y2, int w, int C))
+#define Vector_FontTable          (*(unsigned int *)(BaseAddress+0x44))       // const unsigned char *FontTable[FONT_NBR]
+#define Vector_ExtCurrentConfig   (*(unsigned int *)(BaseAddress+0x48))       // int ExtCurrentConfig[NBRPINS + 1];
+#define Vector_HRes               (*(unsigned int *)(BaseAddress+0x4C))       // HRes
+#define Vector_VRes               (*(unsigned int *)(BaseAddress+0x50))       // VRes
+#define Vector_SoftReset          (*(unsigned int *)(BaseAddress+0x54))       // void SoftReset(void)
+#define Vector_error              (*(unsigned int *)(BaseAddress+0x58))       // void error(char *msg)
+#define Vector_ProgFlash          (*(unsigned int *)(BaseAddress+0x5C))       // ProgFlash
+#define Vector_vartbl             (*(unsigned int *)(BaseAddress+0x60))       // vartbl
+#define Vector_varcnt             (*(unsigned int *)(BaseAddress+0x64))       // varcnt
+#define Vector_DrawBuffer         *(unsigned int *)(BaseAddress+0x68 )         // void DrawRectangle(int x1, int y1, int x2, int y2, int C))
+#define Vector_ReadBuffer         *(unsigned int *)(BaseAddress+0x6c )         // void DrawRectangle(int x1, int y1, int x2, int y2, int C))
+#define Vector_FloatToStr         (*(unsigned int *)(BaseAddress+0x70))     // convert a float to a string including scientific notation if necessary
+#define Vector_ExecuteProgram     (*(unsigned int *)(BaseAddress+0x74))       // void ExecuteProgram(char *fname)
+#define Vector_CFuncmSec          (*(unsigned int *)(BaseAddress+0x78))       // CFuncmSec
+#define Vector_CFuncRam           (*(unsigned int *)(BaseAddress+0x7C))       // StartOfCFuncRam
+#define Vector_ScrollLCD          *(unsigned int *)(BaseAddress+0x80 )         // void scrollLCD(int lines, int blank)
+#define Vector_IntToFloat         (*(unsigned int *)(BaseAddress+0x84))       	// MMFLOAT IntToFloat(long long int a)
+#define Vector_FloatToInt         (*(unsigned int *)(BaseAddress+0x88))       	// long long int FloatToInt64(MMFLOAT x)
+#define Vector_Option             (*(unsigned int *)(BaseAddress+0x8C))       	// Option
+#define Vector_Sine               (*(unsigned int *)(BaseAddress+0x90))       	// MMFLOAT sin(MMFLOAT)
+#define Vector_DrawCircle         (*(unsigned int *)(BaseAddress+0x94))       	// DrawCircle(int x, int y, int radius, int w, int c, int fill, MMFLOAT aspect)
+#define Vector_DrawTriangle       (*(unsigned int *)(BaseAddress+0x98))       	// DrawTriangle(int x0, int y0, int x1, int y1, int x2, int y2, int c, int fill)
+#define Vector_Timer   			  (*(unsigned int *)(BaseAddress+0x9C))       	// uint64_t timer(void)
+#define Vector_FMul   			  (*(unsigned int *)(BaseAddress+0xA0))       	// MMFLOAT FMul(MMFLOAT a, MMFLOAT b){ return a * b; }
+#define Vector_FAdd   			  (*(unsigned int *)(BaseAddress+0xA4))       	// MMFLOAT FAdd(MMFLOAT a, MMFLOAT b){ return a + b; }
+#define Vector_FSub   			  (*(unsigned int *)(BaseAddress+0xA8))       	// MMFLOAT FSub(MMFLOAT a, MMFLOAT b){ return a - b; }
+#define Vector_FDiv   			  (*(unsigned int *)(BaseAddress+0xAC))       	// MMFLOAT FDiv(MMFLOAT a, MMFLOAT b){ return a / b; }
+#define Vector_FCmp   			  (*(unsigned int *)(BaseAddress+0xB0))       	// int   FCmp(MMFLOAT a,MMFLOAT b){if(a>b) return 1;else if(a<b)return -1; else return 0;}
+#define Vector_LoadFloat   	  	  (*(unsigned int *)(BaseAddress+0xB4))       	/* MMFLOAT LoadFloat(unsigned long long C)){union ftype{ unsigned long long a; MMFLOAT b;}f;f.a=c;return f.b; }*/
+#define Vector_CFuncInt1          *(unsigned int *)(BaseAddress+0xB8)       // CFuncInt1
+#define Vector_CFuncInt2          *(unsigned int *)(BaseAddress+0xBC)        // CFuncInt2
+#define Vector_CSubComplete		  (*(unsigned int *)(BaseAddress+0xC0))       // CSubComplete
 //Macros to call each function.
-#define uSec(a)                         ((void (*)(unsigned int )) Vector_uSec) (a)
-#define putConsole(a)                   ((void (*)(char)) Vector_putConsole) (a)
+
+#define uSec(a)                         ((void  (*)(unsigned long long )) Vector_uSec) (a)
+#define putConsole(a,b)                 ((void(*)(int, int)) Vector_putConsole) (a,b)
 #define getConsole()                    ((int (*)(void)) Vector_getConsole) ()
 #define ExtCfg(a,b,c)                   ((void (*)(int, int, int)) Vector_ExtCfg) (a,b,c)
 #define ExtSet(a,b)                     ((void(*)(int, int)) Vector_ExtSet) (a,b)
@@ -122,13 +124,10 @@
 #define memcpy(a,b,c)                   ((void (*)(void *, void *, int)) Vector_mycopysafe) (a,b,c)
 #define IntToFloat(a)                   ((MMFLOAT (*)(long long)) Vector_IntToFloat) (a)
 #define FloatToInt(a)                   ((long long (*)(MMFLOAT)) Vector_FloatToInt) (a)
-//#define Option                          ({struct option_s *optionstructurepointer; optionstructurepointer=(void *)(unsigned int)Vector_Option;})
-#define Option                          (*(struct option_s *)(unsigned int)Vector_Option)
+#define Option 							(*(struct option_s *)(unsigned int)Vector_Option)
 #define ReadPageAddress                 (*(unsigned int *) Vector_ReadPageAddress)
 #define WritePageAddress                (*(unsigned int *) Vector_WritePageAddress)
 #define uSecTimer                       ((unsigned long long (*)(void)) Vector_Timer)
-#define CFuncInt1                       (*(unsigned int *) Vector_CFuncInt1)
-#define CFuncInt2                       (*(unsigned int *) Vector_CFuncInt2)
 #define FastTimer                       ((unsigned long long  (*)(void)) Vector_FastTimer)
 #define TicksPerUsec                    (*(unsigned int *) Vector_TicksPerUsec)
 #define map(a)							((int(*)(int)) Vector_Map) (a)
@@ -142,6 +141,9 @@
 #define FSub(a,b)                       ((MMFLOAT (*)(MMFLOAT, MMFLOAT)) Vector_FSub) (a,b)
 #define FDiv(a,b)                       ((MMFLOAT (*)(MMFLOAT, MMFLOAT)) Vector_FDiv) (a,b)
 #define FCmp(a,b)                       ((int (*)(MMFLOAT, MMFLOAT)) Vector_FCmp) (a,b)
+#define CFuncInt1                       (*(unsigned int *) Vector_CFuncInt1)
+#define CFuncInt2                       (*(unsigned int *) Vector_CFuncInt2)
+#define Interrupt                    	(*(unsigned int *) Vector_CSubComplete)
 // the structure of the variable table, passed to the CFunction as a pointer Vector_vartbl which is #defined as vartbl
 struct s_vartbl {                               // structure of the variable table
     char name[MAXVARLEN];                       // variable's name
@@ -180,6 +182,7 @@ struct s_vartbl {                               // structure of the variable tab
 
 //The Option structure
 struct option_s {
+    int  Magic;
     char Autorun;
     char Tab;
     char Invert;
@@ -214,7 +217,8 @@ struct option_s {
     unsigned char TOUCH_CS;
     unsigned char TOUCH_IRQ;
     char TOUCH_SWAPXY; 
-    char dummy[2];//56
+    unsigned char repeat;
+    char dummy;//56
     int  TOUCH_XZERO;
     int  TOUCH_YZERO;
     float TOUCH_XSCALE;
@@ -250,12 +254,17 @@ struct option_s {
     unsigned char SD_CLK_PIN;
     unsigned char SD_MOSI_PIN;
     unsigned char SD_MISO_PIN;
-    unsigned char F5key[64];
-    unsigned char F6key[64];
-    unsigned char F7key[64];
-    unsigned char F8key[64];
-    unsigned char F9key[64];
-    char dummy2[73];
+    unsigned char SerialConsole;
+    unsigned char SerialTX;
+    unsigned char SerialRX;
+    unsigned char numlock;
+    unsigned char capslock;
+    unsigned char F1key[MAXKEYLEN];
+    unsigned char F5key[MAXKEYLEN];
+    unsigned char F6key[MAXKEYLEN];
+    unsigned char F7key[MAXKEYLEN];
+    unsigned char F8key[MAXKEYLEN];
+    unsigned char F9key[MAXKEYLEN];
     // To enable older CFunctions to run any new options *MUST* be added at the end of the list
 } __attribute__((packed));
 
@@ -357,7 +366,5 @@ struct option_s {
 #define EXT_DS18B20_RESERVED    0x100                 // this pin is reserved for DS18B20 and cannot be used
 #define EXT_COM_RESERVED        0x200                 // this pin is reserved and SETPIN and PIN cannot be used
 #define EXT_BOOT_RESERVED       0x400                 // this pin is reserved at bootup and cannot be used
-
-#define NOP()                   __asm volatile ("nop")
-#define USERLCDPANEL            16
-
+#define NOP()  __asm volatile ("nop")
+#define USERLCDPANEL            25
