@@ -2436,10 +2436,22 @@ void fun_info(void){
     tp=checkstring(ep, "PINNO");
     if(tp){
         int pin;
-        char code;
-        if(!(code=codecheck(tp)))tp+=2;  
-        else ("Syntax");
-        pin = getinteger(tp);
+        MMFLOAT f;
+        long long int i64;
+        unsigned char *ss;
+        int t=0;
+        char code, *ptr;
+        char *string=GetTempMemory(STRINGSIZE);
+        evaluate(tp, &f, &i64, &ss, &t, false);
+	    if(t & T_STR ){
+            ptr=getCstring(tp);
+            strcpy(string,ptr);
+        } else {
+            strcpy(string,tp);
+        }
+        if(!(code=codecheck(string)))string+=2;  
+        else error("Syntax");
+        pin = getinteger(string);
         if(!code)pin=codemap(pin);
         if(IsInvalidPin(pin))error("Invalid pin");
         iret=pin;
