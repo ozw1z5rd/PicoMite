@@ -2408,6 +2408,8 @@ void error(char *msg, ...) {
                 *tp = (va_arg(ap, int));
             else if(*msg == '%')                                    // insert an integer
                 IntToStr(tp, va_arg(ap, int), 10);
+            else if(*msg == '|')                                    // insert an integer
+                strcpy(tp,PinDef[va_arg(ap, int)].pinname);
             else
                 *tp = *msg;
             msg++;
@@ -2746,7 +2748,7 @@ void ClearRuntime(void) {
     findlabel(NULL);                                                // clear the label cache
     OptionErrorSkip = 0;
     MMerrno = 0;                                                    // clear the error flags
-   *MMErrMsg = 0;
+    *MMErrMsg = 0;
 	#if defined(MMFAMILY) || defined(DOS)
 	    NbrModules = 0;
     #endif
