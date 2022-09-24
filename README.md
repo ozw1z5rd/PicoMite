@@ -14,6 +14,9 @@ Compiled version and documentation is available on https://geoffg.net/picomite.h
 
 Change list from V5.07.00
 ***********************************************************************************************************************
+PicoMite V5.07.05RC
+Improved error messaging for incorrect pin usage. Fixed MM.INFO(pinno whe OPTION EXPLICIT specified.
+
 PicoMite V5.07.05RC2
 
 MM.INFO(PINNO n) now accepts a literal, a string variable or an unquoted GPn designation
