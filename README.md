@@ -14,6 +14,10 @@ Compiled version and documentation is available on https://geoffg.net/picomite.h
 
 Change list from V5.07.00
 ***********************************************************************************************************************
+PicoMite V5.07.05RC2
+
+MM.INFO(PINNO n) now accepts a literal, a string variable or an unquoted GPn designation
+
 PicoMite V5.07.05RC1
 
 OPTION LIST now shows version number and which firmware. 
