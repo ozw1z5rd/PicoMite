@@ -945,9 +945,8 @@ void __not_in_flash_func(CheckAbort)(void) {
     if(MMAbort) {
         WDTimer = 0;                                                // turn off the watchdog timer
         calibrate=0;
-        memset(inpbuf,0,STRINGSIZE);
         ShowCursor(false);
-        longjmp(mark, 1);                                           // jump back to the input prompt
+        cmd_end();
     }
 }
 void PRet(void){
@@ -1699,6 +1698,7 @@ int main(){
      ContinuePoint = nextstmt;                               // in case the user wants to use the continue command
 	if(setjmp(mark) != 0) {
      // we got here via a long jump which means an error or CTRL-C or the program wants to exit to the command prompt
+        LoadOptions();
         ScrewUpTimer = 0;
         ProgMemory=(uint8_t *)flash_progmemory;
         ContinuePoint = nextstmt;                               // in case the user wants to use the continue command
@@ -1777,7 +1777,6 @@ int main(){
 			  q[0]=34;
 		  } else strcat(p,"\"");
 		  p[3]=' ';
-//		  PRet();MMPrintString(inpbuf);PRet();
 	  }
         tokenise(true);                                             // turn into executable code
         if (setjmp(jmprun) != 0) {
@@ -1785,7 +1784,7 @@ int main(){
             CurrentLinePtr = 0;
         }
         ExecuteProgram(tknbuf);                                     // execute the line straight away
-        memset(inpbuf,0,STRINGSIZE);
+        cmd_end();
 	}
 }
 

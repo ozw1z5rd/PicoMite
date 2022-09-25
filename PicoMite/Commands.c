@@ -706,7 +706,6 @@ void __not_in_flash_func(cmd_else)(void) {
 
 
 void cmd_end(void) {
-	checkend(cmdline);
     memset(inpbuf,0,STRINGSIZE);
 	longjmp(mark, 1);												// jump back to the input prompt
 }

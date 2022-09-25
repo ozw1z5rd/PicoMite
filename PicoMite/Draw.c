@@ -121,6 +121,8 @@ char* COLLISIONInterrupt = NULL;
 int CollisionFound = false;
 int sprite_which_collided = -1;
 static int hideall = 0;
+#else
+    extern int InvokingCtrl;
 #endif
 void (*DrawRectangle)(int x1, int y1, int x2, int y2, int c) = (void (*)(int , int , int , int , int ))DisplayNotSet;
 void (*DrawBitmap)(int x1, int y1, int width, int height, int scale, int fc, int bc, unsigned char *bitmap) = (void (*)(int , int , int , int , int , int , int , unsigned char *))DisplayNotSet;
@@ -1037,11 +1039,13 @@ void GUIPrintString(int x, int y, int fnt, int jh, int jv, int jo, int fc, int b
         if(jv == JUSTIFY_BOTTOM) CurrentY -= (strlen(str) * GetFontWidth(fnt));
     }
     while(*str) {
-        if(*str == 0xff) {
+#ifndef PICOMITEVGA
+        if(*str == 0xff && Ctrl[InvokingCtrl].type == 10) {
 //            fc = rgb(0, 0, 255);                                // this is specially for GUI FORMATBOX
             str++;
             GUIPrintChar(fnt, bc, fc, *str++, jo);
         } else
+#endif
             GUIPrintChar(fnt, fc, bc, *str++, jo);
     }
 }

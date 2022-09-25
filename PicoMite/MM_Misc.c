@@ -1771,7 +1771,7 @@ void cmd_option(void) {
         Option.ColourCode = false;
         Option.DefaultFC = WHITE;
         Option.DefaultBC = BLACK;
-        SetFont((Option.DefaultFont = 0x01));
+        SetFont((Option.DefaultFont = (Option.DISPLAY_TYPE==COLOURVGA? (6<<4) | 1 : 0x01 )));
         Option.DefaultBrightness = 100;
         if(!CurrentLinePtr) {
             SaveOptions();
