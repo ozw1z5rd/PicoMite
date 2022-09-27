@@ -16,7 +16,7 @@ Change list from V5.07.00
 ***********************************************************************************************************************
 PicoMite V5.07.05RC4
 
-Various tidying. Improved error messaging for incorrect pin usage. Fixed MM.INFO(pinno whe OPTION EXPLICIT specified.
+Various tidying. Improved error messaging for incorrect pin usage. Fixed MM.INFO(pinno when OPTION EXPLICIT specified.
 
 PicoMite V5.07.05RC2
 
