@@ -30,8 +30,10 @@ extern "C" {
 #define FLASH_TARGET_OFFSET (1024 * 1024) 
 #ifdef PICOMITEVGA
 #define MagicKey 0x67DD44F4
+#define HEAPTOP 0x2003f800
 #else
 #define MagicKey 0x86FF55E7
+#define HEAPTOP 0x2003f800
 #endif
 
 #define MMFLOAT double

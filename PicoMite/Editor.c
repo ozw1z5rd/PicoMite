@@ -107,9 +107,9 @@ void DisplayPutS(char *s) {
                                     gui_fcolour = gui_bcolour;
                                     gui_bcolour = t;
                                     break;
-            case CLEAR_TO_EOL:      DrawBox(CurrentX, CurrentY, HRes, CurrentY + gui_font_height, 0, 0, gui_bcolour);
+            case CLEAR_TO_EOL:      DrawBox(CurrentX, CurrentY, HRes-1, CurrentY + gui_font_height-1, 0, 0, gui_bcolour);
                                     break;
-            case CLEAR_TO_EOS:      DrawBox(CurrentX, CurrentY, HRes, CurrentY + gui_font_height, 0, 0, gui_bcolour);
+            case CLEAR_TO_EOS:      DrawBox(CurrentX, CurrentY, HRes-1, CurrentY + gui_font_height-1, 0, 0, gui_bcolour);
                                     DrawRectangle(0, CurrentY + gui_font_height, HRes-1, VRes-1, gui_bcolour);
                                     break;
             case SCROLL_DOWN:

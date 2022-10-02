@@ -968,7 +968,6 @@ process:
         case EXT_DIG_OUT:
         case EXT_HEARTBEAT:   
                             option=0;
-                            break;
         default:            if(argc > 3 && !value2) error("Unexpected text");
     }
     // this allows the user to set a software interrupt on the touch IRQ pin if the GUI environment is not enabled

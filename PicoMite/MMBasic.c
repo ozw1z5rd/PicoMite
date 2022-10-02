@@ -2473,8 +2473,7 @@ void error(char *msg, ...) {
         MMPrintString(MMErrMsg);
     }
     MMPrintString("\r\n");
-    memset(inpbuf,0,STRINGSIZE);
-    longjmp(mark, 1);
+    cmd_end();
 }
 
 

@@ -1695,7 +1695,7 @@ int main(){
         MMPrintString("RTC not found, OPTION RTC AUTO disabled\r\n");
     }
  	*tknbuf = 0;
-     ContinuePoint = nextstmt;                               // in case the user wants to use the continue command
+    ContinuePoint = nextstmt;                               // in case the user wants to use the continue command
 	if(setjmp(mark) != 0) {
      // we got here via a long jump which means an error or CTRL-C or the program wants to exit to the command prompt
         LoadOptions();

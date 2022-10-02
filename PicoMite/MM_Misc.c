@@ -1291,7 +1291,7 @@ void cmd_settick(void){
     int period;
     int irq=0;;
     int pause=0;
-    char s[STRINGSIZE];
+    char *s=GetTempMemory(STRINGSIZE);
     getargs(&cmdline, 5, ",");
     strcpy(s,argv[0]);
     if(!(argc == 3 || argc == 5)) error("Argument count");
@@ -2326,6 +2326,14 @@ void fun_device(void){
     targ = T_STR;
 }
 
+uint32_t __get_MSP(void)
+{
+  uint32_t result;
+
+  __asm volatile ("MRS %0, msp" : "=r" (result) );
+  return(result);
+}
+
 void fun_info(void){
     unsigned char *tp;
     sret = GetTempMemory(STRINGSIZE);                                  // this will last for the life of the command
@@ -2564,6 +2572,14 @@ void fun_info(void){
             return;
          } else if(checkstring(ep, "FONT")){
             iret=(gui_font >> 4)+1;
+            targ=T_INT;
+            return;
+	    } else if(checkstring(ep, "HEAP")){
+            iret=FreeSpaceOnHeap();
+            targ=T_INT;
+            return;
+        } else if(checkstring(ep, "STACK")){
+            iret=(int64_t)((uint32_t)__get_MSP());
             targ=T_INT;
             return;
         } else error("Syntax");

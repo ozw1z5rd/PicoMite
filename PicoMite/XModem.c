@@ -35,7 +35,7 @@ void cmd_xmodem(void) {
     char *buf, BreakKeySave, *p, *fromp;
     int rcv = 0, fnbr, crunch = false;
     char *fname;
-
+    ClearExternalIO();
     if(toupper(*cmdline) == 'R')
         rcv = true;
     else if(toupper(*cmdline) == 'S')

@@ -171,6 +171,7 @@ void fun_format(void);
 	extern void disable_audio(void);
 	extern char *CSubInterrupt;
 	extern volatile int CSubComplete;
+	extern uint32_t __get_MSP(void);
 
 #endif
 #endif

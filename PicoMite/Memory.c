@@ -495,7 +495,7 @@ void __not_in_flash_func(ClearSpecificTempMemory)(void *addr) {
 
 // test the stack for overflow - this is a NULL function in the DOS version
 void TestStackOverflow(void) {
-
+    if(__get_MSP()< HEAPTOP) error("Stack overflow, expression too complex at depth %",LocalIndex);
 }
 
 

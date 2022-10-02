@@ -707,6 +707,7 @@ void __not_in_flash_func(cmd_else)(void) {
 
 void cmd_end(void) {
     memset(inpbuf,0,STRINGSIZE);
+	CloseAudio(1);
 	longjmp(mark, 1);												// jump back to the input prompt
 }
 
