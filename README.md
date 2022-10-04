@@ -15,6 +15,13 @@ Compiled version and documentation is available on https://geoffg.net/picomite.h
 Change list from V5.07.00
 ***********************************************************************************************************************
 PicoMite V5.07.05RC5
+
+Fixed bug in LOAD IMAGE for mono displays (e.g. SSD1306I2C32). 
+Enabled BLIT and LOAD JPG for mono displays. 
+Improved LOAD JPG for MODE 1 (mono VGA). 
+
+PicoMite V5.07.05RC5
+
 MM.INFO(HEAP). 
 MM.INFO(STACK). 
 various tuning. 
