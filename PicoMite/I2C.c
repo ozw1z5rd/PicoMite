@@ -30,7 +30,8 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 #include "hardware/irq.h"
 
 #define PinRead(a)  gpio_get(PinDef[a].GPno)
-
+extern void DrawBufferMEM(int x1, int y1, int x2, int y2, unsigned char* p) ;
+extern void ReadBufferMEM(int x1, int y1, int x2, int y2, unsigned char* buff);
 // Declare functions
 void i2cEnable(unsigned char *p);
 void i2cDisable(unsigned char *p);
@@ -158,6 +159,8 @@ void InitDisplayI2C(int InitOnly){
 //	i2c_enable(display_details[Option.DISPLAY_TYPE].speed);
     DrawRectangle = DrawRectangleMEM;
     DrawBitmap = DrawBitmapMEM;
+    DrawBuffer = DrawBufferMEM;
+	ReadBuffer = ReadBufferMEM;
     DisplayHRes = display_details[Option.DISPLAY_TYPE].horizontal;
     DisplayVRes = display_details[Option.DISPLAY_TYPE].vertical;
     I2C_Send_Command(0xAE);//DISPLAYOFF

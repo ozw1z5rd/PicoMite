@@ -87,6 +87,8 @@ int PackHorizontal=0;
 int fullrefreshcount=0;
 void DrawRectangleMEM(int x1, int y1, int x2, int y2, int c);
 void DrawBitmapMEM(int x1, int y1, int width, int height, int scale, int fc, int bc, unsigned char *bitmap);
+void DrawBufferMEM(int x1, int y1, int x2, int y2, unsigned char* p) ;
+void ReadBufferMEM(int x1, int y1, int x2, int y2, unsigned char* buff);
 void spi_write_CommandData(const uint8_t* pCommandData, uint8_t datalen);
 void ST7920command(unsigned char data);
 // utility function for routines that want to reserve a pin for special I/O
@@ -210,6 +212,8 @@ void InitDisplaySPI(int InitOnly) {
         } else {
             DrawRectangle = DrawRectangleMEM;
             DrawBitmap = DrawBitmapMEM;
+        	DrawBuffer = DrawBufferMEM;
+			ReadBuffer = ReadBufferMEM;
         }
     }
     // the parameters for the display panel are set here
@@ -1226,6 +1230,91 @@ void DrawBufferSPI(int x1, int y1, int x2, int y2, unsigned char* p) {
     }
     ClearCS(Option.LCD_CS);                  //set CS high
 }
+void DrawBufferMEM(int x1, int y1, int x2, int y2, unsigned char* p) {
+    int x,y,t;
+    union colourmap
+    {
+    char rgbbytes[4];
+    unsigned int rgb;
+    } c;
+    for(y=y1;y<=y2;y++){
+    	for(x=x1;x<=x2;x++){
+			c.rgbbytes[0]=*p++; //this order swaps the bytes to match the .BMP file
+            if(c.rgbbytes[0]<0x40)c.rgbbytes[0]=0;
+			c.rgbbytes[1]=*p++;
+            if(c.rgbbytes[1]<0x40)c.rgbbytes[1]=0;
+			c.rgbbytes[2]=*p++;
+            if(c.rgbbytes[2]<0x40)c.rgbbytes[2]=0;
+			c.rgbbytes[3]=0;
+			DrawPixel(x,y,c.rgb);
+		}
+	}
+}
+void ReadBufferMEM(int x1, int y1, int x2, int y2, unsigned char* buff) {
+    unsigned char* p=(void *)((unsigned int)LCDBuffer);
+    int x,y,loc,t;
+    unsigned char mask;
+    if(x1 < 0) x1 = 0;
+    if(x1 >= HRes) x1 = HRes - 1;
+    if(x2 < 0) x2 = 0;
+    if(x2 >= HRes) x2 = HRes - 1;
+    if(y1 < 0) y1 = 0;
+    if(y1 >= VRes) y1 = VRes - 1;
+    if(y2 < 0) y2 = 0;
+    if(y2 >= VRes) y2 = VRes - 1;
+    if(x2 <= x1) { t = x1; x1 = x2; x2 = t; }
+    if(y2 <= y1) { t = y1; y1 = y2; y2 = t; }
+    if(Option.DISPLAY_ORIENTATION==PORTRAIT){
+        t=x1;
+        x1=VRes-y2-1;
+        y2=t;
+        t=x2;
+        x2=VRes-y1-1;
+        y1=t;
+    }
+     if(Option.DISPLAY_ORIENTATION==RLANDSCAPE){
+        x1=HRes-x1-1;
+        x2=HRes-x2-1;
+        y1=VRes-y1-1;
+        y2=VRes-y2-1;
+    }
+   if(Option.DISPLAY_ORIENTATION==RPORTRAIT){
+        t=y1;
+        y1=HRes-x1-1;
+        x1=t;
+        t=y2;
+        y2=HRes-x2-1;
+        x2=t;
+    }
+    if(x2 <= x1) { t = x1; x1 = x2; x2 = t; }
+    if(y2 <= y1) { t = y1; y1 = y2; y2 = t; }
+
+    if(y1<low_y)low_y=y1;
+    if(y2>high_y)high_y=y2;
+    if(x1<low_x)low_x=x1;
+    if(x2>high_x)high_x=x2;
+    for(x=x1;x<=x2;x++){
+        for(y=y1;y<=y2;y++){
+           	if(!PackHorizontal){
+        	   loc=x+(y/8)*DisplayHRes; //get the byte address for this bit
+               mask=1<<(y % 8); //get the bit position for this bit
+           	} else {
+        	   loc=x/8+y*DisplayHRes/8; //get the byte address for this bit
+               mask=1<<(7-(x % 8)); //get the bit position for this bit
+           	}
+		   	if(p[loc]&mask){
+				*buff++=0xFF;
+				*buff++=0xFF;
+				*buff++=0xFF;
+		   	} else {
+				*buff++=0x0;
+				*buff++=0x0;
+				*buff++=0x0;
+			}
+       	}
+    }
+}
+
 void DrawRectangleMEM(int x1, int y1, int x2, int y2, int c){
     unsigned char* p=(void *)((unsigned int)LCDBuffer);
     int x,y,loc,t;

@@ -3639,7 +3639,7 @@ void cmd_blit(void) {
     unsigned char *buff = NULL;
     unsigned char *p;
     if(Option.DISPLAY_TYPE == 0) error("Display not configured");
-    if((p = checkstring(cmdline, "LOAD"))) {
+    if((p = checkstring(cmdline, "LOADBMP"))) {
         int fnbr;
         int xOrigin, yOrigin, xlen, ylen;
         BMPDECODER BmpDec;
@@ -3717,6 +3717,7 @@ void cmd_blit(void) {
         if(w < 1 || h < 1 || x1 < 0 || x1 + w > HRes || y1 < 0 || y1 + h > VRes ) return;
         if(blitbuff[bnbr].blitbuffptr != NULL){
             DrawBuffer(x1, y1, x1 + w - 1, y1 + h - 1, blitbuff[bnbr].blitbuffptr);
+            if(Option.Refresh)Display_Refresh();
         } else error("Buffer not in use");
     } else if((p = checkstring(cmdline, "CLOSE"))) {
         getargs(&p, 1, ",");
@@ -3779,6 +3780,7 @@ void cmd_blit(void) {
             ReadBuffer(x1, y1, x1 + w - 1, y1 + h - 1, buff);
             DrawBuffer(x2, y2, x2 + w - 1, y2 + h - 1, buff);
             FreeMemory(buff);
+            if(Option.Refresh)Display_Refresh();
             return;
         }
     }
@@ -4055,8 +4057,11 @@ void DrawBufferMono(int x1, int y1, int x2, int y2, unsigned char *p){
 	for(y=y1;y<=y2;y++){
     	for(x=x1;x<=x2;x++){
 	        c.rgbbytes[0]=*p++; 
+            if(c.rgbbytes[0]<0x40)c.rgbbytes[0]=0;
 	        c.rgbbytes[1]=*p++;
+            if(c.rgbbytes[1]<0x40)c.rgbbytes[1]=0;
 	        c.rgbbytes[2]=*p++;
+            if(c.rgbbytes[2]<0x40)c.rgbbytes[2]=0;
             c.rgbbytes[3]=0;
             loc=(y*(HRes>>3))+(x>>3);
             mask=1<<(x % 8); //get the bit position for this bit
