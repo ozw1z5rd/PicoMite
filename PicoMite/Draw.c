@@ -3639,7 +3639,9 @@ void cmd_blit(void) {
     unsigned char *buff = NULL;
     unsigned char *p;
     if(Option.DISPLAY_TYPE == 0) error("Display not configured");
-    if((p = checkstring(cmdline, "LOADBMP"))) {
+    p = checkstring(cmdline, "LOADBMP"); 
+    if(p==NULL)p = checkstring(cmdline, "LOAD");
+    if(p) {
         int fnbr;
         int xOrigin, yOrigin, xlen, ylen;
         BMPDECODER BmpDec;
