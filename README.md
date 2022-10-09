@@ -14,7 +14,7 @@ Compiled version and documentation is available on https://geoffg.net/picomite.h
 
 Change list from V5.07.00
 ***********************************************************************************************************************
-PicoMite V5.07.05RC6
+PicoMite V5.07.05RC7
 
 Changes to PS2 handler. Other changes in preparation for future release.
 
