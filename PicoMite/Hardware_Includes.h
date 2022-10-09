@@ -87,7 +87,7 @@ extern unsigned int _excep_peek;
 extern volatile long long int mSecTimer;
 extern volatile unsigned int PauseTimer;
 extern volatile unsigned int IntPauseTimer;
-extern volatile unsigned int Timer1, Timer2;		                       //1000Hz decrement timer
+extern volatile unsigned int Timer1, Timer2, Timer3;		                       //1000Hz decrement timer
 extern volatile unsigned int diskchecktimer;
 extern volatile int ds18b20Timer;
 extern volatile int CursorTimer;

@@ -43,6 +43,7 @@ void sendCommand(int cmd);
 volatile char CapsLock;
 volatile char NumLock;
 volatile int setleds = 0;
+volatile unsigned int Timer3=0;
 // PS2 KBD state machine and buffer
 volatile int PS2State;
 unsigned char KBDBuf;
@@ -519,9 +520,8 @@ void __not_in_flash_func(CheckKeyboard)(void)
 /***************************************************************************************************
 change notification interrupt service routine
 ****************************************************************************************************/
-void __not_in_flash_func(CNInterrupt)(void)
+void __not_in_flash_func(CNInterrupt)(int dd)
 {
-  int d;
   unsigned char c = 0;
   //	unsigned int dly;
   static char LShift = 0;
@@ -531,12 +531,12 @@ void __not_in_flash_func(CNInterrupt)(void)
   static char KeyUpCode = false;
   static char KeyE0 = false;
   static unsigned char Code = 0;
+  int d = dd & (1<<PinDef[KEYBOARD_DATA].GPno);
 
   // Make sure it was a falling edge
-  if (!(PinRead(KEYBOARD_CLOCK)))
+  if (!(dd & (1<<PinDef[KEYBOARD_CLOCK].GPno)))
   {
-    // Sample the data
-    d = PinRead(KEYBOARD_DATA);
+    if(!Timer3)PS2State=PS2START;
     switch (PS2State)
     {
     default:
@@ -557,6 +557,7 @@ void __not_in_flash_func(CNInterrupt)(void)
         KParity = 0; // init parity check
         Code = 0;
         PS2State = PS2BIT;
+        Timer3=5;
       }
       break;
 
@@ -962,6 +963,7 @@ void __not_in_flash_func(CNInterrupt)(void)
           {
             if (!(justset && c == '3'))
             {
+              Timer3=0;
               ConsoleRxBuf[ConsoleRxBufHead] = c; // store the byte in the ring buffer
               if (ConsoleRxBuf[ConsoleRxBufHead] == keyselect && KeyInterrupt != NULL)
               {

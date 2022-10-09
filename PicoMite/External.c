@@ -2662,11 +2662,12 @@ void __not_in_flash_func(IRHandler)(void) {
         }
     }
 void __not_in_flash_func(gpio_callback)(uint gpio, uint32_t events) {
-    if(gpio==PinDef[IRpin].GPno && (CallBackEnabled & 1))IRHandler();
+    int dd=gpio_get_all();
+    if(Option.KeyboardConfig |= NO_KEYBOARD && gpio==PinDef[KEYBOARD_CLOCK].GPno && (CallBackEnabled & 32)) CNInterrupt(dd);
+    else if(gpio==PinDef[IRpin].GPno && (CallBackEnabled & 1))IRHandler();
     else if(gpio==PinDef[Option.INT1pin].GPno && (CallBackEnabled & 2))TM_EXTI_Handler_1();
     else if(gpio==PinDef[Option.INT2pin].GPno && (CallBackEnabled & 4))TM_EXTI_Handler_2();
     else if(gpio==PinDef[Option.INT3pin].GPno && (CallBackEnabled & 8))TM_EXTI_Handler_3();
     else if(gpio==PinDef[Option.INT4pin].GPno && (CallBackEnabled & 16))TM_EXTI_Handler_4();
-    else if(Option.KeyboardConfig |= NO_KEYBOARD && gpio==PinDef[KEYBOARD_CLOCK].GPno && (CallBackEnabled & 32)) CNInterrupt();
     else error("Internal error");
 }

@@ -97,6 +97,7 @@ struct option_s {
     float TOUCH_XSCALE;
     float TOUCH_YSCALE; //72
     unsigned int fullrefresh;
+    unsigned int FlashSize;
  
      // these are only used in the MX470 version
     unsigned char SD_CS;

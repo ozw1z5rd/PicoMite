@@ -1255,7 +1255,7 @@ void InitReservedIO(void) {
 		gpio_init(PinDef[KEYBOARD_DATA].GPno);
 		gpio_set_pulls(PinDef[KEYBOARD_DATA].GPno,true,false);
 		gpio_set_dir(PinDef[KEYBOARD_DATA].GPno, GPIO_IN);
-		gpio_set_input_hysteresis_enabled(PinDef[KEYBOARD_DATA].GPno,true);
+//		gpio_set_input_hysteresis_enabled(PinDef[KEYBOARD_DATA].GPno,true);
 	}
 }
 

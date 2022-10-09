@@ -33,7 +33,7 @@ provisions:
 
 // global keyboard functions
 extern void initKeyboard(void);
-extern void CNInterrupt(void);
+extern void CNInterrupt(int dd);
 extern void CheckKeyboard(void);
 // definition of the keyboard PS/2 state machine
 #define PS2START    0

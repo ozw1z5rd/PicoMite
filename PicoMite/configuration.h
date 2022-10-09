@@ -29,10 +29,10 @@ extern "C" {
 #endif
 #define FLASH_TARGET_OFFSET (1024 * 1024) 
 #ifdef PICOMITEVGA
-#define MagicKey 0x67DD44F4
+#define MagicKey 0x6755DDF4
 #define HEAPTOP 0x2003f800
 #else
-#define MagicKey 0x86FF55E7
+#define MagicKey 0x865533E7
 #define HEAPTOP 0x2003f800
 #endif
 
@@ -51,7 +51,7 @@ extern "C" {
 #define MAX_PROG_SIZE HEAP_MEMORY_SIZE
 #define SAVEDVARS_FLASH_SIZE 16384
 #define FLASH_ERASE_SIZE 4096
-#define MAXFLASHSLOTS (((1024*1024)-FLASH_ERASE_SIZE-SAVEDVARS_FLASH_SIZE)/MAX_PROG_SIZE)-1
+#define MAXFLASHSLOTS ((((1024*1024)-FLASH_ERASE_SIZE-SAVEDVARS_FLASH_SIZE)/MAX_PROG_SIZE)-1)
 #define MAXVARS             512                     // 8 + MAXVARLEN + MAXDIM * 2  (ie, 56 bytes) - these do not incl array members
 #define MAXVARHASH				MAXVARS/2
 
@@ -146,6 +146,7 @@ extern "C" {
 #define HEARTBEATpin  43
 #define PATH_MAX 1024
 #define PROGSTART (FLASH_TARGET_OFFSET + FLASH_ERASE_SIZE + SAVEDVARS_FLASH_SIZE + ((MAXFLASHSLOTS) * MAX_PROG_SIZE))
+#define TOP_OF_SYSTEM_FLASH  (FLASH_TARGET_OFFSET + FLASH_ERASE_SIZE + SAVEDVARS_FLASH_SIZE + ((MAXFLASHSLOTS+1) * MAX_PROG_SIZE))
 #ifdef __cplusplus
 }
 #endif

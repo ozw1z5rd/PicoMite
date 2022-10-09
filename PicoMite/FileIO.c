@@ -204,6 +204,68 @@ void cmd_flash(void)
         }
         enable_interrupts();
     }
+    else if ((p = checkstring(cmdline, "READ")))
+    {
+        getargs(&p, 5, ",");
+        if(!(argc == 5)) error("Argument count");
+        if(!Option.FlashSize)error("Flash Size not specified");
+        int start = getint(argv[0],TOP_OF_SYSTEM_FLASH ,Option.FlashSize-4096);
+        int size = getint(argv[2], 4096,Option.FlashSize-TOP_OF_SYSTEM_FLASH-4096);
+        if(start % 4096)error("Must be on 4096 byte boundary");
+        if(size % 4096)error("Must be multiple of 4096 bytes");
+        void *ptr1 = NULL;
+        int j,arraysize=0;
+        ptr1 = findvar(argv[4], V_FIND | V_EMPTY_OK | V_NOFIND_ERR);
+        if(vartbl[VarIndex].type & T_NBR|T_INT) {
+			if(vartbl[VarIndex].dims[1] != 0) error("Invalid variable");
+			if(vartbl[VarIndex].dims[0] <= 0) error("Invalid variable");		// Not an array
+			arraysize=(vartbl[VarIndex].dims[0] - OptionBase)*8;
+			if(arraysize<size)error("Source array too small");
+        } else error("Invalid variable");
+        char *q=(char *)ptr1;
+        char *qq=(char *)(XIP_BASE+start);
+        while(size--)*q++=*qq++;
+    }
+    else if ((p = checkstring(cmdline, "WRITE")))
+    {
+        getargs(&p, 5, ",");
+        if(!(argc == 5)) error("Argument count");
+        if(!Option.FlashSize)error("Flash Size not specified");
+        int start = getint(argv[0],TOP_OF_SYSTEM_FLASH ,Option.FlashSize-4096);
+        int size = getint(argv[2], 4096,Option.FlashSize-TOP_OF_SYSTEM_FLASH-4096);
+        if(start % 4096)error("Must be on 4096 byte boundary");
+        if(size % 4096)error("Must be multiple of 4096 bytes");
+        void *ptr1 = NULL;
+        int j,arraysize=0;
+        ptr1 = findvar(argv[4], V_FIND | V_EMPTY_OK | V_NOFIND_ERR);
+        if(vartbl[VarIndex].type & T_NBR|T_INT) {
+			if(vartbl[VarIndex].dims[1] != 0) error("Invalid variable");
+			if(vartbl[VarIndex].dims[0] <= 0) error("Invalid variable");		// Not an array
+			arraysize=(vartbl[VarIndex].dims[0] - OptionBase)*8;
+			if(arraysize<size)error("Source array too small");
+        } else error("Invalid variable");
+        disable_interrupts();
+        flash_range_erase(start, size);
+        enable_interrupts();
+        int *pp = (int *)(XIP_BASE + start);
+        j=(size>>3);
+        while (j--)
+            if (*pp++ != 0xFFFFFFFF)
+            {
+                error("Erase error");
+            }
+        disable_interrupts();
+        uint8_t *q = (uint8_t *)ptr1;
+        uint8_t *writebuff = GetTempMemory(4096);
+        for (int k = 0; k < size; k += 4096)
+        {
+            for (int j = 0; j < 4096; j++)
+                writebuff[j] = *q++;
+            flash_range_program(start+k, writebuff, 4096);
+        }
+        enable_interrupts();
+        return;
+    }
     else if ((p = checkstring(cmdline, "ERASE")))
     {
         if (CurrentLinePtr)
@@ -2173,6 +2235,7 @@ void ResetOptions(void)
     Option.DefaultBrightness = 100;
     Option.numlock = 1;
     Option.repeat = 0b101100;
+    Option.FlashSize = 2048*1024;
     SaveOptions();
     uSec(250000);
 }

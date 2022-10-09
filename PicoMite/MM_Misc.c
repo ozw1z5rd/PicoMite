@@ -1366,6 +1366,7 @@ void printoptions(void){
     if(Option.Autorun>0 && Option.Autorun<=MAXFLASHSLOTS) PO2Int("AUTORUN", Option.Autorun);
     if(Option.Autorun==MAXFLASHSLOTS+1)PO2Str("AUTORUN", "ON");
     if(Option.Baudrate != CONSOLE_BAUDRATE) PO2Int("BAUDRATE", Option.Baudrate);
+    if(Option.FlashSize !=2048*1024) PO2Int("FLASH SIZE", Option.FlashSize);
     if(Option.Invert == true) PO2Str("CONSOLE", "INVERT");
     if(Option.Invert == 2) PO2Str("CONSOLE", "AUTO");
     if(Option.ColourCode == true) PO2Str("COLOURCODE", "ON");
@@ -1647,6 +1648,14 @@ void cmd_option(void) {
 		SaveOptions();
 		return;
 	}
+    tp = checkstring(cmdline, "FLASH SIZE");
+	if(tp) {
+        int i=getinteger(tp);
+        if(!(i==4096*1024 || i==8192*1024 || i==16384*1024 || i==32768*1024)) error("Invalid flash size");
+        Option.FlashSize=i;
+        SaveOptions();
+        return;
+    }
     tp = checkstring(cmdline, "KEYBOARD");
 	if(tp) {
     	//if(CurrentLinePtr) error("Invalid in a program");
@@ -2372,6 +2381,10 @@ void fun_info(void){
 			else iret=0;
 			targ=T_INT;
 			return;
+		} else if(checkstring(tp, "FLASH SIZE")){
+            iret=Option.FlashSize;
+			targ=T_INT;
+			return;
 		} else if(checkstring(tp, "BREAK")){
 			iret=BreakKey;
 			targ=T_INT;
@@ -2387,7 +2400,13 @@ void fun_info(void){
         targ = T_INT;
         return;
     }
-    tp=checkstring(ep, "PROGRAM");
+    tp=checkstring(ep, "FLASHTOP");
+    if(tp){
+        iret = (int64_t)(uint32_t)TOP_OF_SYSTEM_FLASH ;
+        targ = T_INT;
+        return;
+    }
+     tp=checkstring(ep, "PROGRAM");
     if(tp){
         iret = (int64_t)(uint32_t)ProgMemory;
         targ = T_INT;

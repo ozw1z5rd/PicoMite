@@ -803,6 +803,7 @@ bool __not_in_flash_func(timer_callback)(repeating_timer_t *rt)
 		GPSTimer++;
         I2CTimer++;
         if(clocktimer)clocktimer--;
+        if(Timer3)Timer3--;
         if(Timer2)Timer2--;
         if(Timer1)Timer1--;
         if(USBKeepalive)USBKeepalive--;
