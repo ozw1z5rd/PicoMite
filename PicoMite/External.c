@@ -2379,6 +2379,8 @@ void cmd_adc(void){
 void ClearExternalIO(void) {
     int i;
   	CloseAudio(1);
+    InterruptUsed = false;
+	InterruptReturn = NULL;
 
     if(CallBackEnabled==1) gpio_set_irq_enabled_with_callback(PinDef[IRpin].GPno, GPIO_IRQ_EDGE_RISE | GPIO_IRQ_EDGE_FALL, false, &gpio_callback);
     else if(CallBackEnabled & 1){
@@ -2451,12 +2453,10 @@ void ClearExternalIO(void) {
     }
     FreeMemorySafe((void **)&ds18b20Timers);
     if(CheckPin(44, CP_NOABORT | CP_IGNORE_INUSE | CP_IGNORE_RESERVED))ExtCfg(44,EXT_ANA_IN,0);
-	InterruptReturn = NULL;
-	InterruptUsed = false;
     KeypadInterrupt = NULL;
 
     for(i = 0; i < NBRSETTICKS; i++) TickInt[i] = NULL;
-    for(i = 0; i < NBRSETTICKS; i++) TickActive[i] = 1;
+    for(i = 0; i < NBRSETTICKS; i++) TickActive[i] = 0;
 
 	for(i = 0; i < NBR_PULSE_SLOTS; i++) PulseCnt[i] = 0;             // disable any pending pulse commands
     PulseActive = false;
@@ -2509,6 +2509,9 @@ void ClearExternalIO(void) {
     ADCInterrupt=NULL;
     KeyInterrupt=NULL;
     OnKeyGOSUB=NULL;
+    OnPS2GOSUB=NULL;
+    PS2code=0;
+    PS2int=0;
 #ifdef PICOMITEVGA
     CollisionFound = false;
     COLLISIONInterrupt=NULL;

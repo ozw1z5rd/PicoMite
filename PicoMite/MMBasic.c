@@ -927,7 +927,7 @@ void  tokenise(int console) {
     STR_REPLACE(inpbuf,"=<","<=");
     STR_REPLACE(inpbuf,"MM.FONTHEIGHT","MM.INFO(FONTHEIGHT)");
     STR_REPLACE(inpbuf,"MM.FONTWIDTH","MM.INFO(FONTWIDTH)");
-
+    STR_REPLACE(inpbuf,"MM.PS2","MM.INFO(PS2)");
     // setup the input and output buffers
     p = inpbuf;
     op = tknbuf;
@@ -2772,6 +2772,7 @@ void ClearRuntime(void) {
 // this is used before loading a program
 void ClearProgram(void) {
 //    InitHeap();
+    initFonts();
     m_alloc(M_PROG);                                           // init the variables for program memory
     ClearRuntime();
 //    ProgMemory[0] = ProgMemory[1] = ProgMemory[3] = ProgMemory[4] = 0;

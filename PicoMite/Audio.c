@@ -1057,7 +1057,7 @@ void CloseAudio(int all){
 	int was_playing=CurrentlyPlaying;
 	bcount[1] = bcount[2] = wav_filesize = 0;
 	swingbuf = nextbuf = playreadcomplete = 0;
-	WAVInterrupt = NULL;
+//	WAVInterrupt = NULL;
 	StopAudio();
 	ForceFileClose(WAV_fnbr);
 //	if(was_playing == P_MP3 || was_playing == P_PAUSE_MP3 )drmp3_uninit(&mymp3);
@@ -1226,6 +1226,7 @@ void cmd_play(void) {
         if(argc > 4) PlayDuration = PWM_FREQ*getint(argv[4], 0, INT_MAX)/1000;
         if(argc == 7) {
             WAVInterrupt = GetIntAddress(argv[6]);					// get the interrupt location
+			WAVcomplete=false;
             InterruptUsed = true;
         }
         if(PlayDuration == 0) return;

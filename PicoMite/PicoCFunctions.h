@@ -1,22 +1,23 @@
 /*******************************************************************************************
- *
- *  Definitions used when calling MMBasic Interpreter API Functions from CFunctions
- *  For PicoMite MMBasic V5.07.04
- *
- *  This file is public domain and may be used without license.
- *
- *  Use with AMRCFGENV144.bas
- *
- *	V1.6.1
- *
- ******************************************************************************************/
+*
+*  Definitions used when calling MMBasic Interpreter API Functions from CFunctions
+*  For PicoMite MMBasic V5.07.05
+*
+*  This file is public domain and may be used without license.
+*
+*  Use with AMRCFGENV144.bas
+*
+*  V1.6.2
+*  NB: Base address has changed from previous versions to match V5.07.05
+*  V1.6.3  struct option_s updated to match 5.07.05 as defined in fileIO.h
+******************************************************************************************/
 #define MAXVARLEN           32                      // maximum length of a variable name
 #define MAXDIM              5                       // maximum nbr of dimensions to an array
 #define MMFLOAT double
-#define MAXKEYLEN			64
+#define MAXKEYLEN 64
 
 //Addresses in the API Table for the pointers to each function
-#define BaseAddress   0x1000030C
+#define BaseAddress   0x10000310
 #define Vector_uSec               (*(unsigned int *)(BaseAddress+0x00))       // void uSec(unsigned int us)
 #define Vector_putConsole         (*(unsigned int *)(BaseAddress+0x04))       // void putConsole(int C))
 #define Vector_getConsole         (*(unsigned int *)(BaseAddress+0x08))       // int getConsole(void)
@@ -50,24 +51,24 @@
 #define Vector_CFuncmSec          (*(unsigned int *)(BaseAddress+0x78))       // CFuncmSec
 #define Vector_CFuncRam           (*(unsigned int *)(BaseAddress+0x7C))       // StartOfCFuncRam
 #define Vector_ScrollLCD          *(unsigned int *)(BaseAddress+0x80 )         // void scrollLCD(int lines, int blank)
-#define Vector_IntToFloat         (*(unsigned int *)(BaseAddress+0x84))       	// MMFLOAT IntToFloat(long long int a)
-#define Vector_FloatToInt         (*(unsigned int *)(BaseAddress+0x88))       	// long long int FloatToInt64(MMFLOAT x)
-#define Vector_Option             (*(unsigned int *)(BaseAddress+0x8C))       	// Option
-#define Vector_Sine               (*(unsigned int *)(BaseAddress+0x90))       	// MMFLOAT sin(MMFLOAT)
-#define Vector_DrawCircle         (*(unsigned int *)(BaseAddress+0x94))       	// DrawCircle(int x, int y, int radius, int w, int c, int fill, MMFLOAT aspect)
-#define Vector_DrawTriangle       (*(unsigned int *)(BaseAddress+0x98))       	// DrawTriangle(int x0, int y0, int x1, int y1, int x2, int y2, int c, int fill)
-#define Vector_Timer   			  (*(unsigned int *)(BaseAddress+0x9C))       	// uint64_t timer(void)
-#define Vector_FMul   			  (*(unsigned int *)(BaseAddress+0xA0))       	// MMFLOAT FMul(MMFLOAT a, MMFLOAT b){ return a * b; }
-#define Vector_FAdd   			  (*(unsigned int *)(BaseAddress+0xA4))       	// MMFLOAT FAdd(MMFLOAT a, MMFLOAT b){ return a + b; }
-#define Vector_FSub   			  (*(unsigned int *)(BaseAddress+0xA8))       	// MMFLOAT FSub(MMFLOAT a, MMFLOAT b){ return a - b; }
-#define Vector_FDiv   			  (*(unsigned int *)(BaseAddress+0xAC))       	// MMFLOAT FDiv(MMFLOAT a, MMFLOAT b){ return a / b; }
-#define Vector_FCmp   			  (*(unsigned int *)(BaseAddress+0xB0))       	// int   FCmp(MMFLOAT a,MMFLOAT b){if(a>b) return 1;else if(a<b)return -1; else return 0;}
-#define Vector_LoadFloat   	  	  (*(unsigned int *)(BaseAddress+0xB4))       	/* MMFLOAT LoadFloat(unsigned long long C)){union ftype{ unsigned long long a; MMFLOAT b;}f;f.a=c;return f.b; }*/
-#define Vector_CFuncInt1          *(unsigned int *)(BaseAddress+0xB8)       // CFuncInt1
+#define Vector_IntToFloat         (*(unsigned int *)(BaseAddress+0x84))       // MMFLOAT IntToFloat(long long int a)
+#define Vector_FloatToInt         (*(unsigned int *)(BaseAddress+0x88))       // long long int FloatToInt64(MMFLOAT x)
+#define Vector_Option             (*(unsigned int *)(BaseAddress+0x8C))       // Option
+#define Vector_Sine               (*(unsigned int *)(BaseAddress+0x90))       // MMFLOAT sin(MMFLOAT)
+#define Vector_DrawCircle         (*(unsigned int *)(BaseAddress+0x94))       // DrawCircle(int x, int y, int radius, int w, int c, int fill, MMFLOAT aspect)
+#define Vector_DrawTriangle       (*(unsigned int *)(BaseAddress+0x98))       // DrawTriangle(int x0, int y0, int x1, int y1, int x2, int y2, int c, int fill)
+#define Vector_Timer    (*(unsigned int *)(BaseAddress+0x9C))       // uint64_t timer(void)
+#define Vector_FMul    (*(unsigned int *)(BaseAddress+0xA0))       // MMFLOAT FMul(MMFLOAT a, MMFLOAT b){ return a * b; }
+#define Vector_FAdd    (*(unsigned int *)(BaseAddress+0xA4))       // MMFLOAT FAdd(MMFLOAT a, MMFLOAT b){ return a + b; }
+#define Vector_FSub    (*(unsigned int *)(BaseAddress+0xA8))       // MMFLOAT FSub(MMFLOAT a, MMFLOAT b){ return a - b; }
+#define Vector_FDiv    (*(unsigned int *)(BaseAddress+0xAC))       // MMFLOAT FDiv(MMFLOAT a, MMFLOAT b){ return a / b; }
+#define Vector_FCmp    (*(unsigned int *)(BaseAddress+0xB0))       // int   FCmp(MMFLOAT a,MMFLOAT b){if(a>b) return 1;else if(a<b)return -1; else return 0;}
+#define Vector_LoadFloat      (*(unsigned int *)(BaseAddress+0xB4))       /* MMFLOAT LoadFloat(unsigned long long C)){union ftype{ unsigned long long a; MMFLOAT b;}f;f.a=c;return f.b; }*/
+#define Vector_CFuncInt1          *(unsigned int *)(BaseAddress+0xB8 )       // CFuncInt1
 #define Vector_CFuncInt2          *(unsigned int *)(BaseAddress+0xBC)        // CFuncInt2
-#define Vector_CSubComplete		  (*(unsigned int *)(BaseAddress+0xC0))       // CSubComplete
+#define Vector_CSubComplete  (*(unsigned int *)(BaseAddress+0xC0))       // CSubComplete
 //Macros to call each function.
-
+//#define uSec(a)                         ((void (*)(unsigned int )) Vector_uSec) (a)
 #define uSec(a)                         ((void  (*)(unsigned long long )) Vector_uSec) (a)
 #define putConsole(a,b)                 ((void(*)(int, int)) Vector_putConsole) (a,b)
 #define getConsole()                    ((int (*)(void)) Vector_getConsole) ()
@@ -124,13 +125,13 @@
 #define memcpy(a,b,c)                   ((void (*)(void *, void *, int)) Vector_mycopysafe) (a,b,c)
 #define IntToFloat(a)                   ((MMFLOAT (*)(long long)) Vector_IntToFloat) (a)
 #define FloatToInt(a)                   ((long long (*)(MMFLOAT)) Vector_FloatToInt) (a)
-#define Option 							(*(struct option_s *)(unsigned int)Vector_Option)
+#define Option (*(struct option_s *)(unsigned int)Vector_Option)
 #define ReadPageAddress                 (*(unsigned int *) Vector_ReadPageAddress)
 #define WritePageAddress                (*(unsigned int *) Vector_WritePageAddress)
 #define uSecTimer                       ((unsigned long long (*)(void)) Vector_Timer)
 #define FastTimer                       ((unsigned long long  (*)(void)) Vector_FastTimer)
 #define TicksPerUsec                    (*(unsigned int *) Vector_TicksPerUsec)
-#define map(a)							((int(*)(int)) Vector_Map) (a)
+#define map(a) ((int(*)(int)) Vector_Map) (a)
 #define Sine(a)                         ((MMFLOAT (*)(MMFLOAT)) Vector_Sine) (a)
 #define VideoColour                     (*(int *) Vector_VideoColour)
 #define DrawCircle(a,b,c,d,e,f,g)       ((void (*)(int,int,int,int,int,int,MMFLOAT)) Vector_DrawCircle) (a,b,c,d,e,f,g)
@@ -143,22 +144,22 @@
 #define FCmp(a,b)                       ((int (*)(MMFLOAT, MMFLOAT)) Vector_FCmp) (a,b)
 #define CFuncInt1                       (*(unsigned int *) Vector_CFuncInt1)
 #define CFuncInt2                       (*(unsigned int *) Vector_CFuncInt2)
-#define Interrupt                    	(*(unsigned int *) Vector_CSubComplete)
+#define Interrupt                     (*(unsigned int *) Vector_CSubComplete)
 // the structure of the variable table, passed to the CFunction as a pointer Vector_vartbl which is #defined as vartbl
 struct s_vartbl {                               // structure of the variable table
-    char name[MAXVARLEN];                       // variable's name
-    char type;                                  // its type (T_NUM, T_INT or T_STR)
-    char level;                                 // its subroutine or function level (used to track local variables)
-    unsigned char size;                         // the number of chars to allocate for each element in a string array
-    char dummy;
-    int __attribute__ ((aligned (4))) dims[MAXDIM];                     // the dimensions. it is an array if the first dimension is NOT zero
-    union u_val{
-        MMFLOAT f;                              // the value if it is a float
-        long long int i;                        // the value if it is an integer
-        MMFLOAT *fa;                            // pointer to the allocated memory if it is an array of floats
-        long long int *ia;                      // pointer to the allocated memory if it is an array of integers
-        char *s;                                // pointer to the allocated memory if it is a string
-    }  __attribute__ ((aligned (8))) val;
+   char name[MAXVARLEN];                       // variable's name
+   char type;                                  // its type (T_NUM, T_INT or T_STR)
+   char level;                                 // its subroutine or function level (used to track local variables)
+   unsigned char size;                         // the number of chars to allocate for each element in a string array
+   char dummy;
+   int __attribute__ ((aligned (4))) dims[MAXDIM];                     // the dimensions. it is an array if the first dimension is NOT zero
+   union u_val{
+       MMFLOAT f;                              // the value if it is a float
+       long long int i;                        // the value if it is an integer
+       MMFLOAT *fa;                            // pointer to the allocated memory if it is an array of floats
+       long long int *ia;                      // pointer to the allocated memory if it is an array of integers
+       char *s;                                // pointer to the allocated memory if it is a string
+   }  __attribute__ ((aligned (8))) val;
 } __attribute__ ((aligned (8))) val;
 
 //  Useful macros
@@ -182,90 +183,93 @@ struct s_vartbl {                               // structure of the variable tab
 
 //The Option structure
 struct option_s {
-    int  Magic;
-    char Autorun;
-    char Tab;
-    char Invert;
-    char Listcase; //4
-  //
-    unsigned int PROG_FLASH_SIZE;
-    unsigned int HEAP_SIZE;
-    char Height;
-    char Width;
-    char DISPLAY_TYPE;
-    char DISPLAY_ORIENTATION; //8
+   int  Magic;
+   char Autorun;
+   char Tab;
+   char Invert;
+   char Listcase; //4
+ //
+   unsigned int PROG_FLASH_SIZE;
+   unsigned int HEAP_SIZE;
+   char Height;
+   char Width;
+   char DISPLAY_TYPE;
+   char DISPLAY_ORIENTATION; //8
 //
-    int  PIN;
-    int  Baudrate;
-    int  ColourCode;
-    int CPU_Speed; 
-    unsigned int Dummyint;    // used to store the size of the program flash (also start of the LIBRARY code)
-    int DefaultFC, DefaultBC;      // the default colours
-    int DefaultBrightness;         // default backlight brightness //40
+   int  PIN;
+   int  Baudrate;
+   int  ColourCode;
+   int CPU_Speed;
+   unsigned int Dummyint;    // used to store the size of the program flash (also start of the LIBRARY code)
+   int DefaultFC, DefaultBC;      // the default colours
+   int DefaultBrightness;         // default backlight brightness //40
+  // uint16_t VGAFC, VGABC;      // the default colours
+   unsigned short VGAFC, VGABC;      // the default colours
 //
-    // display related
-    unsigned char DefaultFont;
-    unsigned char KeyboardConfig;
-    unsigned char RTC_Clock, RTC_Data; //44
+   // display related
+   unsigned char DefaultFont;
+   unsigned char KeyboardConfig;
+   unsigned char RTC_Clock, RTC_Data; //44
 //
-    int MaxCtrls;                // maximum number of controls allowed //48
-    // for the SPI LCDs
-    unsigned char LCD_CD;
-    unsigned char LCD_CS;
-    unsigned char LCD_Reset;
-    // touch related
-    unsigned char TOUCH_CS;
-    unsigned char TOUCH_IRQ;
-    char TOUCH_SWAPXY; 
-    unsigned char repeat;
-    char dummy;//56
-    int  TOUCH_XZERO;
-    int  TOUCH_YZERO;
-    float TOUCH_XSCALE;
-    float TOUCH_YSCALE; //72
-    unsigned int fullrefresh;
- 
-     // these are only used in the MX470 version
-    unsigned char SD_CS;
-    unsigned char SYSTEM_MOSI;
-    unsigned char SYSTEM_MISO;
-    unsigned char SYSTEM_CLK;
-    unsigned char DISPLAY_BL;
-    unsigned char DISPLAY_CONSOLE;
-    unsigned char TOUCH_Click;
-    char LCD_RD;                   // used for the RD pin for SSD1963  //78
-    unsigned char AUDIO_L;
-    unsigned char AUDIO_R;
-    unsigned char AUDIO_SLICE;
-    unsigned char pins[8];                  // general use storage for CFunctions written by PeterM //86
-    unsigned char SDspeed;
-    char LCDVOP;
-    char I2Coffset;
-    unsigned char E_INKbusy;
-    char Refresh;
-    unsigned char SYSTEM_I2C_SDA;
-    unsigned char SYSTEM_I2C_SCL;
-    unsigned char RTC;
-    char PWM;
-    unsigned char INT1pin;
-    unsigned char INT2pin;
-    unsigned char INT3pin;
-    unsigned char INT4pin;
-    unsigned char SD_CLK_PIN;
-    unsigned char SD_MOSI_PIN;
-    unsigned char SD_MISO_PIN;
-    unsigned char SerialConsole;
-    unsigned char SerialTX;
-    unsigned char SerialRX;
-    unsigned char numlock;
-    unsigned char capslock;
-    unsigned char F1key[MAXKEYLEN];
-    unsigned char F5key[MAXKEYLEN];
-    unsigned char F6key[MAXKEYLEN];
-    unsigned char F7key[MAXKEYLEN];
-    unsigned char F8key[MAXKEYLEN];
-    unsigned char F9key[MAXKEYLEN];
-    // To enable older CFunctions to run any new options *MUST* be added at the end of the list
+   int MaxCtrls;                // maximum number of controls allowed //48
+   // for the SPI LCDs
+   unsigned char LCD_CD;
+   unsigned char LCD_CS;
+   unsigned char LCD_Reset;
+   // touch related
+   unsigned char TOUCH_CS;
+   unsigned char TOUCH_IRQ;
+   char TOUCH_SWAPXY;
+   unsigned char repeat;
+   char dummy;//56
+   int  TOUCH_XZERO;
+   int  TOUCH_YZERO;
+   float TOUCH_XSCALE;
+   float TOUCH_YSCALE; //72
+   unsigned int fullrefresh;
+   unsigned int FlashSize;
+
+    // these are only used in the MX470 version
+   unsigned char SD_CS;
+   unsigned char SYSTEM_MOSI;
+   unsigned char SYSTEM_MISO;
+   unsigned char SYSTEM_CLK;
+   unsigned char DISPLAY_BL;
+   unsigned char DISPLAY_CONSOLE;
+   unsigned char TOUCH_Click;
+   char LCD_RD;                   // used for the RD pin for SSD1963  //78
+   unsigned char AUDIO_L;
+   unsigned char AUDIO_R;
+   unsigned char AUDIO_SLICE;
+   unsigned char pins[8];                  // general use storage for CFunctions written by PeterM //86
+   unsigned char SDspeed;
+   char LCDVOP;
+   char I2Coffset;
+   unsigned char NoHeartbeat;
+   char Refresh;
+   unsigned char SYSTEM_I2C_SDA;
+   unsigned char SYSTEM_I2C_SCL;
+   unsigned char RTC;
+   char PWM;
+   unsigned char INT1pin;
+   unsigned char INT2pin;
+   unsigned char INT3pin;
+   unsigned char INT4pin;
+   unsigned char SD_CLK_PIN;
+   unsigned char SD_MOSI_PIN;
+   unsigned char SD_MISO_PIN;
+   unsigned char SerialConsole;
+   unsigned char SerialTX;
+   unsigned char SerialRX;
+   unsigned char numlock;
+   unsigned char capslock;
+   unsigned char F1key[MAXKEYLEN];
+   unsigned char F5key[MAXKEYLEN];
+   unsigned char F6key[MAXKEYLEN];
+   unsigned char F7key[MAXKEYLEN];
+   unsigned char F8key[MAXKEYLEN];
+   unsigned char F9key[MAXKEYLEN];
+   // To enable older CFunctions to run any new options *MUST* be added at the end of the list
 } __attribute__((packed));
 
 
@@ -316,30 +320,30 @@ struct option_s {
 // configurations for an I/O pin
 // these are used by ExtCfg(a,b,c)
 #define EXT_NOT_CONFIG          0
-#define EXT_ANA_IN				1
-#define EXT_DIG_IN				2
-#define EXT_FREQ_IN				3
-#define EXT_PER_IN				4
-#define EXT_CNT_IN				5
-#define EXT_INT_HI				6
-#define EXT_INT_LO				7
-#define EXT_DIG_OUT				8
-#define EXT_HEARTBEAT			9
-#define EXT_INT_BOTH	  10
-#define EXT_UART0TX			11
-#define EXT_UART0RX			12
-#define EXT_UART1TX			13
-#define EXT_UART1RX			14
-#define EXT_I2C0SDA			15
-#define EXT_I2C0SCL			16
-#define EXT_I2C1SDA			17
-#define EXT_I2C1SCL			18
-#define EXT_SPI0RX			19
-#define EXT_SPI0TX			20
-#define EXT_SPI0SCK			21
-#define EXT_SPI1RX			22
-#define EXT_SPI1TX			23
-#define EXT_SPI1SCK			24
+#define EXT_ANA_IN 1
+#define EXT_DIG_IN 2
+#define EXT_FREQ_IN 3
+#define EXT_PER_IN 4
+#define EXT_CNT_IN 5
+#define EXT_INT_HI 6
+#define EXT_INT_LO 7
+#define EXT_DIG_OUT 8
+#define EXT_HEARTBEAT 9
+#define EXT_INT_BOTH  10
+#define EXT_UART0TX 11
+#define EXT_UART0RX 12
+#define EXT_UART1TX 13
+#define EXT_UART1RX 14
+#define EXT_I2C0SDA 15
+#define EXT_I2C0SCL 16
+#define EXT_I2C1SDA 17
+#define EXT_I2C1SCL 18
+#define EXT_SPI0RX 19
+#define EXT_SPI0TX 20
+#define EXT_SPI0SCK 21
+#define EXT_SPI1RX 22
+#define EXT_SPI1TX 23
+#define EXT_SPI1SCK 24
 #define EXT_IR          25
 #define EXT_INT1        26
 #define EXT_INT2        27

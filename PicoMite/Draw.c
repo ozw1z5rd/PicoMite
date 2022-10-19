@@ -136,7 +136,28 @@ void DrawTriangle(int x0, int y0, int x1, int y1, int x2, int y2, int c, int fil
 // in the case of the MX170 this function is called directly by MMBasic when the GUI command is used
 // in the case of the MX470 it is called by MX470GUI in GUI.c
 const int colours[16]={0x00,0xFF,0x4000,0x40ff,0x8000,0x80ff,0xff00,0xffff,0xff0000,0xff00FF,0xff4000,0xff40ff,0xff8000,0xff80ff,0xffff00,0xffffff};
-
+void initFonts(void){    
+	FontTable[0] = (unsigned char *)font1;
+	FontTable[1] = (unsigned char *)Misc_12x20_LE;
+	#ifdef PICOMITEVGA
+	FontTable[2] = (unsigned char *)arial_bold;
+	#else
+	FontTable[2] = (unsigned char *)Hom_16x24_LE;
+	#endif
+	FontTable[3] = (unsigned char *)Fnt_10x16;
+	FontTable[4] = (unsigned char *)Inconsola;
+	FontTable[5] = (unsigned char *)ArialNumFontPlus;
+	FontTable[6] = (unsigned char *)F_6x8_LE;
+	FontTable[7] = (unsigned char *)TinyFont;
+	FontTable[8] = NULL;
+	FontTable[9] = NULL;
+	FontTable[10] = NULL;
+	FontTable[11] = NULL;
+	FontTable[12] = NULL;
+	FontTable[13] = NULL;
+	FontTable[14] = NULL;
+	FontTable[15] = NULL;
+}
 void cmd_guiMX170(void) {
     unsigned char *p;
 

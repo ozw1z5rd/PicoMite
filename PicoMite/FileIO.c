@@ -437,16 +437,18 @@ void cmd_flash(void)
     {
         if (!CurrentLinePtr)
             error("Invalid at command prompt");
-        int i = getint(p, 1, MAXFLASHSLOTS);
-        ProgMemory = (char *)(flash_target_contents + (i - 1) * MAX_PROG_SIZE);
+        int i = getint(p, 0, MAXFLASHSLOTS);
+        if(i) ProgMemory = (char *)(flash_target_contents + (i - 1) * MAX_PROG_SIZE);
+        else ProgMemory = (char *)(flash_target_contents + MAXFLASHSLOTS * MAX_PROG_SIZE);
         FlashLoad = i;
         PrepareProgram(true);
         nextstmt = (unsigned char *)ProgMemory;
     }
     else if ((p = checkstring(cmdline, "RUN")))
     {
-        int i = getint(p, 1, MAXFLASHSLOTS);
-        ProgMemory = (char *)(flash_target_contents + (i - 1) * MAX_PROG_SIZE);
+        int i = getint(p, 0, MAXFLASHSLOTS);
+        if(i) ProgMemory = (char *)(flash_target_contents + (i - 1) * MAX_PROG_SIZE);
+        else ProgMemory = (char *)(flash_target_contents + MAXFLASHSLOTS * MAX_PROG_SIZE);
         ClearRuntime();
         PrepareProgram(true);
         nextstmt = (unsigned char *)ProgMemory;
@@ -2235,7 +2237,11 @@ void ResetOptions(void)
     Option.DefaultBrightness = 100;
     Option.numlock = 1;
     Option.repeat = 0b101100;
-    Option.FlashSize = 2048*1024;
+    uint8_t txbuf[4] = {0x9f};
+    uint8_t rxbuf[4] = {0};
+    flash_do_cmd(txbuf, rxbuf, 4);
+    Option.FlashSize= 1 << rxbuf[3];
+ 
     SaveOptions();
     uSec(250000);
 }

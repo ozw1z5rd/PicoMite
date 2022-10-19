@@ -134,7 +134,7 @@ void __not_in_flash_func(on_pwm_wrap)(void) {
     pwm_clear_irq(AUDIO_SLICE);
     if(CurrentlyPlaying == P_TONE){
         if(!SoundPlay){
-        	CloseAudio(1);
+    		StopAudio();
             WAVcomplete = true;
         } else {
         	SoundPlay--;

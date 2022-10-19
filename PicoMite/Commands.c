@@ -490,13 +490,12 @@ void cmd_erase(void) {
                 len--; s++; x++;
             }
             if(!(len == 0 && (*x == 0 || strlen(p) == MAXVARLEN))) continue;
-
     		// found the variable
-			if(((vartbl[i].type & T_STR) || vartbl[i].dims[0] != 0) && !(vartbl[i].type & T_PTR)) {
-				FreeMemory(vartbl[i].val.s);                        // free any memory (if allocated)
-				vartbl[i].val.s=NULL;
+			if(((vartbl[j].type & T_STR) || vartbl[j].dims[0] != 0) && !(vartbl[j].type & T_PTR)) {
+				FreeMemory(vartbl[j].val.s);                        // free any memory (if allocated)
+				vartbl[j].val.s=NULL;
 			}
-			k=i+1;
+			k=j+1;
 			if(k==MAXVARS)k=MAXVARS/2;
 			if(vartbl[k].type){
 				vartbl[j].name[0]='~';
@@ -505,8 +504,8 @@ void cmd_erase(void) {
 				vartbl[j].name[0]=0;
 				vartbl[j].type=T_NOTYPE;
 			}
-			vartbl[i].dims[0] = 0;                                    // and again
-			vartbl[i].level = 0;
+			vartbl[j].dims[0] = 0;                                    // and again
+			vartbl[j].level = 0;
 			Globalvarcnt--;
 			break;
 		}
@@ -706,8 +705,22 @@ void __not_in_flash_func(cmd_else)(void) {
 
 
 void cmd_end(void) {
+	for(int i=0; i< NBRSETTICKS;i++){
+		TickPeriod[i]=0;
+		TickTimer[i]=0;
+		TickInt[i]=NULL;
+		TickActive[i]=0;
+	}
+	InterruptUsed=0;    
+	InterruptReturn = NULL ;
     memset(inpbuf,0,STRINGSIZE);
 	CloseAudio(1);
+#ifdef PICOMITEVGA
+	WriteBuf=&AllMemory[HEAP_MEMORY_SIZE + MAXVARS * sizeof(struct s_vartbl) + 2048];
+	DisplayBuf=&AllMemory[HEAP_MEMORY_SIZE + MAXVARS * sizeof(struct s_vartbl) + 2048];
+	LayerBuf=&AllMemory[HEAP_MEMORY_SIZE + MAXVARS * sizeof(struct s_vartbl) + 2048];
+	FrameBuf=&AllMemory[HEAP_MEMORY_SIZE + MAXVARS * sizeof(struct s_vartbl) + 2048];
+#endif
 	longjmp(mark, 1);												// jump back to the input prompt
 }
 
@@ -1632,6 +1645,17 @@ void cmd_on(void) {
 	unsigned char ss[4];													    // this will be used to split up the argument line
     unsigned char *p;
 	// first check if this is:   ON KEY location
+	p = checkstring(cmdline, "PS2");
+	if(p){
+		getargs(&p,1,",");
+		if(*argv[0] == '0' && !isdigit(*(argv[0]+1))){
+			OnPS2GOSUB = NULL;                                      // the program wants to turn the interrupt off
+		} else {
+			OnPS2GOSUB = GetIntAddress(argv[0]);						    // get a pointer to the interrupt routine
+			InterruptUsed = true;
+		}
+		return;
+	}
 	p = checkstring(cmdline, "KEY");
 	if(p) {
 		getargs(&p,3,",");

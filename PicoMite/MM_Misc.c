@@ -36,6 +36,7 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 #include "hardware/dma.h"
 #include "hardware/adc.h"
 #include "hardware/pwm.h"
+#include "hardware/flash.h"
 extern int busfault;
 //#include "pico/stdio_usb/reset_interface.h"
 const char *OrientList[] = {"LANDSCAPE", "PORTRAIT", "RLANDSCAPE", "RPORTRAIT"};
@@ -46,11 +47,12 @@ unsigned char *InterruptReturn;
 extern const char *FErrorMsg[];
 extern FRESULT FSerror;
 
-int TickPeriod[NBRSETTICKS];
-volatile int TickTimer[NBRSETTICKS];
-unsigned char *TickInt[NBRSETTICKS];
-volatile unsigned char TickActive[NBRSETTICKS];
+int TickPeriod[NBRSETTICKS]={0};
+volatile int TickTimer[NBRSETTICKS]={0};
+unsigned char *TickInt[NBRSETTICKS]={NULL};
+volatile unsigned char TickActive[NBRSETTICKS]={0};
 unsigned char *OnKeyGOSUB = NULL;
+unsigned char *OnPS2GOSUB = NULL;
 const char *daystrings[] = {"dummy","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"};
 const char *CaseList[] = {"", "LOWER", "UPPER"};
 int OptionErrorCheck;
@@ -1305,6 +1307,9 @@ void cmd_settick(void){
     } else period = getint(argv[0], -1, INT_MAX);
     if(period == 0) {
         TickInt[irq] = NULL;                                        // turn off the interrupt
+        TickPeriod[irq] = 0;
+        TickTimer[irq] = 0;                                         // set the timer running
+        TickActive[irq]=0;
     } else {
         TickPeriod[irq] = period;
         TickInt[irq] = GetIntAddress(argv[2]);                      // get a pointer to the interrupt routine
@@ -1426,7 +1431,7 @@ void printoptions(void){
     if(Option.CPU_Speed!=133000)PO2Int("CPUSPEED (KHz)", Option.CPU_Speed);
     if(Option.DISPLAY_CONSOLE == true) PO2Str("LCDPANEL", "CONSOLE");
     if(Option.Height != 24 || Option.Width != 80) PO3Int("DISPLAY", Option.Height, Option.Width);
-    if(Option.DISPLAY_TYPE == DISP_USER) PO3Int("LCDPANEL USER", DisplayHRes, DisplayVRes);
+    if(Option.DISPLAY_TYPE == DISP_USER) PO3Int("LCDPANEL USER", HRes, VRes);
     if(Option.DISPLAY_TYPE > I2C_PANEL && Option.DISPLAY_TYPE < DISP_USER) {
         i=Option.DISPLAY_ORIENTATION;
         if(Option.DISPLAY_TYPE==ST7789 || Option.DISPLAY_TYPE == ST7789A)i=(i+2) % 4;
@@ -1648,14 +1653,6 @@ void cmd_option(void) {
 		SaveOptions();
 		return;
 	}
-    tp = checkstring(cmdline, "FLASH SIZE");
-	if(tp) {
-        int i=getinteger(tp);
-        if(!(i==4096*1024 || i==8192*1024 || i==16384*1024 || i==32768*1024)) error("Invalid flash size");
-        Option.FlashSize=i;
-        SaveOptions();
-        return;
-    }
     tp = checkstring(cmdline, "KEYBOARD");
 	if(tp) {
     	//if(CurrentLinePtr) error("Invalid in a program");
@@ -2346,97 +2343,140 @@ uint32_t __get_MSP(void)
 void fun_info(void){
     unsigned char *tp;
     sret = GetTempMemory(STRINGSIZE);                                  // this will last for the life of the command
-	tp=checkstring(ep, "FONT POINTER");
-		if(tp){
-		iret=(int64_t)((uint32_t)&FontTable[getint(tp,1,FONT_TABLE_SIZE)-1]);
-		targ=T_INT;
-		return;
-	}
-    tp=checkstring(ep, "FONT ADDRESS");
-		if(tp){
-		iret=(int64_t)((uint32_t)FontTable[getint(tp,1,FONT_TABLE_SIZE)-1]);
-		targ=T_INT;
-		return;
-	}
-	tp=checkstring(ep, "OPTION");
-	if(tp){
-        if(checkstring(tp, "AUTORUN")){
-			if(Option.Autorun == false)strcpy(sret,"Off");
-            else if(Option.Autorun==MAXFLASHSLOTS+1)strcpy(sret,"On");
-			else {
-                char b[10];
-                IntToStr(b,Option.Autorun,10);
-                strcpy(sret,b);
-            }
-		} else if(checkstring(tp, "EXPLICIT")){
-			if(OptionExplicit == false)strcpy(sret,"Off");
-			else strcpy(sret,"On");
-		} else if(checkstring(tp, "DEFAULT")){
-			if(DefaultType == T_INT)strcpy(sret,"Integer");
-			else if(DefaultType == T_NBR)strcpy(sret,"Float");
-			else if(DefaultType == T_STR)strcpy(sret,"String");
-			else strcpy(sret,"None");
-		} else if(checkstring(tp, "BASE")){
-			if(OptionBase==1)iret=1;
-			else iret=0;
-			targ=T_INT;
-			return;
-		} else if(checkstring(tp, "FLASH SIZE")){
-            iret=Option.FlashSize;
-			targ=T_INT;
-			return;
-		} else if(checkstring(tp, "BREAK")){
-			iret=BreakKey;
-			targ=T_INT;
-			return;
-		} else error("Syntax");
-		CtoM(sret);
-	    targ=T_STR;
-		return;
-    }
-    tp=checkstring(ep, "CALLTABLE");
-    if(tp){
-        iret = (int64_t)(uint32_t)CallTable;
-        targ = T_INT;
+    if(checkstring(ep, "AUTORUN")){
+        if(Option.Autorun == false)strcpy(sret,"Off");
+        else strcpy(sret,"On");
+        CtoM(sret);
+        targ=T_STR;
         return;
-    }
-    tp=checkstring(ep, "FLASHTOP");
-    if(tp){
-        iret = (int64_t)(uint32_t)TOP_OF_SYSTEM_FLASH ;
-        targ = T_INT;
+    } else if(checkstring(ep, "BCOLOUR") || checkstring(ep, "BCOLOR")){
+            iret=gui_bcolour;
+            targ=T_INT;
+            return;
+    } else if(*ep=='c' || *ep=='C'){
+        if(checkstring(ep, "CALLTABLE")){
+            iret = (int64_t)(uint32_t)CallTable;
+            targ = T_INT;
+            return;
+        } else if(checkstring(ep, "CPUSPEED")){
+            IntToStr(sret,Option.CPU_Speed*1000,10);
+            CtoM(sret);
+            targ=T_STR;
+            return;
+        } else error("Syntax");
+    }  else if(*ep=='d' || *ep=='D'){
+        if(checkstring(ep, "DEVICE")){
+            fun_device();
+            return;
+        } else if(checkstring(ep, "DISK SIZE")){
+            if(!InitSDCard()) error((char *)FErrorMsg[20]);					// setup the SD card
+            FATFS *fs;
+            DWORD fre_clust;
+            /* Get volume information and free clusters of drive 1 */
+            f_getfree("0:", &fre_clust, &fs);
+            /* Get total sectors and free sectors */
+            iret= (uint64_t)(fs->n_fatent - 2) * (uint64_t)fs->csize *(uint64_t)FF_MAX_SS;
+            targ=T_INT;
+            return;
+        } else error("Syntax");
+    } else if(*ep=='e' || *ep=='E'){
+        if(checkstring(ep, "ERRNO")){
+            iret = MMerrno;
+            targ=T_INT;
+            return;
+        } else if(checkstring(ep, "ERRMSG")){
+            int i=OptionFileErrorAbort;
+            strcpy(sret, MMErrMsg);
+            CtoM(sret);
+            targ=T_STR;
+            OptionFileErrorAbort=i;
+            return;
+        } else error("Syntax");
+    } else if(*ep=='f' || *ep=='F'){
+        if(tp=checkstring(ep, "FONT POINTER")){
+            iret=(int64_t)((uint32_t)&FontTable[getint(tp,1,FONT_TABLE_SIZE)-1]);
+            targ=T_INT;
+            return;
+        } else if(tp=checkstring(ep, "FONT ADDRESS")){
+            iret=(int64_t)((uint32_t)FontTable[getint(tp,1,FONT_TABLE_SIZE)-1]);
+            targ=T_INT;
+            return;
+        } else if(tp=checkstring(ep, "FILESIZE")){
+            int i,j;
+            DIR djd;
+            FILINFO fnod;
+            targ=T_INT;
+            if(!InitSDCard()) {iret= -1; return;}
+            memset(&djd,0,sizeof(DIR));
+            memset(&fnod,0,sizeof(FILINFO));
+            char *p = getCstring(tp);
+            if(p[1] == ':') *p = toupper(*p) - 'A' + '0';                   // convert a DOS style disk name to FatFs device number
+            FSerror = f_stat(p, &fnod);
+            if(FSerror != FR_OK){ iret=-1; targ=T_INT; strcpy(MMErrMsg,FErrorMsg[4]); return;}
+            if((fnod.fattrib & AM_DIR)){ iret=-2; targ=T_INT; strcpy(MMErrMsg,FErrorMsg[4]); return;}
+            targ=T_INT;
+            iret=fnod.fsize;
+            return;
+        } else if(checkstring(ep, "FREE SPACE")){
+            if(!InitSDCard()) error((char *)FErrorMsg[20]);					// setup the SD card
+            FATFS *fs;
+            DWORD fre_clust;
+            /* Get volume information and free clusters of drive 1 */
+            f_getfree("0:", &fre_clust, &fs);
+            /* Get total sectors and free sectors */
+            iret = (uint64_t)fre_clust * (uint64_t)fs->csize  *(uint64_t)FF_MAX_SS;
+            targ=T_INT;
+            return;
+        } else if(checkstring(ep, "FLASHTOP")){
+            iret = (int64_t)(uint32_t)TOP_OF_SYSTEM_FLASH ;
+            targ = T_INT;
+            return;
+        } else if(checkstring(ep, "FONTWIDTH")){
+            iret = FontTable[gui_font >> 4][0] * (gui_font & 0b1111);
+            targ=T_INT;
+            return;
+        } else if(checkstring(ep, "FLASH")){
+            iret=FlashLoad;
+            targ=T_INT;
+            return;
+        } else if(checkstring(ep, "FCOLOUR") || checkstring(ep, "FCOLOR") ){
+            iret=gui_fcolour;
+            targ=T_INT;
+            return;
+        } else if(checkstring(ep, "FONT")){
+            iret=(gui_font >> 4)+1;
+            targ=T_INT;
+            return;
+        } else if(checkstring(ep, "FONTHEIGHT")){
+            iret = FontTable[gui_font >> 4][1] * (gui_font & 0b1111);
+            targ=T_INT;
+            return;
+        } else error("Syntax");
+    } else if(*ep=='h' || *ep=='H'){
+        if(checkstring(ep, "HEAP")){
+            iret=FreeSpaceOnHeap();
+            targ=T_INT;
+            return;
+        } else if(checkstring(ep, "HPOS")){
+            iret = CurrentX;
+            targ=T_INT;
+            return;
+        } else error("Syntax");
+    } else if(checkstring(ep,"ID")){  
+        strcpy(sret,id_out);
+        CtoM(sret);
+        targ=T_STR;
         return;
-    }
-     tp=checkstring(ep, "PROGRAM");
-    if(tp){
-        iret = (int64_t)(uint32_t)ProgMemory;
-        targ = T_INT;
+    } 
+#ifndef PICOMITEVGA
+    else if(checkstring(ep, "LCDPANEL")){
+        strcpy(sret,display_details[Option.DISPLAY_TYPE].name);
+        CtoM(sret);
+        targ=T_STR;
         return;
-    }
-    tp=checkstring(ep, "SYSTICK");
-    if(tp){
-        iret = (int64_t)(uint32_t)systick_hw->cvr;
-        targ = T_INT;
-        return;
-    }
-	tp=checkstring(ep, "FILESIZE");
-	if(tp){
-		int i,j;
-		DIR djd;
-		FILINFO fnod;
-		targ=T_INT;
-        if(!InitSDCard()) {iret= -1; return;}
-		memset(&djd,0,sizeof(DIR));
-		memset(&fnod,0,sizeof(FILINFO));
-		char *p = getCstring(tp);
-        if(p[1] == ':') *p = toupper(*p) - 'A' + '0';                   // convert a DOS style disk name to FatFs device number
-		FSerror = f_stat(p, &fnod);
-		if(FSerror != FR_OK){ iret=-1; targ=T_INT; strcpy(MMErrMsg,FErrorMsg[4]); return;}
-		if((fnod.fattrib & AM_DIR)){ iret=-2; targ=T_INT; strcpy(MMErrMsg,FErrorMsg[4]); return;}
-		iret=fnod.fsize;
-		return;
-	}
-	tp=checkstring(ep, "MODIFIED");
-	if(tp){
+    } 
+#endif
+	else if(tp=checkstring(ep, "MODIFIED")){
 		int i,j;
 	    DIR djd;
 	    FILINFO fnod;
@@ -2459,61 +2499,144 @@ void fun_info(void){
 		CtoM(sret);
 	    targ=T_STR;
 		return;
-	}
-    tp=checkstring(ep, "PINNO");
-    if(tp){
-        int pin;
-        MMFLOAT f;
-        long long int i64;
-        unsigned char *ss;
-        int t=0;
-        char code, *ptr;
-        char *string=GetTempMemory(STRINGSIZE);
-        if(codecheck(tp))evaluate(tp, &f, &i64, &ss, &t, false);
-	    if(t & T_STR ){
-            ptr=getCstring(tp);
-            strcpy(string,ptr);
-        } else {
-            strcpy(string,tp);
-        }
-        if(!(code=codecheck(string)))string+=2;  
-        else error("Syntax");
-        pin = getinteger(string);
-        if(!code)pin=codemap(pin);
-        if(IsInvalidPin(pin))error("Invalid pin");
-        iret=pin;
-        targ=T_INT;
-        return;
+	} else if(tp=checkstring(ep, "OPTION")){
+        if(checkstring(tp, "AUTORUN")){
+			if(Option.Autorun == false)strcpy(sret,"Off");
+            else if(Option.Autorun==MAXFLASHSLOTS+1)strcpy(sret,"On");
+			else {
+                char b[10];
+                IntToStr(b,Option.Autorun,10);
+                strcpy(sret,b);
+            }
+            CtoM(sret);
+            targ=T_STR;
+            return;
+		} else if(checkstring(tp, "BASE")){
+			if(OptionBase==1)iret=1;
+			else iret=0;
+			targ=T_INT;
+			return;
+		} else if(checkstring(tp, "BREAK")){
+			iret=BreakKey;
+			targ=T_INT;
+			return;
+ 		} else if(checkstring(tp, "DEFAULT")){
+			if(DefaultType == T_INT)strcpy(sret,"Integer");
+			else if(DefaultType == T_NBR)strcpy(sret,"Float");
+			else if(DefaultType == T_STR)strcpy(sret,"String");
+			else strcpy(sret,"None");
+            CtoM(sret);
+            targ=T_STR;
+            return;
+ 		} else if(checkstring(tp, "EXPLICIT")){
+			if(OptionExplicit == false)strcpy(sret,"Off");
+			else strcpy(sret,"On");
+            CtoM(sret);
+            targ=T_STR;
+            return;
+		} else if(checkstring(tp, "FLASH SIZE")){
+            uint8_t txbuf[4] = {0x9f};
+            uint8_t rxbuf[4] = {0};
+            flash_do_cmd(txbuf, rxbuf, 4);
+            iret= 1 << rxbuf[3];
+			targ=T_INT;
+			return;
+		} else error("Syntax");
+    } else if(*ep=='p' || *ep=='P'){
+        if(tp=checkstring(ep, "PINNO")){
+            int pin;
+            MMFLOAT f;
+            long long int i64;
+            unsigned char *ss;
+            int t=0;
+            char code, *ptr;
+            char *string=GetTempMemory(STRINGSIZE);
+            if(codecheck(tp))evaluate(tp, &f, &i64, &ss, &t, false);
+            if(t & T_STR ){
+                ptr=getCstring(tp);
+                strcpy(string,ptr);
+            } else {
+                strcpy(string,tp);
+            }
+            if(!(code=codecheck(string)))string+=2;  
+            else error("Syntax");
+            pin = getinteger(string);
+            if(!code)pin=codemap(pin);
+            if(IsInvalidPin(pin))error("Invalid pin");
+            iret=pin;
+            targ=T_INT;
+            return;
+        } else if(tp=checkstring(ep, "PIN")){
+            int pin;
+            char code;
+            if(!(code=codecheck(tp)))tp+=2;
+            pin = getinteger(tp);
+            if(!code)pin=codemap(pin);
+            if(IsInvalidPin(pin))strcpy(sret,"Invalid");
+            else strcpy(sret,PinFunction[ExtCurrentConfig[pin] & 0xFF]);
+            if(ExtCurrentConfig[pin] & EXT_BOOT_RESERVED)strcat(sret, ": Boot Reserved");
+            if(ExtCurrentConfig[pin] & EXT_COM_RESERVED)strcat(sret, ": Reserved for function");
+            if(ExtCurrentConfig[pin] & EXT_DS18B20_RESERVED)strcat(sret, ": In use for DS18B20");
+            CtoM(sret);
+            targ=T_STR;
+            return;
+        } else if(checkstring(ep, "PROGRAM")){
+            iret = (int64_t)(uint32_t)ProgMemory;
+            targ = T_INT;
+            return;
+        } else if(checkstring(ep, "PS2")){
+            iret = (int64_t)(uint32_t)PS2code;
+            targ = T_INT;
+            return;
+        } else error("Syntax");
+    } else if(*ep=='s' || *ep=='S'){
+        if(checkstring(ep, "SDCARD")){
+            int i=OptionFileErrorAbort;
+            OptionFileErrorAbort=0;
+            if(!InitSDCard())strcpy(sret,"Not present");
+            else  strcpy(sret,"Ready");
+            CtoM(sret);
+            targ=T_STR;
+            OptionFileErrorAbort=i;
+            return;
+        } else if(checkstring(ep, "STACK")){
+            iret=(int64_t)((uint32_t)__get_MSP());
+            targ=T_INT;
+            return;
+        } else if(tp=checkstring(ep, "SYSTICK")){
+            iret = (int64_t)(uint32_t)systick_hw->cvr;
+            targ = T_INT;
+            return;
+        } else if(checkstring(ep, "SOUND")){
+            switch(CurrentlyPlaying){
+            case P_NOTHING:strcpy(sret,"OFF");break;
+            case P_PAUSE_TONE:
+            case P_PAUSE_WAV:
+            case P_PAUSE_SOUND:
+            case P_PAUSE_FLAC:strcpy(sret,"PAUSED");break;
+            case P_TONE:strcpy(sret,"TONE");break;
+            case P_WAV:strcpy(sret,"WAV");break;
+            case P_SOUND:strcpy(sret,"SOUND");break;
+            }
+            CtoM(sret);
+            targ=T_STR;
+            return;
+        } else error("Syntax");
     }
-
-    tp=checkstring(ep, "PIN");
-    if(tp){
-        int pin;
-        char code;
-        if(!(code=codecheck(tp)))tp+=2;
-        pin = getinteger(tp);
-        if(!code)pin=codemap(pin);
-        if(IsInvalidPin(pin))strcpy(sret,"Invalid");
-        else strcpy(sret,PinFunction[ExtCurrentConfig[pin] & 0xFF]);
-        if(ExtCurrentConfig[pin] & EXT_BOOT_RESERVED)strcat(sret, ": Boot Reserved");
-        if(ExtCurrentConfig[pin] & EXT_COM_RESERVED)strcat(sret, ": Reserved for function");
-        if(ExtCurrentConfig[pin] & EXT_DS18B20_RESERVED)strcat(sret, ": In use for DS18B20");
-    } else {
-        if(checkstring(ep, "AUTORUN")){
-            if(Option.Autorun == false)strcpy(sret,"Off");
-            else strcpy(sret,"On");
 #ifndef PICOMITEVGA
-        } else if(checkstring(ep, "LCDPANEL")){
-            strcpy(sret,display_details[Option.DISPLAY_TYPE].name);
-        } else if(checkstring(ep, "TOUCH")){
-            if(Option.TOUCH_CS == false)strcpy(sret,"Disabled");
-            else if(Option.TOUCH_XZERO == TOUCH_NOT_CALIBRATED)strcpy(sret,"Not calibrated");
-            else strcpy(sret,"Ready");
+    else if(checkstring(ep, "TOUCH")){
+        if(Option.TOUCH_CS == false)strcpy(sret,"Disabled");
+        else if(Option.TOUCH_XZERO == TOUCH_NOT_CALIBRATED)strcpy(sret,"Not calibrated");
+        else strcpy(sret,"Ready");
+        CtoM(sret);
+        targ=T_STR;
+        return;
+    } 
 #endif
-        } else if(checkstring(ep,"ID")){  
-            strcpy(sret,id_out);
-	    } else if(checkstring(ep, "DEVICE")){
-            fun_device();
+    else if(*ep=='v' || *ep=='V'){
+        if(checkstring(ep, "VARCNT")){
+            iret=(int64_t)((uint32_t)varcnt);
+            targ=T_INT;
             return;
         } else if(checkstring(ep, "VERSION")){
             char *p;
@@ -2523,88 +2646,12 @@ void fun_info(void){
             fret += (MMFLOAT)strtol(p + 1, &p, 10) / (MMFLOAT)1000000.0;
             targ=T_NBR;
             return;
-        } else if(checkstring(ep, "VARCNT")){
-            iret=(int64_t)((uint32_t)varcnt);
-            targ=T_INT;
-            return;
-        } else if(checkstring(ep, "DISK SIZE")){
-            if(!InitSDCard()) error((char *)FErrorMsg[20]);					// setup the SD card
-            FATFS *fs;
-            DWORD fre_clust;
-            /* Get volume information and free clusters of drive 1 */
-            f_getfree("0:", &fre_clust, &fs);
-            /* Get total sectors and free sectors */
-            iret= (uint64_t)(fs->n_fatent - 2) * (uint64_t)fs->csize *(uint64_t)FF_MAX_SS;
-            targ=T_INT;
-            return;
-        } else if(checkstring(ep, "FREE SPACE")){
-            if(!InitSDCard()) error((char *)FErrorMsg[20]);					// setup the SD card
-            FATFS *fs;
-            DWORD fre_clust;
-            /* Get volume information and free clusters of drive 1 */
-            f_getfree("0:", &fre_clust, &fs);
-            /* Get total sectors and free sectors */
-            iret = (uint64_t)fre_clust * (uint64_t)fs->csize  *(uint64_t)FF_MAX_SS;
-            targ=T_INT;
-            return;
-        } else if(checkstring(ep, "CPUSPEED")){
-            IntToStr(sret,Option.CPU_Speed*1000,10);
-        } else if(checkstring(ep, "FONTWIDTH")){
-            iret = FontTable[gui_font >> 4][0] * (gui_font & 0b1111);
-            targ=T_INT;
-            return;
-       } else if(checkstring(ep, "FONTHEIGHT")){
-            iret = FontTable[gui_font >> 4][1] * (gui_font & 0b1111);
-            targ=T_INT;
-            return;
-        } else if(checkstring(ep, "HPOS")){
-            iret = CurrentX;
-            targ=T_INT;
-            return;
         } else if(checkstring(ep, "VPOS")){
             iret = CurrentY;
             targ=T_INT;
             return;
-        } else if(checkstring(ep, "SDCARD")){
-            int i=OptionFileErrorAbort;
-            OptionFileErrorAbort=0;
-            if(!InitSDCard())strcpy(sret,"Not present");
-            else  strcpy(sret,"Ready");
-            OptionFileErrorAbort=i;
-        } else if(checkstring(ep, "ERRNO")){
-            iret = MMerrno;
-            targ=T_INT;
-            return;
-        } else if(checkstring(ep, "ERRMSG")){
-            strcpy(sret, MMErrMsg);
-       } else if(checkstring(ep, "FLASH")){
-            iret=FlashLoad;
-            targ=T_INT;
-            return;
-        } else if(checkstring(ep, "FCOLOUR") || checkstring(ep, "FCOLOR") ){
-            iret=gui_fcolour;
-            targ=T_INT;
-            return;
-        } else if(checkstring(ep, "BCOLOUR") || checkstring(ep, "BCOLOR")){
-            iret=gui_bcolour;
-            targ=T_INT;
-            return;
-         } else if(checkstring(ep, "FONT")){
-            iret=(gui_font >> 4)+1;
-            targ=T_INT;
-            return;
-	    } else if(checkstring(ep, "HEAP")){
-            iret=FreeSpaceOnHeap();
-            targ=T_INT;
-            return;
-        } else if(checkstring(ep, "STACK")){
-            iret=(int64_t)((uint32_t)__get_MSP());
-            targ=T_INT;
-            return;
         } else error("Syntax");
-    }
-    CtoM(sret);
-    targ=T_STR;
+    } else error("Syntax");
 }
 
 void cmd_watchdog(void) {
@@ -3020,6 +3067,11 @@ int checkdetailinterrupts(void) {
         intaddr = OnKeyGOSUB;                                       // set the next stmt to the interrupt location
         goto GotAnInterrupt;
     }
+    if(OnPS2GOSUB && PS2int) {
+        intaddr = OnPS2GOSUB;                                       // set the next stmt to the interrupt location
+        PS2int=false;
+        goto GotAnInterrupt;
+    }
 
 #ifndef PICOMITEVGA
     if(Ctrl!=NULL){
@@ -3138,7 +3190,7 @@ int checkdetailinterrupts(void) {
             // reset for the next tick but skip any ticks completely missed
             while(TickTimer[i] > TickPeriod[i]) TickTimer[i] -= TickPeriod[i];
             intaddr = TickInt[i];
-            goto GotAnInterrupt;
+            if(intaddr)goto GotAnInterrupt;
         }
     }
 

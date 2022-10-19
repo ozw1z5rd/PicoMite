@@ -362,6 +362,7 @@ int __not_in_flash_func(MMInkey)(void) {
     }
 
     c = getConsole();                                               // do discarded chars so get the char
+    if(c==-1)CheckKeyboard();
     if(!(c==0x1b))return c;
     InkeyTimer = 0;                                             // start the timer
     while((c = getConsole()) == -1 && InkeyTimer < 30);         // get the second char with a delay of 30mS to allow the next char to arrive
@@ -745,7 +746,6 @@ int MMgetchar(void) {
 	int c;
 	do {
 		ShowCursor(1);
-        CheckKeyboard();
 		c=MMInkey();
 	} while(c == -1);
 	ShowCursor(0);
@@ -1780,12 +1780,18 @@ int main(){
 		  p[3]=' ';
 	  }
         tokenise(true);                                             // turn into executable code
+        i=0;
+        if(*tknbuf==GetCommandValue((char *)"RUN"))i=1;
         if (setjmp(jmprun) != 0) {
             PrepareProgram(false);
             CurrentLinePtr = 0;
         }
         ExecuteProgram(tknbuf);                                     // execute the line straight away
-        cmd_end();
+        if(i)cmd_end();
+        else {
+            memset(inpbuf,0,STRINGSIZE);
+	        longjmp(mark, 1);												// jump back to the input prompt
+        }
 	}
 }
 
@@ -1794,6 +1800,7 @@ void SaveProgramToFlash(unsigned char *pm, int msg) {
     unsigned char *p, endtoken, fontnbr, prevchar = 0, buf[STRINGSIZE];
     int nbr, i, j, n, SaveSizeAddr;
     uint32_t storedupdates[MAXCFUNCTION], updatecount=0, realflashsave, retvalue;
+    initFonts();
     memcpy(buf, tknbuf, STRINGSIZE);                                // save the token buffer because we are going to use it
     FlashWriteInit(PROGRAM_FLASH);
     flash_range_erase(realflashpointer, MAX_PROG_SIZE);
