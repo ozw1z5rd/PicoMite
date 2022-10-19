@@ -14,6 +14,18 @@ Compiled version and documentation is available on https://geoffg.net/picomite.h
 
 Change list from V5.07.00
 ***********************************************************************************************************************
+PicoMite V5.07.05RC8
+
+Corrects reporting of MM.HRES and MM.VRES by OPTION LIST when a user driver is loaded. 
+Fixes bug in PLAY TONE n. m. d, interrupt which caused the interrupt not to fire. 
+Fixes bug in ERASE command when erasing arrays. 
+Fixes bug in audio commands executed at the command line - introduced in previous RC. 
+Implements mm.info$(sound) to report status of the audio channel. 
+Implements ON PS2 interrupt. This triggers an interrupt whenever the PicoMite sees a message from the PS2 interface. 
+Use MM.info(PS2) to report the raw message received. This allows the programmer to trap both keypress and release. 
+See https://wiki.osdev.org/PS/2_Keyboard for the scan codes (Set 2). 
+Resets default fonts when a new program is loaded or the NEW command is executed. 
+
 PicoMite V5.07.05RC7
 
 Changes to PS2 handler. Other changes in preparation for future release.
