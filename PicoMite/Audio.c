@@ -1147,6 +1147,7 @@ void wavcallback(char *p){
 // The MMBasic command:  PLAY
 void cmd_play(void) {
     unsigned char *tp;
+	if(!Option.AUDIO_L)error((char *)"Audio not enabled");
     if(checkstring(cmdline, "STOP")) {
         CloseAudio(1);
         return;

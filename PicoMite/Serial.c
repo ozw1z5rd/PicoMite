@@ -64,7 +64,7 @@ unsigned char com2_bit9 = 0;                                        // used to t
 void on_uart_irq0() {
     if(uart_is_readable(uart0)) {
 		char cc = uart_getc(uart0); 
-		if(Option.SerialConsole!=1){
+		if(!(Option.SerialConsole & 1)){
 			if(GPSchannel==1){
 				*gpsbuf=cc;
 				gpsbuf++;
@@ -105,7 +105,7 @@ void on_uart_irq0() {
 		}
     }
     if(uart_is_writable(uart0)){
-		if(Option.SerialConsole!=1){
+		if(!(Option.SerialConsole & 1)){
 			if(com1Tx_head != com1Tx_tail) {
 				uart_putc_raw(uart0,com1Tx_buf[com1Tx_tail]);
 				com1Tx_tail = (com1Tx_tail + 1) % TX_BUFFER_SIZE;       // advance the tail of the queue
@@ -126,7 +126,7 @@ void on_uart_irq0() {
 void on_uart_irq1() {
 	if (uart_is_readable(uart1)) {
 		char cc = uart_getc(uart1); 
-		if(Option.SerialConsole!=2){
+		if(!(Option.SerialConsole & 2)){
 			if(GPSchannel==2){
 				*gpsbuf=cc;
 				gpsbuf++;
@@ -167,7 +167,7 @@ void on_uart_irq1() {
 		}
     }
     if(uart_is_writable(uart1)){
-		if(Option.SerialConsole!=2){
+		if(!(Option.SerialConsole & 2)){
 			if(com2Tx_head != com2Tx_tail) {
 				uart_putc_raw(uart1,com2Tx_buf[com2Tx_tail]);
 				com2Tx_tail = (com2Tx_tail + 1) % TX_BUFFER_SIZE;       // advance the tail of the queue

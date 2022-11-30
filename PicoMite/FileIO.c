@@ -204,6 +204,19 @@ void cmd_flash(void)
         }
         enable_interrupts();
     }
+    else if ((p = checkstring(cmdline, "ERASE BLOCKS")))
+    {
+        getargs(&p, 3, ",");
+        if(!(argc == 3)) error("Argument count");
+        if(!Option.FlashSize)error("Flash Size not specified");
+        int start = getint(argv[0],TOP_OF_SYSTEM_FLASH ,Option.FlashSize-4096);
+        int size = getint(argv[2], 1,(Option.FlashSize-TOP_OF_SYSTEM_FLASH-4096)/4096);
+        if(start % 4096)error("Must be on 4096 byte boundary");
+        size*=4096;
+        disable_interrupts();
+        flash_range_erase(start, size);
+        enable_interrupts();
+    }
     else if ((p = checkstring(cmdline, "READ")))
     {
         getargs(&p, 5, ",");

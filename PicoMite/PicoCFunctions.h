@@ -10,6 +10,7 @@
 *  V1.6.2
 *  NB: Base address has changed from previous versions to match V5.07.05
 *  V1.6.3  struct option_s updated to match 5.07.05 as defined in fileIO.h
+*  V1.6.4  Additional links
 ******************************************************************************************/
 #define MAXVARLEN           32                      // maximum length of a variable name
 #define MAXDIM              5                       // maximum nbr of dimensions to an array
@@ -32,8 +33,8 @@
 #define Vector_GetMemory          (*(unsigned int *)(BaseAddress+0x2C))       // void *GetMemory(size_t msize);
 #define Vector_GetTempMemory      (*(unsigned int *)(BaseAddress+0x30))       // void *GetTempMemory(int NbrBytes)
 #define Vector_FreeMemory         (*(unsigned int *)(BaseAddress+0x34))       // void FreeMemory(void *addr)
-#define Vector_DrawRectangle      *(unsigned int *)(BaseAddress+0x38 )         // void DrawRectangle(int x1, int y1, int x2, int y2, int C))
-#define Vector_DrawBitmap         *(unsigned int *)(BaseAddress+0x3c )         // void DrawBitmap(int x1, int y1, int width, int height, int scale, int fg, int bg, unsigned char *bitmap )
+#define Vector_DrawRectangle      *(unsigned int *)(BaseAddress+0x38 )        // void DrawRectangle(int x1, int y1, int x2, int y2, int C))
+#define Vector_DrawBitmap         *(unsigned int *)(BaseAddress+0x3c )        // void DrawBitmap(int x1, int y1, int width, int height, int scale, int fg, int bg, unsigned char *bitmap )
 #define Vector_DrawLine           (*(unsigned int *)(BaseAddress+0x40))       // void DrawLine(int x1, int y1, int x2, int y2, int w, int C))
 #define Vector_FontTable          (*(unsigned int *)(BaseAddress+0x44))       // const unsigned char *FontTable[FONT_NBR]
 #define Vector_ExtCurrentConfig   (*(unsigned int *)(BaseAddress+0x48))       // int ExtCurrentConfig[NBRPINS + 1];
@@ -44,31 +45,33 @@
 #define Vector_ProgFlash          (*(unsigned int *)(BaseAddress+0x5C))       // ProgFlash
 #define Vector_vartbl             (*(unsigned int *)(BaseAddress+0x60))       // vartbl
 #define Vector_varcnt             (*(unsigned int *)(BaseAddress+0x64))       // varcnt
-#define Vector_DrawBuffer         *(unsigned int *)(BaseAddress+0x68 )         // void DrawRectangle(int x1, int y1, int x2, int y2, int C))
-#define Vector_ReadBuffer         *(unsigned int *)(BaseAddress+0x6c )         // void DrawRectangle(int x1, int y1, int x2, int y2, int C))
-#define Vector_FloatToStr         (*(unsigned int *)(BaseAddress+0x70))     // convert a float to a string including scientific notation if necessary
+#define Vector_DrawBuffer         *(unsigned int *)(BaseAddress+0x68 )        // void DrawRectangle(int x1, int y1, int x2, int y2, int C))
+#define Vector_ReadBuffer         *(unsigned int *)(BaseAddress+0x6c )        // void DrawRectangle(int x1, int y1, int x2, int y2, int C))
+#define Vector_FloatToStr         (*(unsigned int *)(BaseAddress+0x70))       // convert a float to a string including scientific notation if necessary
 #define Vector_ExecuteProgram     (*(unsigned int *)(BaseAddress+0x74))       // void ExecuteProgram(char *fname)
 #define Vector_CFuncmSec          (*(unsigned int *)(BaseAddress+0x78))       // CFuncmSec
 #define Vector_CFuncRam           (*(unsigned int *)(BaseAddress+0x7C))       // StartOfCFuncRam
-#define Vector_ScrollLCD          *(unsigned int *)(BaseAddress+0x80 )         // void scrollLCD(int lines, int blank)
+#define Vector_ScrollLCD          *(unsigned int *)(BaseAddress+0x80 )        // void scrollLCD(int lines, int blank)
 #define Vector_IntToFloat         (*(unsigned int *)(BaseAddress+0x84))       // MMFLOAT IntToFloat(long long int a)
 #define Vector_FloatToInt         (*(unsigned int *)(BaseAddress+0x88))       // long long int FloatToInt64(MMFLOAT x)
 #define Vector_Option             (*(unsigned int *)(BaseAddress+0x8C))       // Option
 #define Vector_Sine               (*(unsigned int *)(BaseAddress+0x90))       // MMFLOAT sin(MMFLOAT)
 #define Vector_DrawCircle         (*(unsigned int *)(BaseAddress+0x94))       // DrawCircle(int x, int y, int radius, int w, int c, int fill, MMFLOAT aspect)
 #define Vector_DrawTriangle       (*(unsigned int *)(BaseAddress+0x98))       // DrawTriangle(int x0, int y0, int x1, int y1, int x2, int y2, int c, int fill)
-#define Vector_Timer    (*(unsigned int *)(BaseAddress+0x9C))       // uint64_t timer(void)
-#define Vector_FMul    (*(unsigned int *)(BaseAddress+0xA0))       // MMFLOAT FMul(MMFLOAT a, MMFLOAT b){ return a * b; }
-#define Vector_FAdd    (*(unsigned int *)(BaseAddress+0xA4))       // MMFLOAT FAdd(MMFLOAT a, MMFLOAT b){ return a + b; }
-#define Vector_FSub    (*(unsigned int *)(BaseAddress+0xA8))       // MMFLOAT FSub(MMFLOAT a, MMFLOAT b){ return a - b; }
-#define Vector_FDiv    (*(unsigned int *)(BaseAddress+0xAC))       // MMFLOAT FDiv(MMFLOAT a, MMFLOAT b){ return a / b; }
-#define Vector_FCmp    (*(unsigned int *)(BaseAddress+0xB0))       // int   FCmp(MMFLOAT a,MMFLOAT b){if(a>b) return 1;else if(a<b)return -1; else return 0;}
-#define Vector_LoadFloat      (*(unsigned int *)(BaseAddress+0xB4))       /* MMFLOAT LoadFloat(unsigned long long C)){union ftype{ unsigned long long a; MMFLOAT b;}f;f.a=c;return f.b; }*/
-#define Vector_CFuncInt1          *(unsigned int *)(BaseAddress+0xB8 )       // CFuncInt1
-#define Vector_CFuncInt2          *(unsigned int *)(BaseAddress+0xBC)        // CFuncInt2
-#define Vector_CSubComplete  (*(unsigned int *)(BaseAddress+0xC0))       // CSubComplete
+#define Vector_Timer    		  (*(unsigned int *)(BaseAddress+0x9C))       // uint64_t timer(void)
+#define Vector_FMul    			  (*(unsigned int *)(BaseAddress+0xA0))       // MMFLOAT FMul(MMFLOAT a, MMFLOAT b){ return a * b; }
+#define Vector_FAdd    			  (*(unsigned int *)(BaseAddress+0xA4))       // MMFLOAT FAdd(MMFLOAT a, MMFLOAT b){ return a + b; }
+#define Vector_FSub    			  (*(unsigned int *)(BaseAddress+0xA8))       // MMFLOAT FSub(MMFLOAT a, MMFLOAT b){ return a - b; }
+#define Vector_FDiv       		  (*(unsigned int *)(BaseAddress+0xAC))       // MMFLOAT FDiv(MMFLOAT a, MMFLOAT b){ return a / b; }
+#define Vector_FCmp    			  (*(unsigned int *)(BaseAddress+0xB0))       // int   FCmp(MMFLOAT a,MMFLOAT b){if(a>b) return 1;else if(a<b)return -1; else return 0;}
+#define Vector_LoadFloat      	  (*(unsigned int *)(BaseAddress+0xB4))       /* MMFLOAT LoadFloat(unsigned long long C)){union ftype{ unsigned long long a; MMFLOAT b;}f;f.a=c;return f.b; }*/
+#define Vector_CFuncInt1          *(unsigned int *)(BaseAddress+0xB8 )        // CFuncInt1
+#define Vector_CFuncInt2          *(unsigned int *)(BaseAddress+0xBC)         // CFuncInt2
+#define Vector_CSubComplete  	  (*(unsigned int *)(BaseAddress+0xC0))       // CSubComplete
+#define Vector_AudioOutput        *(unsigned int *)(BaseAddress+0xC4)         // AudioOutput(int left, int right)
+#define Vector_IDiv    			  (*(unsigned int *)(BaseAddress+0xC8))       // int IDiv(int a, int b){ return a / b; }
+#define Vector_AUDIO_WRAP         (*(volatile unsigned int *)(BaseAddress+0xCC))// AUDIO_WRAP
 //Macros to call each function.
-//#define uSec(a)                         ((void (*)(unsigned int )) Vector_uSec) (a)
 #define uSec(a)                         ((void  (*)(unsigned long long )) Vector_uSec) (a)
 #define putConsole(a,b)                 ((void(*)(int, int)) Vector_putConsole) (a,b)
 #define getConsole()                    ((int (*)(void)) Vector_getConsole) ()
@@ -125,13 +128,13 @@
 #define memcpy(a,b,c)                   ((void (*)(void *, void *, int)) Vector_mycopysafe) (a,b,c)
 #define IntToFloat(a)                   ((MMFLOAT (*)(long long)) Vector_IntToFloat) (a)
 #define FloatToInt(a)                   ((long long (*)(MMFLOAT)) Vector_FloatToInt) (a)
-#define Option (*(struct option_s *)(unsigned int)Vector_Option)
+#define Option 							(*(struct option_s *)(unsigned int)Vector_Option)
 #define ReadPageAddress                 (*(unsigned int *) Vector_ReadPageAddress)
 #define WritePageAddress                (*(unsigned int *) Vector_WritePageAddress)
 #define uSecTimer                       ((unsigned long long (*)(void)) Vector_Timer)
 #define FastTimer                       ((unsigned long long  (*)(void)) Vector_FastTimer)
 #define TicksPerUsec                    (*(unsigned int *) Vector_TicksPerUsec)
-#define map(a) ((int(*)(int)) Vector_Map) (a)
+#define map(a) 							((int(*)(int)) Vector_Map) (a)
 #define Sine(a)                         ((MMFLOAT (*)(MMFLOAT)) Vector_Sine) (a)
 #define VideoColour                     (*(int *) Vector_VideoColour)
 #define DrawCircle(a,b,c,d,e,f,g)       ((void (*)(int,int,int,int,int,int,MMFLOAT)) Vector_DrawCircle) (a,b,c,d,e,f,g)
@@ -144,7 +147,11 @@
 #define FCmp(a,b)                       ((int (*)(MMFLOAT, MMFLOAT)) Vector_FCmp) (a,b)
 #define CFuncInt1                       (*(unsigned int *) Vector_CFuncInt1)
 #define CFuncInt2                       (*(unsigned int *) Vector_CFuncInt2)
-#define Interrupt                     (*(unsigned int *) Vector_CSubComplete)
+#define Interrupt                       (*(unsigned int *) Vector_CSubComplete)
+#define AudioOutputVector               (*(unsigned int *) Vector_AudioOutput)
+#define AudioOutput(a,b)                ((void (*)(uint16_t, uint16_t)) (*(unsigned int *)Vector_AudioOutput)) (a, b)
+#define IDiv(a,b)                       ((int (*)(int, int)) Vector_IDiv) (a,b)
+#define AUDIO_WRAP                      (*(uint16_t *) Vector_AUDIO_WRAP)
 // the structure of the variable table, passed to the CFunction as a pointer Vector_vartbl which is #defined as vartbl
 struct s_vartbl {                               // structure of the variable table
    char name[MAXVARLEN];                       // variable's name

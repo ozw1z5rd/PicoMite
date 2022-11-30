@@ -81,6 +81,11 @@ int SPI0locked=0;
 int SPI1locked=0;
 int BacklightSlice=-1;
 int BacklightChannel=-1;
+void DefaultAudio(uint16_t left, uint16_t right){
+	pwm_set_both_levels(AUDIO_SLICE,left,right);
+}
+void (*AudioOutput)(uint16_t left, uint16_t right) = (void (*)(uint16_t, uint16_t))DefaultAudio;
+
 /*--------------------------------------------------------------------------
 
    Module Private Functions
@@ -130,6 +135,7 @@ BYTE MDD_SDSPI_WriteProtectState(void)
 }
 void __not_in_flash_func(on_pwm_wrap)(void) {
 	static int repeatcount=1;
+	uint16_t left,right;
     // play a tone
     pwm_clear_irq(AUDIO_SLICE);
     if(CurrentlyPlaying == P_TONE){
@@ -138,9 +144,9 @@ void __not_in_flash_func(on_pwm_wrap)(void) {
             WAVcomplete = true;
         } else {
         	SoundPlay--;
-			pwm_set_both_levels(AUDIO_SLICE,
-			(((((SineTable[(int)PhaseAC_left]-2000)  * mapping[vol_left]) / 2000)+2000)*AUDIO_WRAP)>>12,
-			(((((SineTable[(int)PhaseAC_right]-2000)  * mapping[vol_right]) / 2000)+2000)*AUDIO_WRAP)>>12);
+//			pwm_set_both_levels(AUDIO_SLICE,
+			left=(((((SineTable[(int)PhaseAC_left]-2000)  * mapping[vol_left]) / 2000)+2000)*AUDIO_WRAP)>>12;
+			right=(((((SineTable[(int)PhaseAC_right]-2000)  * mapping[vol_right]) / 2000)+2000)*AUDIO_WRAP)>>12;
         	PhaseAC_left = PhaseAC_left + PhaseM_left;
         	PhaseAC_right = PhaseAC_right + PhaseM_right;
         	if(PhaseAC_left>=4096.0)PhaseAC_left-=4096.0;
@@ -156,12 +162,15 @@ void __not_in_flash_func(on_pwm_wrap)(void) {
         	if(swingbuf==1)playbuff=(uint16_t *)sbuff1;
         	else playbuff=(uint16_t *)sbuff2;
         	if(CurrentlyPlaying == P_WAV && mono){
-				pwm_set_both_levels(AUDIO_SLICE,playbuff[ppos],playbuff[ppos]);
+				left=right=playbuff[ppos];
+//				pwm_set_both_levels(AUDIO_SLICE,playbuff[ppos],playbuff[ppos]);
 				ppos++;
         	} else {
 				if(ppos<bcount[swingbuf]){
-				pwm_set_both_levels(AUDIO_SLICE,playbuff[ppos],playbuff[ppos+1]);
-				ppos+=2;
+					left=playbuff[ppos];
+					right=playbuff[ppos+1];
+//					pwm_set_both_levels(AUDIO_SLICE,playbuff[ppos],playbuff[ppos+1]);
+					ppos+=2;
 				}
         	}
         	if(ppos==bcount[swingbuf]){
@@ -207,11 +216,15 @@ void __not_in_flash_func(on_pwm_wrap)(void) {
 		rightv+=2000;
 		leftv=(leftv*AUDIO_WRAP)>>12;
 		rightv=(rightv*AUDIO_WRAP)>>12;
-		pwm_set_both_levels(AUDIO_SLICE,leftv,rightv);
+		left=leftv;
+		right=rightv;
+//		pwm_set_both_levels(AUDIO_SLICE,leftv,rightv);
     } else {
+		left=right=AUDIO_WRAP>>1;
         // play must be paused
-		pwm_set_both_levels(AUDIO_SLICE,AUDIO_WRAP>>1,AUDIO_WRAP>>1);
+//		pwm_set_both_levels(AUDIO_SLICE,AUDIO_WRAP>>1,AUDIO_WRAP>>1);
     }
+	AudioOutput(left,right);
 }
 
 void __not_in_flash_func(BitBangSendSPI)(const BYTE *buff, int cnt){
@@ -1237,13 +1250,13 @@ void InitReservedIO(void) {
 		ExtCfg(Option.SerialRX, EXT_BOOT_RESERVED, 0);
 		gpio_set_function(PinDef[Option.SerialTX].GPno, GPIO_FUNC_UART);
 		gpio_set_function(PinDef[Option.SerialRX].GPno, GPIO_FUNC_UART);		
-		uart_init(Option.SerialConsole==1 ? uart0: uart1, Option.Baudrate);
-		uart_set_hw_flow(Option.SerialConsole==1 ? uart0: uart1, false, false);
-		uart_set_format(Option.SerialConsole==1 ? uart0: uart1, 8, 1, UART_PARITY_NONE);
-		uart_set_fifo_enabled(Option.SerialConsole==1 ? uart0: uart1,  false);
-		irq_set_exclusive_handler(Option.SerialConsole==1 ? UART0_IRQ : UART1_IRQ, Option.SerialConsole==1 ? on_uart_irq0 : on_uart_irq1);
-		irq_set_enabled(Option.SerialConsole==1 ? UART0_IRQ : UART1_IRQ, true);
-		uart_set_irq_enables(Option.SerialConsole==1 ? uart0: uart1, true, false);
+		uart_init((Option.SerialConsole & 3)==1 ? uart0: uart1, Option.Baudrate);
+		uart_set_hw_flow((Option.SerialConsole & 3)==1 ? uart0: uart1, false, false);
+		uart_set_format((Option.SerialConsole & 3)==1  ? uart0: uart1, 8, 1, UART_PARITY_NONE);
+		uart_set_fifo_enabled((Option.SerialConsole & 3)==1 ? uart0: uart1,  false);
+		irq_set_exclusive_handler((Option.SerialConsole & 3)==1 ? UART0_IRQ : UART1_IRQ, (Option.SerialConsole & 3)==1 ? on_uart_irq0 : on_uart_irq1);
+		irq_set_enabled((Option.SerialConsole & 3)==1  ? UART0_IRQ : UART1_IRQ, true);
+		uart_set_irq_enables((Option.SerialConsole & 3)==1  ? uart0: uart1, true, false);
 	}
 	if(Option.KeyboardConfig!=NO_KEYBOARD){
 		ExtCfg(KEYBOARD_CLOCK, EXT_BOOT_RESERVED, 0);

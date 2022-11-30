@@ -584,7 +584,7 @@ void __not_in_flash_func(CNInterrupt)(int dd)
     case PS2STOP:
       if (d)
       { // PS2DAT == 1
-        if(!(Code==0xe0 || Code==0xf0 || (Code==0x12 && KeyE0) || (Code==12 && KeyUpCode)) && Code){
+        if(!(Code==0xe0 || Code==0xf0 || (Code==0x12 && KeyE0) || (Code==0x12 && KeyUpCode)) && Code){
           PS2int=true;
           PS2code=Code;
         }

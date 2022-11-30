@@ -157,6 +157,7 @@ MMFLOAT FMul(MMFLOAT a, MMFLOAT b){ return a * b; }
 MMFLOAT FAdd(MMFLOAT a, MMFLOAT b){ return a + b; }
 MMFLOAT FSub(MMFLOAT a, MMFLOAT b){ return a - b; }
 MMFLOAT FDiv(MMFLOAT a, MMFLOAT b){ return a / b; }
+int IDiv(int a, int b){return a/b;}
 int   FCmp(MMFLOAT a,MMFLOAT b){if(a>b) return 1;else if(a<b)return -1; else return 0;}
 MMFLOAT LoadFloat(unsigned long long c){union ftype{ unsigned long long a; MMFLOAT b;}f;f.a=c;return f.b; }
 const void * const CallTable[] __attribute__((section(".text")))  = {	(void *)uSecFunc,	//0x00
@@ -208,6 +209,9 @@ const void * const CallTable[] __attribute__((section(".text")))  = {	(void *)uS
                                                                         (void *)&CFuncInt1,	//0xb8
                                                                         (void *)&CFuncInt2,	//0xbc
 																		(void *)&CSubComplete,	//0xc0
+																		(void *)&AudioOutput,	//0xc4
+                                                                        (void *)IDiv,//0x0xc8
+                                                                        (void *)&AUDIO_WRAP,//0x0xcc
 									   	   	   	   	   	   	   	   	   	   };
 
 const struct s_PinDef PinDef[NBRPINS + 1]={
@@ -263,7 +267,7 @@ const char DaysInMonth[] = { 0, 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31 }
 void __not_in_flash_func(routinechecks)(void){
     static int c,when=0;
     if(++when & 7 && CurrentLinePtr) return;
-    if(tud_cdc_connected() && Option.SerialConsole==0){
+    if(tud_cdc_connected() && (Option.SerialConsole==0 || Option.SerialConsole>4)){
         while(( c=tud_cdc_read_char())!=-1){
             ConsoleRxBuf[ConsoleRxBufHead] = c;
             if(BreakKey && ConsoleRxBuf[ConsoleRxBufHead] == BreakKey) {// if the user wants to stop the progran
@@ -309,7 +313,7 @@ void putConsole(int c, int flush) {
 }
 // put a character out to the serial console
 char SerialConsolePutC(char c, int flush) {
-    if(Option.SerialConsole==0){
+    if(Option.SerialConsole==0 || Option.SerialConsole>4){
         if(tud_cdc_connected()){
             putc(c,stdout);
             if(flush){
@@ -317,14 +321,15 @@ char SerialConsolePutC(char c, int flush) {
                 fflush(stdout);
             }
         }
-    } else {
-        int empty=uart_is_writable(Option.SerialConsole==1 ? uart0 : uart1);
+    } 
+    if(Option.SerialConsole){
+        int empty=uart_is_writable((Option.SerialConsole & 3)==1 ? uart0 : uart1);
 		while(ConsoleTxBufTail == ((ConsoleTxBufHead + 1) % CONSOLE_TX_BUF_SIZE)); //wait if buffer full
 		ConsoleTxBuf[ConsoleTxBufHead] = c;							// add the char
 		ConsoleTxBufHead = (ConsoleTxBufHead + 1) % CONSOLE_TX_BUF_SIZE;		   // advance the head of the queue
 		if(empty){
-	        uart_set_irq_enables(Option.SerialConsole==1 ? uart0 : uart1, true, true);
-			irq_set_pending(Option.SerialConsole==1 ? UART0_IRQ : UART1_IRQ);
+	        uart_set_irq_enables((Option.SerialConsole & 3)==1 ? uart0 : uart1, true, true);
+			irq_set_pending((Option.SerialConsole & 3)==1 ? UART0_IRQ : UART1_IRQ);
 		}
     }
     return c;
@@ -355,6 +360,7 @@ int __not_in_flash_func(MMInkey)(void) {
     static unsigned int c2 = -1;
     static unsigned int c3 = -1;
     static unsigned int c4 = -1;
+	static int crseen = 0;
 
     if(c1 != -1) {                                                  // check if there are discarded chars from a previous sequence
         c = c1; c1 = c2; c2 = c3; c3 = c4; c4 = -1;                 // shuffle the queue down
@@ -372,6 +378,7 @@ int __not_in_flash_func(MMInkey)(void) {
         if(c == 'Q') return F2;
         if(c == 'R') return F3;
         if(c == 'S') return F4;
+        if(c == 'T') return F5;
         if(c == '2'){
             while((tc = getConsole()) == -1 && InkeyTimer < 70);        // delay some more to allow the final chars to arrive, even at 1200 baud
             if(tc == 'R') return F3 + 0x20;
@@ -1646,7 +1653,7 @@ int main(){
     adc_init();
     adc_set_temp_sensor_enabled(true);
     add_repeating_timer_us(-1000, timer_callback, NULL, &timer);
-    if(Option.SerialConsole==0) while (!tud_cdc_connected() && mSecTimer<5000) {}
+    if(!(Option.SerialConsole==1 || Option.SerialConsole==2)) while (!tud_cdc_connected() && mSecTimer<5000) {}
     InitReservedIO();
     initKeyboard();
     ClearExternalIO();
@@ -1696,7 +1703,7 @@ int main(){
         MMPrintString("RTC not found, OPTION RTC AUTO disabled\r\n");
     }
  	*tknbuf = 0;
-    ContinuePoint = nextstmt;                               // in case the user wants to use the continue command
+     ContinuePoint = nextstmt;                               // in case the user wants to use the continue command
 	if(setjmp(mark) != 0) {
      // we got here via a long jump which means an error or CTRL-C or the program wants to exit to the command prompt
         LoadOptions();

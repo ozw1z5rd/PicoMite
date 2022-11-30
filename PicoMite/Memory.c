@@ -73,6 +73,102 @@ int StrTmpIndex = 0;                                                // index to 
 ************************************************************************************************************************/
 void cmd_memory(void) {
 	unsigned char *p,*tp;
+    tp = checkstring(cmdline, "PACK");
+    if(tp){
+        getargs(&tp,7,",");
+        if(argc!=7)error("Syntax");
+        int i,n=getinteger(argv[4]);
+        if(n<=0)return;
+        uint64_t *from=(uint64_t *)GetPokeAddr(argv[0]);
+        if((uint32_t)from % 8)error("Source address not divisible by 8");
+        int size=getint(argv[6],1,32);
+        if(!(size==1 || size==4 || size==8 || size==16 || size==32))error((char *)"Invalid size");
+        if(size==1){
+            uint8_t *to=(uint8_t *)GetPokeAddr(argv[2]);
+            for(i=0;i<n;i++){
+                int s= i % 8;
+                if(s==0)*to=0;
+                *to |= ((*from++) & 0x1)<<s;
+                if(s==7)to++;
+           }
+        } else if(size==4){
+            uint8_t *to=(uint8_t *)GetPokeAddr(argv[2]);
+            for(i=0;i<n;i++){
+                if((i & 1) == 0){
+                    *to=(*from++) & 0xF;
+                } else {
+                    *to |= ((*from++) & 0xF)<<4;
+                    to++;
+                }
+           }
+        } else if(size==8){
+            uint8_t *to=(uint8_t *)GetPokeAddr(argv[2]);
+            while(n--){
+            *to++=(uint8_t)*from++;
+            }
+        } else if(size==16){
+            uint16_t *to=(uint16_t *)GetPokeAddr(argv[2]);
+            if((uint32_t)to % 2)error("Destination address not divisible by 2");
+            while(n--){
+            *to++=(uint16_t)*from++;
+            }
+        } else if(size==32){
+            uint32_t *to=(uint32_t *)GetPokeAddr(argv[2]);
+            if((uint32_t)to % 4)error("Destination address not divisible by 4");
+            while(n--){
+            *to++=(uint32_t)*from++;
+            }
+        }
+        return;
+    }
+    tp = checkstring(cmdline, "UNPACK");
+    if(tp){
+        getargs(&tp,7,",");
+        if(argc!=7)error("Syntax");
+        int i,n=getinteger(argv[4]);
+        if(n<=0)return;
+        uint64_t *to=(uint64_t *)GetPokeAddr(argv[2]);
+        if((uint32_t)to % 8)error("Destination address not divisible by 8");
+        int size=getint(argv[6],1,32);
+        if(!(size==1 || size==4 || size==8 || size==16 || size==32))error((char *)"Invalid size");
+        if(size==1){
+            uint8_t *from=(uint8_t *)GetPokeAddr(argv[0]);
+            for(i=0;i<n;i++){
+                int s= i % 8;
+                *to++ = (*from) & ((0x1<<s) ? 1 : 0);
+                if(s==7)from++;
+           }
+
+        } else if(size==4){
+            uint8_t *from=(uint8_t *)GetPokeAddr(argv[0]);
+            for(i=0;i<n;i++){
+                if((i & 1) == 0){
+                    *to++=(*from) & 0xF;
+                } else {
+                    *to++ = (*from) >> 4;
+                    from++;
+                }
+           }
+        } else if(size==8){
+            uint8_t *from=(uint8_t *)GetPokeAddr(argv[0]);
+            while(n--){
+            *to++=(uint64_t)*from++;
+            }
+        } else if(size==16){
+            uint16_t *from=(uint16_t *)GetPokeAddr(argv[0]);
+            if((uint32_t)from % 2)error("Source address not divisible by 2");
+            while(n--){
+            *to++=(uint64_t)*from++;
+            }
+        } else if(size==32){
+            uint32_t *from=(uint32_t *)GetPokeAddr(argv[0]);
+            if((uint32_t)from % 4)error("Source address not divisible by 4");
+            while(n--){
+            *to++=(uint64_t)*from++;
+            }
+        }
+        return;
+    }
     tp = checkstring(cmdline, "COPY");
     if(tp){
     	if((p = checkstring(tp, "INTEGER"))) {

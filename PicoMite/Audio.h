@@ -97,9 +97,10 @@ extern volatile float PhaseAC_left, PhaseAC_right;
 extern volatile int swingbuf,nextbuf, playreadcomplete;
 extern volatile int mono;
 extern volatile int audiorepeat;
+extern void (*AudioOutput)(uint16_t left, uint16_t right);
 typedef struct sa_flist {
     char fn[FF_MAX_LFN];
 } a_flist;
-
+extern a_flist *alist;
 #endif
 #endif
