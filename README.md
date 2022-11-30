@@ -14,7 +14,17 @@ Compiled version and documentation is available on https://geoffg.net/picomite.h
 
 Change list from V5.07.00
 ***********************************************************************************************************************
-PicoMite V5.07.05RC8
+PicoMite V5.07.05RC10
+
+Updated CSUB header file and additional functions exposed. 
+Implements new commands MEMORY PACK and MEMORY UNPACK. 
+These allow the normal 64 bit integers in memory to be packed into 32, 16, 8, 4 or 1 bits and then unpacked.
+
+PicoMite V5.07.05RC9
+
+Implements an additional parameter on OPTION SERIAL CONSOLE. 
+i.e. OPTION SERIAL CONSOLE TXpin, RXpin [,B]. 
+adding the "B" parameter means output will go to "B"oth the serial port and the USB PicoMite V5.07.05RC8.
 
 Corrects reporting of MM.HRES and MM.VRES by OPTION LIST when a user driver is loaded. 
 Fixes bug in PLAY TONE n. m. d, interrupt which caused the interrupt not to fire. 
