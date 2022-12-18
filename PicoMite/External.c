@@ -2381,7 +2381,7 @@ void ClearExternalIO(void) {
   	CloseAudio(1);
     InterruptUsed = false;
 	InterruptReturn = NULL;
-
+ 
     if(CallBackEnabled==1) gpio_set_irq_enabled_with_callback(PinDef[IRpin].GPno, GPIO_IRQ_EDGE_RISE | GPIO_IRQ_EDGE_FALL, false, &gpio_callback);
     else if(CallBackEnabled & 1){
         gpio_set_irq_enabled(PinDef[IRpin].GPno, GPIO_IRQ_EDGE_RISE | GPIO_IRQ_EDGE_FALL, false);

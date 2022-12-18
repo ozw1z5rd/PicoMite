@@ -315,7 +315,7 @@ void cmd_list(void) {
         	getargs(&p,1,",");
         	char *buff=GetTempMemory(STRINGSIZE);
         	strcpy(buff,getCstring(argv[0]));
-    		if(strchr(buff, '.') == NULL) strcat(buff, ".BAS");
+    		if(strchr(buff, '.') == NULL) strcat(buff, ".bas");
             ListFile(buff, true);
         } else {
         	ListProgram((char *)ProgMemory, true);
@@ -379,7 +379,7 @@ void cmd_list(void) {
         	getargs(&cmdline,1,",");
         	char *buff=GetTempMemory(STRINGSIZE);
         	strcpy(buff,getCstring(argv[0]));
-    		if(strchr(buff, '.') == NULL) strcat(buff, ".BAS");
+    		if(strchr(buff, '.') == NULL) strcat(buff, ".bas");
 			ListFile(buff, false);
         } else {
 			ListProgram(ProgMemory, false);
@@ -426,9 +426,9 @@ void ListProgram(unsigned char *p, int all) {
 
 void cmd_run(void) {
 	skipspace(cmdline);
-	if(*cmdline && *cmdline != '\'')
-		if(!FileLoadProgram(cmdline))
-			return;
+	if(*cmdline && *cmdline != '\''){
+		if(!FileLoadProgram(cmdline))return;
+	}
 	ClearRuntime();
     WatchdogSet = false;
 	PrepareProgram(true);
@@ -467,7 +467,7 @@ void cmd_new(void) {
     flash_range_erase(realflashpointer, MAX_PROG_SIZE);
     FlashWriteByte(0); FlashWriteByte(0); FlashWriteByte(0);    // terminate the program in flash
     FlashWriteClose();
-     memset(inpbuf,0,STRINGSIZE);
+    memset(inpbuf,0,STRINGSIZE);
 	longjmp(mark, 1);							                    // jump back to the input prompt
 }
 
@@ -711,8 +711,8 @@ void cmd_end(void) {
 		TickInt[i]=NULL;
 		TickActive[i]=0;
 	}
-	InterruptUsed=0;    
-	InterruptReturn = NULL ;
+	InterruptUsed=0;       
+    InterruptReturn = NULL ; 
     memset(inpbuf,0,STRINGSIZE);
 	CloseAudio(1);
 #ifdef PICOMITEVGA
@@ -1350,9 +1350,6 @@ void cmd_subfun(void) {
         }
     }
 }
-
-
-
 
 void cmd_gosub(void) {
 	if(gosubindex >= MAXGOSUB) error("Too many nested GOSUB");

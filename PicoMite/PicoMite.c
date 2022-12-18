@@ -133,11 +133,6 @@ static uint64_t __not_in_flash_func(uSecFunc)(uint64_t a){
     while(time_us_64()<b){}
     return b;
 }
-union uFileTable {
-    unsigned int com;
-    FIL *fptr;
-};
-extern union uFileTable FileTable[MAXOPENFILES + 1];
 //Vector to CFunction routine called every command (ie, from the BASIC interrupt checker)
 extern unsigned int CFuncInt1;
 //Vector to CFunction routine called by the interrupt 2 handler
@@ -424,8 +419,9 @@ int __not_in_flash_func(MMInkey)(void) {
 void MMgetline(int filenbr, char *p) {
 	int c, nbrchars = 0;
 	char *tp;
+
     while(1) {
-        CheckAbort();												// jump right out if CTRL-C
+        CheckAbort();	
         if(FileTable[filenbr].com > MAXCOMPORTS && FileEOF(filenbr)) break;
         c = MMfgetc(filenbr);
         if(c <= 0) continue;                                       // keep looping if there are no chars
@@ -1181,72 +1177,6 @@ void __not_in_flash_func(QVgaLine0)()
                     *q++=(M_Foreground[low] & tilefcols[pos]) | (M_Background[low] & tilebcols[pos]) ;
                     *q++=(M_Foreground[high]& tilefcols[pos]) | (M_Background[high] & tilebcols[pos]) ;
                 }
-/*            } else {
-                gpio_set_mask(pin);
-                line>>=1;
-                register unsigned char *p=&DisplayBuf[line * 160];
-                register unsigned char *q=&LayerBuf[line * 160];
-                register uint16_t *r=fbuff[nextbuf];
-                for(int i=0;i<160;i++){
-                    register int low= *p & 0xF;
-                    register int high=*p++ >>4;
-                    register int low2= *q & 0xF;
-                    register int high2=*q++ >>4;
-                    if(low2)low=low2;
-                    if(high2)high=high2;
-                    *r++=(low | (low<<4) | (high<<8) | (high<<12));
-/*                    low= *p & 0xF;
-                    high=*p++ >>4;
-                    low2= *q & 0xF;
-                    high2=*q++ >>4;
-                    if(low2)low=low2;
-                    if(high2)high=high2;
-                    *r++=(low | (low<<4) | (high<<8) | (high<<12));
-                    low= *p & 0xF;
-                    high=*p++ >>4;
-                    low2= *q & 0xF;
-                    high2=*q++ >>4;
-                    if(low2)low=low2;
-                    if(high2)high=high2;
-                    *r++=(low | (low<<4) | (high<<8) | (high<<12));
-                    low= *p & 0xF;
-                    high=*p++ >>4;
-                    low2= *q & 0xF;
-                    high2=*q++ >>4;
-                    if(low2)low=low2;
-                    if(high2)high=high2;
-                    *r++=(low | (low<<4) | (high<<8) | (high<<12));
-                    low= *p & 0xF;
-                    high=*p++ >>4;
-                    low2= *q & 0xF;
-                    high2=*q++ >>4;
-                    if(low2)low=low2;
-                    if(high2)high=high2;
-                    *r++=(low | (low<<4) | (high<<8) | (high<<12));
-                     low= *p & 0xF;
-                    high=*p++ >>4;
-                    low2= *q & 0xF;
-                    high2=*q++ >>4;
-                    if(low2)low=low2;
-                    if(high2)high=high2;
-                    *r++=(low | (low<<4) | (high<<8) | (high<<12));
-                     low= *p & 0xF;
-                    high=*p++ >>4;
-                    low2= *q & 0xF;
-                    high2=*q++ >>4;
-                    if(low2)low=low2;
-                    if(high2)high=high2;
-                    *r++=(low | (low<<4) | (high<<8) | (high<<12));
-                     low= *p & 0xF;
-                    high=*p++ >>4;
-                    low2= *q & 0xF;
-                    high2=*q++ >>4;
-                    if(low2)low=low2;
-                    if(high2)high=high2;
-                    *r++=(low | (low<<4) | (high<<8) | (high<<12));
-                 }
-                gpio_clr_mask(pin);
-            }*/
             } else {
                 line>>=1;
                 register unsigned char *p=&DisplayBuf[line * 160];

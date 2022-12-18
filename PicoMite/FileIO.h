@@ -27,7 +27,7 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 #ifdef __cplusplus
 extern "C" {
 #endif
-
+#include "ff.h"
 // File related I/O
 unsigned char MMfputc(unsigned char c, int fnbr);
 int MMfgetc(int filenbr);
@@ -152,9 +152,17 @@ extern void FlashWriteAlign(void);
 extern void FlashWriteClose(void);
 extern void FlashWriteInit(int region);
 extern volatile uint32_t realflashpointer;
+extern int FSerror;
 #define SAVED_OPTIONS_FLASH 4
 #define SAVED_VARS_FLASH 2
 #define PROGRAM_FLASH 1
+typedef union uFileTable
+{
+    unsigned int com;
+    FIL *fptr;
+//    lfs_file_t *lfsptr;
+}u_file;
+extern union uFileTable FileTable[MAXOPENFILES + 1];
 
 #ifdef __cplusplus
 }

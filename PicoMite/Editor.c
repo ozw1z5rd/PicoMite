@@ -244,6 +244,7 @@ void cmd_edit(void) {
     m_alloc(M_VAR);                                                 //clean up clipboard usage
     memset(tknbuf, 0, STRINGSIZE);                                  // zero this so that nextstmt is pointing to the end of program
     MMCharPos = 0;
+    cmd_end();
 }
 
 
@@ -570,7 +571,7 @@ void FullScreenEditor(void) {
                                 MX470Cursor(0, 0);                                // home the cursor
                             BreakKey = BreakKeySave;
                             if(c != ESC && TextChanged) SaveToProgMemory();
-                            if(c == ESC || c == CTRLKEY('Q') || c == F1) return;
+                            if(c == ESC || c == CTRLKEY('Q') || c == F1) cmd_end();
                             // this must be save, exit and run.  We have done the first two, now do the run part.
                             ClearRuntime();
 //                            WatchdogSet = false;

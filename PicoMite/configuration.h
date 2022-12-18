@@ -36,7 +36,7 @@ extern "C" {
 #define HEAPTOP 0x2003f800
 #endif
 
-#define MMFLOAT double
+#define MMFLOAT double 
 #define FLOAT3D float
 #define sqrt3d sqrtf
 #define round3d roundf
@@ -79,7 +79,7 @@ extern "C" {
 // define the maximum number of arguments to PRINT, INPUT, WRITE, ON, DIM, ERASE, DATA and READ
 // each entry uses zero bytes.  The number is limited by the length of a command line
 #define MAX_ARG_COUNT       50
-#define STR_AUTO_PRECISION  999 
+#define STR_AUTO_PRECISION  999
 #define STR_SIG_DIGITS 9                            // number of significant digits to use when converting MMFLOAT to a string
 #define NBRSETTICKS         4                       // the number of SETTICK interrupts available
 #define NBRPINS             44

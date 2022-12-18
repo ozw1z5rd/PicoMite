@@ -39,8 +39,7 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 #include "hardware/structs/clocks.h"
 #include "sys/stat.h"
 #include "picojpeg.h"
-
-    extern const uint8_t *flash_target_contents;
+extern const uint8_t *flash_target_contents;
 extern const uint8_t *flash_option_contents;
 extern const uint8_t *SavedVarsFlash;
 extern const uint8_t *flash_progmemory;
@@ -79,8 +78,9 @@ unsigned char *CFunctionLibrary = NULL;
 static char *SDbuffer[MAXOPENFILES + 1] = {NULL};
 int buffpointer[MAXOPENFILES + 1] = {0};
 static uint32_t lastfptr[MAXOPENFILES + 1] = {[0 ... MAXOPENFILES] = -1};
-uint32_t fmode[MAXOPENFILES + 1] = {0};
+uint8_t fmode[MAXOPENFILES + 1] = {0};
 static unsigned int bw[MAXOPENFILES + 1] = {[0 ... MAXOPENFILES] = -1};
+char fullpathname[FF_MAX_LFN];
 extern BYTE BMP_bDecode(int x, int y, int fnbr);
 #define RoundUp(a) (((a) + (sizeof(int) - 1)) & (~(sizeof(int) - 1))) // round up to the nearest integer size      [position 27:9]
 /*****************************************************************************************
@@ -137,13 +137,8 @@ const char *FErrorMsg[] = {"",
 extern BYTE MDD_SDSPI_CardDetectState(void);
 extern void InitReservedIO(void);
 void ForceFileClose(int fnbr);
-FRESULT FSerror;
+int FSerror;
 FATFS FatFs;
-union uFileTable
-{
-    unsigned int com;
-    FIL *fptr;
-};
 union uFileTable FileTable[MAXOPENFILES + 1];
 volatile BYTE SDCardStat = STA_NOINIT | STA_NODISK;
 int OptionFileErrorAbort = true;
@@ -204,82 +199,7 @@ void cmd_flash(void)
         }
         enable_interrupts();
     }
-    else if ((p = checkstring(cmdline, "ERASE BLOCKS")))
-    {
-        getargs(&p, 3, ",");
-        if(!(argc == 3)) error("Argument count");
-        if(!Option.FlashSize)error("Flash Size not specified");
-        int start = getint(argv[0],TOP_OF_SYSTEM_FLASH ,Option.FlashSize-4096);
-        int size = getint(argv[2], 1,(Option.FlashSize-TOP_OF_SYSTEM_FLASH-4096)/4096);
-        if(start % 4096)error("Must be on 4096 byte boundary");
-        size*=4096;
-        disable_interrupts();
-        flash_range_erase(start, size);
-        enable_interrupts();
-    }
-    else if ((p = checkstring(cmdline, "READ")))
-    {
-        getargs(&p, 5, ",");
-        if(!(argc == 5)) error("Argument count");
-        if(!Option.FlashSize)error("Flash Size not specified");
-        int start = getint(argv[0],TOP_OF_SYSTEM_FLASH ,Option.FlashSize-4096);
-        int size = getint(argv[2], 4096,Option.FlashSize-TOP_OF_SYSTEM_FLASH-4096);
-        if(start % 4096)error("Must be on 4096 byte boundary");
-        if(size % 4096)error("Must be multiple of 4096 bytes");
-        void *ptr1 = NULL;
-        int j,arraysize=0;
-        ptr1 = findvar(argv[4], V_FIND | V_EMPTY_OK | V_NOFIND_ERR);
-        if(vartbl[VarIndex].type & T_NBR|T_INT) {
-			if(vartbl[VarIndex].dims[1] != 0) error("Invalid variable");
-			if(vartbl[VarIndex].dims[0] <= 0) error("Invalid variable");		// Not an array
-			arraysize=(vartbl[VarIndex].dims[0] - OptionBase)*8;
-			if(arraysize<size)error("Source array too small");
-        } else error("Invalid variable");
-        char *q=(char *)ptr1;
-        char *qq=(char *)(XIP_BASE+start);
-        while(size--)*q++=*qq++;
-    }
-    else if ((p = checkstring(cmdline, "WRITE")))
-    {
-        getargs(&p, 5, ",");
-        if(!(argc == 5)) error("Argument count");
-        if(!Option.FlashSize)error("Flash Size not specified");
-        int start = getint(argv[0],TOP_OF_SYSTEM_FLASH ,Option.FlashSize-4096);
-        int size = getint(argv[2], 4096,Option.FlashSize-TOP_OF_SYSTEM_FLASH-4096);
-        if(start % 4096)error("Must be on 4096 byte boundary");
-        if(size % 4096)error("Must be multiple of 4096 bytes");
-        void *ptr1 = NULL;
-        int j,arraysize=0;
-        ptr1 = findvar(argv[4], V_FIND | V_EMPTY_OK | V_NOFIND_ERR);
-        if(vartbl[VarIndex].type & T_NBR|T_INT) {
-			if(vartbl[VarIndex].dims[1] != 0) error("Invalid variable");
-			if(vartbl[VarIndex].dims[0] <= 0) error("Invalid variable");		// Not an array
-			arraysize=(vartbl[VarIndex].dims[0] - OptionBase)*8;
-			if(arraysize<size)error("Source array too small");
-        } else error("Invalid variable");
-        disable_interrupts();
-        flash_range_erase(start, size);
-        enable_interrupts();
-        int *pp = (int *)(XIP_BASE + start);
-        j=(size>>3);
-        while (j--)
-            if (*pp++ != 0xFFFFFFFF)
-            {
-                error("Erase error");
-            }
-        disable_interrupts();
-        uint8_t *q = (uint8_t *)ptr1;
-        uint8_t *writebuff = GetTempMemory(4096);
-        for (int k = 0; k < size; k += 4096)
-        {
-            for (int j = 0; j < 4096; j++)
-                writebuff[j] = *q++;
-            flash_range_program(start+k, writebuff, 4096);
-        }
-        enable_interrupts();
-        return;
-    }
-    else if ((p = checkstring(cmdline, "ERASE")))
+        else if ((p = checkstring(cmdline, "ERASE")))
     {
         if (CurrentLinePtr)
             error("Invalid in program");
@@ -512,7 +432,7 @@ void LoadImage(unsigned char *p)
 
     // open the file
     if (strchr(p, '.') == NULL)
-        strcat(p, ".BMP");
+        strcat(p, ".bmp");
     fnbr = FindFreeFileNbr();
     if (!BasicFileOpen(p, fnbr, FA_READ))
         return;
@@ -585,7 +505,7 @@ void LoadJPGImage(unsigned char *p)
 
     // open the file
     if (strchr(p, '.') == NULL)
-        strcat(p, ".JPG");
+        strcat(p, ".jpg");
     jpgfnbr = FindFreeFileNbr();
     if (!BasicFileOpen(p, jpgfnbr, FA_READ))
         return;
@@ -931,8 +851,7 @@ void cmd_save(void)
     unsigned char *pp, *flinebuf, *p; // get the file name and change to the directory
     int maxH = VRes;
     int maxW = HRes;
-    if (!InitSDCard())
-        return;
+    if (!InitSDCard()) return;
     fnbr = FindFreeFileNbr();
     if ((p = checkstring(cmdline, "IMAGE")) != NULL)
     {
@@ -950,7 +869,7 @@ void cmd_save(void)
         if (argc != 1 && argc != 9)
             error("Syntax");
         if (strchr(pp, '.') == NULL)
-            strcat(pp, ".BMP");
+            strcat(pp, ".bmp");
         if (!BasicFileOpen(pp, fnbr, FA_WRITE | FA_CREATE_ALWAYS))
             return;
         if (argc == 1)
@@ -999,7 +918,7 @@ void cmd_save(void)
         unsigned char b[STRINGSIZE];
         p = getCstring(cmdline); // get the file name and change to the directory
         if (strchr(p, '.') == NULL)
-            strcat(p, ".BAS");
+            strcat(p, ".bas");
         if (!BasicFileOpen(p, fnbr, FA_WRITE | FA_CREATE_ALWAYS))
             return;
         p = ProgMemory;
@@ -1023,9 +942,7 @@ int FileLoadProgram(unsigned char *fname)
     int fnbr;
     char *p, *buf;
     int c;
-
-    if (!InitSDCard())
-        return false;
+    if (!InitSDCard()) return false;
     ClearProgram(); // clear any leftovers from the previous program
     fnbr = FindFreeFileNbr();
     p = getCstring(fname);
@@ -1103,7 +1020,6 @@ char __not_in_flash_func(FileGetChar)(int fnbr)
 {
     char ch;
     char *buff = SDbuffer[fnbr];
-    ;
     if (!InitSDCard())
         return 0;
     if (fmode[fnbr] & FA_WRITE)
@@ -1156,7 +1072,7 @@ int FileEOF(int fnbr)
 // send a character to a file or the console
 // if fnbr == 0 then send the char to the console
 // otherwise the COM port or file opened as #fnbr
-unsigned char __not_in_flash_func(MMfputc)(unsigned char c, int fnbr)
+unsigned char MMfputc(unsigned char c, int fnbr)
 {
     if (fnbr == 0)
         return MMputchar(c, 1); // accessing the console
@@ -1169,7 +1085,7 @@ unsigned char __not_in_flash_func(MMfputc)(unsigned char c, int fnbr)
     else
         return SerialPutchar(FileTable[fnbr].com, c); // send the char to the serial port
 }
-int __not_in_flash_func(MMfgetc)(int fnbr)
+int MMfgetc(int fnbr)
 {
     int ch;
     if (fnbr == 0)
@@ -1184,9 +1100,7 @@ int __not_in_flash_func(MMfgetc)(int fnbr)
         ch = SerialGetchar(FileTable[fnbr].com); // get the char from the serial port
     return ch;
 }
-void MMfopen(unsigned char *fname, unsigned char *mode, int fnbr)
-{
-}
+
 int MMfeof(int fnbr)
 {
     if (fnbr == 0)
@@ -1449,7 +1363,6 @@ int resolve_path(char *path, char *result, char *pos)
     }
     return 0;
 }
-char fullpathname[FF_MAX_LFN];
 
 void fullpath(char *q)
 {
@@ -2254,7 +2167,6 @@ void ResetOptions(void)
     uint8_t rxbuf[4] = {0};
     flash_do_cmd(txbuf, rxbuf, 4);
     Option.FlashSize= 1 << rxbuf[3];
- 
     SaveOptions();
     uSec(250000);
 }

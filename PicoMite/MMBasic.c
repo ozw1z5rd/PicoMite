@@ -2747,7 +2747,7 @@ void ClearRuntime(void) {
     findlabel(NULL);                                                // clear the label cache
     OptionErrorSkip = 0;
     MMerrno = 0;                                                    // clear the error flags
-   *MMErrMsg = 0;
+    *MMErrMsg = 0;
 	#if defined(MMFAMILY) || defined(DOS)
 	    NbrModules = 0;
     #endif

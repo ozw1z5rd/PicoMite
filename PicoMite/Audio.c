@@ -41,12 +41,6 @@ extern BYTE MDD_SDSPI_CardDetectState(void);
 extern int InitSDCard(void);
 extern const int ErrorMap[21];
 extern char *GetCWD(void);
-extern FRESULT FSerror;
-union uFileTable {
-    unsigned int com;
-    FIL *fptr;
-};
-extern union uFileTable FileTable[MAXOPENFILES + 1];
 extern void ErrorCheck(int fnbr);
 extern void ForceFileClose(int fnbr);
 extern const int mapping[101];
@@ -1100,7 +1094,7 @@ void iconvert(uint16_t *ibuff, int16_t *sbuff, int count){
 }
 void wavcallback(char *p){
 	int actualrate;
-    if(strchr(p, '.') == NULL) strcat(p, ".WAV");
+    if(strchr(p, '.') == NULL) strcat(p, ".wav");
     if(CurrentlyPlaying == P_WAV){
     	CloseAudio(0);
     }

@@ -553,7 +553,7 @@ void __not_in_flash_func(CNInterrupt)(int dd)
       // fall through to PS2START
 
     case PS2START:
-      if (!d)
+    if (!d)
       {              // PS2DAT == 0
         KCount = 8;  // init bit counter
         KParity = 0; // init parity check
@@ -1003,5 +1003,5 @@ void __not_in_flash_func(CNInterrupt)(int dd)
       PS2State = PS2START;
       break;
     }
-  }
+  } 
 }

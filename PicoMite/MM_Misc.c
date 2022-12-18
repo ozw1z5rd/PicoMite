@@ -45,7 +45,6 @@ extern const void * const CallTable[];
 struct s_inttbl inttbl[NBRINTERRUPTS];
 unsigned char *InterruptReturn;
 extern const char *FErrorMsg[];
-extern FRESULT FSerror;
 
 int TickPeriod[NBRSETTICKS]={0};
 volatile int TickTimer[NBRSETTICKS]={0};

@@ -32,7 +32,10 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 #define RoundUptoInt(a)     (((a) + (32 - 1)) & (~(32 - 1)))// round up to the nearest whole integer
 void DrawFilledCircle(int x, int y, int radius, int r, int fill, int ints_per_line, uint32_t *br, MMFLOAT aspect, MMFLOAT aspect2);
 void hline(int x0, int x1, int y, int f, int ints_per_line, uint32_t *br);
-
+void SaveTriangle(int bnbr, char *buff);
+void RestoreTriangle(int bnbr, char *buff);
+void ReadLine(int x1,int y1,int x2,int y2, char *buff);
+void cmd_RestoreTriangle(unsigned char *p);
 typedef struct _BMPDECODER
 {
         LONG lWidth;
@@ -124,6 +127,7 @@ static int hideall = 0;
 #else
     extern int InvokingCtrl;
 #endif
+void cmd_ReadTriangle(unsigned char *p);
 void (*DrawRectangle)(int x1, int y1, int x2, int y2, int c) = (void (*)(int , int , int , int , int ))DisplayNotSet;
 void (*DrawBitmap)(int x1, int y1, int width, int height, int scale, int fc, int bc, unsigned char *bitmap) = (void (*)(int , int , int , int , int , int , int , unsigned char *))DisplayNotSet;
 void (*ScrollLCD) (int lines) = (void (*)(int ))DisplayNotSet;
@@ -463,6 +467,78 @@ Draw a line on a the video output
   c - the colour to use
 ***************************************************************************************************/
 #define abs( a)     (((a)> 0) ? (a) : -(a))
+int SizeLine(int x1, int y1, int x2, int y2){
+    int n=0;
+    if(y1 == y2) {
+        return abs(x1-x2)+1;
+    }
+    if(x1 == x2) {
+        return abs(y1-y2)+1;
+    }
+    int  dx, dy, sx, sy, err, e2;
+    dx = abs(x2 - x1); sx = x1 < x2 ? 1 : -1;
+    dy = -abs(y2 - y1); sy = y1 < y2 ? 1 : -1;
+    err = dx + dy;
+    while(1) {
+        n++;
+        e2 = 2 * err;
+        if (e2 >= dy) {
+            if (x1 == x2) break;
+            err += dy; x1 += sx;
+        }
+        if (e2 <= dx) {
+            if (y1 == y2) break;
+            err += dx; y1 += sy;
+        }
+    }
+    return n;
+}
+void ReadLine(int x1,int y1,int x2,int y2, char *buff){
+    if(y1 == y2 || x1 == x2) {
+        ReadBuffer(x1, y1, x2, y2, buff);                   // horiz line
+        return;
+    }
+    int  dx, dy, sx, sy, err, e2;
+    dx = abs(x2 - x1); sx = x1 < x2 ? 1 : -1;
+    dy = -abs(y2 - y1); sy = y1 < y2 ? 1 : -1;
+    err = dx + dy;
+    while(1) {
+        ReadBuffer(x1, y1, x1, y1, buff);
+        buff+=3;
+        e2 = 2 * err;
+        if (e2 >= dy) {
+            if (x1 == x2) break;
+            err += dy; x1 += sx;
+        }
+        if (e2 <= dx) {
+            if (y1 == y2) break;
+            err += dx; y1 += sy;
+        }
+    }
+}
+void RestoreLine(int x1,int y1,int x2,int y2, char *buff){
+    if(y1 == y2 || x1 == x2) {
+        DrawBuffer(x1, y1, x2, y2, buff);                   // horiz line
+        return;
+    }
+    int  dx, dy, sx, sy, err, e2;
+    dx = abs(x2 - x1); sx = x1 < x2 ? 1 : -1;
+    dy = -abs(y2 - y1); sy = y1 < y2 ? 1 : -1;
+    err = dx + dy;
+    while(1) {
+        DrawBuffer(x1, y1, x1, y1, buff);
+        buff+=3;
+        e2 = 2 * err;
+        if (e2 >= dy) {
+            if (x1 == x2) break;
+            err += dy; x1 += sx;
+        }
+        if (e2 <= dx) {
+            if (y1 == y2) break;
+            err += dx; y1 += sy;
+        }
+    }
+}
 
 void DrawLine(int x1, int y1, int x2, int y2, int w, int c) {
 
@@ -836,6 +912,7 @@ void CalcLine(int x1, int y1, int x2, int y2, short *xmin, short *xmax) {
 	}
 }
 
+
 void DrawTriangle(int x0, int y0, int x1, int y1, int x2, int y2, int c, int f) {
 	if(x0 * (y1 - y2) +  x1 * (y2 - y0) +  x2 * (y0 - y1)==0){ // points are co-linear i.e zero area
 		if (y0 > y1) {
@@ -896,6 +973,205 @@ void DrawTriangle(int x0, int y0, int x1, int y1, int x2, int y2, int c, int f) 
 		}
 	}
 
+}
+void RestoreTriangle(int bnbr, char *buff){
+    short *p=(short *)buff;
+    int x0=p[0];
+    int y0=p[1];
+    int x1=p[2];
+    int y1=p[3];
+    int x2=p[4];
+    int y2=p[5];
+    char *buffp=(char *)&p[6];
+	if(x0 * (y1 - y2) +  x1 * (y2 - y0) +  x2 * (y0 - y1)==0){ // points are co-linear i.e zero area
+		if (y0 > y1) {
+			swap(y0, y1);
+			swap(x0, x1);
+		}
+		if (y1 > y2) {
+			swap(y2, y1);
+			swap(x2, x1);
+		}
+		if (y0 > y1) {
+			swap(y0, y1);
+			swap(x0, x1);
+		}
+		RestoreLine(x0,y0,x2,y2,buffp);
+	} else {
+        if (y0 > y1) {
+            swap(y0, y1);
+            swap(x0, x1);
+        }
+        if (y1 > y2) {
+            swap(y2, y1);
+            swap(x2, x1);
+        }
+        if (y0 > y1) {
+            swap(y0, y1);
+            swap(x0, x1);
+        }
+        short *xmin=(short *)GetMemory(480*sizeof(short));
+        short *xmax=(short *)GetMemory(480*sizeof(short));
+
+        int y;
+        for(y=y0; y<=y2; y++){
+            if(y>=0 && y<480){
+                xmin[y]=32767;
+                xmax[y]=-1;
+            }
+        }
+        CalcLine(x0, y0, x1, y1, xmin, xmax);
+        CalcLine(x1, y1, x2, y2, xmin, xmax);
+        CalcLine(x2, y2, x0, y0, xmin, xmax);
+        for(y=y0;y<=y2;y++){
+            DrawBuffer(xmin[y], y, xmax[y], y, buffp);
+            buffp+=(xmax[y]-xmin[y]+1)*3;
+        }
+        FreeMemory((unsigned char *)xmin);
+        FreeMemory((unsigned char *)xmax);
+	}
+}
+void SaveTriangle(int bnbr, char *buff){
+    short *p=(short *)buff;
+    int x0=p[0];
+    int y0=p[1];
+    int x1=p[2];
+    int y1=p[3];
+    int x2=p[4];
+    int y2=p[5];
+    char *buffp=(char *)&p[6];
+	if(x0 * (y1 - y2) +  x1 * (y2 - y0) +  x2 * (y0 - y1)==0){ // points are co-linear i.e zero area
+		if (y0 > y1) {
+			swap(y0, y1);
+			swap(x0, x1);
+		}
+		if (y1 > y2) {
+			swap(y2, y1);
+			swap(x2, x1);
+		}
+		if (y0 > y1) {
+			swap(y0, y1);
+			swap(x0, x1);
+		}
+		ReadLine(x0,y0,x2,y2,buffp);
+	} else {
+        if (y0 > y1) {
+            swap(y0, y1);
+            swap(x0, x1);
+        }
+        if (y1 > y2) {
+            swap(y2, y1);
+            swap(x2, x1);
+        }
+        if (y0 > y1) {
+            swap(y0, y1);
+            swap(x0, x1);
+        }
+        short *xmin=(short *)GetMemory(480*sizeof(short));
+        short *xmax=(short *)GetMemory(480*sizeof(short));
+
+        int y;
+        for(y=y0; y<=y2; y++){
+            if(y>=0 && y<480){
+                xmin[y]=32767;
+                xmax[y]=-1;
+            }
+        }
+        CalcLine(x0, y0, x1, y1, xmin, xmax);
+        CalcLine(x1, y1, x2, y2, xmin, xmax);
+        CalcLine(x2, y2, x0, y0, xmin, xmax);
+        for(y=y0;y<=y2;y++){
+            ReadBuffer(xmin[y], y, xmax[y], y, buffp);
+            buffp+=(xmax[y]-xmin[y]+1)*3;
+        }
+        FreeMemory((unsigned char *)xmin);
+        FreeMemory((unsigned char *)xmax);
+	}
+}
+int SizeTriangle(int x0, int y0, int x1, int y1, int x2, int y2) {
+    int n=0;
+	if(x0 * (y1 - y2) +  x1 * (y2 - y0) +  x2 * (y0 - y1)==0){ // points are co-linear i.e zero area
+		if (y0 > y1) {
+			swap(y0, y1);
+			swap(x0, x1);
+		}
+		if (y1 > y2) {
+			swap(y2, y1);
+			swap(x2, x1);
+		}
+		if (y0 > y1) {
+			swap(y0, y1);
+			swap(x0, x1);
+		}
+		return SizeLine(x0,y0,x2,y2);
+	} else {
+        if (y0 > y1) {
+            swap(y0, y1);
+            swap(x0, x1);
+        }
+        if (y1 > y2) {
+            swap(y2, y1);
+            swap(x2, x1);
+        }
+        if (y0 > y1) {
+            swap(y0, y1);
+            swap(x0, x1);
+        }
+        short *xmin=(short *)GetMemory(480*sizeof(short));
+        short *xmax=(short *)GetMemory(480*sizeof(short));
+
+        int y;
+        for(y=y0; y<=y2; y++){
+            if(y>=0 && y<480){
+                xmin[y]=32767;
+                xmax[y]=-1;
+            }
+        }
+        CalcLine(x0, y0, x1, y1, xmin, xmax);
+        CalcLine(x1, y1, x2, y2, xmin, xmax);
+        CalcLine(x2, y2, x0, y0, xmin, xmax);
+        for(y=y0;y<=y2;y++){
+            n+=(xmax[y]-xmin[y]+1);
+        }
+        FreeMemory((unsigned char *)xmin);
+        FreeMemory((unsigned char *)xmax);
+	}
+    return n;
+}
+
+void cmd_RestoreTriangle(unsigned char *p){
+    getargs(&p, 1, (unsigned char*)",");
+    int bnbr = getint(argv[0], 1, MAXBLITBUF) - 1;                  // get the buffer number
+    if (blitbuff[bnbr].blitbuffptr == NULL) error((char *)"Buffer not in use");
+    if(blitbuff[bnbr].h!=9999)error("Invalid buffer for restore");
+    RestoreTriangle(bnbr,blitbuff[bnbr].blitbuffptr);
+    FreeMemory(blitbuff[bnbr].blitbuffptr);
+    blitbuff[bnbr].blitbuffptr = NULL;
+}
+
+void cmd_ReadTriangle(unsigned char *p){
+    int bnbr,x1,x2,x3,y1,y2,y3,size;
+    getargs(&p, 13, (unsigned char*)",");
+    if(argc!=13)error((char *)"Syntax");
+    bnbr = getint(argv[0], 1, MAXBLITBUF) - 1;                  // get the buffer number
+    if (blitbuff[bnbr].blitbuffptr != NULL) error((char *)"Buffer in use");
+        x1 = getinteger(argv[2]);
+        y1 = getinteger(argv[4]);
+        x2 = getinteger(argv[6]);
+        y2 = getinteger(argv[8]);
+        x3 = getinteger(argv[10]);
+        y3 = getinteger(argv[12]);
+        size=SizeTriangle(x1,y1,x2,y2,x3,y3);
+        blitbuff[bnbr].blitbuffptr = GetMemory(size*3+256);
+        blitbuff[bnbr].h=9999;
+        short *buff = (short *)blitbuff[bnbr].blitbuffptr;
+        *buff++=x1;
+        *buff++=y1;
+        *buff++=x2;
+        *buff++=y2;
+        *buff++=x3;
+        *buff++=y3;
+        SaveTriangle(bnbr,blitbuff[bnbr].blitbuffptr);
 }
 
 
@@ -2090,6 +2366,17 @@ void fun_pixel(void) {
 }
 
 void cmd_triangle(void) {                                           // thanks to Peter Mather (matherp on the Back Shed forum)
+    unsigned char *p;
+    if(p=(checkstring(cmdline, "SAVE"))){
+        if((void *)ReadBuffer == (void *)DisplayNotSet) error("Invalid on this display");
+        cmd_ReadTriangle(p);
+        return;
+    }
+    if(p=(checkstring(cmdline, "RESTORE"))){
+        if((void *)ReadBuffer == (void *)DisplayNotSet) error("Invalid on this display");
+        cmd_RestoreTriangle(p);
+        return;
+    }
     int x1, y1, x2, y2, x3, y3, c=0, f=0,  n=0,i, nc=0, nf=0;
     long long int *x3ptr, *y3ptr, *x1ptr, *y1ptr, *x2ptr, *y2ptr, *fptr, *cptr;
     MMFLOAT *x3fptr, *y3fptr, *x1fptr, *y1fptr, *x2fptr, *y2fptr, *ffptr, *cfptr;
@@ -2684,7 +2971,7 @@ void loadsprite(unsigned char* p) {
     if(!InitSDCard()) return;
     fname = (char*)getCstring(argv[0]);
     if (argc == 3)startsprite = (int)getint(argv[2], 1, 64);
-    if(strchr(fname, '.') == NULL) strcat(fname, ".SPR");
+    if(strchr(fname, '.') == NULL) strcat(fname, ".spr");
     if (!BasicFileOpen(fname, fnbr, FA_READ)) error((char *)"File not found");
     MMgetline(fnbr, (char*)buff);							    // get the input line
     while (buff[0] == 39)MMgetline(fnbr, (char*)buff);
@@ -2914,7 +3201,6 @@ void ScrollBufferV(int lines, int blank) {
         }
     }
 }
-
 void cmd_blit(void) {
     int x1, y1, x2, y2, w, h, bnbr;
     unsigned char *buff = NULL;
@@ -2930,6 +3216,7 @@ void cmd_blit(void) {
         if (hideall)error((char *)"Sprites are hidden");
         if (*argv[0] == '#') argv[0]++;
         bnbr = (int)getint(argv[0], 1, MAXBLITBUF);									// get the number
+        if(blitbuff[bnbr].h==9999)error("Invalid buffer");
         if (blitbuff[bnbr].blitbuffptr != NULL) {
             x1 = (int)getint(argv[2], -blitbuff[bnbr].w + 1, maxW - 1);
             y1 = (int)getint(argv[4], -blitbuff[bnbr].h + 1, maxH - 1);
@@ -2976,7 +3263,8 @@ void cmd_blit(void) {
         if (hideall)error((char *)"Sprites are hidden");
         if (*argv[0] == '#') argv[0]++;
         bnbr = (int)getint(argv[0], 1, MAXBLITBUF);									// get the number
-        if (blitbuff[bnbr].blitbuffptr != NULL) {
+        if(blitbuff[bnbr].h==9999)error("Invalid buffer");
+         if (blitbuff[bnbr].blitbuffptr != NULL) {
             x1 = (int)getint(argv[2], -blitbuff[bnbr].w + 1, maxW - 1);
             y1 = (int)getint(argv[4], -blitbuff[bnbr].h + 1, maxH - 1);
             layer = (int)getint(argv[6], 0, MAXLAYER);
@@ -3258,7 +3546,8 @@ void cmd_blit(void) {
         if (!(argc == 5 || argc == 7)) error((char *)"Syntax");
         if (*argv[0] == '#') argv[0]++;
         bnbr = (int)getint(argv[0], 1, MAXBLITBUF);									// get the number
-        if (blitbuff[bnbr].blitbuffptr != NULL) {
+        if(blitbuff[bnbr].h==9999)error("Invalid buffer");
+         if (blitbuff[bnbr].blitbuffptr != NULL) {
             x1 = (int)getint(argv[2], -blitbuff[bnbr].w + 1, maxW);
             y1 = (int)getint(argv[4], -blitbuff[bnbr].h + 1, maxH);
             if (argc == 7)blitbuff[bnbr].rotation = (char)getint(argv[6], 0, 7);
@@ -3325,7 +3614,7 @@ void cmd_blit(void) {
         if(argc >= 9 && *argv[8]) xlen = getinteger(argv[8]);                    // get the x length (optional) argument
         if(argc == 11 ) ylen = getinteger(argv[10]);                    // get the y length (optional) argument
         // open the file
-        if(strchr(p, '.') == NULL) strcat(p, ".BMP");
+        if(strchr(p, '.') == NULL) strcat(p, ".bmp");
         fnbr = FindFreeFileNbr();
         if(!BasicFileOpen(p, fnbr, FA_READ)) return;
         BDEC_bReadHeader(&BmpDec, fnbr);
@@ -3681,7 +3970,7 @@ void cmd_blit(void) {
         if(argc >= 9 && *argv[8]) xlen = getinteger(argv[8]);                    // get the x length (optional) argument
         if(argc == 11 ) ylen = getinteger(argv[10]);                    // get the y length (optional) argument
         // open the file
-        if(strchr(p, '.') == NULL) strcat(p, ".BMP");
+        if(strchr(p, '.') == NULL) strcat(p, ".bmp");
         fnbr = FindFreeFileNbr();
         if(!BasicFileOpen(p, fnbr, FA_READ)) return;
         BDEC_bReadHeader(&BmpDec, fnbr);
@@ -3726,6 +4015,7 @@ void cmd_blit(void) {
         if(!(argc == 9 || argc==5)) error("Syntax");
         if(*argv[0] == '#') argv[0]++;                              // check if the first arg is prefixed with a #
         bnbr = getint(argv[0], 1, MAXBLITBUF) - 1;                  // get the buffer number
+        if(blitbuff[bnbr].h==9999)error("Invalid buffer for write");
         x1 = getinteger(argv[2]);
         y1 = getinteger(argv[4]);
         w=blitbuff[bnbr].w;

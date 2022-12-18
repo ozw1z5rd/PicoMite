@@ -39,12 +39,6 @@ Pradeep Budagutta    03-Mar-2008    First release
 //#include "GenericTypeDefs.h"
 #include "MMBasic_Includes.h"
 #include "Hardware_Includes.h"
-union uFileTable {
-    unsigned int com;
-    FIL *fptr;
-};
-extern union uFileTable FileTable[MAXOPENFILES + 1];
-extern FRESULT FSerror;
 //** SD CARD INCLUDES ***********************************************************
 #include "ff.h"
 
@@ -317,10 +311,10 @@ BYTE BMP_bDecode(int x, int y, int fnbr)
                             IMG_vPutPixel(wX, BmpDec.lHeight - wY - 1);
                         }
                         for(wX = 0; wX < bPadding; wX++)
-                        {
+                         {
                                    BYTE bValue;
                                    FSerror = IMG_FREAD(IMG_FILE, &bValue,  1, &nbr);
-                        }
+                         }
                 }
         }
         else if(BmpDec.wPaletteEntries != 0 && BmpDec.bBitsPerPixel == 1) /* B/W Image */
