@@ -14,6 +14,10 @@ Compiled version and documentation is available on https://geoffg.net/picomite.h
 
 Change list from V5.07.00
 ***********************************************************************************************************************
+PicoMite V5.07.06
+
+See release notes
+
 PicoMite V5.07.05RC10
 
 Updated CSUB header file and additional functions exposed. 
