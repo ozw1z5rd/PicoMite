@@ -37,6 +37,8 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 #include "hardware/adc.h"
 #include "hardware/pwm.h"
 #include "hardware/flash.h"
+#include "hardware/spi.h"
+
 extern int busfault;
 //#include "pico/stdio_usb/reset_interface.h"
 const char *OrientList[] = {"LANDSCAPE", "PORTRAIT", "RLANDSCAPE", "RPORTRAIT"};
@@ -1595,6 +1597,7 @@ void cmd_option(void) {
         if(checkstring(tp, "NONE"))     { DefaultType = T_NOTYPE;   return; }
     }
 
+
     tp = checkstring(cmdline, "BREAK");
     if(tp) {
         BreakKey = getinteger(tp);
@@ -1725,6 +1728,8 @@ void cmd_option(void) {
             if(!(code=codecheck(argv[2])))argv[2]+=2;
             pin2 = getinteger(argv[2]);
             if(!code)pin2=codemap(pin2);
+            if(ExtCurrentConfig[pin] != EXT_NOT_CONFIG)  error("Pin %/| is in use",pin,pin);
+            if(ExtCurrentConfig[pin2] != EXT_NOT_CONFIG)  error("Pin %/| is in use",pin2,pin2);
             if(PinDef[pin].mode & UART0TX)Option.SerialTX = pin;
             else if(PinDef[pin].mode & UART0RX)Option.SerialRX = pin;
             else goto checkcom2;
@@ -2268,6 +2273,7 @@ void cmd_option(void) {
     int pin1, pin2, pin3, pin4;
     if(tp) {
         if(checkstring(tp, "DISABLE")){
+            FatFSFileSystem=0;
             disable_sd();
             SaveOptions();
             return;                                // this will restart the processor ? only works when not in debug
@@ -2356,6 +2362,19 @@ void fun_info(void){
             iret=gui_bcolour;
             targ=T_INT;
             return;
+    } else if(checkstring(ep, "BOOT COUNT")){
+        int boot_count;
+        int FatFSFileSystemSave;
+        FatFSFileSystem=0;
+        int fnbr=FindFreeFileNbr();
+        BasicFileOpen("bootcount",fnbr,FA_READ);
+        FSerror==lfs_file_read(&lfs, FileTable[fnbr].lfsptr, &boot_count, sizeof(boot_count));	
+        if(FSerror>0)FSerror=0;
+        ErrorCheck(fnbr);
+        FileClose(fnbr);
+        FatFSFileSystem=FatFSFileSystemSave;
+        iret=boot_count;
+        targ=T_INT;
     } else if(*ep=='c' || *ep=='C'){
         if(checkstring(ep, "CALLTABLE")){
             iret = (int64_t)(uint32_t)CallTable;
@@ -2371,14 +2390,23 @@ void fun_info(void){
         if(checkstring(ep, "DEVICE")){
             fun_device();
             return;
+        } else if(tp=checkstring(ep, "DRIVE")){
+            strcpy(sret,FatFSFileSystem ? "B:":"A:");
+            CtoM(sret);
+            targ=T_STR;
+            return;
         } else if(checkstring(ep, "DISK SIZE")){
-            if(!InitSDCard()) error((char *)FErrorMsg[20]);					// setup the SD card
-            FATFS *fs;
-            DWORD fre_clust;
-            /* Get volume information and free clusters of drive 1 */
-            f_getfree("0:", &fre_clust, &fs);
-            /* Get total sectors and free sectors */
-            iret= (uint64_t)(fs->n_fatent - 2) * (uint64_t)fs->csize *(uint64_t)FF_MAX_SS;
+            if(FatFSFileSystem){
+                if(!InitSDCard()) error((char *)FErrorMsg[20]);					// setup the SD card
+                FATFS *fs;
+                DWORD fre_clust;
+                /* Get volume information and free clusters of drive 1 */
+                f_getfree("0:", &fre_clust, &fs);
+                /* Get total sectors and free sectors */
+                iret= (uint64_t)(fs->n_fatent - 2) * (uint64_t)fs->csize *(uint64_t)FF_MAX_SS;
+            } else {
+                iret=(Option.FlashSize-RoundUpK4(TOP_OF_SYSTEM_FLASH));
+            }
             targ=T_INT;
             return;
         } else error("Syntax");
@@ -2405,29 +2433,45 @@ void fun_info(void){
             targ=T_INT;
             return;
         } else if(tp=checkstring(ep, "FILESIZE")){
-            int i,j;
-            DIR djd;
-            FILINFO fnod;
-            targ=T_INT;
-            if(!InitSDCard()) {iret= -1; return;}
-            memset(&djd,0,sizeof(DIR));
-            memset(&fnod,0,sizeof(FILINFO));
+            int waste=0, t=FatFSFileSystem+1;
             char *p = getCstring(tp);
-            if(p[1] == ':') *p = toupper(*p) - 'A' + '0';                   // convert a DOS style disk name to FatFs device number
-            FSerror = f_stat(p, &fnod);
-            if(FSerror != FR_OK){ iret=-1; targ=T_INT; strcpy(MMErrMsg,FErrorMsg[4]); return;}
-            if((fnod.fattrib & AM_DIR)){ iret=-2; targ=T_INT; strcpy(MMErrMsg,FErrorMsg[4]); return;}
+            t = drivecheck(p,&waste);
+            p+=waste;
+            FatFSFileSystem=t-1;
+            if(FatFSFileSystem){
+                int i,j;
+                DIR djd;
+                FILINFO fnod;
+                targ=T_INT;
+                if(!InitSDCard()) {iret= -1; return;}
+                memset(&djd,0,sizeof(DIR));
+                memset(&fnod,0,sizeof(FILINFO));
+                if(p[1] == ':') *p = toupper(*p) - 'A' + '0';                   // convert a DOS style disk name to FatFs device number
+                FSerror = f_stat(p, &fnod);
+                if(FSerror != FR_OK){ iret=-1; targ=T_INT; strcpy(MMErrMsg,FErrorMsg[4]); return;}
+                if((fnod.fattrib & AM_DIR)){ iret=-2; targ=T_INT; strcpy(MMErrMsg,FErrorMsg[4]); return;}
+                iret=fnod.fsize;
+            } else {
+               int fnbr=FindFreeFileNbr();
+                BasicFileOpen(p,fnbr,FA_READ);
+                iret=lfs_file_size(&lfs,FileTable[fnbr].lfsptr);
+                FileClose(fnbr);
+            }
+            FatFSFileSystem=FatFSFileSystemSave;
             targ=T_INT;
-            iret=fnod.fsize;
             return;
         } else if(checkstring(ep, "FREE SPACE")){
-            if(!InitSDCard()) error((char *)FErrorMsg[20]);					// setup the SD card
-            FATFS *fs;
-            DWORD fre_clust;
-            /* Get volume information and free clusters of drive 1 */
-            f_getfree("0:", &fre_clust, &fs);
-            /* Get total sectors and free sectors */
-            iret = (uint64_t)fre_clust * (uint64_t)fs->csize  *(uint64_t)FF_MAX_SS;
+            if(FatFSFileSystem){
+                if(!InitSDCard()) error((char *)FErrorMsg[20]);					// setup the SD card
+                FATFS *fs;
+                DWORD fre_clust;
+                /* Get volume information and free clusters of drive 1 */
+                f_getfree("0:", &fre_clust, &fs);
+                /* Get total sectors and free sectors */
+                iret = (uint64_t)fre_clust * (uint64_t)fs->csize  *(uint64_t)FF_MAX_SS;
+            } else {
+                iret=Option.FlashSize-RoundUpK4(TOP_OF_SYSTEM_FLASH)-lfs_fs_size(&lfs)*4096;
+            }
             targ=T_INT;
             return;
         } else if(checkstring(ep, "FLASHTOP")){
@@ -2488,10 +2532,24 @@ void fun_info(void){
 		memset(&djd,0,sizeof(DIR));
 		memset(&fnod,0,sizeof(FILINFO));
 		char *p = getCstring(tp);
-        if(p[1] == ':') *p = toupper(*p) - 'A' + '0';                   // convert a DOS style disk name to FatFs device number
-		FSerror = f_stat(p, &fnod);
-		if(FSerror != FR_OK){ iret=-1; targ=T_STR; strcpy(MMErrMsg,FErrorMsg[4]); return;}
-//		if((fnod.fattrib & AM_DIR)){ iret=-2; targ=T_INT; strcpy(MMErrMsg,FErrorMsg[4]); return;}
+        char q[FF_MAX_LFN]={0};
+        getfullfilename(p,q);
+        if(FatFSFileSystem==0){
+            int dt;
+            FSerror=lfs_getattr(&lfs, q, 'A', &dt,    4);
+            if(FSerror!=4){
+                fnod.fdate=0;
+                fnod.ftime=0;
+            } else {
+                WORD *p=(WORD *)&dt;
+                fnod.fdate=(WORD)p[1];
+                fnod.ftime=(WORD)p[0];
+            }
+        } else {
+            FSerror = f_stat(p, &fnod);
+            if(FSerror != FR_OK){ iret=-1; targ=T_STR; strcpy(MMErrMsg,FErrorMsg[4]); return;}
+    //		if((fnod.fattrib & AM_DIR)){ iret=-2; targ=T_INT; strcpy(MMErrMsg,FErrorMsg[4]); return;}
+        }
 	    IntToStr(sret , ((fnod.fdate>>9)&0x7F)+1980, 10);
 	    sret[4] = '-'; IntToStrPad(sret + 5, (fnod.fdate>>5)&0xF, '0', 2, 10);
 	    sret[7] = '-'; IntToStrPad(sret + 8, fnod.fdate&0x1F, '0', 2, 10);
@@ -2499,6 +2557,7 @@ void fun_info(void){
 	    IntToStrPad(sret+11, (fnod.ftime>>11)&0x1F, '0', 2, 10);
 	    sret[13] = ':'; IntToStrPad(sret + 14, (fnod.ftime>>5)&0x3F, '0', 2, 10);
 	    sret[16] = ':'; IntToStrPad(sret + 17, (fnod.ftime&0x1F)*2, '0', 2, 10);
+        FatFSFileSystem=FatFSFileSystemSave;
 		CtoM(sret);
 	    targ=T_STR;
 		return;
@@ -2607,6 +2666,15 @@ void fun_info(void){
             targ=T_STR;
             OptionFileErrorAbort=i;
             return;
+        } else if(checkstring(ep, "SPI SPEED")){
+            SPISpeedSet(Option.DISPLAY_TYPE);
+            if(PinDef[Option.SYSTEM_CLK].mode & SPI0SCK){
+                iret=spi_get_baudrate(spi0);
+            } else if(PinDef[Option.SYSTEM_CLK].mode & SPI1SCK){
+                iret=spi_get_baudrate(spi1);
+            } else error("System SPI not configured");
+            targ=T_INT;
+            return;
         } else if(checkstring(ep, "STACK")){
             iret=(int64_t)((uint32_t)__get_MSP());
             targ=T_INT;
@@ -2689,63 +2757,20 @@ void fun_restart(void) {
 
 
 void cmd_cpu(void) {
-   unsigned char *p;
-
-//    while(!UARTTransmissionHasCompleted(UART1));                    // wait for the console UART to send whatever is in its buffer
-
+    unsigned char *p;
     if((p = checkstring(cmdline, "RESTART"))) {
         _excep_code = RESET_COMMAND;
 //        while(ConsoleTxBufTail != ConsoleTxBufHead);
         uSec(10000);
         SoftReset();                                                // this will restart the processor ? only works when not in debug
     } else if((p = checkstring(cmdline, "SLEEP"))) {
-//        if(!(*p == 0 || *p =='\'')) {
         	int pullup=0;
             MMFLOAT totalseconds;
             getargs(&p, 3, ",");
             totalseconds=getnumber(p);
             if(totalseconds<=0.0)error("Invalid period");
             sleep_us(totalseconds*1000000);
-/*         } else {
-             GPIO_InitTypeDef  GPIO_InitStruct;
-             int pullup=0;
-             while(ConsoleTxBufTail != ConsoleTxBufHead);
-             uSec(10000);
-             if(Option.SerialConDisabled){
- 				USBD_Stop(&hUsbDeviceFS);
- 				USBD_DeInit(&hUsbDeviceFS);
- 				USB_DevDisconnect(USB_OTG_FS);
- 				HAL_GPIO_DeInit(GPIOA, GPIO_PIN_12 | GPIO_PIN_11);
- 				GPIO_InitStruct.Pin = GPIO_PIN_12 | GPIO_PIN_11;
- 				GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
- 				GPIO_InitStruct.Pull = GPIO_PULLDOWN;
- 				GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
- 				HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
- 				HAL_Delay(100);
- 				pullup=GPIOA->IDR & GPIO_PIN_12;
- 				GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
- 				HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
- 				HAL_GPIO_WritePin(GPIOA, GPIO_PIN_11 | GPIO_PIN_12, RESET);
- 				HAL_Delay(400);
- 				HAL_GPIO_DeInit(GPIOA, GPIO_PIN_11 | GPIO_PIN_12);
-             }
-               GPIO_InitStruct.Pin = GPIO_PIN_0;
-             GPIO_InitStruct.Pull = GPIO_PULLDOWN;
-             GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING;
-             HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
-             HAL_NVIC_SetPriority(EXTI0_IRQn, 0, 0);
-             HAL_NVIC_EnableIRQ(EXTI0_IRQn);
-             HAL_SuspendTick();
-             HAL_PWR_EnterSTOPMode(PWR_LOWPOWERREGULATOR_ON, PWR_STOPENTRY_WFE);
-             SYSCLKConfig_STOP();
-             HAL_ResumeTick();
-             if(Option.SerialConDisabled){
-				 MX_USB_DEVICE_Init();
-				 if(!pullup)USB_DevConnect(USB_OTG_FS);
-				 HAL_Delay(400);
-             }
-//             MMPrintString(">\r\n");
-         }*/
+
     } else error("Syntax");
 }
 void cmd_csubinterrupt(void){

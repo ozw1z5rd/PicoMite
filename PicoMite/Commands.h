@@ -94,7 +94,7 @@ void cmd_mid(void);
 **********************************************************************************/
 #ifdef INCLUDE_COMMAND_TABLE
 
-	{ (unsigned char *)"?",			T_CMD,				0, cmd_print	},
+//	{ (unsigned char *)"?",			T_CMD,				0, cmd_print	},
 	{ (unsigned char *)"Call",		T_CMD,				0, cmd_call	},
 	{ (unsigned char *)"Clear",		T_CMD,				0, cmd_clear	},
 	{ (unsigned char *)"Continue",           T_CMD,                          0, cmd_continue	},

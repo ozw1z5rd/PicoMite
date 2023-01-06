@@ -228,6 +228,7 @@ void InitDisplaySSD(void) {
     ScrollLCD = ScrollSSD1963;
     DrawBuffer = DrawBufferSSD1963;
     ReadBuffer = ReadBufferSSD1963;
+    DrawPixel = DrawPixelNormal;
     InitSSD1963();
     SetFont(Option.DefaultFont);
     PromptFont = gui_font;

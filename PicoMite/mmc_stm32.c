@@ -170,7 +170,7 @@ void __not_in_flash_func(on_pwm_wrap)(void) {
 					left=playbuff[ppos];
 					right=playbuff[ppos+1];
 //					pwm_set_both_levels(AUDIO_SLICE,playbuff[ppos],playbuff[ppos+1]);
-				ppos+=2;
+					ppos+=2;
 				}
         	}
         	if(ppos==bcount[swingbuf]){

@@ -53,6 +53,9 @@ void disable_interrupts(void);
 void enable_interrupts(void);
 void ErrorCheck(int fnbr);
 extern int OptionFileErrorAbort;
+extern unsigned char filesource[MAXOPENFILES + 1];
+extern int FatFSFileSystemSave;
+
 struct option_s {
     int  Magic;
     char Autorun;
@@ -151,8 +154,13 @@ extern void FlashWriteByte(unsigned char b);
 extern void FlashWriteAlign(void);
 extern void FlashWriteClose(void);
 extern void FlashWriteInit(int region);
+extern void ResetFlashStorage(int umount);
 extern volatile uint32_t realflashpointer;
+extern int drivecheck(char *p, int *waste);
+extern void getfullfilename(char *fname, char *q);
 extern int FSerror;
+extern int lfs_FileFnbr;
+extern struct lfs_config pico_lfs_cfg;
 #define SAVED_OPTIONS_FLASH 4
 #define SAVED_VARS_FLASH 2
 #define PROGRAM_FLASH 1
@@ -160,8 +168,13 @@ typedef union uFileTable
 {
     unsigned int com;
     FIL *fptr;
-//    lfs_file_t *lfsptr;
+    lfs_file_t *lfsptr;
 }u_file;
+enum {
+    NONEFILE,
+    FLASHFILE,
+    FATFSFILE
+};
 extern union uFileTable FileTable[MAXOPENFILES + 1];
 
 #ifdef __cplusplus

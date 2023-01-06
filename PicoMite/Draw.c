@@ -26,6 +26,8 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 
 #include "MMBasic_Includes.h"
 #include "Hardware_Includes.h"
+#include "hardware/spi.h"
+
 #define LONG long
 #define max(x, y) (((x) > (y)) ? (x) : (y))
 #define min(x, y) (((x) < (y)) ? (x) : (y))
@@ -110,7 +112,6 @@ const int colourmap[16]={BLACK,BLUE,GREEN,CYAN,RED,MAGENTA,YELLOW,WHITE,MYRTLE,C
 #ifdef PICOMITEVGA
 int gui_font_width, gui_font_height, last_bcolour, last_fcolour;
 volatile int CursorTimer=0;               // used to time the flashing cursor
-void (*DrawPixel)(int x1, int y1, int c) = (void (*)(int , int , int ))DisplayNotSet;
 extern volatile int QVgaScanLine;
 struct D3D* struct3d[MAX3D + 1] = { NULL };
 s_camera camera[MAXCAM + 1];
@@ -135,6 +136,7 @@ void (*DrawBuffer)(int x1, int y1, int x2, int y2, unsigned char *c) = (void (*)
 void (*ReadBuffer)(int x1, int y1, int x2, int y2, unsigned char *c) = (void (*)(int , int , int , int , unsigned char * ))DisplayNotSet;
 void (*DrawBufferFast)(int x1, int y1, int x2, int y2, int blank, unsigned char *c) = (void (*)(int , int , int , int , int, unsigned char * ))DisplayNotSet;
 void (*ReadBufferFast)(int x1, int y1, int x2, int y2, unsigned char *c) = (void (*)(int , int , int , int , unsigned char * ))DisplayNotSet;
+void (*DrawPixel)(int x1, int y1, int c) = (void (*)(int , int , int ))DisplayNotSet;
 void DrawTriangle(int x0, int y0, int x1, int y1, int x2, int y2, int c, int fill);
 // these are the GUI commands that are common to the MX170 and MX470 versions
 // in the case of the MX170 this function is called directly by MMBasic when the GUI command is used
@@ -410,7 +412,7 @@ int getColour(char *c, int minus){
 
 }
 #ifndef PICOMITEVGA
-void DrawPixel(int x, int y, int c) {
+void DrawPixelNormal(int x, int y, int c) {
     DrawRectangle(x, y, x, y, c);
 }
 #endif
@@ -1141,6 +1143,7 @@ int SizeTriangle(int x0, int y0, int x1, int y1, int x2, int y2) {
 
 void cmd_RestoreTriangle(unsigned char *p){
     getargs(&p, 1, (unsigned char*)",");
+    if(*argv[0]=='#')argv[0]++;
     int bnbr = getint(argv[0], 1, MAXBLITBUF) - 1;                  // get the buffer number
     if (blitbuff[bnbr].blitbuffptr == NULL) error((char *)"Buffer not in use");
     if(blitbuff[bnbr].h!=9999)error("Invalid buffer for restore");
@@ -1153,6 +1156,7 @@ void cmd_ReadTriangle(unsigned char *p){
     int bnbr,x1,x2,x3,y1,y2,y3,size;
     getargs(&p, 13, (unsigned char*)",");
     if(argc!=13)error((char *)"Syntax");
+    if(*argv[0]=='#')argv[0]++;
     bnbr = getint(argv[0], 1, MAXBLITBUF) - 1;                  // get the buffer number
     if (blitbuff[bnbr].blitbuffptr != NULL) error((char *)"Buffer in use");
         x1 = getinteger(argv[2]);
@@ -1584,12 +1588,119 @@ void cmd_circle(void) {
     if(Option.Refresh)Display_Refresh();
 }
 
+void drawAAPixel( int x , int y , MMFLOAT brightness, uint32_t c){
+    union colourmap
+    {
+        unsigned char rgbbytes[4];
+        unsigned int rgb;
+    } col;
+	col.rgb=c;
+	col.rgbbytes[0]= (unsigned char)((MMFLOAT)col.rgbbytes[0]*brightness);
+	col.rgbbytes[1]= (unsigned char)((MMFLOAT)col.rgbbytes[1]*brightness);
+	col.rgbbytes[2]= (unsigned char)((MMFLOAT)col.rgbbytes[2]*brightness);
+ 	DrawPixel(x,y,col.rgb);
+}
+void drawAALine(MMFLOAT x0 , MMFLOAT y0 , MMFLOAT x1 , MMFLOAT y1, uint32_t c, int w)
+{
+// Ensure positive integer values for width
+	if(w < 1) w = 1;
+
+// If drawing a dot, the call drawDot function
+//if Math.abs(y1 - y0) < 1.0 && Math.abs(x1 - x0) < 1.0
+//  #drawDot (x0 + x1) / 2, (y0 + y1) / 2
+//  return
+
+// steep means that m > 1
+	int steep = abs(y1 - y0) > abs(x1 - x0) ;
+// swap the co-ordinates if slope > 1 or we
+// draw backwards
+	if (steep)
+	{
+		swap(x0 , y0);
+		swap(x1 , y1);
+	}
+	if (x0 > x1)
+	{
+		swap(x0 ,x1);
+		swap(y0 ,y1);
+	}
+	//compute the slope
+	MMFLOAT dx = x1-x0;
+	MMFLOAT dy = y1-y0;
+	MMFLOAT gradient = dy/dx;
+	if (dx == 0.0)
+		gradient = 1;
+
+//rotate w
+	w = w * sqrt(1 + (gradient * gradient));
+
+// Handle first endpoint
+	MMFLOAT xend = round(x0);
+	MMFLOAT yend = y0 - (w - 1) * 0.5 + gradient * (xend - x0);
+	MMFLOAT xgap = 1 - (x0 + 0.5 - xend);
+	MMFLOAT xpxl1 = xend; //this will be used in the main loop
+	MMFLOAT ypxl1 = floor(yend);
+	MMFLOAT fpart = yend - floor(yend);
+	MMFLOAT rfpart = 1 - fpart;
+
+	if(steep){
+	  drawAAPixel(ypxl1    , xpxl1, rfpart * xgap, c);
+	  for(int i=1;i<=w;i++) drawAAPixel(ypxl1 + i, xpxl1, 1, c);
+	  drawAAPixel(ypxl1 + w, xpxl1,  fpart * xgap, c);
+	} else {
+	  drawAAPixel(xpxl1, ypxl1    , rfpart * xgap, c);
+	  for(int i=1; i<=w; i++) drawAAPixel(xpxl1, ypxl1 + i, 1, c);
+	  drawAAPixel(xpxl1, ypxl1 + w,  fpart * xgap, c);
+	}
+	MMFLOAT intery = yend + gradient; // first y-intersection for the main loop
+
+// Handle second endpoint
+	xend = round(x1);
+	yend = y1 - (w - 1) * 0.5 + gradient * (xend - x1);
+	xgap = 1 - (x1 + 0.5 - xend);
+	MMFLOAT xpxl2 = xend; // this will be used in the main loop
+	MMFLOAT ypxl2 = floor(yend);
+	fpart = yend - floor(yend);
+	rfpart = 1 - fpart;
+
+	if(steep){
+		drawAAPixel(ypxl2    , xpxl2, rfpart * xgap, c);
+		for(int i=1;i<=w;i++) drawAAPixel(ypxl2 + i, xpxl2, 1, c);
+		drawAAPixel(ypxl2 + w, xpxl2,  fpart * xgap, c);
+	} else {
+		drawAAPixel(xpxl2, ypxl2    , rfpart * xgap, c);
+		for(int i=1; i<=w; i++) drawAAPixel(xpxl2, ypxl2 + i, 1, c);
+		drawAAPixel(xpxl2, ypxl2 + w,  fpart * xgap, c);
+	}
+// main loop
+	if(steep){
+		for(int x=xpxl1 + 1; x<=xpxl2; x++){
+			fpart = intery - floor(intery);
+			rfpart = 1 - fpart;
+			MMFLOAT y = floor(intery);
+			drawAAPixel(y    , x, rfpart, c);
+			for(int i=1;i<=w;i++) drawAAPixel(y + i, x, 1, c);
+			drawAAPixel(y + w, x,  fpart, c);
+			intery = intery + gradient;
+		}
+	} else {
+		for(int x=xpxl1 + 1; x<=xpxl2; x++){
+			fpart = intery - floor(intery);
+			rfpart = 1 - fpart;
+			MMFLOAT y = floor(intery);
+			drawAAPixel(x, y    , rfpart, c);
+			for(int i=1;i<=w;i++) drawAAPixel(x, y + i, 1, c);
+			drawAAPixel(x, y + w,  fpart, c);
+			intery = intery + gradient;
+		}
+	}
+}
 
 void cmd_line(void) {
     if(Option.DISPLAY_TYPE == 0) error("Display not configured");
+	unsigned char *p;
 	if(CMM1){
 		int x1, y1, x2, y2, colour, box, fill;
-		char *p;
 		getargs(&cmdline, 5, ",");
 
 		// check if it is actually a LINE INPUT command
@@ -1623,6 +1734,21 @@ void cmd_line(void) {
 		lastx = x2; lasty = y2;											// save in case the user wants the last value
 	} else {
         int x1, y1, x2, y2, w=0, c=0, n=0 ,i, nc=0, nw=0;
+		if((p=checkstring(cmdline,"AA"))){
+			MMFLOAT x1, y1, x2, y2;
+			getargs(&p, 11,",");
+			c = gui_fcolour;  ;  w = 1;                                         // setup the defaults
+			x1 = getnumber(argv[0]);
+			y1 = getnumber(argv[2]);
+			x2 = getnumber(argv[4]);
+			y2 = getnumber(argv[6]);
+			if(argc > 7 && *argv[8]){
+				w = getint(argv[8], 1, 100);
+			}
+            if(argc == 11) c = getint(argv[10], 0, WHITE);
+			drawAALine(x1, y1, x2, y2, c, w);
+			return;
+		}
         long long int *x1ptr, *y1ptr, *x2ptr, *y2ptr, *wptr, *cptr;
         MMFLOAT *x1fptr, *y1fptr, *x2fptr, *y2fptr, *wfptr, *cfptr;
         getargs(&cmdline, 11,",");
@@ -3264,7 +3390,7 @@ void cmd_blit(void) {
         if (*argv[0] == '#') argv[0]++;
         bnbr = (int)getint(argv[0], 1, MAXBLITBUF);									// get the number
         if(blitbuff[bnbr].h==9999)error("Invalid buffer");
-         if (blitbuff[bnbr].blitbuffptr != NULL) {
+        if (blitbuff[bnbr].blitbuffptr != NULL) {
             x1 = (int)getint(argv[2], -blitbuff[bnbr].w + 1, maxW - 1);
             y1 = (int)getint(argv[4], -blitbuff[bnbr].h + 1, maxH - 1);
             layer = (int)getint(argv[6], 0, MAXLAYER);
@@ -3547,7 +3673,7 @@ void cmd_blit(void) {
         if (*argv[0] == '#') argv[0]++;
         bnbr = (int)getint(argv[0], 1, MAXBLITBUF);									// get the number
         if(blitbuff[bnbr].h==9999)error("Invalid buffer");
-         if (blitbuff[bnbr].blitbuffptr != NULL) {
+        if (blitbuff[bnbr].blitbuffptr != NULL) {
             x1 = (int)getint(argv[2], -blitbuff[bnbr].w + 1, maxW);
             y1 = (int)getint(argv[4], -blitbuff[bnbr].h + 1, maxH);
             if (argc == 7)blitbuff[bnbr].rotation = (char)getint(argv[6], 0, 7);
@@ -3944,6 +4070,229 @@ void fun_sprite(void) {
 }
 
 #else
+void restoreSPIpanel(void){
+    if(Option.DISPLAY_TYPE>I2C_PANEL && Option.DISPLAY_TYPE < BufferedPanel){
+        DrawRectangle = DrawRectangleSPI;
+        DrawBitmap = DrawBitmapSPI;
+        DrawBuffer = DrawBufferSPI;
+        DrawPixel = DrawPixelNormal;
+        if(Option.DISPLAY_TYPE == ILI9341 || Option.DISPLAY_TYPE == ILI9488 || Option.DISPLAY_TYPE == ST7789B){
+            ReadBuffer = ReadBufferSPI;
+            ScrollLCD = ScrollLCDSPI;
+        }
+    }
+}
+void setframebuffer(void){
+    if(!(Option.DISPLAY_TYPE>I2C_PANEL && Option.DISPLAY_TYPE < BufferedPanel))return;
+    DrawRectangle=DrawRectangleColour;
+    DrawBitmap= DrawBitmapColour;
+    ScrollLCD=ScrollLCDColour;
+    DrawBuffer=DrawBufferColour;
+    ReadBuffer=ReadBufferColour;
+    DrawBufferFast=DrawBufferColourFast;
+    ReadBufferFast=ReadBufferColourFast;
+    DrawPixel=DrawPixelColour;
+}
+void closeframebuffer(void){
+    if(FrameBuf)FreeMemory(FrameBuf);
+    if(LayerBuf)FreeMemory(LayerBuf);
+    FrameBuf=NULL;
+    WriteBuf=NULL;
+    restoreSPIpanel();
+}
+void cmd_framebuffer(void){
+    static int framemap[16]={
+        BLACK,BLUE,MYRTLE,COBALT,MIDGREEN,CERULEAN,GREEN,CYAN,RED,MAGENTA,RUST,FUCHSIA,BROWN,LILAC,YELLOW,WHITE
+    };
+    if(!(Option.DISPLAY_TYPE>I2C_PANEL && Option.DISPLAY_TYPE < BufferedPanel))error("SPI colour displays only");
+    unsigned char *p;
+    if((p=checkstring(cmdline, "CREATE"))) {
+        if(FrameBuf==NULL){
+            FrameBuf=GetMemory(HRes*VRes/2);
+        }
+        else error("Framebuffer already exists");
+    } else if((p=checkstring(cmdline, "WRITE"))) {
+        if(checkstring(p, "N")){
+            restoreSPIpanel();            
+        }
+        else if(checkstring(p, "L")){
+            if(!LayerBuf)error("Layer buffer not created");
+            WriteBuf=LayerBuf;
+            setframebuffer();
+            }
+        else if(checkstring(p, "F")){
+            if(!FrameBuf)error("Frame buffer not created");
+            WriteBuf=FrameBuf;
+            setframebuffer();
+        }
+        else error("Syntax");
+    } else if((p=checkstring(cmdline, "LAYER"))) {
+        if(LayerBuf==NULL){
+            LayerBuf=GetMemory(HRes*VRes/2);
+        } else error("Layer already exists");
+    } else if((p=checkstring(cmdline, "CLOSE"))) {
+        if(checkstring(p, "F")){
+            restoreSPIpanel();            
+            if(FrameBuf)FreeMemory(FrameBuf);
+            FrameBuf=NULL;
+        } else if(checkstring(p, "L")){
+            restoreSPIpanel();            
+            if(LayerBuf)FreeMemory(FrameBuf);
+            LayerBuf=NULL;
+        } else  closeframebuffer();
+    } else if((p=checkstring(cmdline, "BLIT"))) {
+        unsigned char *buff = WriteBuf;
+        getargs(&p,15,",");
+        if(!(argc==15))error("Syntax");
+        int SPImode=0;
+        if(DrawBufferSPI==DrawBuffer) SPImode=1;
+        uint8_t *s=NULL,*d=NULL;
+        if(checkstring(argv[0],"N")){
+            restoreSPIpanel();
+            if((void *)ReadBuffer == (void *)DisplayNotSet) error("Invalid on this display");
+        }
+        else if(checkstring(argv[0],"L"))s=LayerBuf;
+        else if(checkstring(argv[0],"F"))s=FrameBuf;
+        else error("Syntax");
+        if(checkstring(argv[2],"L"))d=LayerBuf;
+        else if(checkstring(argv[2],"F"))d=FrameBuf;
+        else if(checkstring(argv[2],"N"))d=NULL;
+        else error("Syntax");
+        int x1 = getinteger(argv[4]);
+        int y1 = getinteger(argv[6]);
+        int x2 = getinteger(argv[8]);
+        int y2 = getinteger(argv[10]);
+        int w = getinteger(argv[12]);
+        int h = getinteger(argv[14]);
+        if(w < 1 || h < 1) return;
+        if(x1 < 0) { x2 -= x1; w += x1; x1 = 0; }
+        if(x2 < 0) { x1 -= x2; w += x2; x2 = 0; }
+        if(y1 < 0) { y2 -= y1; h += y1; y1 = 0; }
+        if(y2 < 0) { y1 -= y2; h += y2; y2 = 0; }
+        if(x1 + w > HRes) w = HRes - x1;
+        if(x2 + w > HRes) w = HRes - x2;
+        if(y1 + h > VRes) h = VRes - y1;
+        if(y2 + h > VRes) h = VRes - y2;
+        if(w < 1 || h < 1 || x1 < 0 || x1 + w > HRes || x2 < 0 || x2 + w > HRes || y1 < 0 || y1 + h > VRes || y2 < 0 || y2 + h > VRes) return;
+        int step=sizeof(LCDBuffer)/3/w;
+        int y_top=(h/step)*step;
+        for(int y=0;y<y_top;y+=step){
+            if(s==NULL)restoreSPIpanel();
+            else {
+                setframebuffer();
+                WriteBuf=s;
+            }
+            ReadBuffer(x1, y1+y, x1+w-1, y1+y+step-1, (char *)&LCDBuffer);
+            if(d==NULL)restoreSPIpanel();
+            else {
+                setframebuffer();
+                WriteBuf=d;
+            }
+            DrawBuffer(x2, y2+y, x2+w-1, y2+y+step-1, (char *)&LCDBuffer);
+        }
+        for(int y=y_top;y<h;y++){
+            if(s==NULL)restoreSPIpanel();
+            else {
+                setframebuffer();
+                WriteBuf=s;
+            }
+            ReadBuffer(x1, y1+y, x1+w-1, y1+y, (char *)&LCDBuffer);
+            if(d==NULL)restoreSPIpanel();
+            else {
+                setframebuffer();
+                WriteBuf=d;
+            }
+            DrawBuffer(x2, y2+y, x2+w-1, y2+y, (char *)&LCDBuffer);
+        }
+        if(SPImode) restoreSPIpanel();  
+        else {
+            setframebuffer();
+            WriteBuf=buff;
+        }
+        return;
+    } else if((p=checkstring(cmdline, "COPY"))) {
+        int complex=0;
+        getargs(&p,3,",");
+        if(!(argc==3))error("Syntax");
+        uint8_t *s,*d;
+        if(checkstring(argv[0],"N")){
+            complex=1;
+            if((void *)ReadBuffer == (void *)DisplayNotSet) error("Invalid on this display");
+        }
+        else if(checkstring(argv[0],"L"))s=LayerBuf;
+        else if(checkstring(argv[0],"F"))s=FrameBuf;
+        else error("Syntax");
+        if(checkstring(argv[2],"N")){
+            complex=2;
+        }
+        else if(checkstring(argv[2],"L"))d=LayerBuf;
+        else if(checkstring(argv[2],"F"))d=FrameBuf;
+        else error("Syntax");
+        
+        if(d!=s){
+            if(!complex) memcpy(d,s,HRes*VRes/2);
+            else {
+	            unsigned char col[3]={0};
+                int c;
+                if(complex==1){//copying from the real display
+                    int SPImode=0;
+                    if(DrawBufferSPI==DrawBuffer) SPImode=1;
+                    WriteBuf=d;
+                    for(int y=0;y<VRes;y++){
+                        restoreSPIpanel();   
+                        ReadBuffer(0,y,HRes-1,y,(char *)&LCDBuffer);
+                        setframebuffer();
+                        DrawBuffer(0,y,HRes-1,y,(char *)&LCDBuffer);
+                    }
+                    if(SPImode) restoreSPIpanel();  
+                } else { //copying to the real display
+                    DefineRegionSPI(0,0,HRes-1,VRes-1, 1);
+                    int map[16];
+                    int i;
+                    int cnt=2;
+                    for(i=0;i<16;i++){
+                        if(Option.DISPLAY_TYPE==ILI9488 || Option.DISPLAY_TYPE==ILI9481IPS ){
+                            col[0]=(framemap[i]>>16);
+                            col[1]=(framemap[i]>>8) & 0xFF;
+                            col[2]=(framemap[i] & 0xFF);
+                            cnt=3;
+                        } else {
+                            col[0]= ((framemap[i] >> 16) & 0b11111000) | ((framemap[i] >> 13) & 0b00000111);
+                            col[1] = ((framemap[i] >>  5) & 0b11100000) | ((framemap[i] >>  3) & 0b00011111);
+                        }
+                        if(Option.DISPLAY_TYPE == GC9A01){
+                            col[0]=~col[0];
+                            col[1]=~col[1];
+                        }
+                        map[i]=col[0]|(col[1]<<8)|(col[2]<<16);
+                    }
+                    i=HRes*VRes/2;
+                    if(PinDef[Option.SYSTEM_CLK].mode & SPI0SCK){
+                        while(i--){
+                            c=map[*s & 0xF];
+                            spi_write_fast(spi0,(uint8_t *)&c,cnt);
+                            c=map[(*s & 0xF0)>>4];
+                            spi_write_fast(spi0,(uint8_t *)&c,cnt);
+                           s++;
+                        }
+                    } else {
+                        while(i--){
+                            c=map[*s & 0xF];
+                            spi_write_fast(spi1,(uint8_t *)&c,cnt);
+                            c=map[(*s & 0xF0)>>4];
+                            spi_write_fast(spi1,(uint8_t *)&c,cnt);
+                           s++;
+                        }
+                    }
+                    if(PinDef[Option.SYSTEM_CLK].mode & SPI0SCK)spi_finish(spi0);
+                    else spi_finish(spi1);
+                    ClearCS(Option.LCD_CS);                  //set CS high
+                }
+            }
+        }
+    } else error("Syntax");
+}
+
 void cmd_blit(void) {
     int x1, y1, x2, y2, w, h, bnbr;
     unsigned char *buff = NULL;
@@ -4218,6 +4567,243 @@ void cmd_refresh(void){
 	Display_Refresh();
 }
 
+void DrawPixelColour(int x, int y, int c){
+    if(x<0 || y<0 || x>=HRes || y>=VRes)return;
+    unsigned char colour = ((c & 0x800000)>> 20) | ((c & 0xC000)>>13) | ((c & 0x80)>>7);
+	uint8_t *p=(uint8_t *)(((uint32_t) WriteBuf)+(y*(HRes>>1))+(x>>1));
+    if(x & 1){
+        *p &=0x0F;
+        *p |=(colour<<4);
+    } else {
+        *p &=0xF0;
+        *p |= colour;
+    }
+}
+void DrawRectangleColour(int x1, int y1, int x2, int y2, int c){
+    int x,y,x1p,x2p,t, loc;
+    unsigned char mask;
+    unsigned char colour = ((c & 0x800000)>> 20) | ((c & 0xC000)>>13) | ((c & 0x80)>>7);
+    unsigned char bcolour=(colour<<4) | colour;
+    if(x1 < 0) x1 = 0;
+    if(x1 >= HRes) x1 = HRes - 1;
+    if(x2 < 0) x2 = 0;
+    if(x2 >= HRes) x2 = HRes - 1;
+    if(y1 < 0) y1 = 0;
+    if(y1 >= VRes) y1 = VRes - 1;
+    if(y2 < 0) y2 = 0;
+    if(y2 >= VRes) y2 = VRes - 1;
+    if(x2 <= x1) { t = x1; x1 = x2; x2 = t; }
+    if(y2 <= y1) { t = y1; y1 = y2; y2 = t; }
+    if(x2 <= x1) { t = x1; x1 = x2; x2 = t; }
+    if(y2 <= y1) { t = y1; y1 = y2; y2 = t; }
+    for(y=y1;y<=y2;y++){
+        x1p=x1;
+        x2p=x2;
+        uint8_t *p=(uint8_t *)(((uint32_t) WriteBuf)+(y*(HRes>>1))+(x1>>1));
+        if((x1 % 2) == 1){
+            *p &=0x0F;
+            *p |=(colour<<4);
+            p++;
+            x1p++;
+        }
+        if((x2 % 2) == 0){
+            uint8_t *q=(uint8_t *)(((uint32_t) WriteBuf)+(y*(HRes>>1))+(x2>>1));
+            *q &=0xF0;
+            *q |= colour;
+            x2p--;
+        }
+        for(x=x1p;x<x2p;x+=2){
+            *p++=bcolour;
+        }
+    }
+}
+void DrawBitmapColour(int x1, int y1, int width, int height, int scale, int fc, int bc, unsigned char *bitmap){
+    int i, j, k, m, x, y, loc;
+    unsigned char mask;
+    if(x1>=HRes || y1>=VRes || x1+width*scale<0 || y1+height*scale<0)return;
+    unsigned char fcolour = ((fc & 0x800000)>> 20) | ((fc & 0xC000)>>13) | ((fc & 0x80)>>7);
+    unsigned char bcolour = ((bc & 0x800000)>> 20) | ((bc & 0xC000)>>13) | ((bc & 0x80)>>7);
+
+    for(i = 0; i < height; i++) {                                   // step thru the font scan line by line
+        for(j = 0; j < scale; j++) {                                // repeat lines to scale the font
+            for(k = 0; k < width; k++) {                            // step through each bit in a scan line
+                for(m = 0; m < scale; m++) {                        // repeat pixels to scale in the x axis
+                    x=x1 + k * scale + m ;
+                    y=y1 + i * scale + j ;
+                    if(x >= 0 && x < HRes && y >= 0 && y < VRes) {  // if the coordinates are valid
+	                    uint8_t *p=(uint8_t *)(((uint32_t) WriteBuf)+(y*(HRes>>1))+(x>>1));
+                        if((bitmap[((i * width) + k)/8] >> (((height * width) - ((i * width) + k) - 1) %8)) & 1) {
+                            if(x & 1){
+                                *p &=0x0F;
+                                *p |=(fcolour<<4);
+                            } else {
+                                *p &=0xF0;
+                                *p |= fcolour;
+                            }
+                        } else {
+                            if(bc>=0){
+                                if(x & 1){
+                                    *p &=0x0F;
+                                    *p |=(bcolour<<4);
+                                } else {
+                                    *p &=0xF0;
+                                    *p |= bcolour;
+                                }
+                            }
+                        }
+                   }
+                }
+            }
+        }
+    }
+
+}
+
+void ScrollLCDColour(int lines){
+    if(lines==0)return;
+     if(lines >= 0) {
+        for(int i=0;i<VRes-lines;i++) {
+            int d=i*(HRes>>1),s=(i+lines)*(HRes>>1); 
+            for(int c=0;c<(HRes>>1);c++)WriteBuf[d+c]=WriteBuf[s+c];
+        }
+        DrawRectangle(0, VRes-lines, HRes - 1, VRes - 1, PromptBC); // erase the lines to be scrolled off
+    } else {
+    	lines=-lines;
+        for(int i=VRes-1;i>=lines;i--) {
+            int d=i*(HRes>>1),s=(i-lines)*(HRes>>1); 
+            for(int c=0;c<(HRes>>1);c++)WriteBuf[d+c]=WriteBuf[s+c];
+        }
+        DrawRectangle(0, 0, HRes - 1, lines - 1, PromptBC); // erase the lines introduced at the top
+    }
+}
+void DrawBufferColour(int x1, int y1, int x2, int y2, unsigned char *p){
+	int x,y, t;
+    union colourmap
+    {
+    char rgbbytes[4];
+    unsigned int rgb;
+    } c;
+    unsigned char fcolour;
+    uint8_t *pp;
+    // make sure the coordinates are kept within the display area
+    if(x2 <= x1) { t = x1; x1 = x2; x2 = t; }
+    if(y2 <= y1) { t = y1; y1 = y2; y2 = t; }
+    if(x1 < 0) x1 = 0;
+    if(x1 >= HRes) x1 = HRes - 1;
+    if(x2 < 0) x2 = 0;
+    if(x2 >= HRes) x2 = HRes - 1;
+    if(y1 < 0) y1 = 0;
+    if(y1 >= VRes) y1 = VRes - 1;
+    if(y2 < 0) y2 = 0;
+    if(y2 >= VRes) y2 = VRes - 1;
+	for(y=y1;y<=y2;y++){
+    	for(x=x1;x<=x2;x++){
+	        c.rgbbytes[0]=*p++; //this order swaps the bytes to match the .BMP file
+	        c.rgbbytes[1]=*p++;
+	        c.rgbbytes[2]=*p++;
+            fcolour = ((c.rgb & 0x800000)>> 20) | ((c.rgb & 0xC000)>>13) | ((c.rgb & 0x80)>>7);
+            pp=(uint8_t *)(((uint32_t) WriteBuf)+(y*(HRes>>1))+(x>>1));
+            if(x & 1){
+                *pp &=0x0F;
+                *pp |=(fcolour<<4);
+            } else {
+                *pp &=0xF0;
+                *pp |= fcolour;
+            }
+        }
+    }
+}
+void DrawBufferColourFast(int x1, int y1, int x2, int y2, int blank, unsigned char *p){
+	int x,y, t,toggle=0;
+    unsigned char c,w;
+    uint8_t *pp;
+    // make sure the coordinates are kept within the display area
+    if(x2 <= x1) { t = x1; x1 = x2; x2 = t; }
+    if(y2 <= y1) { t = y1; y1 = y2; y2 = t; }
+	for(y=y1;y<=y2;y++){
+    	for(x=x1;x<=x2;x++){
+            if(x>=0 && x<HRes && y>=0 && y<VRes){
+                pp=(uint8_t *)(WriteBuf+(y*(HRes>>1))+(x>>1));
+                if(x & 1){
+                    w=*pp & 0xF0;
+                    *pp &=0x0F;
+                    if(toggle){
+                        c=((*p++)&0xF0);
+                    } else {
+                        c=(*p<<4);
+                    }
+                } else {
+                    w=*pp & 0xF;
+                    *pp &=0xF0;
+                    if(toggle){
+                        c = ((*p++)>>4);
+                    } else {
+                        c = (*p & 0xF);
+                    }
+                }
+                if(c!=0 || blank==-1)*pp |=c;
+                else *pp |=w;
+                toggle=!toggle;
+            } else {
+                if(toggle)p++;
+                toggle=!toggle;
+            }
+        }
+    }
+}
+void ReadBufferColour(int x1, int y1, int x2, int y2, unsigned char *c){
+    int x,y,t;
+    uint8_t *pp;
+    if(x2 <= x1) { t = x1; x1 = x2; x2 = t; }
+    if(y2 <= y1) { t = y1; y1 = y2; y2 = t; }
+    int xx1=x1, yy1=y1, xx2=x2, yy2=y2;
+    if(x1 < 0) xx1 = 0;
+    if(x1 >= HRes) xx1 = HRes - 1;
+    if(x2 < 0) xx2 = 0;
+    if(x2 >= HRes) xx2 = HRes - 1;
+    if(y1 < 0) yy1 = 0;
+    if(y1 >= VRes) yy1 = VRes - 1;
+    if(y2 < 0) yy2 = 0;
+    if(y2 >= VRes) yy2 = VRes - 1;
+	for(y=y1;y<=y2;y++){
+    	for(x=x1;x<=x2;x++){
+	        pp=(uint8_t *)(((uint32_t) WriteBuf)+(y*(HRes>>1))+(x>>1));
+            if(x & 1){
+                t=colours[(*pp)>>4];
+            } else {
+                t=colours[(*pp)&0x0F];
+            }
+            *c++=(t&0xFF);
+            *c++=(t>>8)&0xFF;
+            *c++=t>>16;
+        }
+    }
+}
+void ReadBufferColourFast(int x1, int y1, int x2, int y2, unsigned char *c){
+    int x,y,t,toggle=0;
+    uint8_t *pp;
+    if(x2 <= x1) { t = x1; x1 = x2; x2 = t; }
+    if(y2 <= y1) { t = y1; y1 = y2; y2 = t; }
+	for(y=y1;y<=y2;y++){
+    	for(x=x1;x<=x2;x++){
+			if(x>=0 && x<HRes && y>=0 && y<VRes){
+                pp=(uint8_t *)(((uint32_t) WriteBuf)+(y*(HRes>>1))+(x>>1));
+                if(!(x & 1)){
+                    if(toggle)*c++ |= (((*pp)&0x0F))<<4;
+                    else *c=((*pp)&0x0F);
+                } else {
+                    if(toggle)*c++ |=((*pp)&0xF0);
+                    else *c=((*pp)>>4);
+                }
+                toggle=!toggle;
+            } else {
+                if(toggle) *c++ &= 0xF;
+                else *c = 0 ;
+                toggle=!toggle;
+            }
+        }
+    }
+}
 
 #ifdef PICOMITEVGA
 
@@ -4474,243 +5060,6 @@ void ReadBufferMonoFast(int x1, int y1, int x2, int y2, unsigned char *c){
                         *c=0x0;
                     }
 
-                }
-                toggle=!toggle;
-            } else {
-                if(toggle) *c++ &= 0xF;
-                else *c = 0 ;
-                toggle=!toggle;
-            }
-        }
-    }
-}
-void DrawPixelColour(int x, int y, int c){
-    if(x<0 || y<0 || x>=HRes || y>=VRes)return;
-    unsigned char colour = ((c & 0x800000)>> 20) | ((c & 0xC000)>>13) | ((c & 0x80)>>7);
-	uint8_t *p=(uint8_t *)(((uint32_t) WriteBuf)+(y*(HRes>>1))+(x>>1));
-    if(x & 1){
-        *p &=0x0F;
-        *p |=(colour<<4);
-    } else {
-        *p &=0xF0;
-        *p |= colour;
-    }
-}
-void DrawRectangleColour(int x1, int y1, int x2, int y2, int c){
-    int x,y,x1p,x2p,t, loc;
-    unsigned char mask;
-    unsigned char colour = ((c & 0x800000)>> 20) | ((c & 0xC000)>>13) | ((c & 0x80)>>7);
-    unsigned char bcolour=(colour<<4) | colour;
-    if(x1 < 0) x1 = 0;
-    if(x1 >= HRes) x1 = HRes - 1;
-    if(x2 < 0) x2 = 0;
-    if(x2 >= HRes) x2 = HRes - 1;
-    if(y1 < 0) y1 = 0;
-    if(y1 >= VRes) y1 = VRes - 1;
-    if(y2 < 0) y2 = 0;
-    if(y2 >= VRes) y2 = VRes - 1;
-    if(x2 <= x1) { t = x1; x1 = x2; x2 = t; }
-    if(y2 <= y1) { t = y1; y1 = y2; y2 = t; }
-    if(x2 <= x1) { t = x1; x1 = x2; x2 = t; }
-    if(y2 <= y1) { t = y1; y1 = y2; y2 = t; }
-    for(y=y1;y<=y2;y++){
-        x1p=x1;
-        x2p=x2;
-        uint8_t *p=(uint8_t *)(((uint32_t) WriteBuf)+(y*(HRes>>1))+(x1>>1));
-        if((x1 % 2) == 1){
-            *p &=0x0F;
-            *p |=(colour<<4);
-            p++;
-            x1p++;
-        }
-        if((x2 % 2) == 0){
-            uint8_t *q=(uint8_t *)(((uint32_t) WriteBuf)+(y*(HRes>>1))+(x2>>1));
-            *q &=0xF0;
-            *q |= colour;
-            x2p--;
-        }
-        for(x=x1p;x<x2p;x+=2){
-            *p++=bcolour;
-        }
-    }
-}
-void DrawBitmapColour(int x1, int y1, int width, int height, int scale, int fc, int bc, unsigned char *bitmap){
-    int i, j, k, m, x, y, loc;
-    unsigned char mask;
-    if(x1>=HRes || y1>=VRes || x1+width*scale<0 || y1+height*scale<0)return;
-    unsigned char fcolour = ((fc & 0x800000)>> 20) | ((fc & 0xC000)>>13) | ((fc & 0x80)>>7);
-    unsigned char bcolour = ((bc & 0x800000)>> 20) | ((bc & 0xC000)>>13) | ((bc & 0x80)>>7);
-
-    for(i = 0; i < height; i++) {                                   // step thru the font scan line by line
-        for(j = 0; j < scale; j++) {                                // repeat lines to scale the font
-            for(k = 0; k < width; k++) {                            // step through each bit in a scan line
-                for(m = 0; m < scale; m++) {                        // repeat pixels to scale in the x axis
-                    x=x1 + k * scale + m ;
-                    y=y1 + i * scale + j ;
-                    if(x >= 0 && x < HRes && y >= 0 && y < VRes) {  // if the coordinates are valid
-	                    uint8_t *p=(uint8_t *)(((uint32_t) WriteBuf)+(y*(HRes>>1))+(x>>1));
-                        if((bitmap[((i * width) + k)/8] >> (((height * width) - ((i * width) + k) - 1) %8)) & 1) {
-                            if(x & 1){
-                                *p &=0x0F;
-                                *p |=(fcolour<<4);
-                            } else {
-                                *p &=0xF0;
-                                *p |= fcolour;
-                            }
-                        } else {
-                            if(bc>=0){
-                                if(x & 1){
-                                    *p &=0x0F;
-                                    *p |=(bcolour<<4);
-                                } else {
-                                    *p &=0xF0;
-                                    *p |= bcolour;
-                                }
-                            }
-                        }
-                   }
-                }
-            }
-        }
-    }
-
-}
-
-void ScrollLCDColour(int lines){
-    if(lines==0)return;
-     if(lines >= 0) {
-        for(int i=0;i<VRes-lines;i++) {
-            int d=i*(HRes>>1),s=(i+lines)*(HRes>>1); 
-            for(int c=0;c<(HRes>>1);c++)WriteBuf[d+c]=WriteBuf[s+c];
-        }
-        DrawRectangle(0, VRes-lines, HRes - 1, VRes - 1, PromptBC); // erase the lines to be scrolled off
-    } else {
-    	lines=-lines;
-        for(int i=VRes-1;i>=lines;i--) {
-            int d=i*(HRes>>1),s=(i-lines)*(HRes>>1); 
-            for(int c=0;c<(HRes>>1);c++)WriteBuf[d+c]=WriteBuf[s+c];
-        }
-        DrawRectangle(0, 0, HRes - 1, lines - 1, PromptBC); // erase the lines introduced at the top
-    }
-}
-void DrawBufferColour(int x1, int y1, int x2, int y2, unsigned char *p){
-	int x,y, t;
-    union colourmap
-    {
-    char rgbbytes[4];
-    unsigned int rgb;
-    } c;
-    unsigned char fcolour;
-    uint8_t *pp;
-    // make sure the coordinates are kept within the display area
-    if(x2 <= x1) { t = x1; x1 = x2; x2 = t; }
-    if(y2 <= y1) { t = y1; y1 = y2; y2 = t; }
-    if(x1 < 0) x1 = 0;
-    if(x1 >= HRes) x1 = HRes - 1;
-    if(x2 < 0) x2 = 0;
-    if(x2 >= HRes) x2 = HRes - 1;
-    if(y1 < 0) y1 = 0;
-    if(y1 >= VRes) y1 = VRes - 1;
-    if(y2 < 0) y2 = 0;
-    if(y2 >= VRes) y2 = VRes - 1;
-	for(y=y1;y<=y2;y++){
-    	for(x=x1;x<=x2;x++){
-	        c.rgbbytes[0]=*p++; //this order swaps the bytes to match the .BMP file
-	        c.rgbbytes[1]=*p++;
-	        c.rgbbytes[2]=*p++;
-            fcolour = ((c.rgb & 0x800000)>> 20) | ((c.rgb & 0xC000)>>13) | ((c.rgb & 0x80)>>7);
-            pp=(uint8_t *)(((uint32_t) WriteBuf)+(y*(HRes>>1))+(x>>1));
-            if(x & 1){
-                *pp &=0x0F;
-                *pp |=(fcolour<<4);
-            } else {
-                *pp &=0xF0;
-                *pp |= fcolour;
-            }
-        }
-    }
-}
-void DrawBufferColourFast(int x1, int y1, int x2, int y2, int blank, unsigned char *p){
-	int x,y, t,toggle=0;
-    unsigned char c,w;
-    uint8_t *pp;
-    // make sure the coordinates are kept within the display area
-    if(x2 <= x1) { t = x1; x1 = x2; x2 = t; }
-    if(y2 <= y1) { t = y1; y1 = y2; y2 = t; }
-	for(y=y1;y<=y2;y++){
-    	for(x=x1;x<=x2;x++){
-            if(x>=0 && x<HRes && y>=0 && y<VRes){
-                pp=(uint8_t *)(WriteBuf+(y*(HRes>>1))+(x>>1));
-                if(x & 1){
-                    w=*pp & 0xF0;
-                    *pp &=0x0F;
-                    if(toggle){
-                        c=((*p++)&0xF0);
-                    } else {
-                        c=(*p<<4);
-                    }
-                } else {
-                    w=*pp & 0xF;
-                    *pp &=0xF0;
-                    if(toggle){
-                        c = ((*p++)>>4);
-                    } else {
-                        c = (*p & 0xF);
-                    }
-                }
-                if(c!=0 || blank==-1)*pp |=c;
-                else *pp |=w;
-                toggle=!toggle;
-            } else {
-                if(toggle)p++;
-                toggle=!toggle;
-            }
-        }
-    }
-}
-void ReadBufferColour(int x1, int y1, int x2, int y2, unsigned char *c){
-    int x,y,t;
-    uint8_t *pp;
-    if(x2 <= x1) { t = x1; x1 = x2; x2 = t; }
-    if(y2 <= y1) { t = y1; y1 = y2; y2 = t; }
-    int xx1=x1, yy1=y1, xx2=x2, yy2=y2;
-    if(x1 < 0) xx1 = 0;
-    if(x1 >= HRes) xx1 = HRes - 1;
-    if(x2 < 0) xx2 = 0;
-    if(x2 >= HRes) xx2 = HRes - 1;
-    if(y1 < 0) yy1 = 0;
-    if(y1 >= VRes) yy1 = VRes - 1;
-    if(y2 < 0) yy2 = 0;
-    if(y2 >= VRes) yy2 = VRes - 1;
-	for(y=y1;y<=y2;y++){
-    	for(x=x1;x<=x2;x++){
-	        pp=(uint8_t *)(((uint32_t) WriteBuf)+(y*(HRes>>1))+(x>>1));
-            if(x & 1){
-                t=colours[(*pp)>>4];
-            } else {
-                t=colours[(*pp)&0x0F];
-            }
-            *c++=(t&0xFF);
-            *c++=(t>>8)&0xFF;
-            *c++=t>>16;
-        }
-    }
-}
-void ReadBufferColourFast(int x1, int y1, int x2, int y2, unsigned char *c){
-    int x,y,t,toggle=0;
-    uint8_t *pp;
-    if(x2 <= x1) { t = x1; x1 = x2; x2 = t; }
-    if(y2 <= y1) { t = y1; y1 = y2; y2 = t; }
-	for(y=y1;y<=y2;y++){
-    	for(x=x1;x<=x2;x++){
-			if(x>=0 && x<HRes && y>=0 && y<VRes){
-                pp=(uint8_t *)(((uint32_t) WriteBuf)+(y*(HRes>>1))+(x>>1));
-                if(!(x & 1)){
-                    if(toggle)*c++ |= (((*pp)&0x0F))<<4;
-                    else *c=((*pp)&0x0F);
-                } else {
-                    if(toggle)*c++ |=((*pp)&0xF0);
-                    else *c=((*pp)>>4);
                 }
                 toggle=!toggle;
             } else {

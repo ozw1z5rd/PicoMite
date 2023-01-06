@@ -24,6 +24,8 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 ************************************************************************************************************************/
 #ifndef SPI_LCD_HEADER
 #define SPI_LCD_HEADER
+#include "hardware/spi.h"
+
 
 
 
@@ -43,7 +45,10 @@ extern void ReadBufferSPI(int x1, int y1, int x2, int y2, unsigned char* p) ;
 extern void spi_write_command(unsigned char data);
 extern void spi_write_cd(unsigned char command, int data, ...);
 extern void spi_write_data(unsigned char data);
+extern void DrawBitmapSPI(int x1, int y1, int width, int height, int scale, int fc, int bc, unsigned char *bitmap);
 extern void set_cs(void);
+extern void __not_in_flash_func(spi_write_fast)(spi_inst_t *spi, const uint8_t *src, size_t len);
+extern void __not_in_flash_func(spi_finish)(spi_inst_t *spi);
 #define SSD1331_COLORORDER_RGB
 #define SSD1331_CMD_DRAWLINE 		0x21
 #define SSD1331_CMD_DRAWRECT 		0x22
@@ -409,6 +414,7 @@ extern int (*SET_SPI_CLK)(int speed, int polarity, int edge);
 extern void SPISpeedSet(int device);
 extern BYTE (*xchg_byte)(BYTE data_out);
 extern int SD_SPI_SPEED;
+extern unsigned char LCDBuffer[1440];
 extern int __not_in_flash_func(HW0Clk)(int speed, int polarity, int edge);
 extern int __not_in_flash_func(HW1Clk)(int speed, int polarity, int edge);
 extern int __not_in_flash_func(BitBangSetClk)(int speed, int polarity, int edge);

@@ -63,8 +63,10 @@ void ConfigTouch(unsigned char *p) {
         if(!code)pin3=codemap(pin3);
         if(IsInvalidPin(pin3)) error("Invalid pin");
     }
-
-
+    if(ExtCurrentConfig[pin1] != EXT_NOT_CONFIG)  error("Pin %/| is in use",pin1,pin1);
+    if(ExtCurrentConfig[pin2] != EXT_NOT_CONFIG)  error("Pin %/| is in use",pin2,pin2);
+	if(pin3)
+        if(ExtCurrentConfig[pin3] != EXT_NOT_CONFIG)  error("Pin %/| is in use",pin3,pin3);
     Option.TOUCH_CS = pin1;
     Option.TOUCH_IRQ = pin2;
     Option.TOUCH_Click = pin3;

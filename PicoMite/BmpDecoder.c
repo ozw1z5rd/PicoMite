@@ -43,10 +43,16 @@ Pradeep Budagutta    03-Mar-2008    First release
 #include "ff.h"
 
 
-#define  IMG_FILE   FileTable[fnbr].fptr
-#define  IMG_FREAD  f_read
-#define  IMG_FSEEK  f_lseek
-
+#define  IMG_FILE   fnbr
+int IMG_FREAD(int fnbr, void *buff, int count, int *read){
+        if(filesource[IMG_FILE]==FATFSFILE){
+                return f_read(FileTable[IMG_FILE].fptr, buff, count, read);
+        } else {
+                int n=lfs_file_read(&lfs, FileTable[IMG_FILE].lfsptr, buff, count);
+                if(n>=0)return 0;
+                else return n;
+        }       
+}
 #define  IMG_vSetboundaries()
 #define  IMG_vLoopCallback()
 #define  IMG_vCheckAndAbort()  CheckAbort()
@@ -311,10 +317,10 @@ BYTE BMP_bDecode(int x, int y, int fnbr)
                             IMG_vPutPixel(wX, BmpDec.lHeight - wY - 1);
                         }
                         for(wX = 0; wX < bPadding; wX++)
-                         {
+                        {
                                    BYTE bValue;
                                    FSerror = IMG_FREAD(IMG_FILE, &bValue,  1, &nbr);
-                         }
+                        }
                 }
         }
         else if(BmpDec.wPaletteEntries != 0 && BmpDec.bBitsPerPixel == 1) /* B/W Image */

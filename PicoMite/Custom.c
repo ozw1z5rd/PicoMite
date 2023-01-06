@@ -312,10 +312,16 @@ void fun_pio(void){
     }
     tp = checkstring(ep, "EXECCTRL");
     if(tp){
-        getargs(&tp,5,",");
-        if(argc!=5)error("Syntax");
+        getargs(&tp,9,",");
+        if(!(argc==5 || argc==7 || argc==9))error("Syntax");
+        if(!toupper(*argv[0])=='G')error("Syntax");
+        argv[0]++;
+        if(!toupper(*argv[0])=='P')error("Syntax");
+        argv[0]++;
         iret=(getint(argv[0],0,29)<<24); // jmp pin
         iret |= pio_sm_calc_wrap(getint(argv[2],0,31), getint(argv[4],0,31));
+        if(argc>=5 && *argv[6])iret!=(getint(argv[6],0,1)<<29); //SIDE_PINDIR
+        if(argc==9)iret|=(getint(argv[8],0,1)<<30); // SIDE_EN
         targ=T_INT;
         return;
     }

@@ -84,6 +84,79 @@ const double chitable[51][15]={
 };
 MMFLOAT q[4]={1,0,0,0};
 MMFLOAT eInt[3]={0,0,0};
+/* An implementation of the MT19937 Algorithm for the Mersenne Twister
+ * by Evan Sultanik.  Based upon the pseudocode in: M. Matsumoto and
+ * T. Nishimura, "Mersenne Twister: A 623-dimensionally
+ * equidistributed uniform pseudorandom number generator," ACM
+ * Transactions on Modeling and Computer Simulation Vol. 8, No. 1,
+ * January pp.3-30 1998.
+ *
+ * http://www.sultanik.com/Mersenne_twister
+ */
+struct tagMTRand *g_myrand=NULL;
+#define UPPER_MASK		0x80000000
+#define LOWER_MASK		0x7fffffff
+#define TEMPERING_MASK_B	0x9d2c5680
+#define TEMPERING_MASK_C	0xefc60000
+
+inline static void m_seedRand(MTRand* rand, unsigned long seed) {
+  /* set initial seeds to mt[STATE_VECTOR_LENGTH] using the generator
+   * from Line 25 of Table 1 in: Donald Knuth, "The Art of Computer
+   * Programming," Vol. 2 (2nd Ed.) pp.102.
+   */
+  rand->mt[0] = seed & 0xffffffff;
+  for(rand->index=1; rand->index<STATE_VECTOR_LENGTH; rand->index++) {
+    rand->mt[rand->index] = (6069 * rand->mt[rand->index-1]) & 0xffffffff;
+  }
+}
+
+/**
+* Creates a new random number generator from a given seed.
+*/
+void seedRand(unsigned long seed) {
+  m_seedRand(g_myrand, seed);
+//  return rand;
+}
+
+/**
+ * Generates a pseudo-randomly generated long.
+ */
+unsigned long genRandLong(MTRand* rand) {
+
+  unsigned long y;
+  static unsigned long mag[2] = {0x0, 0x9908b0df}; /* mag[x] = x * 0x9908b0df for x = 0,1 */
+  if(rand->index >= STATE_VECTOR_LENGTH || rand->index < 0) {
+    /* generate STATE_VECTOR_LENGTH words at a time */
+    int kk;
+    if(rand->index >= STATE_VECTOR_LENGTH+1 || rand->index < 0) {
+      m_seedRand(rand, 4357);
+    }
+    for(kk=0; kk<STATE_VECTOR_LENGTH-STATE_VECTOR_M; kk++) {
+      y = (rand->mt[kk] & UPPER_MASK) | (rand->mt[kk+1] & LOWER_MASK);
+      rand->mt[kk] = rand->mt[kk+STATE_VECTOR_M] ^ (y >> 1) ^ mag[y & 0x1];
+    }
+    for(; kk<STATE_VECTOR_LENGTH-1; kk++) {
+      y = (rand->mt[kk] & UPPER_MASK) | (rand->mt[kk+1] & LOWER_MASK);
+      rand->mt[kk] = rand->mt[kk+(STATE_VECTOR_M-STATE_VECTOR_LENGTH)] ^ (y >> 1) ^ mag[y & 0x1];
+    }
+    y = (rand->mt[STATE_VECTOR_LENGTH-1] & UPPER_MASK) | (rand->mt[0] & LOWER_MASK);
+    rand->mt[STATE_VECTOR_LENGTH-1] = rand->mt[STATE_VECTOR_M-1] ^ (y >> 1) ^ mag[y & 0x1];
+    rand->index = 0;
+  }
+  y = rand->mt[rand->index++];
+  y ^= (y >> 11);
+  y ^= (y << 7) & TEMPERING_MASK_B;
+  y ^= (y << 15) & TEMPERING_MASK_C;
+  y ^= (y >> 18);
+  return y;
+}
+
+/**
+ * Generates a pseudo-randomly generated double in the range [0..1].
+ */
+double genRand(MTRand* rand) {
+  return((double)genRandLong(rand) / (unsigned long)0xffffffff);
+}
 
 MMFLOAT determinant(MMFLOAT **matrix,int size);
 void transpose(MMFLOAT **matrix,MMFLOAT **matrix_cofactor,MMFLOAT **newmatrix, int size);
@@ -161,6 +234,223 @@ void Q_Invert(MMFLOAT *q, MMFLOAT *n){
     n[2]=-q[2];
     n[3]=-q[3];
     n[4]=q[4];
+}
+static uint8_t reverse8(uint8_t in)
+{
+  uint8_t x = in;
+  x = (((x & 0xAA) >> 1) | ((x & 0x55) << 1));
+  x = (((x & 0xCC) >> 2) | ((x & 0x33) << 2));
+  x =          ((x >> 4) | (x << 4));
+  return x;
+}
+
+
+static uint16_t reverse16(uint16_t in)
+{
+  uint16_t x = in;
+  x = (((x & 0XAAAA) >> 1) | ((x & 0X5555) << 1));
+  x = (((x & 0xCCCC) >> 2) | ((x & 0X3333) << 2));
+  x = (((x & 0xF0F0) >> 4) | ((x & 0X0F0F) << 4));
+  x = (( x >> 8) | (x << 8));
+  return x;
+}
+
+
+static uint16_t reverse12(uint16_t in)
+{
+  return reverse16(in) >> 4;
+}
+
+
+static uint32_t reverse32(uint32_t in)
+{
+  uint32_t x = in;
+  x = (((x & 0xAAAAAAAA) >> 1)  | ((x & 0x55555555) << 1));
+  x = (((x & 0xCCCCCCCC) >> 2)  | ((x & 0x33333333) << 2));
+  x = (((x & 0xF0F0F0F0) >> 4)  | ((x & 0x0F0F0F0F) << 4));
+  x = (((x & 0xFF00FF00) >> 8)  | ((x & 0x00FF00FF) << 8));
+  x = (x >> 16) | (x << 16);
+  return x;
+}
+
+
+static uint64_t reverse64(uint64_t in)
+{
+  uint64_t x = in;
+  x = (((x & 0xAAAAAAAAAAAAAAAA) >> 1)  | ((x & 0x5555555555555555) << 1));
+  x = (((x & 0xCCCCCCCCCCCCCCCC) >> 2)  | ((x & 0x3333333333333333) << 2));
+  x = (((x & 0xF0F0F0F0F0F0F0F0) >> 4)  | ((x & 0x0F0F0F0F0F0F0F0F) << 4));
+  x = (((x & 0xFF00FF00FF00FF00) >> 8)  | ((x & 0x00FF00FF00FF00FF) << 8));
+  x = (((x & 0xFFFF0000FFFF0000) >> 16) | ((x & 0x0000FFFF0000FFFF) << 16));
+  x = (x >> 32) | (x << 32);
+  return x;
+}
+
+
+///////////////////////////////////////////////////////////////////////////////////
+
+// CRC POLYNOME = x8 + x5 + x4 + 1 = 1001 1000 = 0x8C
+uint8_t crc8(uint8_t *array, uint16_t length, const uint8_t polynome, 
+             const uint8_t startmask, const uint8_t endmask, 
+             const uint8_t reverseIn, const uint8_t reverseOut)
+{
+  uint8_t crc = startmask;
+  while (length--) 
+  {
+    if ((length & 0xFF) == 0) routinechecks();  // RTOS
+    uint8_t data = *array++;
+    if (reverseIn) data = reverse8(data);
+    crc ^= data;
+    for (uint8_t i = 8; i; i--) 
+    {
+      if (crc & 0x80)
+      {
+        crc <<= 1;
+        crc ^= polynome;
+      }
+      else
+      {
+        crc <<= 1;
+      }
+    }
+  }
+  crc ^= endmask;
+  if (reverseOut) crc = reverse8(crc);
+  return crc;
+}
+
+
+// CRC POLYNOME = x12 + x3 + x2 + 1 =  0000 1000 0000 1101 = 0x80D
+uint16_t crc12(const uint8_t *array, uint16_t length, const uint16_t polynome,
+               const uint16_t startmask, const uint16_t endmask, 
+               const uint8_t reverseIn, const uint8_t reverseOut)
+{
+  uint16_t crc = startmask;
+  while (length--) 
+  {
+    if ((length & 0xFF) == 0) routinechecks();  // RTOS
+    uint8_t data = *array++;
+    if (reverseIn) data = reverse8(data);
+
+    crc ^= ((uint16_t)data) << 4;
+    for (uint8_t i = 8; i; i--) 
+    {
+      if (crc & (1 << 11) )
+      {
+        crc <<= 1;
+        crc ^= polynome;
+      }
+      else
+      {
+        crc <<= 1;
+      }
+    }
+  }
+
+  if (reverseOut) crc = reverse12(crc);
+  crc ^= endmask;
+  return crc;
+}
+
+
+// CRC POLYNOME = x15 + 1 =  1000 0000 0000 0001 = 0x8001
+uint16_t crc16(const uint8_t *array, uint16_t length, const uint16_t polynome,
+               const uint16_t startmask, const uint16_t endmask, 
+               const uint8_t reverseIn, const uint8_t reverseOut)
+{
+  uint16_t crc = startmask;
+  while (length--) 
+  {
+    if ((length & 0xFF) == 0) routinechecks();  // RTOS
+    uint8_t data = *array++;
+    if (reverseIn) data = reverse8(data);
+    crc ^= ((uint16_t)data) << 8;
+    for (uint8_t i = 8; i; i--) 
+    {
+      if (crc & (1 << 15))
+      {
+        crc <<= 1;
+        crc ^= polynome;
+      }
+      else
+      {
+        crc <<= 1;
+      }
+    }
+  }
+  if (reverseOut) crc = reverse16(crc);
+  crc ^= endmask;
+  return crc;
+}
+
+
+// CRC-CCITT POLYNOME = x13 + X5 + 1 =  0001 0000 0010 0001 = 0x1021
+uint16_t crc16_CCITT(uint8_t *array, uint16_t length)
+{
+  return crc16(array, length, 0x1021, 0xFFFF,0,0,0);
+}
+
+
+// CRC-32 POLYNOME =  x32 + ..... + 1
+uint32_t crc32(const uint8_t *array, uint16_t length, const uint32_t polynome, 
+               const uint32_t startmask, const uint32_t endmask, 
+               const uint8_t reverseIn, const uint8_t reverseOut)
+{
+  uint32_t crc = startmask;
+  while (length--) 
+  {
+    if ((length & 0xFF) == 0) routinechecks();  // RTOS
+    uint8_t data = *array++;
+    if (reverseIn) data = reverse8(data);
+    crc ^= ((uint32_t) data) << 24;
+    for (uint8_t i = 8; i; i--) 
+    {
+      if (crc & (1UL << 31))
+      {
+        crc <<= 1;
+        crc ^= polynome;
+      }
+      else
+      {
+        crc <<= 1;
+      }
+    }
+  }
+  crc ^= endmask;
+  if (reverseOut) crc = reverse32(crc);
+  return crc;
+}
+
+
+// CRC-CCITT POLYNOME =  x64 + ..... + 1
+// CRC_ECMA64 = 0x42F0E1EBA9EA3693
+uint64_t crc64(const uint8_t *array, uint16_t length, const uint64_t polynome, 
+               const uint64_t startmask, const uint64_t endmask, 
+               const uint8_t reverseIn, const uint8_t reverseOut)
+{
+  uint64_t crc = startmask;
+  while (length--) 
+  {
+    if ((length & 0xFF) == 0) routinechecks();  // RTOS
+    uint8_t data = *array++;
+    if (reverseIn) data = reverse8(data);
+    crc ^= ((uint64_t) data) << 56;
+    for (uint8_t i = 8; i; i--) 
+    {
+      if (crc & (1ULL << 63))
+      {
+        crc <<= 1;
+        crc ^= polynome;
+      }
+      else
+      {
+        crc <<= 1;
+      }
+    }
+  }
+  crc ^= endmask;
+  if (reverseOut) crc = reverse64(crc);
+  return crc;
 }
 
 void cmd_math(void){
@@ -540,7 +830,7 @@ void cmd_math(void){
 		if(tp){
 			void *ptr1 = NULL;
 			void *ptr2 = NULL;
-			int i, j, k, n, numcols=0, numrows=0;
+			int i, j, n, numcols=0, numrows=0;
 			MMFLOAT *a1float=NULL, *a2float=NULL,det;
 			getargs(&tp, 3,",");
 			if(!(argc == 3)) error("Argument count");
@@ -573,6 +863,7 @@ void cmd_math(void){
 				if((uint32_t)ptr2!=(uint32_t)vartbl[VarIndex].val.s)error("Syntax");
 			} else	error("Argument 2 must be a numerical 2D array");
 			if(numcols!=numrows)error("Array must be square");
+			if(ptr1==ptr2)error("Same array specified for input and output");
 			n=numrows+1;
 			MMFLOAT **matrix=alloc2df(n,n);
 			for(i=0;i<n;i++){ //load the matrix
@@ -1120,6 +1411,17 @@ void cmd_math(void){
 			}
 			return;
 		}
+		tp = checkstring(cmdline, "RANDOMIZE");
+		if(tp) {
+			int i;
+			getargs(&tp,1,",");
+			if(argc==1)i = getinteger(argv[0]);
+			else i=time_us_32();
+			if(i < 0) error("Number out of bounds");
+			if(g_myrand==NULL)g_myrand=(struct tagMTRand *)GetMemory(sizeof(struct tagMTRand));
+			seedRand(i);
+			return;
+		}
 		tp = checkstring(cmdline, "INTERPOLATE");
 		if(tp) {
 			void *ptr1 = NULL;
@@ -1300,6 +1602,254 @@ void fun_math(void){
 		}
 	} else if(toupper(*ep)=='C') {
 
+		tp = checkstring(ep, "CRC8");
+		if(tp) {
+		    void *ptr1 = NULL;
+		    int i,j;
+		    MMFLOAT *a1float=NULL;
+		    int64_t *a1int=NULL;
+			getargs(&tp,13,",");
+			if(argc<1)error("Syntax");
+			uint8_t polynome=CRC8_DEFAULT_POLYNOME;
+			uint8_t startmask=0;
+			uint8_t endmask=0;
+			uint8_t reverseIn=false;
+			uint8_t reverseOut=false;
+			unsigned char *a1str;
+			int arraylength=0;
+			int length=0;
+			if(argc>1 && *argv[2])length=getint(argv[2],1,65535);
+			ptr1 = findvar(argv[0], V_FIND | V_EMPTY_OK | V_NOFIND_ERR);
+			if(vartbl[VarIndex].type & T_NBR) {
+				if(vartbl[VarIndex].dims[1] != 0) error("Invalid variable");
+				if(vartbl[VarIndex].dims[0] <= 0) {		// Not an array
+					error("Argument 1 must be a numerical array");
+				}
+				arraylength=vartbl[VarIndex].dims[0] - OptionBase + 1;
+				if(length==0)length=arraylength;
+				if(length>arraylength)error("Array size");
+				a1float = (MMFLOAT *)ptr1;
+				if((uint32_t)ptr1!=(uint32_t)vartbl[VarIndex].val.s)error("Syntax");
+			} else if(ptr1 && vartbl[VarIndex].type & T_INT) {
+				if(vartbl[VarIndex].dims[1] != 0) error("Invalid variable");
+				if(vartbl[VarIndex].dims[0] <= 0) {		// Not an array
+					error("Argument 1 must be a numerical array");
+				}
+				arraylength=vartbl[VarIndex].dims[0] - OptionBase + 1;
+				if(length==0)length=arraylength;
+				if(length>arraylength)error("Array size");
+				a1int = (int64_t *)ptr1;
+				if((uint32_t)ptr1!=(uint32_t)vartbl[VarIndex].val.s)error("Syntax");
+			} else if(ptr1 && vartbl[VarIndex].type & T_STR) {
+				a1str=(unsigned char *)ptr1;
+				if(length==0)length=*a1str;
+				if(*a1str<length)error("String size");
+			} else error("Syntax");
+			uint8_t *array=GetTempMemory(length);
+			if(argc>3 && *argv[4])polynome=getint(argv[4],0,255);
+			if(argc>5 && *argv[6])startmask=getint(argv[6],0,255);
+			if(argc>7 && *argv[8])endmask=getint(argv[8],0,255);
+			if(argc>9 && *argv[10])reverseIn=getint(argv[10],0,1);
+			if(argc==13 && *argv[12])reverseOut=getint(argv[10],0,1);
+			for(i=0;i<length;i++){
+				if(a1float){
+					if(a1float[i]>255)error("Variable > 255");
+					else array[i]=(uint8_t)a1float[i];
+				} else if(a1int){
+					if(a1int[i]>255)error("Variable > 255");
+					else array[i]=(uint8_t)a1int[i];
+				} else 	memcpy(array,&a1str[1],length);
+			}
+			iret=crc8(array, length, polynome, startmask, endmask, reverseIn, reverseOut);
+			targ=T_INT;
+			return;
+		}
+		tp = checkstring(ep, "CRC12");
+		if(tp) {
+		    void *ptr1 = NULL;
+		    int i,j;
+		    MMFLOAT *a1float=NULL;
+		    int64_t *a1int=NULL;
+			getargs(&tp,13,",");
+			if(argc<1)error("Syntax");
+			uint16_t polynome=CRC12_DEFAULT_POLYNOME;
+			uint16_t startmask=0;
+			uint16_t endmask=0;
+			uint8_t reverseIn=false;
+			uint8_t reverseOut=false;
+			unsigned char *a1str;
+			int arraylength=0;
+			int length=0;
+			if(argc>1 && *argv[2])length=getint(argv[2],1,65535);
+			ptr1 = findvar(argv[0], V_FIND | V_EMPTY_OK | V_NOFIND_ERR);
+			if(vartbl[VarIndex].type & T_NBR) {
+				if(vartbl[VarIndex].dims[1] != 0) error("Invalid variable");
+				if(vartbl[VarIndex].dims[0] <= 0) {		// Not an array
+					error("Argument 1 must be a numerical array");
+				}
+				arraylength=vartbl[VarIndex].dims[0] - OptionBase + 1;
+				if(length==0)length=arraylength;
+				if(length>arraylength)error("Array size");
+				a1float = (MMFLOAT *)ptr1;
+				if((uint32_t)ptr1!=(uint32_t)vartbl[VarIndex].val.s)error("Syntax");
+			} else if(ptr1 && vartbl[VarIndex].type & T_INT) {
+				if(vartbl[VarIndex].dims[1] != 0) error("Invalid variable");
+				if(vartbl[VarIndex].dims[0] <= 0) {		// Not an array
+					error("Argument 1 must be a numerical array");
+				}
+				arraylength=vartbl[VarIndex].dims[0] - OptionBase + 1;
+				if(length==0)length=arraylength;
+				if(length>arraylength)error("Array size");
+				a1int = (int64_t *)ptr1;
+				if((uint32_t)ptr1!=(uint32_t)vartbl[VarIndex].val.s)error("Syntax");
+			} else if(ptr1 && vartbl[VarIndex].type & T_STR) {
+				a1str=(unsigned char *)ptr1;
+				if(length==0)length=*a1str;
+				if(*a1str<length)error("String size");
+			} else error("Syntax");
+			uint8_t *array=GetTempMemory(length);
+			if(argc>3 && *argv[4])polynome=getint(argv[4],0,4095);
+			if(argc>5 && *argv[6])startmask=getint(argv[6],0,4095);
+			if(argc>7 && *argv[8])endmask=getint(argv[8],0,4095);
+			if(argc>9 && *argv[10])reverseIn=getint(argv[10],0,1);
+			if(argc==13 && *argv[12])reverseOut=getint(argv[10],0,1);
+			for(i=0;i<length;i++){
+				if(a1float){
+					if(a1float[i]>255)error("Variable > 255");
+					else array[i]=(uint8_t)a1float[i];
+				} else if(a1int){
+					if(a1int[i]>255)error("Variable > 255");
+					else array[i]=(uint8_t)a1int[i];
+				} else 	memcpy(array,&a1str[1],length);
+			}
+			iret=crc12(array, length, polynome, startmask, endmask, reverseIn, reverseOut);
+			targ=T_INT;
+			return;
+		}
+		tp = checkstring(ep, "CRC16");
+		if(tp) {
+		    void *ptr1 = NULL;
+		    int i,j;
+		    MMFLOAT *a1float=NULL;
+		    int64_t *a1int=NULL;
+			getargs(&tp,13,",");
+			if(argc<1)error("Syntax");
+			uint16_t polynome=CRC16_DEFAULT_POLYNOME;
+			uint16_t startmask=0;
+			uint16_t endmask=0;
+			uint8_t reverseIn=false;
+			uint8_t reverseOut=false;
+			unsigned char *a1str;
+			int arraylength=0;
+			int length=0;
+			if(argc>1 && *argv[2])length=getint(argv[2],1,65535);
+			ptr1 = findvar(argv[0], V_FIND | V_EMPTY_OK | V_NOFIND_ERR);
+			if(vartbl[VarIndex].type & T_NBR) {
+				if(vartbl[VarIndex].dims[1] != 0) error("Invalid variable");
+				if(vartbl[VarIndex].dims[0] <= 0) {		// Not an array
+					error("Argument 1 must be a numerical array");
+				}
+				arraylength=vartbl[VarIndex].dims[0] - OptionBase + 1;
+				if(length==0)length=arraylength;
+				if(length>arraylength)error("Array size");
+				a1float = (MMFLOAT *)ptr1;
+				if((uint32_t)ptr1!=(uint32_t)vartbl[VarIndex].val.s)error("Syntax");
+			} else if(ptr1 && vartbl[VarIndex].type & T_INT) {
+				if(vartbl[VarIndex].dims[1] != 0) error("Invalid variable");
+				if(vartbl[VarIndex].dims[0] <= 0) {		// Not an array
+					error("Argument 1 must be a numerical array");
+				}
+				arraylength=vartbl[VarIndex].dims[0] - OptionBase + 1;
+				if(length==0)length=arraylength;
+				if(length>arraylength)error("Array size");
+				a1int = (int64_t *)ptr1;
+				if((uint32_t)ptr1!=(uint32_t)vartbl[VarIndex].val.s)error("Syntax");
+			} else if(ptr1 && vartbl[VarIndex].type & T_STR) {
+				a1str=(unsigned char *)ptr1;
+				if(length==0)length=*a1str;
+				if(*a1str<length)error("String size");
+			} else error("Syntax");
+			uint8_t *array=GetTempMemory(length);
+			if(argc>3 && *argv[4])polynome=getint(argv[4],0,65535);
+			if(argc>5 && *argv[6])startmask=getint(argv[6],0,65535);
+			if(argc>7 && *argv[8])endmask=getint(argv[8],0,65535);
+			if(argc>9 && *argv[10])reverseIn=getint(argv[10],0,1);
+			if(argc==13 && *argv[12])reverseOut=getint(argv[10],0,1);
+			for(i=0;i<length;i++){
+				if(a1float){
+					if(a1float[i]>255)error("Variable > 255");
+					else array[i]=(uint8_t)a1float[i];
+				} else if(a1int){
+					if(a1int[i]>255)error("Variable > 255");
+					else array[i]=(uint8_t)a1int[i];
+				} else 	memcpy(array,&a1str[1],length);
+			}
+			iret=crc16(array, length, polynome, startmask, endmask, reverseIn, reverseOut);
+			targ=T_INT;
+			return;
+		}
+		tp = checkstring(ep, "CRC32");
+		if(tp) {
+		    void *ptr1 = NULL;
+		    int i,j;
+		    MMFLOAT *a1float=NULL;
+		    int64_t *a1int=NULL;
+			getargs(&tp,13,",");
+			if(argc<1)error("Syntax");
+			uint32_t polynome=CRC32_DEFAULT_POLYNOME;
+			uint32_t startmask=0;
+			uint32_t endmask=0;
+			uint8_t reverseIn=false;
+			uint8_t reverseOut=false;
+			unsigned char *a1str;
+			int arraylength=0;
+			int length=0;
+			if(argc>1 && *argv[2])length=getint(argv[2],1,65535);
+			ptr1 = findvar(argv[0], V_FIND | V_EMPTY_OK | V_NOFIND_ERR);
+			if(vartbl[VarIndex].type & T_NBR) {
+				if(vartbl[VarIndex].dims[1] != 0) error("Invalid variable");
+				if(vartbl[VarIndex].dims[0] <= 0) {		// Not an array
+					error("Argument 1 must be a numerical array");
+				}
+				arraylength=vartbl[VarIndex].dims[0] - OptionBase + 1;
+				if(length==0)length=arraylength;
+				if(length>arraylength)error("Array size");
+				a1float = (MMFLOAT *)ptr1;
+				if((uint32_t)ptr1!=(uint32_t)vartbl[VarIndex].val.s)error("Syntax");
+			} else if(ptr1 && vartbl[VarIndex].type & T_INT) {
+				if(vartbl[VarIndex].dims[1] != 0) error("Invalid variable");
+				if(vartbl[VarIndex].dims[0] <= 0) {		// Not an array
+					error("Argument 1 must be a numerical array");
+				}
+				arraylength=vartbl[VarIndex].dims[0] - OptionBase + 1;
+				if(length==0)length=arraylength;
+				if(length>arraylength)error("Array size");
+				a1int = (int64_t *)ptr1;
+				if((uint32_t)ptr1!=(uint32_t)vartbl[VarIndex].val.s)error("Syntax");
+			} else if(ptr1 && vartbl[VarIndex].type & T_STR) {
+				a1str=(unsigned char *)ptr1;
+				if(length==0)length=*a1str;
+				if(*a1str<length)error("String size");
+			} else error("Syntax");
+			uint8_t *array=GetTempMemory(length);
+			if(argc>3 && *argv[4])polynome=getint(argv[4],0,0xFFFFFFFF);
+			if(argc>5 && *argv[6])startmask=getint(argv[6],0,0xFFFFFFFF);
+			if(argc>7 && *argv[8])endmask=getint(argv[8],0,0xFFFFFFFF);
+			if(argc>9 && *argv[10])reverseIn=getint(argv[10],0,1);
+			if(argc==13 && *argv[12])reverseOut=getint(argv[10],0,1);
+			for(i=0;i<length;i++){
+				if(a1float){
+					if(a1float[i]>255)error("Variable > 255");
+					else array[i]=(uint8_t)a1float[i];
+				} else if(a1int){
+					if(a1int[i]>255)error("Variable > 255");
+					else array[i]=(uint8_t)a1int[i];
+				} else 	memcpy(array,&a1str[1],length);
+			}
+			iret=crc32(array, length, polynome, startmask, endmask, reverseIn, reverseOut);
+			targ=T_INT;
+			return;
+		}
 		tp = checkstring(ep, "COSH");
 		if(tp) {
 			getargs(&tp, 1,",");
@@ -1538,7 +2088,7 @@ void fun_math(void){
 		tp = checkstring(ep, "M_DETERMINANT");
 		if(tp){
 			void *ptr1 = NULL;
-			int i, j, k, n, numcols=0, numrows=0;
+			int i, j, n, numcols=0, numrows=0;
 			MMFLOAT *a1float=NULL;
 			getargs(&tp, 1,",");
 			if(!(argc == 1)) error("Argument count");
@@ -1570,7 +2120,6 @@ void fun_math(void){
 
 			return;
 		}
-
 
 		tp = checkstring(ep, "MAX");
 		if(tp) {
@@ -1898,6 +2447,17 @@ void fun_math(void){
 			if(!(argc == 1)) error("Argument count");
 			fret=tanh(getnumber(argv[0]));
 			targ=T_NBR;
+			return;
+		}
+	} else if(toupper(*ep)=='R') {
+		tp = checkstring(ep, "RAND");
+		if(tp) {
+			if(g_myrand==NULL){
+				g_myrand=(struct tagMTRand *)GetMemory(sizeof(struct tagMTRand));
+				seedRand(time_us_32());
+			}
+			fret=genRand(g_myrand);
+			targ = T_NBR;
 			return;
 		}
 	}

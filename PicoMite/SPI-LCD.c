@@ -179,6 +179,7 @@ void ConfigDisplaySPI(unsigned char *p) {
 	}
 	CheckPin(CD, CP_IGNORE_INUSE);
     CheckPin(RESET, CP_IGNORE_INUSE);
+	if(CS==CD || CS==RESET || CS==BACKLIGHT || CD==RESET || CD==BACKLIGHT || RESET==BACKLIGHT)error("Duplicated pin");
 	Option.LCD_CD = CD;
 	Option.LCD_Reset = RESET;
 	Option.DISPLAY_BL = BACKLIGHT;
@@ -215,6 +216,7 @@ void InitDisplaySPI(int InitOnly) {
         	DrawBuffer = DrawBufferMEM;
 			ReadBuffer = ReadBufferMEM;
         }
+		DrawPixel=DrawPixelNormal;
     }
     // the parameters for the display panel are set here
     // the initialisation sequences and the SPI driver code was written by Peter Mather (matherp on The Back Shed forum)
@@ -791,6 +793,29 @@ void SetCS(void) {
     else gpio_put(LCD_CS_PIN,GPIO_PIN_SET);
 }
 
+void __not_in_flash_func(spi_write_fast)(spi_inst_t *spi, const uint8_t *src, size_t len) {
+    // Write to TX FIFO whilst ignoring RX, then clean up afterward. When RX
+    // is full, PL022 inhibits RX pushes, and sets a sticky flag on
+    // push-on-full, but continues shifting. Safe if SSPIMSC_RORIM is not set.
+    for (size_t i = 0; i < len; ++i) {
+        while (!spi_is_writable(spi))
+            tight_loop_contents();
+        spi_get_hw(spi)->dr = (uint32_t)src[i];
+    }
+}
+void __not_in_flash_func(spi_finish)(spi_inst_t *spi){
+    // Drain RX FIFO, then wait for shifting to finish (which may be *after*
+    // TX FIFO drains), then drain RX FIFO again
+    while (spi_is_readable(spi))
+        (void)spi_get_hw(spi)->dr;
+    while (spi_get_hw(spi)->sr & SPI_SSPSR_BSY_BITS)
+        tight_loop_contents();
+    while (spi_is_readable(spi))
+        (void)spi_get_hw(spi)->dr;
+
+    // Don't leave overrun flag set
+    spi_get_hw(spi)->icr = SPI_SSPICR_RORIC_BITS;
+}
 
 
 void spi_write_data(unsigned char data){
@@ -1033,7 +1058,10 @@ void DrawRectangleSPI(int x1, int y1, int x2, int y2, int c){
 			col[1]=(c>>8) & 0xFF;
 			col[2]=(c & 0xFF);
 			for(t=0;t<i;t+=3){p[t]=col[0];p[t+1]=col[1];p[t+2]=col[2];}
-			for(y=y1;y<=y2;y++)xmit_byte_multi(p,i);
+			for(y=y1;y<=y2;y++){
+				if(PinDef[Option.SYSTEM_CLK].mode & SPI0SCK)spi_write_fast(spi0,p,i);
+				else spi_write_fast(spi1,p,i);
+			}
 		} else {
 			i = x2 - x1 + 1;
 			i*=2;
@@ -1045,9 +1073,19 @@ void DrawRectangleSPI(int x1, int y1, int x2, int y2, int c){
 				col[1]=~col[1];
 			}
 			for(t=0;t<i;t+=2){p[t]=col[0];p[t+1]=col[1];}
-			for(t=y1;t<=y2;t++)xmit_byte_multi(p,i);
+			if(PinDef[Option.SYSTEM_CLK].mode & SPI0SCK){
+				for(t=y1;t<=y2;t++){
+					spi_write_fast(spi0,p,i);
+				} 
+			} else {
+				for(t=y1;t<=y2;t++){
+					spi_write_fast(spi1,p,i);
+				} 
+			}
 		}
 	}
+	if(PinDef[Option.SYSTEM_CLK].mode & SPI0SCK)spi_finish(spi0);
+	else spi_finish(spi1);
 	ClearCS(Option.LCD_CS);                                       //set CS high
 }
 

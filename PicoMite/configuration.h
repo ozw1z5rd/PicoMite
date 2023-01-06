@@ -27,16 +27,17 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 #ifdef __cplusplus
 extern "C" {
 #endif
-#define FLASH_TARGET_OFFSET (1024 * 1024) 
 #ifdef PICOMITEVGA
-#define MagicKey 0x6755DDF4
+#define FLASH_TARGET_OFFSET (640 * 1024) 
+#define MagicKey 0x74256772
 #define HEAPTOP 0x2003f800
 #else
-#define MagicKey 0x865533E7
+#define FLASH_TARGET_OFFSET (660 * 1024) 
+#define MagicKey 0x48922427
 #define HEAPTOP 0x2003f800
 #endif
 
-#define MMFLOAT double 
+#define MMFLOAT double
 #define FLOAT3D float
 #define sqrt3d sqrtf
 #define round3d roundf
@@ -45,13 +46,13 @@ extern "C" {
 #define ALL_MEMORY_SIZE (172*1024) 
 #define HEAP_MEMORY_SIZE (100*1024) 
 #else
-#define ALL_MEMORY_SIZE (176*1024) 
-#define HEAP_MEMORY_SIZE (120*1024) 
+#define ALL_MEMORY_SIZE (172*1024) 
+#define HEAP_MEMORY_SIZE (116*1024) 
 #endif
 #define MAX_PROG_SIZE HEAP_MEMORY_SIZE
 #define SAVEDVARS_FLASH_SIZE 16384
 #define FLASH_ERASE_SIZE 4096
-#define MAXFLASHSLOTS ((((1024*1024)-FLASH_ERASE_SIZE-SAVEDVARS_FLASH_SIZE)/MAX_PROG_SIZE)-1)
+#define MAXFLASHSLOTS 5
 #define MAXVARS             512                     // 8 + MAXVARLEN + MAXDIM * 2  (ie, 56 bytes) - these do not incl array members
 #define MAXVARHASH				MAXVARS/2
 
@@ -79,7 +80,7 @@ extern "C" {
 // define the maximum number of arguments to PRINT, INPUT, WRITE, ON, DIM, ERASE, DATA and READ
 // each entry uses zero bytes.  The number is limited by the length of a command line
 #define MAX_ARG_COUNT       50
-#define STR_AUTO_PRECISION  999
+#define STR_AUTO_PRECISION  999 
 #define STR_SIG_DIGITS 9                            // number of significant digits to use when converting MMFLOAT to a string
 #define NBRSETTICKS         4                       // the number of SETTICK interrupts available
 #define NBRPINS             44
@@ -147,6 +148,7 @@ extern "C" {
 #define PATH_MAX 1024
 #define PROGSTART (FLASH_TARGET_OFFSET + FLASH_ERASE_SIZE + SAVEDVARS_FLASH_SIZE + ((MAXFLASHSLOTS) * MAX_PROG_SIZE))
 #define TOP_OF_SYSTEM_FLASH  (FLASH_TARGET_OFFSET + FLASH_ERASE_SIZE + SAVEDVARS_FLASH_SIZE + ((MAXFLASHSLOTS+1) * MAX_PROG_SIZE))
+#define RoundUpK4(a)     (((a) + (4096 - 1)) & (~(4096 - 1)))// round up to the nearest page size      [position 131:9]	
 #ifdef __cplusplus
 }
 #endif

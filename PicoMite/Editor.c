@@ -244,7 +244,6 @@ void cmd_edit(void) {
     m_alloc(M_VAR);                                                 //clean up clipboard usage
     memset(tknbuf, 0, STRINGSIZE);                                  // zero this so that nextstmt is pointing to the end of program
     MMCharPos = 0;
-    cmd_end();
 }
 
 

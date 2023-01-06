@@ -33,7 +33,7 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 
 void cmd_backlight(void);
 void cmd_ctrlval(void);
-void cmd_page(void);
+void cmd_GUIpage(unsigned char *p);
 
 void fun_msgbox(void);
 void fun_ctrlval(void);
@@ -53,7 +53,6 @@ void fun_mmvpos(void);
 
 //  { "BackLight",      T_CMD,                      0, cmd_backlight  },
   { "CtrlVal(",       T_CMD | T_FUN,              0, cmd_ctrlval    },
-  { "Page",           T_CMD,                      0, cmd_page       },
 
 #endif
 

@@ -321,7 +321,7 @@ extern int SPI0locked;
 extern int SPI1locked;
 extern int I2C0locked;
 extern int I2C1locked;
-extern int CallBackEnabled;
+extern volatile int CallBackEnabled;
 extern int ADCopen; 
 extern volatile MMFLOAT * volatile a1float, * volatile a2float, * volatile a3float, * volatile a4float;
 extern int ADCmax;

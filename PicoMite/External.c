@@ -101,7 +101,7 @@ volatile char IrState, IrGotMsg;
 int IrBits, IrCount;
 unsigned char *IrInterrupt;
 int last_adc=99;
-int CallBackEnabled=0;
+volatile int CallBackEnabled=0;
 int IRpin=99;
 int PWM0Apin=99;
 int PWM1Apin=99;
@@ -479,12 +479,14 @@ void ExtCfg(int pin, int cfg, int option) {
         case EXT_CNT_IN:        
         case EXT_FREQ_IN:   // same as counting, so fall through
         case EXT_PER_IN:        // same as counting, so fall through
-                                    edge = GPIO_IRQ_EDGE_RISE;
-                                    if(cfg==EXT_CNT_IN && option==2)edge = GPIO_IRQ_EDGE_FALL;
-                                    if(cfg==EXT_CNT_IN && option>=3)edge = GPIO_IRQ_EDGE_FALL | GPIO_IRQ_EDGE_RISE;
-                                    if(option==1 || option==4)gpio_pull_down (PinDef[pin].GPno);
-                                    if(option==2 || option==5)gpio_pull_up (PinDef[pin].GPno);
-                                    if(pin == Option.INT1pin) {
+                                edge = GPIO_IRQ_EDGE_RISE;
+                                if(cfg==EXT_CNT_IN && option==2)edge = GPIO_IRQ_EDGE_FALL;
+                                if(cfg==EXT_CNT_IN && option>=3)edge = GPIO_IRQ_EDGE_FALL | GPIO_IRQ_EDGE_RISE;
+                                if(option==1 || option==4)gpio_pull_down (PinDef[pin].GPno);
+                                if(option==2 || option==5)gpio_pull_up (PinDef[pin].GPno);
+                                irq_set_priority(13,0);
+                                PinSetBit(pin,TRISSET);
+                                if(pin == Option.INT1pin) {
                                     if(!CallBackEnabled){
                                         gpio_set_irq_enabled_with_callback(PinDef[pin].GPno, edge , true, &gpio_callback);
                                         CallBackEnabled=2;
@@ -2381,7 +2383,7 @@ void ClearExternalIO(void) {
   	CloseAudio(1);
     InterruptUsed = false;
 	InterruptReturn = NULL;
- 
+
     if(CallBackEnabled==1) gpio_set_irq_enabled_with_callback(PinDef[IRpin].GPno, GPIO_IRQ_EDGE_RISE | GPIO_IRQ_EDGE_FALL, false, &gpio_callback);
     else if(CallBackEnabled & 1){
         gpio_set_irq_enabled(PinDef[IRpin].GPno, GPIO_IRQ_EDGE_RISE | GPIO_IRQ_EDGE_FALL, false);
@@ -2526,6 +2528,7 @@ void ClearExternalIO(void) {
     CSubInterrupt=NULL;
     CSubComplete=0;
     keyselect=0;
+    g_myrand=NULL;
     CMM1=0;
 }
 
@@ -2665,12 +2668,11 @@ void __not_in_flash_func(IRHandler)(void) {
         }
     }
 void __not_in_flash_func(gpio_callback)(uint gpio, uint32_t events) {
-    int dd=gpio_get_all();
-    if(Option.KeyboardConfig |= NO_KEYBOARD && gpio==PinDef[KEYBOARD_CLOCK].GPno && (CallBackEnabled & 32)) CNInterrupt(dd);
-    else if(gpio==PinDef[IRpin].GPno && (CallBackEnabled & 1))IRHandler();
-    else if(gpio==PinDef[Option.INT1pin].GPno && (CallBackEnabled & 2))TM_EXTI_Handler_1();
-    else if(gpio==PinDef[Option.INT2pin].GPno && (CallBackEnabled & 4))TM_EXTI_Handler_2();
-    else if(gpio==PinDef[Option.INT3pin].GPno && (CallBackEnabled & 8))TM_EXTI_Handler_3();
-    else if(gpio==PinDef[Option.INT4pin].GPno && (CallBackEnabled & 16))TM_EXTI_Handler_4();
-    else error("Internal error");
+    if(Option.KeyboardConfig |= NO_KEYBOARD && gpio==PinDef[KEYBOARD_CLOCK].GPno) CNInterrupt(gpio_get_all());
+    if(gpio==PinDef[IRpin].GPno)IRHandler();
+    if(gpio==PinDef[Option.INT1pin].GPno)TM_EXTI_Handler_1();
+    if(gpio==PinDef[Option.INT2pin].GPno)TM_EXTI_Handler_2();
+    if(gpio==PinDef[Option.INT3pin].GPno)TM_EXTI_Handler_3();
+    if(gpio==PinDef[Option.INT4pin].GPno)TM_EXTI_Handler_4();
 }
+

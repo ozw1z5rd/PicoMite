@@ -111,6 +111,7 @@ drwav mywav;
 a_flist *alist=NULL;
 int trackplaying=0, trackstoplay=0;
 
+
 void* my_malloc(size_t sz, void* pUserData)
 {
     return GetMemory(sz);
@@ -1037,14 +1038,26 @@ const unsigned short SineTable[4096] = {
 };
 size_t onRead(void  *userdata,  char  *pBufferOut,   size_t bytesToRead){
     unsigned int nbr;
-    FSerror=f_read(FileTable[WAV_fnbr].fptr,pBufferOut, bytesToRead, &nbr);
-    if(FSerror)nbr=0;
-    if(!MDD_SDSPI_CardDetectState())ErrorCheck(WAV_fnbr);
+	if(filesource[WAV_fnbr]==FATFSFILE){
+		FSerror=f_read(FileTable[WAV_fnbr].fptr,pBufferOut, bytesToRead, &nbr);
+		if(FSerror)nbr=0;
+    	if(!MDD_SDSPI_CardDetectState())ErrorCheck(WAV_fnbr);
+	} else {
+		nbr=lfs_file_read(&lfs, FileTable[WAV_fnbr].lfsptr, pBufferOut, bytesToRead);
+		if(nbr<0)FSerror=nbr;	
+		else FSerror=0;
+		ErrorCheck(WAV_fnbr);
+	}
     return nbr;
 }
 drwav_bool32 onSeek(void  *userdata,  int offset,  drwav_seek_origin origin){
-    if(origin==drwav_seek_origin_start) FSerror=f_lseek(FileTable[WAV_fnbr].fptr,offset);
-    else FSerror=f_lseek(FileTable[WAV_fnbr].fptr,FileTable[WAV_fnbr].fptr->fptr+offset);
+	if(filesource[WAV_fnbr]==FATFSFILE){
+		if(origin==drwav_seek_origin_start) FSerror=f_lseek(FileTable[WAV_fnbr].fptr,offset);
+		else FSerror=f_lseek(FileTable[WAV_fnbr].fptr,FileTable[WAV_fnbr].fptr->fptr+offset);
+	} else {
+		if(origin==drwav_seek_origin_start) FSerror=lfs_file_seek(&lfs, FileTable[WAV_fnbr].lfsptr, offset, LFS_SEEK_SET);
+		else FSerror=lfs_file_seek(&lfs, FileTable[WAV_fnbr].lfsptr, offset, LFS_SEEK_CUR);
+	}
     return 1;
 }
 void CloseAudio(int all){
@@ -1355,31 +1368,33 @@ void cmd_play(void) {
             WAVInterrupt = GetIntAddress(argv[2]);					// get the interrupt location
             InterruptUsed = true;
         }
-        FRESULT fr;
-        FILINFO fno;
-        fr = f_stat(p, &fno);
-        if(fno.fattrib==AM_DIR || p[0]==0){
-            alist=GetMemory(sizeof(a_flist)*MAXALBUM);
-            trackstoplay=0;
-            trackplaying=0;
-        	DIR djd;
-        	djd.pat="*.wav";
-        	if(!CurrentLinePtr)MMPrintString("Directory found - commencing player\r\n");
-            FSerror = f_opendir(&djd, p);
-            for(;;){
-            	fr=f_readdir(&djd, &fno);
-            	if (fr != FR_OK || fno.fname[0] == 0) break;  /* Break on error or end of dir */
-            	// Get a directory item
-            	if (pattern_matching(djd.pat, fno.fname, 0, 0)){
-            		if(!CurrentLinePtr){MMPrintString(fno.fname);PRet();}
-            		strcpy(alist[trackstoplay++].fn,fno.fname);
-            	}
-            }
-            trackstoplay--;
-            f_closedir(&djd);
-            wavcallback(alist[trackplaying].fn);
-        	return;
-        }
+		if(FatFSFileSystem){
+			FRESULT fr;
+			FILINFO fno;
+			fr = f_stat(p, &fno);
+			if(fno.fattrib==AM_DIR || p[0]==0){
+				alist=GetMemory(sizeof(a_flist)*MAXALBUM);
+				trackstoplay=0;
+				trackplaying=0;
+				DIR djd;
+				djd.pat="*.wav";
+				if(!CurrentLinePtr)MMPrintString("Directory found - commencing player\r\n");
+				FSerror = f_opendir(&djd, p);
+				for(;;){
+					fr=f_readdir(&djd, &fno);
+					if (fr != FR_OK || fno.fname[0] == 0) break;  /* Break on error or end of dir */
+					// Get a directory item
+					if (pattern_matching(djd.pat, fno.fname, 0, 0)){
+						if(!CurrentLinePtr){MMPrintString(fno.fname);PRet();}
+						strcpy(alist[trackstoplay++].fn,fno.fname);
+					}
+				}
+				trackstoplay--;
+				f_closedir(&djd);
+				wavcallback(alist[trackplaying].fn);
+				return;
+    	    }
+		}
         // open the file
         trackstoplay=0;
         trackplaying=0;

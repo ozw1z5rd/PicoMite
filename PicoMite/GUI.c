@@ -389,6 +389,10 @@ void cmd_gui(void) {
 
     if(!Option.DISPLAY_TYPE) error("Display not configured");
 
+    if((p = checkstring(cmdline, "PAGE"))) {
+    	cmd_GUIpage(p);
+    	return;
+    }
     if((p = checkstring(cmdline, "BUTTON"))) {
         r = GetCtrlParams(CTRL_BUTTON, p);
         return;
@@ -745,10 +749,10 @@ void cmd_gui(void) {
 
 
 
-void cmd_page(void) {
+void cmd_GUIpage(unsigned char *p) {
     int i, r, OldPages;
 
-    getargs(&cmdline, MAX_ARG_COUNT, ",");
+    getargs(&p, MAX_ARG_COUNT, ",");
     if(!(argc & 1)) error("Argument count");
     if(!Option.MaxCtrls)error("No memory allocated for GUI controls");
     OldPages = CurrentPages;

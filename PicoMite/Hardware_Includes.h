@@ -32,6 +32,7 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 #ifdef PICOMITEVGA
 #include "pico/multicore.h"
 #endif
+#include "lfs.h"
 
 
 
@@ -74,6 +75,7 @@ void cmd_time(void);
 void cmd_flash(void);
 void cmd_var(void);
 void cmd_flush(void);
+void cmd_disk(void);
 // global variables used in MMBasic but must be maintained outside of the interpreter
 extern int MMerrno;
 extern int ListCnt;
@@ -112,6 +114,7 @@ extern volatile int ClickTimer;
 extern int calibrate;
 extern volatile unsigned int InkeyTimer;                            // used to delay on an escape character
 extern volatile int DISPLAY_TYPE;
+extern void routinechecks(void);
 
 extern volatile char ConsoleRxBuf[CONSOLE_RX_BUF_SIZE];
 extern volatile int ConsoleRxBufHead;
@@ -173,6 +176,10 @@ extern int AUDIO_L_PIN, AUDIO_R_PIN, AUDIO_SLICE;
 extern uint16_t AUDIO_WRAP;
 extern int PromptFont, PromptFC, PromptBC;                             // the font and colours selected at the prompt
 extern const uint8_t *flash_progmemory;
+extern lfs_t lfs;
+extern lfs_dir_t lfs_dir;
+extern struct lfs_info lfs_info;
+extern int FatFSFileSystem;
 // console related I/O
 int __not_in_flash_func(MMInkey)(void);
 int MMgetchar(void);
@@ -184,6 +191,18 @@ void EditInputLine(void);
 // empty functions used in MMBasic but must be maintained outside of the interpreter
 void UnloadFont(int);
 #define NBRFONTS 0
+#define STATE_VECTOR_LENGTH 624
+#define STATE_VECTOR_M      397 /* changes to STATE_VECTOR_LENGTH also require changes to this */
+
+typedef struct tagMTRand {
+  unsigned long mt[STATE_VECTOR_LENGTH];
+  int index;
+} MTRand;
+
+void seedRand(unsigned long seed);
+unsigned long genRandLong(MTRand* rand);
+double genRand(MTRand* rand);
+extern struct tagMTRand *g_myrand;
 
 #if defined(MSVCC)
 #define mkdir _mkdir
@@ -287,6 +306,7 @@ void UnloadFont(int);
 	{ (unsigned char *)"Flash",		T_CMD,				0, cmd_flash    },
 	{ (unsigned char *)"VAR",		T_CMD,				0, cmd_var     	},
 	{ (unsigned char *)"Flush",		T_CMD,				0, cmd_flush    },
+	{ (unsigned char *)"Drive",		T_CMD,				0, cmd_disk     },
 
 
 #endif

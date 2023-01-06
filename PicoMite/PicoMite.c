@@ -1540,6 +1540,31 @@ void __no_inline_not_in_flash_func(modclock)(uint16_t speed){
        ssi_hw->baudr=speed;
        ssi_hw->ssienr=1;
 }
+
+lfs_t lfs;
+lfs_dir_t lfs_dir;
+struct lfs_info lfs_info;
+void updatebootcount(void){
+    lfs_file_t lfs_file;
+    pico_lfs_cfg.block_count = (Option.FlashSize-RoundUpK4(TOP_OF_SYSTEM_FLASH))/4096;
+    int err,boot_count=0;
+ 	    err= lfs_mount(&lfs, &pico_lfs_cfg);
+    // reformat if we can't mount the filesystem
+    // this should only happen on the first boot
+    if (err) {
+        err=lfs_format(&lfs, &pico_lfs_cfg);
+        err=lfs_mount(&lfs, &pico_lfs_cfg);
+    }
+
+    err=lfs_file_open(&lfs, &lfs_file, "bootcount", LFS_O_RDWR | LFS_O_CREAT);;
+    int dt=get_fattime();
+    err=lfs_setattr(&lfs, "bootcount", 'A', &dt,   4);
+    err=lfs_file_read(&lfs, &lfs_file, &boot_count, sizeof(boot_count));;
+    boot_count+=1;
+    err=lfs_file_rewind(&lfs, &lfs_file);
+    err=lfs_file_write(&lfs, &lfs_file, &boot_count, sizeof(boot_count));
+    err=lfs_file_close(&lfs, &lfs_file);	
+}
 int main(){
     static int ErrorInPrompt;
     repeating_timer_t timer;
@@ -1632,7 +1657,8 @@ int main(){
         SaveOptions();
         MMPrintString("RTC not found, OPTION RTC AUTO disabled\r\n");
     }
- 	*tknbuf = 0;
+    updatebootcount();
+    *tknbuf = 0;
      ContinuePoint = nextstmt;                               // in case the user wants to use the continue command
 	if(setjmp(mark) != 0) {
      // we got here via a long jump which means an error or CTRL-C or the program wants to exit to the command prompt

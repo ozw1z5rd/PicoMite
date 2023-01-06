@@ -291,20 +291,17 @@ void ListFile(char *pp, int all) {
     FILINFO fno;
     int fnbr;
     int i,ListCnt = 1;
-    fr = f_stat(pp, &fno);
-    if(fr == FR_OK  && !(fno.fattrib & AM_DIR)){
-    	fnbr = FindFreeFileNbr();
-    	if(!BasicFileOpen(pp, fnbr, FA_READ)) return;
-    	while(!FileEOF(fnbr)) {                                     // while waiting for the end of file
-    		memset(buff,0,256);
-    		MMgetline(fnbr, (char *)buff);									    // get the input line
-    		for(i=0;i<strlen(buff);i++)if(buff[i] == TAB) buff[i] = ' ';
-    		MMPrintString(buff);
-    		ListCnt+=strlen(buff)/Option.Width;
-            ListNewLine(&ListCnt, all);
-    	}
-    	FileClose(fnbr);
-    } else error("File not found");
+	fnbr = FindFreeFileNbr();
+	if(!BasicFileOpen(pp, fnbr, FA_READ)) return;
+	while(!FileEOF(fnbr)) {                                     // while waiting for the end of file
+		memset(buff,0,256);
+		MMgetline(fnbr, (char *)buff);									    // get the input line
+		for(i=0;i<strlen(buff);i++)if(buff[i] == TAB) buff[i] = ' ';
+		MMPrintString(buff);
+		ListCnt+=strlen(buff)/Option.Width;
+		ListNewLine(&ListCnt, all);
+	}
+	FileClose(fnbr);
 }
 
 void cmd_list(void) {
@@ -721,6 +718,9 @@ void cmd_end(void) {
 	LayerBuf=&AllMemory[HEAP_MEMORY_SIZE + MAXVARS * sizeof(struct s_vartbl) + 2048];
 	FrameBuf=&AllMemory[HEAP_MEMORY_SIZE + MAXVARS * sizeof(struct s_vartbl) + 2048];
 #endif
+
+	if(g_myrand)FreeMemory((void *)g_myrand);
+	g_myrand=NULL;
 	longjmp(mark, 1);												// jump back to the input prompt
 }
 

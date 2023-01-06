@@ -44,6 +44,9 @@ extern const uint8_t *flash_progmemory;
 unsigned char __attribute__ ((aligned (32))) AllMemory[ALL_MEMORY_SIZE];
 #ifndef PICOMITEVGA
 unsigned char *CTRLS=&AllMemory[HEAP_MEMORY_SIZE +  MAXVARS * sizeof(struct s_vartbl) + 2048];
+unsigned char *WriteBuf=NULL;
+unsigned char *LayerBuf=NULL;
+unsigned char *FrameBuf=NULL;
 #else
 unsigned char *WriteBuf=&AllMemory[HEAP_MEMORY_SIZE + MAXVARS * sizeof(struct s_vartbl) + 2048];
 unsigned char *DisplayBuf=&AllMemory[HEAP_MEMORY_SIZE + MAXVARS * sizeof(struct s_vartbl) + 2048];
@@ -613,7 +616,17 @@ void InitHeap(void) {
     int i;
     for(i = 0; i < (HEAP_MEMORY_SIZE/PAGESIZE) / PAGESPERWORD; i++) mmap[i] = 0;
     for(i = 0; i < MAXTEMPSTRINGS; i++) StrTmp[i] = NULL;
-}    
+#ifdef PICOMITEVGA
+	WriteBuf=&AllMemory[HEAP_MEMORY_SIZE + MAXVARS * sizeof(struct s_vartbl) + 2048];
+	DisplayBuf=&AllMemory[HEAP_MEMORY_SIZE + MAXVARS * sizeof(struct s_vartbl) + 2048];
+	LayerBuf=&AllMemory[HEAP_MEMORY_SIZE + MAXVARS * sizeof(struct s_vartbl) + 2048];
+	FrameBuf=&AllMemory[HEAP_MEMORY_SIZE + MAXVARS * sizeof(struct s_vartbl) + 2048];
+#else
+    FrameBuf=NULL;
+    WriteBuf=NULL;
+    LayerBuf=NULL;
+#endif
+}
 
 
 

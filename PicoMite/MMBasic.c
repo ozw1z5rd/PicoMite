@@ -1182,7 +1182,7 @@ void __not_in_flash_func(*DoExpression)(unsigned char *p, int *t) {
     if(*t & T_NBR) return &f;
     if(*t & T_STR) return s;
 
-    error("Internal fault (sorry)");
+    error("Internal fault 1(sorry)");
     return NULL;                                                    // to keep the compiler happy
 }
 
@@ -1446,7 +1446,7 @@ unsigned char __not_in_flash_func(*getvalue)(unsigned char *p, MMFLOAT *fa, long
         p++;                                                        // point to after the function (without argument) or after the closing bracket
         tmp = targ = TypeMask(tokentype(*tp));                      // set the type of the function (which might need to know this)
         tokenfunction(*tp)();                                       // execute the function
-        if((tmp & targ) == 0) error("Internal fault (sorry)");      // as a safety check the function must return a type the same as set in the header
+        if((tmp & targ) == 0) error("Internal fault 2(sorry)");      // as a safety check the function must return a type the same as set in the header
         t = targ;                                                   // save the type of the function
         f = fret; i64 = iret; s = sret;                             // save the result
     }
@@ -2747,7 +2747,7 @@ void ClearRuntime(void) {
     findlabel(NULL);                                                // clear the label cache
     OptionErrorSkip = 0;
     MMerrno = 0;                                                    // clear the error flags
-    *MMErrMsg = 0;
+   *MMErrMsg = 0;
 	#if defined(MMFAMILY) || defined(DOS)
 	    NbrModules = 0;
     #endif
@@ -2821,7 +2821,7 @@ int GetCommandValue( unsigned char *n) {
     for(i = 0; i < CommandTableSize - 1; i++)
         if(str_equal(n, commandtbl[i].name))
             return i + C_BASETOKEN;
-    error("Internal fault (sorry)");
+    error("Internal fault 3(sorry)");
     return 0;
 }
 
@@ -2833,7 +2833,7 @@ int GetTokenValue (unsigned char *n) {
     for(i = 0; i < TokenTableSize - 1; i++)
         if(str_equal(n, tokentbl[i].name))
             return i + C_BASETOKEN;
-    error("Internal fault (sorry)");
+    error("Internal fault 4(sorry)");
     return 0;
 }
 
