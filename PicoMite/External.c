@@ -30,6 +30,7 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 //#include "hardware/gpio.h"
 #include "hardware/adc.h"
 #include "hardware/structs/systick.h"
+#include "hardware/structs/pwm.h"
 #include "hardware/structs/adc.h"
 #include "hardware/dma.h"
 extern MMFLOAT FDiv(MMFLOAT a, MMFLOAT b);
@@ -1490,8 +1491,97 @@ void cmd_backlight(void){
 #endif
 
 void cmd_pwm(void){
-    char *tp;
+    unsigned char *tp;
+    if((tp=checkstring(cmdline, "SYNC"))) {
+        MMFLOAT count0=-1.0,count1=-1.0,count2=-1.0,count3=-1.0,count4=-1.0,count5=-1.0,count6=-1.0,count7=-1.0;
+        getargs(&tp,15,",");
+        if(argc>=1){count0=getnumber(argv[0]);
+        if((count0<0.0 || count0>100.0) && count0!=-1.0)error("Syntax");}
+        if(argc>=3 && *argv[2]){count1=getnumber(argv[2]);
+        if((count1<0.0 || count1>100.0) && count1!=-1.0)error("Syntax");}
+        if(argc>=5 && *argv[4]){count2=getnumber(argv[4]);
+        if((count2<0.0 || count2>100.0) && count2!=-1.0)error("Syntax");}
+        if(argc>=7 && *argv[6]){count3=getnumber(argv[6]);
+        if((count3<0.0 || count3>100.0) && count3!=-1.0)error("Syntax");}
+        if(argc>=9 && *argv[8]){count4=getnumber(argv[8]);
+        if((count4<0.0 || count4>100.0) && count4!=-1.0)error("Syntax");}
+        if(argc>=11 && *argv[10]){count5=getnumber(argv[10]);
+        if((count5<0.0 || count5>100.0) && count5!=-1.0)error("Syntax");}
+        if(argc>=13 && *argv[12]){count6=getnumber(argv[12]);
+        if((count6<0.0 || count6>100.0) && count6!=-1.0)error("Syntax");}
+        if(argc==15 && *argv[14]){count7=getnumber(argv[14]);
+        if((count7<0.0 || count7>100.0) && count7!=-1.0)error("Syntax");}
+        
+        int enabled=0;
+        if(!(PWM0Apin==99 && PWM0Apin==99) || Option.AUDIO_SLICE ==0 || BacklightSlice==0){
+            enabled |=1;
+            if(!(Option.AUDIO_SLICE ==0 || BacklightSlice==0 || count0<0.0)){
+                pwm_set_enabled(0,false);
+                count0=(MMFLOAT)pwm_hw->slice[0].top * count0 / 100.0;
+                pwm_set_counter(0,(int)count0);
+            }
+        }
+        if(!(PWM1Apin==99 && PWM1Apin==99) || Option.AUDIO_SLICE ==1 || BacklightSlice==1){
+            enabled |=2;
+            if(!(Option.AUDIO_SLICE ==1 || BacklightSlice==1 || count1<0.0)){
+                pwm_set_enabled(1,false);
+                count1=(MMFLOAT)pwm_hw->slice[1].top * count1 / 100.0;
+                pwm_set_counter(1,count1);
+            }
+        }
+        if(!(PWM2Apin==99 && PWM2Apin==99) || Option.AUDIO_SLICE ==2 || BacklightSlice==2){
+            enabled |=4;
+            if(!(Option.AUDIO_SLICE ==2 || BacklightSlice==2 || count2<0.0)){
+                pwm_set_enabled(2,false);
+                count2=(MMFLOAT)pwm_hw->slice[2].top * count2 / 100.0;
+                pwm_set_counter(2,count2);
+            }
+        }
+        if(!(PWM3Apin==99 && PWM3Apin==99) || Option.AUDIO_SLICE ==3 || BacklightSlice==3){
+            enabled |=8;
+            if(!(Option.AUDIO_SLICE ==3 || BacklightSlice==3 || count3<0.0)){
+                pwm_set_enabled(3,false);
+                count3=(MMFLOAT)pwm_hw->slice[3].top * count3 / 100.0;
+                pwm_set_counter(3,count3);
+            }
+        }
+        if(!(PWM4Apin==99 && PWM4Apin==99) || Option.AUDIO_SLICE ==4 || BacklightSlice==4){
+            enabled |16;
+            if(!(Option.AUDIO_SLICE ==4 || BacklightSlice==4 || count4<0.0)){
+                pwm_set_enabled(4,false);
+                count4=(MMFLOAT)pwm_hw->slice[4].top * count4 / 100.0;
+                pwm_set_counter(4,count4);
+            }
+        }
+        if(!(PWM5Apin==99 && PWM5Apin==99) || Option.AUDIO_SLICE ==5 || BacklightSlice==5){
+            enabled |=32;
+            if(!(Option.AUDIO_SLICE ==5 || BacklightSlice==5 || count5<0.0)){
+                pwm_set_enabled(5,false);
+                count5=(MMFLOAT)pwm_hw->slice[5].top * count5 / 100.0;
+                pwm_set_counter(5,count5);
+            }
+        }
+        if(!(PWM6Apin==99 && PWM6Apin==99) || Option.AUDIO_SLICE ==6 || BacklightSlice==6){
+            enabled |=64;
+            if(!(Option.AUDIO_SLICE ==6 || BacklightSlice==6 || count6<0.0)){
+                pwm_set_enabled(6,false);
+                count6=(MMFLOAT)pwm_hw->slice[6].top * count6 / 100.0;
+                pwm_set_counter(6,count6);
+            }
+        }
+        if(!(PWM7Apin==99 && PWM7Apin==99) || Option.AUDIO_SLICE ==7 || BacklightSlice==7){
+            enabled |=128;
+            if(!(Option.AUDIO_SLICE ==7 || BacklightSlice==7 || count7<0.0)){
+                pwm_set_enabled(7,false);
+                count7=(MMFLOAT)pwm_hw->slice[7].top * count7 / 100.0;
+                pwm_set_counter(7,count7);
+            }
+        }
+        pwm_hw->en=enabled;
+        return;
+    }
     int div=1, high1, high2;
+    int phase1=0,phase2=0;
     MMFLOAT duty1=-1.0, duty2=-1.0;
     getargs(&cmdline,7,",");
     if(!(argc>=3))error("Syntax");
@@ -1515,11 +1605,19 @@ void cmd_pwm(void){
     if(frequency>(MMFLOAT)(CPU_Speed>>2)*1000.0)error("Invalid frequency");
     if(*argv[4]){
         duty1=getnumber(argv[4]);
-        if(duty1>100.0 || duty1<0.0)error("Syntax");
+        if(duty1>100.0 || duty1<-100.0)error("Syntax");
+        if(duty1<0){
+            duty1=-duty1;
+            phase1=1;
+        }
     }
     if(argc==7){
         duty2=getnumber(argv[6]);
-        if(duty2>100.0 || duty2<0.0)error("Syntax");
+        if(duty2>100.0 || duty2<-100.0)error("Syntax");
+        if(duty2<0){
+            duty2=-duty2;
+            phase2=1;
+        }
     }
     int wrap=(CPU_Speed*1000)/frequency;
     if(duty1>=0.0)high1=(int)((MMFLOAT)CPU_Speed/frequency*duty1*10.0);
@@ -1536,6 +1634,7 @@ void cmd_pwm(void){
     if(high2)high2--;
     pwm_set_clkdiv(slice,(float)div);
     pwm_set_wrap(slice, wrap);
+    pwm_set_output_polarity(slice,phase1,phase2);
     if(slice==0 && PWM0Apin==99 && duty1>=0.0)error("Pin not set for PWM");
     if(slice==0 && PWM0Bpin==99 && duty2>=0.0)error("Pin not set for PWM");
     if(slice==1 && PWM1Apin==99 && duty1>=0.0)error("Pin not set for PWM");
