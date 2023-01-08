@@ -1101,8 +1101,7 @@ void cmd_seek(void)
     if(filesource[fnbr]==FLASHFILE){
         if(idx>FileTable[fnbr].lfsptr->ctz.size)idx=FileTable[fnbr].lfsptr->ctz.size;
         FSerror = lfs_file_seek(&lfs, FileTable[fnbr].lfsptr, idx, LFS_SEEK_SET);
-        ErrorCheck(fnbr);
-
+        if(FSerror<0)ErrorCheck(fnbr);
     } else {
         if (fmode[fnbr] & FA_WRITE)
         {
@@ -1642,7 +1641,7 @@ int BasicFileOpen(char *fname, int fnbr, int mode)
 
     } else {
         int lfsmode=0;
-        if(mode==FA_READ)lfsmode=LFS_O_RDONLY;
+        if(mode == FA_READ)lfsmode=LFS_O_RDONLY;
         else if(mode==(FA_WRITE | FA_CREATE_ALWAYS))lfsmode=LFS_O_WRONLY | LFS_O_CREAT | LFS_O_TRUNC;
         else if(mode==(FA_WRITE | FA_OPEN_APPEND)) lfsmode = LFS_O_WRONLY | LFS_O_CREAT | LFS_O_APPEND;
         else if(mode==(FA_WRITE | FA_OPEN_APPEND | FA_READ))lfsmode =LFS_O_RDWR | LFS_O_CREAT | LFS_O_APPEND;

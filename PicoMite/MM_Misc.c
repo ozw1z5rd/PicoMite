@@ -2415,6 +2415,60 @@ void fun_info(void){
             iret = MMerrno;
             targ=T_INT;
             return;
+        } else if((tp=checkstring(ep, "EXISTS DIR"))){
+            char q[FF_MAX_LFN]={0};
+            targ=T_INT;
+            iret=0;
+            int waste=0, t=FatFSFileSystem+1;
+            char *p = getCstring(tp);
+            t = drivecheck(p,&waste);
+            p+=waste;
+            getfullfilename(p,q);
+            FatFSFileSystem=t-1;
+            if(FatFSFileSystem==0){
+                struct lfs_info lfsinfo;
+                memset(&lfsinfo,0,sizeof(DIR));
+                FSerror = lfs_stat(&lfs, q, &lfsinfo);
+                if(lfsinfo.type==LFS_TYPE_DIR)iret= 1;
+            } else {
+                DIR djd;
+                FILINFO fnod;
+                memset(&djd,0,sizeof(DIR));
+                memset(&fnod,0,sizeof(FILINFO));
+                if(!InitSDCard()) {iret= -1; return;}
+                FSerror = f_stat(q, &fnod);
+                if(FSerror != FR_OK)iret=0;
+                else if((fnod.fattrib & AM_DIR))iret=1;
+            }
+            FatFSFileSystem=FatFSFileSystemSave;
+            return;
+        } else if((tp=checkstring(ep, "EXISTS FILE"))){
+            char q[FF_MAX_LFN]={0};
+            targ=T_INT;
+            iret=0;
+            int waste=0, t=FatFSFileSystem+1;
+            char *p = getCstring(tp);
+            t = drivecheck(p,&waste);
+            p+=waste;
+            getfullfilename(p,q);
+            FatFSFileSystem=t-1;
+            if(FatFSFileSystem==0){
+                struct lfs_info lfsinfo;
+                memset(&lfsinfo,0,sizeof(DIR));
+                FSerror = lfs_stat(&lfs, q, &lfsinfo);
+                if(lfsinfo.type==LFS_TYPE_REG)iret= 1;
+            } else {
+                DIR djd;
+                FILINFO fnod;
+                memset(&djd,0,sizeof(DIR));
+                memset(&fnod,0,sizeof(FILINFO));
+                if(!InitSDCard()) {iret= -1; return;}
+                FSerror = f_stat(q, &fnod);
+                if(FSerror != FR_OK)iret=0;
+                else if(!(fnod.fattrib & AM_DIR))iret=1;
+            }
+            FatFSFileSystem=FatFSFileSystemSave;
+            return;
         } else if(checkstring(ep, "ERRMSG")){
             int i=OptionFileErrorAbort;
             strcpy(sret, MMErrMsg);
@@ -2433,29 +2487,40 @@ void fun_info(void){
             targ=T_INT;
             return;
         } else if(tp=checkstring(ep, "FILESIZE")){
+            int i,j;
+            DIR djd;
+            FILINFO fnod;
+            char q[FF_MAX_LFN]={0};
+            targ=T_INT;
+            memset(&djd,0,sizeof(DIR));
+            memset(&fnod,0,sizeof(FILINFO));
             int waste=0, t=FatFSFileSystem+1;
             char *p = getCstring(tp);
             t = drivecheck(p,&waste);
             p+=waste;
+            getfullfilename(p,q);
             FatFSFileSystem=t-1;
-            if(FatFSFileSystem){
-                int i,j;
-                DIR djd;
-                FILINFO fnod;
-                targ=T_INT;
+            iret=-1;
+            if(FatFSFileSystem==0){
+                struct lfs_info lfsinfo;
+                FSerror = lfs_stat(&lfs, q, &lfsinfo);
+                if(lfsinfo.type==LFS_TYPE_DIR){iret= -2; return;}
+                if(FSerror){iret= -1; return;}
+                int fnbr=FindFreeFileNbr();
+                iret=BasicFileOpen(p,fnbr,FA_READ);
+                if(iret==false){
+                    iret=-1;
+                    targ=T_INT;
+                    return;
+                }
+                iret=lfs_file_size(&lfs,FileTable[fnbr].lfsptr);
+                FileClose(fnbr);
+            } else {
                 if(!InitSDCard()) {iret= -1; return;}
-                memset(&djd,0,sizeof(DIR));
-                memset(&fnod,0,sizeof(FILINFO));
-                if(p[1] == ':') *p = toupper(*p) - 'A' + '0';                   // convert a DOS style disk name to FatFs device number
-                FSerror = f_stat(p, &fnod);
+                FSerror = f_stat(q, &fnod);
                 if(FSerror != FR_OK){ iret=-1; targ=T_INT; strcpy(MMErrMsg,FErrorMsg[4]); return;}
                 if((fnod.fattrib & AM_DIR)){ iret=-2; targ=T_INT; strcpy(MMErrMsg,FErrorMsg[4]); return;}
                 iret=fnod.fsize;
-            } else {
-               int fnbr=FindFreeFileNbr();
-                BasicFileOpen(p,fnbr,FA_READ);
-                iret=lfs_file_size(&lfs,FileTable[fnbr].lfsptr);
-                FileClose(fnbr);
             }
             FatFSFileSystem=FatFSFileSystemSave;
             targ=T_INT;
@@ -2527,28 +2592,30 @@ void fun_info(void){
 		int i,j;
 	    DIR djd;
 	    FILINFO fnod;
-		targ=T_INT;
-        if(!InitSDCard()) {iret= -1; return;}
+        sret = GetTempMemory(STRINGSIZE);                                    // this will last for the life of the command
+        targ=T_STR; 
 		memset(&djd,0,sizeof(DIR));
 		memset(&fnod,0,sizeof(FILINFO));
 		char *p = getCstring(tp);
         char q[FF_MAX_LFN]={0};
+        int waste=0, t=FatFSFileSystem+1;
+        t = drivecheck(p,&waste);
+        p+=waste;
         getfullfilename(p,q);
+        FatFSFileSystem=t-1;
         if(FatFSFileSystem==0){
             int dt;
             FSerror=lfs_getattr(&lfs, q, 'A', &dt,    4);
-            if(FSerror!=4){
-                fnod.fdate=0;
-                fnod.ftime=0;
-            } else {
+            if(FSerror!=4) return;
+            else {
                 WORD *p=(WORD *)&dt;
                 fnod.fdate=(WORD)p[1];
                 fnod.ftime=(WORD)p[0];
             }
         } else {
+			if(!InitSDCard()) {iret= -1; return;}
             FSerror = f_stat(p, &fnod);
-            if(FSerror != FR_OK){ iret=-1; targ=T_STR; strcpy(MMErrMsg,FErrorMsg[4]); return;}
-    //		if((fnod.fattrib & AM_DIR)){ iret=-2; targ=T_INT; strcpy(MMErrMsg,FErrorMsg[4]); return;}
+            if(FSerror != FR_OK) return;
         }
 	    IntToStr(sret , ((fnod.fdate>>9)&0x7F)+1980, 10);
 	    sret[4] = '-'; IntToStrPad(sret + 5, (fnod.fdate>>5)&0xF, '0', 2, 10);
@@ -2673,7 +2740,7 @@ void fun_info(void){
             } else if(PinDef[Option.SYSTEM_CLK].mode & SPI1SCK){
                 iret=spi_get_baudrate(spi1);
             } else error("System SPI not configured");
-            targ=T_INT;
+           targ=T_INT;
             return;
         } else if(checkstring(ep, "STACK")){
             iret=(int64_t)((uint32_t)__get_MSP());
