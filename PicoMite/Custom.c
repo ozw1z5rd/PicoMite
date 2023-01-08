@@ -320,7 +320,7 @@ void fun_pio(void){
         argv[0]++;
         iret=(getint(argv[0],0,29)<<24); // jmp pin
         iret |= pio_sm_calc_wrap(getint(argv[2],0,31), getint(argv[4],0,31));
-        if(argc>=5 && *argv[6])iret!=(getint(argv[6],0,1)<<29); //SIDE_PINDIR
+        if(argc>=7 && *argv[6])iret|=(getint(argv[6],0,1)<<29); //SIDE_PINDIR
         if(argc==9)iret|=(getint(argv[8],0,1)<<30); // SIDE_EN
         targ=T_INT;
         return;

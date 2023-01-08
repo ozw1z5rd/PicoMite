@@ -26,5 +26,5 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 
 
 #define VERSION         "5.07.06" 			    // define the version number
-#define YEAR			"2011-2022"			    // and the year
-#define YEAR2          "2016-2022"
+#define YEAR			"2011-2023"			    // and the year
+#define YEAR2          "2016-2023"

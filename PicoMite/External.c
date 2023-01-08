@@ -480,14 +480,14 @@ void ExtCfg(int pin, int cfg, int option) {
         case EXT_CNT_IN:        
         case EXT_FREQ_IN:   // same as counting, so fall through
         case EXT_PER_IN:        // same as counting, so fall through
-                                edge = GPIO_IRQ_EDGE_RISE;
-                                if(cfg==EXT_CNT_IN && option==2)edge = GPIO_IRQ_EDGE_FALL;
-                                if(cfg==EXT_CNT_IN && option>=3)edge = GPIO_IRQ_EDGE_FALL | GPIO_IRQ_EDGE_RISE;
-                                if(option==1 || option==4)gpio_pull_down (PinDef[pin].GPno);
-                                if(option==2 || option==5)gpio_pull_up (PinDef[pin].GPno);
+                                    edge = GPIO_IRQ_EDGE_RISE;
+                                    if(cfg==EXT_CNT_IN && option==2)edge = GPIO_IRQ_EDGE_FALL;
+                                    if(cfg==EXT_CNT_IN && option>=3)edge = GPIO_IRQ_EDGE_FALL | GPIO_IRQ_EDGE_RISE;
+                                    if(option==1 || option==4)gpio_pull_down (PinDef[pin].GPno);
+                                    if(option==2 || option==5)gpio_pull_up (PinDef[pin].GPno);
                                 irq_set_priority(13,0);
                                 PinSetBit(pin,TRISSET);
-                                if(pin == Option.INT1pin) {
+                                    if(pin == Option.INT1pin) {
                                     if(!CallBackEnabled){
                                         gpio_set_irq_enabled_with_callback(PinDef[pin].GPno, edge , true, &gpio_callback);
                                         CallBackEnabled=2;
@@ -1517,7 +1517,7 @@ void cmd_pwm(void){
             enabled |=1;
             if(!(Option.AUDIO_SLICE ==0 || BacklightSlice==0 || count0<0.0)){
                 pwm_set_enabled(0,false);
-                count0=(MMFLOAT)pwm_hw->slice[0].top * count0 / 100.0;
+                count0=(MMFLOAT)pwm_hw->slice[0].top * (100.0-count0) / 100.0;
                 pwm_set_counter(0,(int)count0);
             }
         }
@@ -1525,7 +1525,7 @@ void cmd_pwm(void){
             enabled |=2;
             if(!(Option.AUDIO_SLICE ==1 || BacklightSlice==1 || count1<0.0)){
                 pwm_set_enabled(1,false);
-                count1=(MMFLOAT)pwm_hw->slice[1].top * count1 / 100.0;
+                count1=(MMFLOAT)pwm_hw->slice[1].top * (100.0-count1) / 100.0;
                 pwm_set_counter(1,count1);
             }
         }
@@ -1533,7 +1533,7 @@ void cmd_pwm(void){
             enabled |=4;
             if(!(Option.AUDIO_SLICE ==2 || BacklightSlice==2 || count2<0.0)){
                 pwm_set_enabled(2,false);
-                count2=(MMFLOAT)pwm_hw->slice[2].top * count2 / 100.0;
+                count2=(MMFLOAT)pwm_hw->slice[2].top * (100.0-count2) / 100.0;
                 pwm_set_counter(2,count2);
             }
         }
@@ -1541,7 +1541,7 @@ void cmd_pwm(void){
             enabled |=8;
             if(!(Option.AUDIO_SLICE ==3 || BacklightSlice==3 || count3<0.0)){
                 pwm_set_enabled(3,false);
-                count3=(MMFLOAT)pwm_hw->slice[3].top * count3 / 100.0;
+                count3=(MMFLOAT)pwm_hw->slice[3].top * (100.0-count3) / 100.0;
                 pwm_set_counter(3,count3);
             }
         }
@@ -1549,7 +1549,7 @@ void cmd_pwm(void){
             enabled |16;
             if(!(Option.AUDIO_SLICE ==4 || BacklightSlice==4 || count4<0.0)){
                 pwm_set_enabled(4,false);
-                count4=(MMFLOAT)pwm_hw->slice[4].top * count4 / 100.0;
+                count4=(MMFLOAT)pwm_hw->slice[4].top * (100.0-count4) / 100.0;
                 pwm_set_counter(4,count4);
             }
         }
@@ -1557,7 +1557,7 @@ void cmd_pwm(void){
             enabled |=32;
             if(!(Option.AUDIO_SLICE ==5 || BacklightSlice==5 || count5<0.0)){
                 pwm_set_enabled(5,false);
-                count5=(MMFLOAT)pwm_hw->slice[5].top * count5 / 100.0;
+                count5=(MMFLOAT)pwm_hw->slice[5].top * (100.0-count5) / 100.0;
                 pwm_set_counter(5,count5);
             }
         }
@@ -1565,7 +1565,7 @@ void cmd_pwm(void){
             enabled |=64;
             if(!(Option.AUDIO_SLICE ==6 || BacklightSlice==6 || count6<0.0)){
                 pwm_set_enabled(6,false);
-                count6=(MMFLOAT)pwm_hw->slice[6].top * count6 / 100.0;
+                count6=(MMFLOAT)pwm_hw->slice[6].top * (100.0-count6) / 100.0;
                 pwm_set_counter(6,count6);
             }
         }
@@ -1573,7 +1573,7 @@ void cmd_pwm(void){
             enabled |=128;
             if(!(Option.AUDIO_SLICE ==7 || BacklightSlice==7 || count7<0.0)){
                 pwm_set_enabled(7,false);
-                count7=(MMFLOAT)pwm_hw->slice[7].top * count7 / 100.0;
+                count7=(MMFLOAT)pwm_hw->slice[7].top * (100.0-count7) / 100.0;
                 pwm_set_counter(7,count7);
             }
         }
@@ -2482,7 +2482,7 @@ void ClearExternalIO(void) {
   	CloseAudio(1);
     InterruptUsed = false;
 	InterruptReturn = NULL;
-
+ 
     if(CallBackEnabled==1) gpio_set_irq_enabled_with_callback(PinDef[IRpin].GPno, GPIO_IRQ_EDGE_RISE | GPIO_IRQ_EDGE_FALL, false, &gpio_callback);
     else if(CallBackEnabled & 1){
         gpio_set_irq_enabled(PinDef[IRpin].GPno, GPIO_IRQ_EDGE_RISE | GPIO_IRQ_EDGE_FALL, false);
