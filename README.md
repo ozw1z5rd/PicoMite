@@ -14,6 +14,37 @@ Compiled version and documentation is available on https://geoffg.net/picomite.h
 
 Change list from V5.07.00
 ***********************************************************************************************************************
+PicoMite V5.07.07b5
+
+Bug fix to CHDIR for flash file system. 
+Fix bug in pixel drawing in PicoMite. 
+Bug fix to ON ERROR SKIP (thanks Tom). 
+
+New functions
+
+PIO(DMA RX POINTER). 
+PIO(DMA TX POINTER). 
+MM.INFO(EXISTS FILE fname$) ' see CMM2 manual for details. 
+MM.INFO(EXISTS DIR dname$) ' see CMM2 manual for details. 
+PIN(FLEVEL pio [,sm, DIR]) ' dir can be RX or TX. If specified gives the level of the specific fifo. 
+PIO (SHIFTCTRL push_threshold [,pull_threshold] [,autopush] [,autopull] [,in_shiftdir] [,out_shiftdir] [,FJOIN_RX] [,FJOIN_TX]). 
+PIO CLEAR now clears all the FIFOs for the pio specified. 
+PIO INIT and PIO START clear the specific FIFOs for the pio and sm specified. 
+
+New Commands
+
+NB: RX and TX are from the Basic code perspective. 
+PIO MAKE RING BUFFER ivar%, size
+PIO DMA_IN OFF. 
+PIO DMA_OUT OFF. 
+PIO DMA_IN pio, sm, nbr, data%() [,completioninterrupt] [,transfersize] [,loopbackcount]
+PIO DMA_OUT pio, sm, nbr, data%() [,completioninterrupt] [,transfersize] [,loopbackcount]
+PIO INTERRUPT pio, sm [,RXinterrupt] [,TXinterrupt]. 
+The PWM command is modified as follows: 
+PWM channel, frequency, [dutyA] [,dutyB] [,phase] [,deferredstart]. 
+PWM SYNC [channel0offset] [,channel1offset] .......[channel7offset]. 
+
+
 PicoMite V5.07.06
 
 See release notes
