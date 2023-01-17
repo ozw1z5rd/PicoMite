@@ -1018,7 +1018,7 @@ void cmd_chdir(void){
 	int i;
     char *p;
     char rp[STRINGSIZE],oldfilepath[STRINGSIZE];
-    p = strlwr(getCstring(cmdline));  // get the directory name and convert to a standard C string
+    p = getCstring(cmdline);  // get the directory name and convert to a standard C string
     if(drivecheck(p,&i)!=FatFSFileSystem+1) error("Only valid on current drive");
     for(i=0;i<strlen(p);i++)if(p[i]=='\\')p[i]='/';  //allow backslash for the DOS oldies
     if(strcmp(p,".")==0)return; //nothing to do
@@ -1050,6 +1050,7 @@ void cmd_chdir(void){
 //    MMPrintString(filepath[FatFSFileSystem]);
 	if(FatFSFileSystem)FSerror = f_chdir(&filepath[FatFSFileSystem][2]); //finally change directory always using an absolute pathname
     else {
+//        MMPrintString(&filepath[FatFSFileSystem][3]);PRet();
         FSerror=lfs_dir_open(&lfs, &lfs_dir, &filepath[FatFSFileSystem][3]);
         if(!FSerror)lfs_dir_close(&lfs, &lfs_dir);
     }
@@ -2297,7 +2298,7 @@ void cmd_files(void)
                         fnod.ftime=(WORD)p[0];
                     }
                     currentdate = (fnod.fdate << 16) | fnod.ftime;
-                    // sort the file name into place in the array
+                     // sort the file name into place in the array
                     if (sortorder == 0)
                     {
                         for (i = fcnt; i > 0; i--)

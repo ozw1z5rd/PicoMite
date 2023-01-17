@@ -30,11 +30,11 @@ extern "C" {
 #ifdef PICOMITEVGA
 #define FLASH_TARGET_OFFSET (660 * 1024) 
 #define MagicKey 0x74256772
-#define HEAPTOP 0x2003f800
+#define HEAPTOP 0x2003f480
 #else
 #define FLASH_TARGET_OFFSET (660 * 1024) 
 #define MagicKey 0x48922427
-#define HEAPTOP 0x2003f800
+#define HEAPTOP 0x2003f000
 #endif
 
 #define MMFLOAT double
@@ -146,6 +146,16 @@ extern "C" {
 //#define HEARTBEAT    (1 << 6)
 #define HEARTBEATpin  43
 #define PATH_MAX 1024
+// QVGA PIO and state machines
+#define QVGA_PIO	pio0	// QVGA PIO
+#define QVGA_SM		0	// QVGA state machine
+
+// QVGA DMA channel
+#define QVGA_DMA_CB	0	// DMA control block of base layer
+#define QVGA_DMA_PIO	1	// DMA copy data to PIO (raises IRQ0 on quiet)
+#define ADC_DMA 2
+#define PIO_RX_DMA 3
+#define PIO_TX_DMA 4
 #define PROGSTART (FLASH_TARGET_OFFSET + FLASH_ERASE_SIZE + SAVEDVARS_FLASH_SIZE + ((MAXFLASHSLOTS) * MAX_PROG_SIZE))
 #define TOP_OF_SYSTEM_FLASH  (FLASH_TARGET_OFFSET + FLASH_ERASE_SIZE + SAVEDVARS_FLASH_SIZE + ((MAXFLASHSLOTS+1) * MAX_PROG_SIZE))
 #define RoundUpK4(a)     (((a) + (4096 - 1)) & (~(4096 - 1)))// round up to the nearest page size      [position 131:9]	

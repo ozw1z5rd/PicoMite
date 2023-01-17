@@ -26,6 +26,10 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 
 #include "MMBasic_Includes.h"
 #include "Hardware_Includes.h"
+#include "hardware/dma.h"
+#include "hardware/structs/bus_ctrl.h"
+#include "hardware/structs/dma.h"
+
 #define STATIC static
 
 /*************************************************************************************************************************
@@ -77,6 +81,23 @@ they may be changed and you would then need to re insert your changes in a new r
 
 #include "hardware/pio.h"
 #include "hardware/pio_instructions.h"
+#ifndef PICOMITEVGA
+char *pioRXinterrupts[4][2]={0};
+char *pioTXinterrupts[4][2]={0};
+uint8_t pioTXlast[4][2]={0};
+#else
+char *pioRXinterrupts[4]={0};
+char *pioTXinterrupts[4]={0};
+uint8_t pioTXlast[4]={0};
+#endif
+char *DMAinterruptRX=NULL;
+char *DMAinterruptTX=NULL;
+uint32_t dma_rx_chan;
+uint32_t dma_tx_chan;
+int dma_pio;
+int dma_sm;
+
+int piointerrupt=0;
 static inline uint32_t pio_sm_calc_wrap(uint wrap_target, uint wrap) {
     uint32_t calc=0;
     valid_params_if(PIO, wrap < PIO_INSTRUCTION_COUNT);
@@ -122,6 +143,206 @@ void cmd_pio(void){
             pio_sm_put_blocking(pio, sm, getint(argv[i],0,0xFFFFFFFF));
             i+=2;
         }
+        return;
+    }
+    tp = checkstring(cmdline, "DMA_IN");
+    if(tp){
+        getargs(&tp, 13, (unsigned char *)",");
+        if(checkstring(argv[0],"OFF")){
+                if(dma_channel_is_busy(dma_rx_chan)){
+                        dma_channel_abort(dma_rx_chan);
+                        dma_channel_unclaim(dma_rx_chan);
+                } else error("Not active");
+                return;
+        }
+        if(DMAinterruptRX || dma_channel_is_busy(dma_rx_chan)) error("DMA active");
+        if(argc<7)error("Syntax");
+#ifdef PICOMITEVGA
+        int i=getint(argv[0],1,1);
+#else
+        int i=getint(argv[0],0,1);
+#endif
+        PIO pio = (i ? pio1: pio0);
+        int sm=getint(argv[2],0,3);
+        int nbr=getint(argv[4],0,0x7FFFFFFF);
+        uint32_t *a1int=NULL;
+	void *ptr1 = NULL;
+        int toarraysize;
+        ptr1 = findvar(argv[6], V_FIND | V_EMPTY_OK | V_NOFIND_ERR);
+        if(vartbl[VarIndex].type &  T_INT) {
+                if(vartbl[VarIndex].dims[1] != 0) error("Target must be an 1D integer array");
+                if(vartbl[VarIndex].dims[0] <= 0) {		// Not an array
+                        error("Target must be an 1D integer array");
+                }
+                toarraysize=vartbl[VarIndex].dims[0]-OptionBase+1;
+                a1int = (uint32_t *)ptr1;
+                if((uint32_t)ptr1!=(uint32_t)vartbl[VarIndex].val.s)error("Syntax");
+        } else error("Target must be an 1D integer array");
+        if(argc>=9 && *argv[10]){
+                DMAinterruptRX=GetIntAddress(argv[8]);
+                InterruptUsed=true;
+        }
+        int dmasize=DMA_SIZE_32;
+        if(argc==11){
+                dmasize=getinteger(argv[10]);
+                if(!(dmasize==8 || dmasize==16 || dmasize==32))error("Invalid transfer size");
+                if(dmasize==8)dmasize=DMA_SIZE_8;
+                else if(dmasize==16)dmasize=DMA_SIZE_16;
+                else if(dmasize==32)dmasize=DMA_SIZE_32;
+        }
+        dma_rx_chan = PIO_RX_DMA;
+        dma_channel_claim (dma_rx_chan);
+
+        dma_channel_config c = dma_channel_get_default_config(dma_rx_chan);
+        channel_config_set_read_increment(&c, false);
+        channel_config_set_write_increment(&c, true);
+        channel_config_set_transfer_data_size(&c, dmasize);
+        channel_config_set_dreq(&c, pio_get_dreq(pio, sm, false));
+        if(argc==13){
+                int size=getinteger(argv[12]);
+                if(!(size==2 || size==4 || size==8 || size==16 || size==32 || size==64 || size==128 || size==256 || size==512 || size==1024 || size== 2048 || size==4096 || size==8192 || size==16384 || size==32768))error("Not power of 2");
+                int i=0,j=size;
+                if((uint32_t)a1int & (j-1))error("Data alignment error");
+                while(j>>=1)i++;
+                i+=dmasize;
+                if((1<<i)>(toarraysize*8))error("Array size");
+                channel_config_set_ring(&c,true,i);
+//                PInt(i);PIntComma(dmasize);PIntComma(nbr);PIntComma(size);PRet();
+        } else if((nbr<<dmasize)>(toarraysize*8))error("Array size");
+        dma_channel_configure(dma_rx_chan, &c,
+                a1int,        // Destination pointer
+                &pio->rxf[sm],      // Source pointer
+                nbr, // Number of transfers
+                true                // Start immediately
+        );
+        pio_sm_set_enabled(pio, sm, true);
+        return;
+    }
+    tp = checkstring(cmdline, "DMA_OUT");
+    if(tp){
+        getargs(&tp, 13, (unsigned char *)",");
+        if(checkstring(argv[0],"OFF")){
+                if(dma_channel_is_busy(dma_tx_chan)){
+                        dma_channel_abort(dma_tx_chan);
+                        dma_channel_unclaim(dma_tx_chan);
+                } else error("Not active");
+                return;
+        }
+        if(DMAinterruptTX || dma_channel_is_busy(dma_tx_chan)) error("DMA active");
+        if(argc<7)error("Syntax");
+#ifdef PICOMITEVGA
+        int i=getint(argv[0],1,1);
+#else
+        int i=getint(argv[0],0,1);
+#endif
+        PIO pio = (i ? pio1: pio0);
+        int sm=getint(argv[2],0,3);
+        dma_pio=i;
+        dma_sm=sm*8;
+        int nbr=getint(argv[4],0,0x7FFFFFFF);
+        uint32_t *a1int=NULL;
+	void *ptr1 = NULL;
+        int toarraysize;
+        ptr1 = findvar(argv[6], V_FIND | V_EMPTY_OK | V_NOFIND_ERR);
+        if(vartbl[VarIndex].type &  T_INT) {
+                if(vartbl[VarIndex].dims[1] != 0) error("Target must be an 1D integer array");
+                if(vartbl[VarIndex].dims[0] <= 0) {		// Not an array
+                        error("Target must be an 1D integer array");
+                }
+                toarraysize=vartbl[VarIndex].dims[0]-OptionBase+1;
+                a1int = (uint32_t *)ptr1;
+                if((uint32_t)ptr1!=(uint32_t)vartbl[VarIndex].val.s)error("Syntax");
+        } else error("Target must be an 1D integer array");
+        if(argc>=9 && *argv[8]){
+                DMAinterruptTX=GetIntAddress(argv[8]);
+                InterruptUsed=true;
+        }
+        int dmasize=DMA_SIZE_32;
+        if(argc>=11 && *argv[10]){
+                dmasize=getinteger(argv[10]);
+                if(!(dmasize==8 || dmasize==16 || dmasize==32))error("Invalid transfer size");
+                if(dmasize==8)dmasize=DMA_SIZE_8;
+                else if(dmasize==16)dmasize=DMA_SIZE_16;
+                else if(dmasize==32)dmasize=DMA_SIZE_32;
+        }
+        dma_tx_chan = PIO_TX_DMA;
+        dma_channel_claim (dma_tx_chan);
+        dma_channel_config c = dma_channel_get_default_config(dma_tx_chan);
+        channel_config_set_read_increment(&c, true);
+        channel_config_set_write_increment(&c, false);
+        channel_config_set_dreq(&c, pio_get_dreq(pio, sm, true));
+        channel_config_set_transfer_data_size(&c, dmasize);
+        if(argc==13){
+                int size=getinteger(argv[12]);
+                if(!(size==2 || size==4 || size==8 || size==16 || size==32 || size==64 || size==128 || size==256 || size==512 || size==1024 || size== 2048 || size==4096 || size==8192 || size==16384 || size==32768))error("Not power of 2");
+                int i=0,j=size;
+                if((uint32_t)a1int & (j-1))error("Data alignment error");
+                while(j>>=1)i++;
+                i+=dmasize;
+                if((1<<i)>(toarraysize*8))error("Array size");
+                channel_config_set_ring(&c,false,i);
+//                PInt(i);PIntComma(dmasize);PIntComma(nbr);PIntComma(size);PRet();
+        } else if((nbr<<dmasize)>(toarraysize*8))error("Array size");
+        dma_channel_configure(dma_tx_chan,
+                &c,
+                &pio->txf[sm],      // Destination pointer
+                a1int,        // Source pointer
+                nbr, // Number of transfers
+                true                // Start immediately
+        );
+        pio_sm_set_enabled(pio, sm, true);
+        return;
+    }
+    tp = checkstring(cmdline, "INTERRUPT");
+    if(tp){
+        unsigned char *p;
+        unsigned int nbr, *d;
+        long long int *dd;
+        int i;
+        getargs(&tp, 7, (unsigned char *)",");
+        if((argc & 0x01) == 0) error("Syntax");
+        if(argc<5)error("Syntax");
+#ifdef PICOMITEVGA
+        i=getint(argv[0],1,1);
+        PIO pio = (i ? pio1: pio0);
+        int sm=getint(argv[2],0,3);
+        if(*argv[4]){
+                if(checkstring(argv[4],"0"))pioRXinterrupts[sm]=NULL;
+                else pioRXinterrupts[sm]=GetIntAddress(argv[4]);
+        }
+        if(argc==7){
+                if(checkstring(argv[6],"0"))pioTXinterrupts[sm]=NULL;
+                else pioTXinterrupts[sm]=GetIntAddress(argv[6]);
+        }
+        piointerrupt=0;
+        for(int i=0;i<4;i++){
+                if(pioRXinterrupts[i] || pioTXinterrupts[i]){
+                        piointerrupt=1;
+                        InterruptUsed=1;
+                }
+        }
+#else
+        i=getint(argv[0],0,1);
+        PIO pio = (i ? pio1: pio0);
+        int sm=getint(argv[2],0,3);
+        if(*argv[4]){
+                if(checkstring(argv[4],"0"))pioRXinterrupts[sm][i]=NULL;
+                else pioRXinterrupts[sm][i]=GetIntAddress(argv[4]);
+        }
+        if(argc==7){
+                if(checkstring(argv[6],"0"))pioTXinterrupts[sm][i]=NULL;
+                else pioTXinterrupts[sm][i]=GetIntAddress(argv[6]);
+        }
+        piointerrupt=0;
+        for(int i=0;i<4;i++){
+                for(int j=0 ;j<2;j++){
+                        if(pioRXinterrupts[i][j] || pioTXinterrupts[i][j]){
+                                piointerrupt=1;
+                                InterruptUsed=1;
+                        }
+                }
+        }
+#endif
         return;
     }
     tp = checkstring(cmdline, "READ");
@@ -185,8 +406,23 @@ void cmd_pio(void){
             pio->sm[sm].pinctrl=(5<<26);
             pio->sm[sm].execctrl=(0x1f<<12);
             pio->sm[sm].shiftctrl=(3<<18);
+            pio_sm_clear_fifos(pio,sm);
         }
         pio_clear_instruction_memory(pio);
+        return;
+    }
+    tp = checkstring(cmdline, "MAKE RING BUFFER");
+    if(tp){
+        getargs(&tp,3,",");
+        if(argc<3)error("Syntax");
+        int size=getinteger(argv[2]);
+        if(!(size==256 || size==512 || size==1024 || size== 2048 || size==4096 || size==8192 || size==16384 || size==32768))error("Not power of 2");
+        findvar(argv[0], V_FIND | V_NOFIND_ERR);
+        if ((vartbl[VarIndex].type & T_INT) && vartbl[VarIndex].dims[0] == 0 && vartbl[VarIndex].level==0){
+                vartbl[VarIndex].val.s =(char *)GetAlignedMemory(size);
+                vartbl[VarIndex].size=255;
+                vartbl[VarIndex].dims[0] = size/8-1+OptionBase;
+        }  else error("Invalid variable");
         return;
     }
 
@@ -227,6 +463,7 @@ void cmd_pio(void){
         PIO pio = (getint(argv[0],0,1) ? pio1: pio0);
 #endif
         int sm=getint(argv[2],0,3);
+        pio_sm_clear_fifos(pio,sm);
         pio_sm_set_enabled(pio, sm, true);
         pio_sm_restart(pio, sm);
         return;
@@ -266,6 +503,7 @@ void cmd_pio(void){
         mypio.clkdiv = (uint32_t) (clock * (1 << 16));
         pio_sm_set_config(pio, sm, &mypio);
         pio_sm_init(pio, sm, start, &mypio);
+        pio_sm_clear_fifos(pio,sm);
         return;
     }
     error("Syntax");
@@ -327,7 +565,7 @@ void fun_pio(void){
     }
     tp = checkstring(ep, "SHIFTCTRL");
     if(tp){
-        getargs(&tp,11,",");
+        getargs(&tp,15,",");
         if(argc<1)error("Syntax");
         iret=(getint(argv[0],0,31)<<20); // push threshold
         iret|=(getint(argv[2],0,31)<<25); // pull threshold
@@ -335,6 +573,8 @@ void fun_pio(void){
         if(argc>5 && *argv[6])iret|=(getint(argv[6],0,1)<<17); // autopull
         if(argc>7 && *argv[8])iret|=(getint(argv[8],0,1)<<18); // IN_SHIFTDIR
         if(argc>9 && *argv[10])iret|=(getint(argv[10],0,1)<<19); // OUT_SHIFTDIR
+        if(argc>11 && *argv[12])iret|=(getint(argv[12],0,1)<<30); // FJOIN_RX
+        if(argc>13 && *argv[14])iret|=(getint(argv[14],0,1)<<31); // FJOIN_TX
         targ=T_INT;
         return;
     }
@@ -364,13 +604,32 @@ void fun_pio(void){
     }
     tp = checkstring(ep, "FLEVEL");
     if(tp){
-        getargs(&tp,1,",");
+        getargs(&tp,5,",");
 #ifdef PICOMITEVGA
         PIO pio = (getint(argv[0],1,1) ? pio1: pio0);
 #else
         PIO pio = (getint(argv[0],0,1) ? pio1: pio0);
 #endif
-        iret=pio->flevel; // jmp pin
+        if(argc==1)iret=pio->flevel; // jmp pin
+        else {
+                if(argc!=5)error("Syntax");
+                int sm=getint(argv[2],0,3)*8;
+                if(checkstring(argv[4],"TX"))iret=((pio->flevel)>>sm) & 0xf;
+                else if(checkstring(argv[4],"RX"))iret=((pio->flevel)>>(sm+4)) & 0xf;
+                else error("Syntax");
+        }
+        targ=T_INT;
+        return;
+    }
+    tp = checkstring(ep, "DMA RX POINTER");
+    if(tp){
+        iret=dma_hw->ch[dma_rx_chan].write_addr;
+        targ=T_INT;
+        return;
+    }
+    tp = checkstring(ep, "DMA TX POINTER");
+    if(tp){
+        iret=dma_hw->ch[dma_tx_chan].read_addr;
         targ=T_INT;
         return;
     }

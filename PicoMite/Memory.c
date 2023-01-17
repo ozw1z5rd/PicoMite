@@ -594,7 +594,12 @@ void __not_in_flash_func(ClearSpecificTempMemory)(void *addr) {
 
 // test the stack for overflow - this is a NULL function in the DOS version
 void TestStackOverflow(void) {
-    if(__get_MSP()< HEAPTOP) error("Stack overflow, expression too complex at depth %",LocalIndex);
+//    static uint32_t x=0xFFFFFFFF;
+    uint32_t y=__get_MSP();
+//    if(y<x){
+//        x=y;PIntH(x);PRet();
+//    }
+    if(y< HEAPTOP) error("Stack overflow, expression too complex at depth %",LocalIndex);
 }
 
 
@@ -680,6 +685,29 @@ void __not_in_flash_func(*GetMemory)(int size) {
     return NULL;                                                    // keep the compiler happy
 }    
 
+void *GetAlignedMemory(int size) {
+    unsigned int j, n;
+    unsigned char *addr;
+    j = n = (size + PAGESIZE - 1)/PAGESIZE;                         // nbr of pages rounded up
+    for(addr = MMHeap + Option.HEAP_SIZE - PAGESIZE; addr >= MMHeap; addr -= PAGESIZE) {
+        if(!((MBitsGet(addr) & PUSED)) || ((uint32_t)addr & (size-1))) {
+            if(--n == 0) {                                          // found a free slot
+                j--;
+                MBitsSet(addr + (j * PAGESIZE), PUSED | PLAST);     // show that this is used and the last in the chain of pages
+                while(j--) MBitsSet(addr + (j * PAGESIZE), PUSED);  // set the other pages to show that they are used
+                memset(addr, 0, size);                              // zero the memory
+ //               dp("alloc = %p (%d)", addr, size);
+                return (void *)addr;
+            }
+        } else
+            n = j;                                                  // not enough space here so reset our count
+    }
+    // out of memory
+    TempStringClearStart = 0;
+    ClearTempMemory();                                               // hopefully this will give us enough to print the prompt
+    error("Not enough memory");
+    return NULL;                                                    // keep the compiler happy
+}    
 
 
 int FreeSpaceOnHeap(void) {

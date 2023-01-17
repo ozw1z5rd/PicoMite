@@ -33,11 +33,14 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 #include <complex.h>
 #include "pico/bootrom.h"
 #include "hardware/structs/systick.h"
+#include "hardware/structs/pwm.h"
 #include "hardware/dma.h"
 #include "hardware/adc.h"
 #include "hardware/pwm.h"
 #include "hardware/flash.h"
 #include "hardware/spi.h"
+#include "hardware/pio.h"
+#include "hardware/pio_instructions.h"
 
 extern int busfault;
 //#include "pico/stdio_usb/reset_interface.h"
@@ -1659,7 +1662,7 @@ void cmd_option(void) {
 	}
     tp = checkstring(cmdline, "KEYBOARD");
 	if(tp) {
-    	//if(CurrentLinePtr) error("Invalid in a program");
+    	if(CurrentLinePtr) error("Invalid in a program");
 		if(checkstring(tp, "DISABLE")){
 			Option.KeyboardConfig = NO_KEYBOARD;
             Option.capslock=0;
@@ -1709,6 +1712,7 @@ void cmd_option(void) {
 
     tp = checkstring(cmdline, "SERIAL CONSOLE");
     if(tp) {
+   	    if(CurrentLinePtr) error("Invalid in a program");
         unsigned char *p=NULL;
         if(checkstring(tp, "DISABLE")) {
             Option.SerialTX=0;
@@ -1865,7 +1869,8 @@ void cmd_option(void) {
 #ifdef PICOMITEVGA
     tp = checkstring(cmdline, "CPUSPEED");
     if(tp) {
-        int CPU_Speed=getinteger(tp);
+   	    if(CurrentLinePtr) error("Invalid in a program");
+         int CPU_Speed=getinteger(tp);
         if(!(CPU_Speed==126000 || CPU_Speed==252000 || CPU_Speed==378000))error("CpuSpeed 126000, 252000 or 378000 only");
         Option.CPU_Speed=CPU_Speed;
         SaveOptions();
@@ -1957,6 +1962,7 @@ void cmd_option(void) {
     tp = checkstring(cmdline,"GUI CONTROLS");
     if(tp) {
         getargs(&tp, 1, ",");
+    	if(CurrentLinePtr) error("Invalid in a program");
         Option.MaxCtrls=getint(argv[0],0,400);
         SaveOptions();
         _excep_code = RESET_COMMAND;
@@ -1974,7 +1980,8 @@ void cmd_option(void) {
     }
     tp = checkstring(cmdline, "CPUSPEED");
     if(tp) {
-        Option.CPU_Speed=getint(tp,48000,MAX_CPU);
+   	    if(CurrentLinePtr) error("Invalid in a program");
+         Option.CPU_Speed=getint(tp,48000,MAX_CPU);
         SaveOptions();
         _excep_code = RESET_COMMAND;
         SoftReset();
@@ -2016,7 +2023,7 @@ void cmd_option(void) {
     }
     tp = checkstring(cmdline, "TOUCH");
     if(tp) {
-      //if(CurrentLinePtr) error("Invalid in a program");
+      if(CurrentLinePtr) error("Invalid in a program");
       if(checkstring(tp, "DISABLE")) {
             TouchIrqPortAddr = 0;
             Option.TOUCH_Click = Option.TOUCH_CS = Option.TOUCH_IRQ = false;
@@ -2103,14 +2110,16 @@ void cmd_option(void) {
     if(tp) {
         int pin1,pin2, slice;
         if(checkstring(tp, "DISABLE")){
-            disable_audio();
+   	        if(CurrentLinePtr) error("Invalid in a program");
+             disable_audio();
             SaveOptions();
             _excep_code = RESET_COMMAND;
             SoftReset();
             return;                                // this will restart the processor ? only works when not in debug
         }
     	getargs(&tp,3,",");
-        if(argc!=3)error("Syntax");
+   	    if(CurrentLinePtr) error("Invalid in a program");
+         if(argc!=3)error("Syntax");
         if(Option.AUDIO_L)error("Audio already configured");
         unsigned char code;
         if(!(code=codecheck(argv[0])))argv[0]+=2;
@@ -2138,7 +2147,8 @@ void cmd_option(void) {
     if(tp) {
         int pin1,pin2,channel=-1;
         if(checkstring(tp, "DISABLE")){
-#ifdef PICOMITEVGA
+   	    if(CurrentLinePtr) error("Invalid in a program");
+ #ifdef PICOMITEVGA
         if(Option.RTC_Clock || Option.RTC_Data)error("In use");
 #else
         if(Option.DISPLAY_TYPE == SSD1306I2C || Option.DISPLAY_TYPE == SSD1306I2C32 || Option.RTC_Clock || Option.RTC_Data)error("In use");
@@ -2150,7 +2160,8 @@ void cmd_option(void) {
             return;                                // this will restart the processor ? only works when not in debug
         }
     	getargs(&tp,3,",");
-        if(argc!=3)error("Syntax");
+   	    if(CurrentLinePtr) error("Invalid in a program");
+         if(argc!=3)error("Syntax");
         if(Option.SYSTEM_I2C_SCL)error("I2C already configured");
         unsigned char code;
         if(!(code=codecheck(argv[0])))argv[0]+=2;
@@ -2232,7 +2243,8 @@ void cmd_option(void) {
     if(tp) {
         int pin1,pin2,pin3;
         if(checkstring(tp, "DISABLE")){
-        if((Option.SD_CS && Option.SD_CLK_PIN==0) || Option.TOUCH_CS || Option.LCD_CS)error("In use");
+   	    if(CurrentLinePtr) error("Invalid in a program");
+         if((Option.SD_CS && Option.SD_CLK_PIN==0) || Option.TOUCH_CS || Option.LCD_CS)error("In use");
             disable_systemspi();
             SaveOptions();
             _excep_code = RESET_COMMAND;
@@ -2240,7 +2252,8 @@ void cmd_option(void) {
             return;                                // this will restart the processor ? only works when not in debug
         }
     	getargs(&tp,5,",");
-        if(argc!=5)error("Syntax");
+   	    if(CurrentLinePtr) error("Invalid in a program");
+         if(argc!=5)error("Syntax");
         if(Option.SYSTEM_CLK)error("SDcard already configured");
         unsigned char code;
         if(!(code=codecheck(argv[0])))argv[0]+=2;
@@ -2284,7 +2297,8 @@ void cmd_option(void) {
 #else
         if(!(argc==1 || argc==7))error("Syntax");
 #endif
-        if(Option.SD_CS)error("SDcard already configured");
+   	    if(CurrentLinePtr) error("Invalid in a program");
+         if(Option.SD_CS)error("SDcard already configured");
         if(argc==1 && !Option.SYSTEM_CLK)error("System SPI not configured");
         unsigned char code;
         if(!(code=codecheck(argv[0])))argv[0]+=2;
@@ -2321,7 +2335,8 @@ void cmd_option(void) {
     }
 	tp = checkstring(cmdline, "RESET");
     if(tp) {
-        ResetOptions();
+   	    if(CurrentLinePtr) error("Invalid in a program");
+         ResetOptions();
         _excep_code = RESET_COMMAND;
         SoftReset();
     }
@@ -2504,8 +2519,8 @@ void fun_info(void){
             if(FatFSFileSystem==0){
                 struct lfs_info lfsinfo;
                 FSerror = lfs_stat(&lfs, q, &lfsinfo);
-                if(lfsinfo.type==LFS_TYPE_DIR){iret= -2; return;}
-                if(FSerror){iret= -1; return;}
+                if(lfsinfo.type==LFS_TYPE_DIR){iret= -2; strcpy(MMErrMsg,FErrorMsg[4]); return;}
+                if(FSerror){iret= -1; strcpy(MMErrMsg,FErrorMsg[4]); return;}
                 int fnbr=FindFreeFileNbr();
                 iret=BasicFileOpen(p,fnbr,FA_READ);
                 if(iret==false){
@@ -2698,6 +2713,28 @@ void fun_info(void){
             if(!code)pin=codemap(pin);
             if(IsInvalidPin(pin))error("Invalid pin");
             iret=pin;
+            targ=T_INT;
+            return;
+        } else if(tp=checkstring(ep, "PIO RX DMA")){
+            iret=dma_channel_is_busy(dma_rx_chan);
+            targ=T_INT;
+            return;
+        } else if(tp=checkstring(ep, "PIO TX DMA")){
+            iret=dma_channel_is_busy(dma_tx_chan);
+            targ=T_INT;
+            return;
+        } else if(tp=checkstring(ep, "PWM COUNT")){
+            int channel=getint(tp,0,7);
+            iret=pwm_hw->slice[channel].top;
+            targ=T_INT;
+            return;
+        } else if(tp=checkstring(ep, "PWM DUTY")){
+            getargs(&tp,3,",");
+            if(argc!=3)error("Syntax");
+            int channel=getint(argv[0],0,7);
+            int AorB=getint(argv[2],0,1);
+            if(AorB)iret=((pwm_hw->slice[channel].cc) >> 16);
+            else iret=(pwm_hw->slice[channel].cc & 0xFFFF);
             targ=T_INT;
             return;
         } else if(tp=checkstring(ep, "PIN")){
@@ -3042,6 +3079,14 @@ void fun_peek(void) {
         return;
         }
 
+    if((p = checkstring(argv[0], "VARHEADER"))){
+        if(argc != 1) error("Syntax");
+        pp = findvar(p, V_FIND | V_EMPTY_OK | V_NOFIND_ERR);
+        iret = (unsigned int)&vartbl[VarIndex].name[0];
+        targ = T_INT;
+        return;
+        }
+        
     if((p = checkstring(argv[0], "CFUNADDR"))){
     	int i,j;
         if(argc != 1) error("Syntax");
@@ -3180,7 +3225,49 @@ int checkdetailinterrupts(void) {
         PS2int=false;
         goto GotAnInterrupt;
     }
-
+    if(piointerrupt){  // have any PIO interrupts been set
+#ifndef PICOMITEVGA
+        for(int pio=0 ;pio<2;pio++){
+            PIO pioinuse=(pio==0 ? pio0 :pio1);
+            for(int sm=0;sm<4;sm++){
+                int TXlevel=((pioinuse->flevel)>>(sm*4)) & 0xf;
+                int RXlevel=((pioinuse->flevel)>>(sm*4+4)) & 0xf;
+                if(RXlevel && pioRXinterrupts[sm][pio]){ //is there a character in the buffer and has an interrupt been set?
+                    intaddr=pioRXinterrupts[sm][pio];
+                    goto GotAnInterrupt;
+                }
+                if(TXlevel && pioTXinterrupts[sm][pio]){
+                    int full=(pioinuse->sm->shiftctrl & (1<<30))  ? 8 : 4;
+                    if(TXlevel != full && pioTXlast[sm][pio]==full){ // was the buffer full last time and not now and is an interrupt set?
+                        intaddr=pioTXinterrupts[sm][pio];
+                        pioTXlast[sm][pio]=TXlevel;
+                        goto GotAnInterrupt;
+                    }
+                }
+                pioTXlast[sm][pio]=TXlevel;
+            }
+        }
+#else
+        PIO pioinuse=pio1;
+        for(int sm=0;sm<4;sm++){
+            int TXlevel=((pioinuse->flevel)>>(sm*4)) & 0xf;
+            int RXlevel=((pioinuse->flevel)>>(sm*4+4)) & 0xf;
+            if(RXlevel && pioRXinterrupts[sm]){ //is there a character in the buffer and has an interrupt been set?
+                intaddr=pioRXinterrupts[sm];
+                goto GotAnInterrupt;
+            }
+            if(TXlevel && pioTXinterrupts[sm]){
+                int full=(pioinuse->sm->shiftctrl & (1<<30))  ? 8 : 4;
+                if(TXlevel != full && pioTXlast[sm]==full){ // was the buffer full last time and not now and is an interrupt set?
+                    intaddr=pioTXinterrupts[sm];
+                    pioTXlast[sm]=TXlevel;
+                    goto GotAnInterrupt;
+                }
+            }
+            pioTXlast[sm]=TXlevel;
+        }
+#endif
+    }
 #ifndef PICOMITEVGA
     if(Ctrl!=NULL){
         if(gui_int_down && GuiIntDownVector) {                          // interrupt on pen down
@@ -3202,6 +3289,26 @@ int checkdetailinterrupts(void) {
         goto GotAnInterrupt;
     }
 #endif
+    if(DMAinterruptRX){
+        if(!dma_channel_is_busy(dma_rx_chan)){
+            intaddr = (unsigned char *)DMAinterruptRX;
+            DMAinterruptRX=NULL;
+            dma_channel_unclaim(dma_rx_chan);
+            goto GotAnInterrupt;
+        }
+    }
+    if(DMAinterruptTX){
+        if(!dma_channel_is_busy(dma_tx_chan)){
+            PIO pio = (dma_pio ? pio1: pio0);
+            if((pio->flevel>>dma_sm & 0xf)==0){
+                intaddr = (unsigned char *)DMAinterruptTX;
+                DMAinterruptTX=NULL;
+                dma_channel_unclaim(dma_tx_chan);
+                goto GotAnInterrupt;
+            }
+        }
+    }
+
     if(ADCInterrupt && dmarunning){
         if(!dma_channel_is_busy(dma_chan)){
             __compiler_memory_barrier();

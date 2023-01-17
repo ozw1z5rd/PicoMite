@@ -1587,7 +1587,7 @@ void cmd_circle(void) {
     }
     if(Option.Refresh)Display_Refresh();
 }
-
+static int xb0,xb1,yb0,yb1;
 void drawAAPixel( int x , int y , MMFLOAT brightness, uint32_t c){
     union colourmap
     {
@@ -1598,7 +1598,8 @@ void drawAAPixel( int x , int y , MMFLOAT brightness, uint32_t c){
 	col.rgbbytes[0]= (unsigned char)((MMFLOAT)col.rgbbytes[0]*brightness);
 	col.rgbbytes[1]= (unsigned char)((MMFLOAT)col.rgbbytes[1]*brightness);
 	col.rgbbytes[2]= (unsigned char)((MMFLOAT)col.rgbbytes[2]*brightness);
- 	DrawPixel(x,y,col.rgb);
+ 	if(((x>=xb0 && x<=xb1) && (y>=yb0 && y<=yb1)))DrawPixel(x,y,col.rgb);
+//    else PInt(x),PIntComma(y);PRet();
 }
 void drawAALine(MMFLOAT x0 , MMFLOAT y0 , MMFLOAT x1 , MMFLOAT y1, uint32_t c, int w)
 {
@@ -1609,6 +1610,9 @@ void drawAALine(MMFLOAT x0 , MMFLOAT y0 , MMFLOAT x1 , MMFLOAT y1, uint32_t c, i
 //if Math.abs(y1 - y0) < 1.0 && Math.abs(x1 - x0) < 1.0
 //  #drawDot (x0 + x1) / 2, (y0 + y1) / 2
 //  return
+    xb0=x0;xb1=x1;yb0=y0;yb1=y1;
+    if(xb1<xb0)swap(xb1,xb0);
+    if(yb1<yb0)swap(yb1,yb0);
 
 // steep means that m > 1
 	int steep = abs(y1 - y0) > abs(x1 - x0) ;
@@ -1627,9 +1631,11 @@ void drawAALine(MMFLOAT x0 , MMFLOAT y0 , MMFLOAT x1 , MMFLOAT y1, uint32_t c, i
 	//compute the slope
 	MMFLOAT dx = x1-x0;
 	MMFLOAT dy = y1-y0;
-	MMFLOAT gradient = dy/dx;
-	if (dx == 0.0)
-		gradient = 1;
+
+	MMFLOAT gradient;
+	if (dx <= 0.0) gradient = 1;
+    else gradient=dy/dx;
+
 
 //rotate w
 	w = w * sqrt(1 + (gradient * gradient));
@@ -1641,7 +1647,7 @@ void drawAALine(MMFLOAT x0 , MMFLOAT y0 , MMFLOAT x1 , MMFLOAT y1, uint32_t c, i
 	MMFLOAT xpxl1 = xend; //this will be used in the main loop
 	MMFLOAT ypxl1 = floor(yend);
 	MMFLOAT fpart = yend - floor(yend);
-	MMFLOAT rfpart = 1 - fpart;
+	MMFLOAT rfpart = 1.0 - fpart;
 
 	if(steep){
 	  drawAAPixel(ypxl1    , xpxl1, rfpart * xgap, c);
@@ -1748,60 +1754,62 @@ void cmd_line(void) {
             if(argc == 11) c = getint(argv[10], 0, WHITE);
 			drawAALine(x1, y1, x2, y2, c, w);
 			return;
-		}
-        long long int *x1ptr, *y1ptr, *x2ptr, *y2ptr, *wptr, *cptr;
-        MMFLOAT *x1fptr, *y1fptr, *x2fptr, *y2fptr, *wfptr, *cfptr;
-        getargs(&cmdline, 11,",");
-        if(!(argc & 1) || argc < 7) error("Argument count");
-        getargaddress(argv[0], &x1ptr, &x1fptr, &n);
-        if(n != 1) {
-            getargaddress(argv[2], &y1ptr, &y1fptr, &n);
-            getargaddress(argv[4], &x2ptr, &x2fptr, &n);
-            getargaddress(argv[6], &y2ptr, &y2fptr, &n);
-        }
-        if(n==1){
-            c = gui_fcolour;  w = 1;                                        // setup the defaults
-            x1 = getinteger(argv[0]);
-            y1 = getinteger(argv[2]);
-            x2 = getinteger(argv[4]);
-            y2 = getinteger(argv[6]);
-            if(argc > 7 && *argv[8]){
-                w = getint(argv[8], 1, 100);
+		} else {
+            long long int *x1ptr, *y1ptr, *x2ptr, *y2ptr, *wptr, *cptr;
+            MMFLOAT *x1fptr, *y1fptr, *x2fptr, *y2fptr, *wfptr, *cfptr;
+            
+            getargs(&cmdline, 11,",");
+            if(!(argc & 1) || argc < 7) error("Argument count");
+            getargaddress(argv[0], &x1ptr, &x1fptr, &n);
+            if(n != 1) {
+                getargaddress(argv[2], &y1ptr, &y1fptr, &n);
+                getargaddress(argv[4], &x2ptr, &x2fptr, &n);
+                getargaddress(argv[6], &y2ptr, &y2fptr, &n);
             }
-            if(argc == 11) c = getint(argv[10], 0, WHITE);
-            DrawLine(x1, y1, x2, y2, w, c);        
-        } else {
-            c = gui_fcolour;  w = 1;                                        // setup the defaults
-            if(argc > 7 && *argv[8]){
-                getargaddress(argv[8], &wptr, &wfptr, &nw); 
-                if(nw == 1) w = getint(argv[8], 0, 100);
-                else if(nw>1) {
-                    if(nw > 1 && nw < n) n=nw; //adjust the dimensionality
-                    for(i=0;i<nw;i++){
-                        w = (wfptr == NULL ? wptr[i] : (int)wfptr[i]);
-                        if(w < 0 || w > 100) error("% is invalid (valid is % to %)", (int)w, 0, 100);
+            if(n==1){
+                c = gui_fcolour;  w = 1;                                        // setup the defaults
+                x1 = getinteger(argv[0]);
+                y1 = getinteger(argv[2]);
+                x2 = getinteger(argv[4]);
+                y2 = getinteger(argv[6]);
+                if(argc > 7 && *argv[8]){
+                    w = getint(argv[8], 1, 100);
+                }
+                if(argc == 11) c = getint(argv[10], 0, WHITE);
+                DrawLine(x1, y1, x2, y2, w, c);        
+            } else {
+                c = gui_fcolour;  w = 1;                                        // setup the defaults
+                if(argc > 7 && *argv[8]){
+                    getargaddress(argv[8], &wptr, &wfptr, &nw); 
+                    if(nw == 1) w = getint(argv[8], 0, 100);
+                    else if(nw>1) {
+                        if(nw > 1 && nw < n) n=nw; //adjust the dimensionality
+                        for(i=0;i<nw;i++){
+                            w = (wfptr == NULL ? wptr[i] : (int)wfptr[i]);
+                            if(w < 0 || w > 100) error("% is invalid (valid is % to %)", (int)w, 0, 100);
+                        }
                     }
                 }
-            }
-            if(argc == 11){
-                getargaddress(argv[10], &cptr, &cfptr, &nc); 
-                if(nc == 1) c = getint(argv[10], 0, WHITE);
-                else if(nc>1) {
-                    if(nc > 1 && nc < n) n=nc; //adjust the dimensionality
-                    for(i=0;i<nc;i++){
-                        c = (cfptr == NULL ? cptr[i] : (int)cfptr[i]);
-                        if(c < 0 || c > WHITE) error("% is invalid (valid is % to %)", (int)c, 0, WHITE);
+                if(argc == 11){
+                    getargaddress(argv[10], &cptr, &cfptr, &nc); 
+                    if(nc == 1) c = getint(argv[10], 0, WHITE);
+                    else if(nc>1) {
+                        if(nc > 1 && nc < n) n=nc; //adjust the dimensionality
+                        for(i=0;i<nc;i++){
+                            c = (cfptr == NULL ? cptr[i] : (int)cfptr[i]);
+                            if(c < 0 || c > WHITE) error("% is invalid (valid is % to %)", (int)c, 0, WHITE);
+                        }
                     }
                 }
-            }
-            for(i=0;i<n;i++){
-                x1 = (x1fptr==NULL ? x1ptr[i] : (int)x1fptr[i]);
-                y1 = (y1fptr==NULL ? y1ptr[i] : (int)y1fptr[i]);
-                x2 = (x2fptr==NULL ? x2ptr[i] : (int)x2fptr[i]);
-                y2 = (y2fptr==NULL ? y2ptr[i] : (int)y2fptr[i]);
-                if(nw > 1) w = (wfptr==NULL ? wptr[i] : (int)wfptr[i]);
-                if(nc > 1) c = (cfptr==NULL ? cptr[i] : (int)cfptr[i]);
-                DrawLine(x1, y1, x2, y2, w, c);
+                for(i=0;i<n;i++){
+                    x1 = (x1fptr==NULL ? x1ptr[i] : (int)x1fptr[i]);
+                    y1 = (y1fptr==NULL ? y1ptr[i] : (int)y1fptr[i]);
+                    x2 = (x2fptr==NULL ? x2ptr[i] : (int)x2fptr[i]);
+                    y2 = (y2fptr==NULL ? y2ptr[i] : (int)y2fptr[i]);
+                    if(nw > 1) w = (wfptr==NULL ? wptr[i] : (int)wfptr[i]);
+                    if(nc > 1) c = (cfptr==NULL ? cptr[i] : (int)cfptr[i]);
+                    DrawLine(x1, y1, x2, y2, w, c);
+                }
             }
         }
     }

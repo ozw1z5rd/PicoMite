@@ -304,6 +304,8 @@ void  InitBasic(void) {
 // the argument p must point to the first line to be executed
 void __not_in_flash_func(ExecuteProgram)(unsigned char *p) {
     int i, SaveLocalIndex = 0;
+    jmp_buf SaveErrNext;
+    memcpy(SaveErrNext, ErrNext, sizeof(jmp_buf));                  // we call ExecuteProgram() recursively so we need to store/restore old jump buffer between calls
     skipspace(p);                                                   // just in case, skip any whitespace
 
     while(1) {
@@ -334,6 +336,7 @@ void __not_in_flash_func(ExecuteProgram)(unsigned char *p) {
             skipelement(nextstmt);
             if(*p && *p != '\'') {                                  // ignore a comment line
                 if(setjmp(ErrNext) == 0) {                          // return to the else leg of this if error and OPTION ERROR SKIP/IGNORE is in effect
+                   SaveLocalIndex = LocalIndex;                        // save this if we need to cleanup after an error
                     SaveLocalIndex = LocalIndex;                    // save this if we need to cleanup after an error
                     if(*(char*)p >= C_BASETOKEN && *(char*)p - C_BASETOKEN < CommandTableSize - 1 && (commandtbl[*(char*)p - C_BASETOKEN].type & T_CMD)) {
                         cmdtoken = *(char*)p;
@@ -359,8 +362,9 @@ void __not_in_flash_func(ExecuteProgram)(unsigned char *p) {
             }
             p = nextstmt;
         }
-        if((p[0] == 0 && p[1] == 0) || (p[0] == 0xff && p[1] == 0xff)) return;      // the end of the program is marked by TWO zero chars, empty flash by two 0xff
+        if((p[0] == 0 && p[1] == 0) || (p[0] == 0xff && p[1] == 0xff)) break;      // the end of the program is marked by TWO zero chars, empty flash by two 0xff
     }
+    memcpy(ErrNext, SaveErrNext, sizeof(jmp_buf));                  // restore old jump buffer
 }
 
 

@@ -35,6 +35,23 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 //      void op_???(void)
 void cmd_pio(void);
 void fun_pio(void);
+#ifndef PICOMITEVGA
+extern uint8_t pioTXlast[4][2];
+extern char *pioRXinterrupts[4][2];
+extern char *pioTXinterrupts[4][2];
+#else
+extern uint8_t pioTXlast[4];
+extern char *pioRXinterrupts[4];
+extern char *pioTXinterrupts[4];
+#endif
+extern int piointerrupt;
+extern char *DMAinterruptRX;
+extern char *DMAinterruptTX;
+extern uint32_t dma_rx_chan;
+extern uint32_t dma_tx_chan;
+extern int dma_pio;
+extern int dma_sm;
+
 #endif
 
 

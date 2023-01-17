@@ -1413,6 +1413,9 @@ void DrawRectangleMEM(int x1, int y1, int x2, int y2, int c){
         }
     }
 }
+void DrawPixelMEM(int x1,int y1, int c){
+	DrawRectangleMEM(x1,y1,x1,y1,c);
+}
 void DrawBitmapMEM(int x1, int y1, int width, int height, int scale, int fc, int bc, unsigned char *bitmap){
     int i, j, k, m, x, y,t, loc;
     unsigned char omask, amask;

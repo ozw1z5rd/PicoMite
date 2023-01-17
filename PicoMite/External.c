@@ -480,14 +480,14 @@ void ExtCfg(int pin, int cfg, int option) {
         case EXT_CNT_IN:        
         case EXT_FREQ_IN:   // same as counting, so fall through
         case EXT_PER_IN:        // same as counting, so fall through
-                                edge = GPIO_IRQ_EDGE_RISE;
-                                if(cfg==EXT_CNT_IN && option==2)edge = GPIO_IRQ_EDGE_FALL;
-                                if(cfg==EXT_CNT_IN && option>=3)edge = GPIO_IRQ_EDGE_FALL | GPIO_IRQ_EDGE_RISE;
-                                if(option==1 || option==4)gpio_pull_down (PinDef[pin].GPno);
-                                if(option==2 || option==5)gpio_pull_up (PinDef[pin].GPno);
+                                    edge = GPIO_IRQ_EDGE_RISE;
+                                    if(cfg==EXT_CNT_IN && option==2)edge = GPIO_IRQ_EDGE_FALL;
+                                    if(cfg==EXT_CNT_IN && option>=3)edge = GPIO_IRQ_EDGE_FALL | GPIO_IRQ_EDGE_RISE;
+                                    if(option==1 || option==4)gpio_pull_down (PinDef[pin].GPno);
+                                    if(option==2 || option==5)gpio_pull_up (PinDef[pin].GPno);
                                 irq_set_priority(13,0);
                                 PinSetBit(pin,TRISSET);
-                                if(pin == Option.INT1pin) {
+                                    if(pin == Option.INT1pin) {
                                     if(!CallBackEnabled){
                                         gpio_set_irq_enabled_with_callback(PinDef[pin].GPno, edge , true, &gpio_callback);
                                         CallBackEnabled=2;
@@ -1583,7 +1583,7 @@ void cmd_pwm(void){
     int div=1, high1, high2;
     int phase1=0,phase2=0;
     MMFLOAT duty1=-1.0, duty2=-1.0;
-    getargs(&cmdline,9,",");
+    getargs(&cmdline,11,",");
     if(!(argc>=3))error("Syntax");
     int CPU_Speed=frequency_count_khz(CLOCKS_FC0_SRC_VALUE_CLK_PERI);
     int slice=getint(argv[0],0,7);
@@ -1603,8 +1603,10 @@ void cmd_pwm(void){
     }
     if(!(argc>=5))error("Syntax");
     int delaystart=0;
-    if(argc==9)delaystart=getint(argv[8],0,1);
-    MMFLOAT frequency=getnumber(argv[2]);
+    int phase=1;
+    if(argc>=9 && *argv[8])phase+=getint(argv[8],0,1);
+    if(argc==11)delaystart=getint(argv[10],0,1);
+    MMFLOAT frequency=getnumber(argv[2])*phase;
     if(frequency>(MMFLOAT)(CPU_Speed>>2)*1000.0)error("Invalid frequency");
     if(*argv[4]){
         duty1=getnumber(argv[4]);
@@ -1638,6 +1640,7 @@ void cmd_pwm(void){
     pwm_set_clkdiv(slice,(float)div);
     pwm_set_wrap(slice, wrap);
     pwm_set_output_polarity(slice,phase1,phase2);
+    pwm_set_phase_correct(slice,(phase==2? true : false));
     if(slice==0 && PWM0Apin==99 && duty1>=0.0)error("Pin not set for PWM");
     if(slice==0 && PWM0Bpin==99 && duty2>=0.0)error("Pin not set for PWM");
     if(slice==1 && PWM1Apin==99 && duty1>=0.0)error("Pin not set for PWM");
@@ -2424,7 +2427,7 @@ void cmd_adc(void){
         if(div==96.0)div=0;
         adc_set_clkdiv(div);
         // Set up the DMA to start transferring data as soon as it appears in FIFO
-        dma_chan = 4;
+        dma_chan = ADC_DMA;
         dma_channel_claim (dma_chan);
         dma_channel_config cfg = dma_channel_get_default_config(dma_chan);
 
@@ -2485,7 +2488,7 @@ void ClearExternalIO(void) {
   	CloseAudio(1);
     InterruptUsed = false;
 	InterruptReturn = NULL;
-
+ 
     if(CallBackEnabled==1) gpio_set_irq_enabled_with_callback(PinDef[IRpin].GPno, GPIO_IRQ_EDGE_RISE | GPIO_IRQ_EDGE_FALL, false, &gpio_callback);
     else if(CallBackEnabled & 1){
         gpio_set_irq_enabled(PinDef[IRpin].GPno, GPIO_IRQ_EDGE_RISE | GPIO_IRQ_EDGE_FALL, false);
@@ -2632,6 +2635,21 @@ void ClearExternalIO(void) {
     keyselect=0;
     g_myrand=NULL;
     CMM1=0;
+    memset(pioTXlast,0,sizeof(pioTXlast));
+    memset(pioRXinterrupts,0,sizeof(pioRXinterrupts));
+    memset(pioTXinterrupts,0,sizeof(pioTXinterrupts));
+    piointerrupt=0;
+    DMAinterruptRX=NULL;
+    DMAinterruptTX=NULL;
+	if(dma_channel_is_busy(dma_rx_chan))
+	{
+		dma_channel_abort(dma_rx_chan);
+		dma_channel_unclaim(dma_rx_chan);
+	}
+    if(dma_channel_is_busy(dma_tx_chan)){
+		dma_channel_abort(dma_tx_chan);
+		dma_channel_unclaim(dma_tx_chan);
+	}
 }
 
 

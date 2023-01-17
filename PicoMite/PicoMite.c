@@ -124,7 +124,7 @@ unsigned char WatchdogSet = false;
 unsigned char IgnorePIN = false;
 bool timer_callback(repeating_timer_t *rt);
 uint32_t __uninitialized_ram(_excep_code);
-unsigned char lastcmd[STRINGSIZE*4];                                           // used to store the last command in case it is needed by the EDIT command
+unsigned char lastcmd[STRINGSIZE*2];                                           // used to store the last command in case it is needed by the EDIT command
 int QVGA_CLKDIV;	// SM divide clock ticks
 FATFS fs;                 // Work area (file system object) for logical drive
 bool timer_callback(repeating_timer_t *rt);
@@ -493,12 +493,12 @@ void InsertLastcmd(unsigned char *s) {
 int i, slen;
     if(strcmp(lastcmd, s) == 0) return;                             // don't duplicate
     slen = strlen(s);
-    if(slen < 1 || slen > STRINGSIZE*4 - 1) return;
+    if(slen < 1 || slen > sizeof(lastcmd) - 1) return;
     slen++;
-    for(i = STRINGSIZE*4 - 1; i >=  slen ; i--)
+    for(i = sizeof(lastcmd) - 1; i >=  slen ; i--)
         lastcmd[i] = lastcmd[i - slen];                             // shift the contents of the buffer up
     strcpy(lastcmd, s);                                             // and insert the new string in the beginning
-    for(i = STRINGSIZE*4 - 1; lastcmd[i]; i--) lastcmd[i] = 0;             // zero the end of the buffer
+    for(i = sizeof(lastcmd) - 1; lastcmd[i]; i--) lastcmd[i] = 0;             // zero the end of the buffer
 }
 
 void EditInputLine(void) {
@@ -664,7 +664,7 @@ void EditInputLine(void) {
                                 fflush(stdout);       // go to the beginning of line
                                 if(lastcmd_edit) {
                                     i = lastcmd_idx + strlen(&lastcmd[lastcmd_idx]) + 1;    // find the next command
-                                    if(lastcmd[i] != 0 && i < STRINGSIZE*4 - 1) lastcmd_idx = i;  // and point to it for the next time around
+                                    if(lastcmd[i] != 0 && i < sizeof(lastcmd) - 1) lastcmd_idx = i;  // and point to it for the next time around
                                 } else
                                     lastcmd_edit = true;
                                 strcpy(inpbuf, &lastcmd[lastcmd_idx]);                      // get the command into the buffer for editing
@@ -1435,6 +1435,8 @@ void QVgaDmaInit()
 // ==== prepare DMA data channel
 
 	// prepare DMA default config
+    dma_channel_claim (QVGA_DMA_PIO);
+
 	cfg = dma_channel_get_default_config(QVGA_DMA_PIO);
 
 	// increment address on read from memory

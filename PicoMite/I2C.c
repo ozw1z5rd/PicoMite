@@ -83,7 +83,7 @@ static unsigned int I2C2_Slave_Addr;                                 // slave ad
 int noRTC=0;
 extern void SaveToBuffer(void);
 extern void CompareToBuffer(void);
-
+extern void DrawPixelMEM(int x1, int y1, int c);
 extern void DrawRectangleMEM(int x1, int y1, int x2, int y2, int c);
 extern void DrawBitmapMEM(int x1, int y1, int width, int height, int scale, int fc, int bc, unsigned char *bitmap);
 void i2cSlave(unsigned char *p);
@@ -161,6 +161,7 @@ void InitDisplayI2C(int InitOnly){
     DrawBitmap = DrawBitmapMEM;
     DrawBuffer = DrawBufferMEM;
 	ReadBuffer = ReadBufferMEM;
+	DrawPixel  = DrawPixelMEM;
     DisplayHRes = display_details[Option.DISPLAY_TYPE].horizontal;
     DisplayVRes = display_details[Option.DISPLAY_TYPE].vertical;
     I2C_Send_Command(0xAE);//DISPLAYOFF

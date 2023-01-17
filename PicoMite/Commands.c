@@ -28,6 +28,8 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 #include "MMBasic_Includes.h"
 #include "Hardware_Includes.h"
 #include "hardware/flash.h"
+#include "hardware/dma.h"
+
 #include <math.h>
 void flist(int, int, int);
 //void clearprog(void);
@@ -702,6 +704,15 @@ void __not_in_flash_func(cmd_else)(void) {
 
 
 void cmd_end(void) {
+	if(dma_channel_is_busy(dma_rx_chan))
+	{
+		dma_channel_abort(dma_rx_chan);
+		dma_channel_unclaim(dma_rx_chan);
+	}
+    if(dma_channel_is_busy(dma_tx_chan)){
+		dma_channel_abort(dma_tx_chan);
+		dma_channel_unclaim(dma_tx_chan);
+	}
 	for(int i=0; i< NBRSETTICKS;i++){
 		TickPeriod[i]=0;
 		TickTimer[i]=0;
