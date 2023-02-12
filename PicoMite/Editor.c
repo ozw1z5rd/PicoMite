@@ -184,6 +184,7 @@ void cmd_edit(void) {
         gui_bcolour = BLACK;
     }
     if(Option.DISPLAY_CONSOLE == true && gui_font_width > 16) error("Font is too large");
+    ClearVars(0);
     ClearRuntime();
     EdBuff = GetTempMemory(EDIT_BUFFER_SIZE);
     *EdBuff = 0;
@@ -254,7 +255,7 @@ void FullScreenEditor(void) {
   unsigned char *p, *tp, BreakKeySave;
   unsigned char lastkey = 0;
   int y, statuscount;
-  clipboard=(char *)&AllMemory[HEAP_MEMORY_SIZE+1024];
+  clipboard=(char *)vartbl;
   buf=clipboard + MAXCLIP;
   clipboard[0] = 0;
   buf[0]=0;

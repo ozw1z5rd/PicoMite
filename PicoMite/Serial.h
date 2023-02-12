@@ -100,7 +100,7 @@ unsigned char SerialPutchar(int comnbr, unsigned char c);
 int SerialRxStatus(int comnbr);
 int SerialTxStatus(int comnbr);
 int SerialGetchar(int comnbr);
-void setupuart(int uart, int s2,int b9,int b7, int baud);
+void setupuart(int uart, int s2,int b9,int b7, int baud, int inv);
 extern void start_console(void);
 extern void stop_console(void);
 extern void start_com1(void);

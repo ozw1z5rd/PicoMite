@@ -45,6 +45,9 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 #include "hardware/irq.h"
 #include "hardware/spi.h"
 #include "hardware/i2c.h"
+#ifdef PICOMITEWEB
+#include "pico/cyw43_arch.h"
+#endif
 //#include "integer.h"
 int SPISpeed=0xFF;
 //#define SD_CS_PIN Option.SD_CS
@@ -1235,6 +1238,7 @@ void InitReservedIO(void) {
 		irq_set_priority(PWM_IRQ_WRAP,255);
 		pwm_set_enabled(AUDIO_SLICE, true);
 	}
+#ifndef PICOMITEWEB
 	if(Option.PWM){
 		gpio_init(23);
 		gpio_put(23,GPIO_PIN_SET);
@@ -1244,8 +1248,8 @@ void InitReservedIO(void) {
 		gpio_put(23,GPIO_PIN_RESET);
 		gpio_set_dir(23, GPIO_OUT);
 	}
+#endif
 	if(Option.SerialConsole){
-//		printf("here\r\n");
 		ExtCfg(Option.SerialTX, EXT_BOOT_RESERVED, 0);
 		ExtCfg(Option.SerialRX, EXT_BOOT_RESERVED, 0);
 		gpio_set_function(PinDef[Option.SerialTX].GPno, GPIO_FUNC_UART);

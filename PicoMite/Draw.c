@@ -27,6 +27,9 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 #include "MMBasic_Includes.h"
 #include "Hardware_Includes.h"
 #include "hardware/spi.h"
+#ifdef PICOMITEWEB
+#include "pico/cyw43_arch.h"
+#endif
 
 #define LONG long
 #define max(x, y) (((x) > (y)) ? (x) : (y))
@@ -126,7 +129,13 @@ int CollisionFound = false;
 int sprite_which_collided = -1;
 static int hideall = 0;
 #else
+    #ifdef PICOMITEWEB
+    int gui_font_width, gui_font_height, last_bcolour, last_fcolour;
+    volatile int CursorTimer=0;               // used to time the flashing cursor
+    int display_backlight;                  // the brightness of the backlight (1 to 100)
+    #else
     extern int InvokingCtrl;
+    #endif
 #endif
 void cmd_ReadTriangle(unsigned char *p);
 void (*DrawRectangle)(int x1, int y1, int x2, int y2, int c) = (void (*)(int , int , int , int , int ))DisplayNotSet;
@@ -205,11 +214,13 @@ void cmd_guiMX170(void) {
         return;
     }
 #ifndef PICOMITEVGA
+#ifndef PICOMITEWEB
     if((p = checkstring(cmdline, "BEEP"))) {
         if(Option.TOUCH_Click == 0) error("Click option not set");
         ClickTimer = getint(p, 0, INT_MAX) + 1;
       return;
   	}
+#endif
     if((p = checkstring(cmdline, "RESET"))) {
         if((checkstring(p, "LCDPANEL"))) {
             InitDisplaySPI(true);
@@ -289,6 +300,9 @@ void cmd_guiMX170(void) {
             int t;
             t = ((HRes > VRes) ? HRes : VRes) / 7;
             while(getConsole() < '\r') {
+        #ifdef PICOMITEWEB
+                {if(startupcomplete)cyw43_arch_poll();}
+        #endif
                 DrawCircle(rand() % HRes, rand() % VRes, (rand() % t) + t/5, 1, 1, rgb((rand() % 8)*256/8, (rand() % 8)*256/8, (rand() % 8)*256/8), 1);
             }
             ClearScreen(gui_bcolour);
@@ -302,6 +316,9 @@ void cmd_guiMX170(void) {
                 x = GetTouch(GET_X_AXIS);
                 y = GetTouch(GET_Y_AXIS);
                 if(x != TOUCH_ERROR && y != TOUCH_ERROR) DrawBox(x - 1, y - 1, x + 1, y + 1, 0, WHITE, WHITE);
+        #ifdef PICOMITEWEB
+                {if(startupcomplete)cyw43_arch_poll();}
+        #endif
             }
             ClearScreen(gui_bcolour);
             return;
@@ -1340,7 +1357,7 @@ void GUIPrintString(int x, int y, int fnt, int jh, int jv, int jo, int fc, int b
         if(jv == JUSTIFY_BOTTOM) CurrentY -= (strlen(str) * GetFontWidth(fnt));
     }
     while(*str) {
-#ifndef PICOMITEVGA
+#ifdef PICOMITE
         if(*str == 0xff && Ctrl[InvokingCtrl].type == 10) {
 //            fc = rgb(0, 0, 255);                                // this is specially for GUI FORMATBOX
             str++;
@@ -2585,10 +2602,10 @@ void cmd_triangle(void) {                                           // thanks to
 
 void cmd_cls(void) {
     if(Option.DISPLAY_TYPE == 0) error("Display not configured");
-#ifndef PICOMITEVGA
+#ifdef PICOMITE
     HideAllControls();
 #endif
-    skipspace(cmdline);
+   skipspace(cmdline);
     if(!(*cmdline == 0 || *cmdline == '\''))
         ClearScreen(getint(cmdline, 0, WHITE));
     else
@@ -4493,32 +4510,42 @@ void cmd_colour(void) {
 void cmd_tile(void){
     uint32_t bcolour=0xFFFFFFFF,fcolour=0xFFFFFFFF;
     int xlen=1,ylen=1;
-    getargs(&cmdline, 11, ",");
-    if(!(DISPLAY_TYPE==MONOVGA))return;
-    if(argc<5)error("Syntax");
-    int x=getint(argv[0],0,39);
-    int y=getint(argv[2],0,29);
-    int tilebcolour, tilefcolour ;
-    if(*argv[4]){
-        tilefcolour = getColour(argv[4], 0);
-        fcolour = ((tilefcolour & 0x800000)>> 20) | ((tilefcolour & 0xC000)>>13) | ((tilefcolour & 0x80)>>7);
-        fcolour= (fcolour<<12) | (fcolour<<8) | (fcolour<<4) | fcolour;
-    }
-    if(argc>=7 && *argv[6]){
-        tilebcolour = getColour(argv[6], 0);
-        bcolour = ((tilebcolour & 0x800000)>> 20) | ((tilebcolour & 0xC000)>>13) | ((tilebcolour & 0x80)>>7);
-        bcolour= (bcolour<<12) | (bcolour<<8) | (bcolour<<4) | bcolour;
-    }
-    if(argc>=9 && *argv[8]){
-        xlen=getint(argv[8],1,40-x);
-    }
-    if(argc>=11 && *argv[10]){
-        ylen=getint(argv[10],1,30-y);
-    }
-    for(int xp=x;xp<x+xlen;xp++){
-        for(int yp=y;yp<y+ylen;yp++){
-            if(fcolour!=0xFFFFFFFF) tilefcols[yp*40+xp]=(uint16_t)fcolour;
-            if(bcolour!=0xFFFFFFFF) tilebcols[yp*40+xp]=(uint16_t)bcolour;
+    if(checkstring(cmdline,"RESET")){
+                for(int x=0;x<40;x++){
+            for(int y=0;y<30;y++){
+                tilefcols[y*40+x]=Option.VGAFC;
+                tilebcols[y*40+x]=Option.VGABC;
+            }
+        }
+
+    } else {
+        getargs(&cmdline, 11, ",");
+        if(!(DISPLAY_TYPE==MONOVGA))return;
+        if(argc<5)error("Syntax");
+        int x=getint(argv[0],0,39);
+        int y=getint(argv[2],0,29);
+        int tilebcolour, tilefcolour ;
+        if(*argv[4]){
+            tilefcolour = getColour(argv[4], 0);
+            fcolour = ((tilefcolour & 0x800000)>> 20) | ((tilefcolour & 0xC000)>>13) | ((tilefcolour & 0x80)>>7);
+            fcolour= (fcolour<<12) | (fcolour<<8) | (fcolour<<4) | fcolour;
+        }
+        if(argc>=7 && *argv[6]){
+            tilebcolour = getColour(argv[6], 0);
+            bcolour = ((tilebcolour & 0x800000)>> 20) | ((tilebcolour & 0xC000)>>13) | ((tilebcolour & 0x80)>>7);
+            bcolour= (bcolour<<12) | (bcolour<<8) | (bcolour<<4) | bcolour;
+        }
+        if(argc>=9 && *argv[8]){
+            xlen=getint(argv[8],1,40-x);
+        }
+        if(argc>=11 && *argv[10]){
+            ylen=getint(argv[10],1,30-y);
+        }
+        for(int xp=x;xp<x+xlen;xp++){
+            for(int yp=y;yp<y+ylen;yp++){
+                if(fcolour!=0xFFFFFFFF) tilefcols[yp*40+xp]=(uint16_t)fcolour;
+                if(bcolour!=0xFFFFFFFF) tilebcols[yp*40+xp]=(uint16_t)bcolour;
+            }
         }
     }
 }
@@ -5231,7 +5258,9 @@ void ResetDisplay(void) {
             }
         }
 #else
+#ifndef PICOMITEWEB
     ResetGUI();
+#endif
 #endif
 }
 void hline(int x0, int x1, int y, int f, int ints_per_line, uint32_t *br) { //draw a horizontal line

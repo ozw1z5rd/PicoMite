@@ -51,6 +51,7 @@ void SaveOptions(void);
 void ResetAllFlash(void);
 void disable_interrupts(void);
 void enable_interrupts(void);
+int ForceFileClose(int fnbr);
 void ErrorCheck(int fnbr);
 extern int OptionFileErrorAbort;
 extern unsigned char filesource[MAXOPENFILES + 1];
@@ -61,14 +62,14 @@ struct option_s {
     char Autorun;
     char Tab;
     char Invert;
-    char Listcase; //4
+    char Listcase; //8
   //
     unsigned int PROG_FLASH_SIZE;
     unsigned int HEAP_SIZE;
     char Height;
     char Width;
     char DISPLAY_TYPE;
-    char DISPLAY_ORIENTATION; //8
+    char DISPLAY_ORIENTATION; //12=20
 //
     int  PIN;
     int  Baudrate;
@@ -77,15 +78,20 @@ struct option_s {
     unsigned int Dummyint;    // used to store the size of the program flash (also start of the LIBRARY code)
     int DefaultFC, DefaultBC;      // the default colours
     int DefaultBrightness;         // default backlight brightness //40
-    uint16_t VGAFC, VGABC;      // the default colours
+    uint16_t VGAFC, VGABC;      // the default colours 36=56
 //
     // display related
     unsigned char DefaultFont;
     unsigned char KeyboardConfig;
-    unsigned char RTC_Clock, RTC_Data; //44
+    unsigned char RTC_Clock;
+    unsigned char RTC_Data; //4=60
 //
-    int MaxCtrls;                // maximum number of controls allowed //48
-    // for the SPI LCDs
+    #ifndef PICOMITEWEB
+        int MaxCtrls;                // maximum number of controls allowed //48
+    #else
+        int TCP_PORT;                // maximum number of controls allowed //48
+    #endif
+        // for the SPI LCDs 4=64
     unsigned char LCD_CD;
     unsigned char LCD_CS;
     unsigned char LCD_Reset;
@@ -94,15 +100,13 @@ struct option_s {
     unsigned char TOUCH_IRQ;
     char TOUCH_SWAPXY; 
     unsigned char repeat;
-    char dummy;//56
+    char dummy;//56   8=72
     int  TOUCH_XZERO;
     int  TOUCH_YZERO;
     float TOUCH_XSCALE;
-    float TOUCH_YSCALE; //72
+    float TOUCH_YSCALE; //72 16=88
     unsigned int fullrefresh;
-    unsigned int FlashSize;
- 
-     // these are only used in the MX470 version
+    unsigned int FlashSize; //8=96
     unsigned char SD_CS;
     unsigned char SYSTEM_MOSI;
     unsigned char SYSTEM_MISO;
@@ -110,38 +114,41 @@ struct option_s {
     unsigned char DISPLAY_BL;
     unsigned char DISPLAY_CONSOLE;
     unsigned char TOUCH_Click;
-    char LCD_RD;                   // used for the RD pin for SSD1963  //78
+    char LCD_RD;                   // used for the RD pin for SSD1963  //8=104
     unsigned char AUDIO_L;
     unsigned char AUDIO_R;
-    unsigned char AUDIO_SLICE;
-    unsigned char pins[8];                  // general use storage for CFunctions written by PeterM //86
+    unsigned char AUDIO_SLICE; 
     unsigned char SDspeed;
+    unsigned char pins[8];  //12=116                // general use storage for CFunctions written by PeterM //86
     char LCDVOP;
     char I2Coffset;
-    unsigned char NoHeartbeat;
+    unsigned char NoHeartbeat; 
     char Refresh;
     unsigned char SYSTEM_I2C_SDA;
     unsigned char SYSTEM_I2C_SCL;
     unsigned char RTC;
-    char PWM;
+    char PWM;  //8=124
     unsigned char INT1pin;
     unsigned char INT2pin;
-    unsigned char INT3pin;
+    unsigned char INT3pin; 
     unsigned char INT4pin;
     unsigned char SD_CLK_PIN;
     unsigned char SD_MOSI_PIN;
     unsigned char SD_MISO_PIN;
-    unsigned char SerialConsole;
+    unsigned char SerialConsole; //8=132
     unsigned char SerialTX;
     unsigned char SerialRX;
-    unsigned char numlock;
-    unsigned char capslock;
-    unsigned char F1key[MAXKEYLEN];
-    unsigned char F5key[MAXKEYLEN];
-    unsigned char F6key[MAXKEYLEN];
-    unsigned char F7key[MAXKEYLEN];
-    unsigned char F8key[MAXKEYLEN];
-    unsigned char F9key[MAXKEYLEN];
+    unsigned char numlock; 
+    unsigned char capslock; //4=136
+    unsigned char x[120]; //120=256
+    unsigned char F1key[MAXKEYLEN]; //204
+    unsigned char F5key[MAXKEYLEN]; //268
+    unsigned char F6key[MAXKEYLEN]; //332
+    unsigned char F7key[MAXKEYLEN]; //396
+    unsigned char F8key[MAXKEYLEN]; //460
+    unsigned char F9key[MAXKEYLEN]; //524
+    unsigned char SSID[MAXKEYLEN];  //588
+    unsigned char PASSWORD[MAXKEYLEN]; //652=768
     // To enable older CFunctions to run any new options *MUST* be added at the end of the list
 } __attribute__((packed));
 extern unsigned char *CFunctionFlash, *CFunctionLibrary;

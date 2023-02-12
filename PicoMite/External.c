@@ -146,11 +146,6 @@ uint dma_chan;
 short *ADCbuffer=NULL;
 void PWMoff(int slice);
 //Vector to CFunction routine called every command (ie, from the BASIC interrupt checker)
-extern unsigned int CFuncInt1;
-//Vector to CFunction routine called by the interrupt 2 handler
-extern unsigned int CFuncInt2;
-extern void CallCFuncInt1(void);
-extern void CallCFuncInt2(void);
 
 uint64_t readusclock(void){
     return time_us_64()-uSecoffset;
@@ -212,6 +207,7 @@ void PinSetBit(int pin, unsigned int offset) {
         return;
 	case TRISCLR:
         gpio_set_dir(PinDef[pin].GPno, GPIO_OUT);
+        gpio_set_drive_strength (PinDef[pin].GPno, GPIO_DRIVE_STRENGTH_12MA);
         uSec(2);
         return;
 	case CNPUSET:
@@ -590,8 +586,8 @@ void ExtCfg(int pin, int cfg, int option) {
                                 SPI0RXpin=pin;
                                 break;
         case EXT_SPI0SCK:       if(!(PinDef[pin].mode & SPI0SCK)) error("Invalid configuration");
-                                 if(SPI0locked)error("SPI in use for SYSTEM SPI");
-                               if((SPI0SCKpin!=99 && SPI0SCKpin!=pin)) error("Already Set to pin %",SPI0SCKpin);
+                                if(SPI0locked)error("SPI in use for SYSTEM SPI");
+                                if((SPI0SCKpin!=99 && SPI0SCKpin!=pin)) error("Already Set to pin %",SPI0SCKpin);
                                 SPI0SCKpin=pin;
                                 break;
         case EXT_SPI1TX:        if(!(PinDef[pin].mode & SPI1TX)) error("Invalid configuration");
@@ -974,7 +970,11 @@ process:
         default:            if(argc > 3 && !value2) error("Unexpected text");
     }
     // this allows the user to set a software interrupt on the touch IRQ pin if the GUI environment is not enabled
-    if(pin == Option.TOUCH_IRQ && Option.MaxCtrls==0) {
+    if(pin == Option.TOUCH_IRQ)
+    #ifdef PICOMITE
+    if(Option.MaxCtrls==0) 
+    #endif
+    {
         if(value == EXT_INT_HI || value == EXT_INT_LO || value == EXT_INT_BOTH)
             ExtCurrentConfig[pin] = value;
         else if(value == EXT_NOT_CONFIG) {
@@ -985,12 +985,11 @@ process:
         }
         else
             error("Pin %/| is reserved on startup", pin,pin);
-    } else
+    } 
 
-    {
-        CheckPin(pin, CP_IGNORE_INUSE);
-        ExtCfg(pin, value, option);
-    }
+    CheckPin(pin, CP_IGNORE_INUSE);
+    ExtCfg(pin, value, option);
+
     if(value2)    {
         CheckPin(pin2, CP_IGNORE_INUSE);
         ExtCfg(pin2, value2, option);
@@ -1546,7 +1545,7 @@ void cmd_pwm(void){
             }
         }
         if(slice4 || Option.AUDIO_SLICE ==4 || BacklightSlice==4){
-            enabled |16;
+            enabled |=16;
             if(!(Option.AUDIO_SLICE ==4 || BacklightSlice==4 || count4<0.0)){
                 pwm_set_enabled(4,false);
                 count4=(MMFLOAT)pwm_hw->slice[4].top * (100.0-count4) / 100.0;
@@ -1689,7 +1688,7 @@ void cmd_pwm(void){
         ExtCfg(PWM3Bpin,EXT_COM_RESERVED,0);
         pwm_set_chan_level(slice, PWM_CHAN_B, high2);
     }
-        if(slice==4 && PWM4Apin!=99 && duty1>=0.0){
+    if(slice==4 && PWM4Apin!=99 && duty1>=0.0){
         ExtCfg(PWM4Apin,EXT_COM_RESERVED,0);
         pwm_set_chan_level(slice, PWM_CHAN_A, high1);
     }
@@ -1697,7 +1696,7 @@ void cmd_pwm(void){
         ExtCfg(PWM4Bpin,EXT_COM_RESERVED,0);
         pwm_set_chan_level(slice, PWM_CHAN_B, high2);
     }
-        if(slice==5 && PWM5Apin!=99 && duty1>=0.0){
+    if(slice==5 && PWM5Apin!=99 && duty1>=0.0){
         ExtCfg(PWM5Apin,EXT_COM_RESERVED,0);
         pwm_set_chan_level(slice, PWM_CHAN_A, high1);
     }
@@ -1705,7 +1704,7 @@ void cmd_pwm(void){
         ExtCfg(PWM5Bpin,EXT_COM_RESERVED,0);
         pwm_set_chan_level(slice, PWM_CHAN_B, high2);
     }
-        if(slice==6 && PWM6Apin!=99 && duty1>=0.0){
+    if(slice==6 && PWM6Apin!=99 && duty1>=0.0){
         ExtCfg(PWM6Apin,EXT_COM_RESERVED,0);
         pwm_set_chan_level(slice, PWM_CHAN_A, high1);
     }
@@ -1713,7 +1712,7 @@ void cmd_pwm(void){
         ExtCfg(PWM6Bpin,EXT_COM_RESERVED,0);
         pwm_set_chan_level(slice, PWM_CHAN_B, high2);
     }
-        if(slice==7 && PWM7Apin!=99 && duty1>=0.0){
+    if(slice==7 && PWM7Apin!=99 && duty1>=0.0){
         ExtCfg(PWM7Apin,EXT_COM_RESERVED,0);
         pwm_set_chan_level(slice, PWM_CHAN_A, high1);
     }
@@ -1956,6 +1955,34 @@ void LCD_Byte(int Data, int Flag, int Wait_uSec) {
 void LcdPinSet(int pin, int val) {
     PinSetBit(pin, val ? LATSET : LATCLR);
 }
+int64_t __not_in_flash_func(DHmem)(int pin){
+    int timeout = 400;
+    long long int r;
+    int i;
+    writeusclock(0);
+    PinSetBit(pin, CNPUSET);
+    PinSetBit(pin, TRISSET);
+    uSec(5);
+    // wait for the DHT22 to pull the pin low and return it high then take it low again
+    while(PinRead(pin)) if(readusclock() > timeout) goto error_exit;
+    while(!PinRead(pin)) if(readusclock() > timeout) goto error_exit;
+    while(PinRead(pin)) if(readusclock() > timeout) goto error_exit;
+//    PInt(readusclock());PRet();
+
+    // now we wait for the pin to go high and measure how long it stays high (> 50uS is a one bit, < 50uS is a zero bit)
+    for(r = i = 0; i < 40; i++) {
+    	timeout=400;
+        while(!PinRead(pin)) if(readusclock() > timeout) goto error_exit;
+        timeout=400;writeusclock(0);
+        while(PinRead(pin)) if(readusclock() > timeout) goto error_exit;
+        r <<= 1;
+        r |= (readusclock() > 50);
+    }
+    return r;
+    error_exit:
+    return -1;
+
+}
 
 void DHT22(unsigned char *p) {
      int pin;
@@ -1980,36 +2007,16 @@ void DHT22(unsigned char *p) {
 	if(!code)pin=codemap(pin);
     if(IsInvalidPin(pin)) error("Invalid pin");
     if(ExtCurrentConfig[pin] != EXT_NOT_CONFIG)  error("Pin %/| is in use",pin,pin);
-    ExtCfg(pin, EXT_DIG_OUT, 0);
-    
     if(argc==7){
     	dht22=getint(argv[6],0,1);
     }
+    ExtCfg(pin, EXT_DIG_OUT, 0);
+    
     // pulse the pin low for 1mS
     uSec(1000+dht22*18000);
-    writeusclock(0);
-    timeout = 400;
-    PinSetBit(pin, CNPUSET);
-    PinSetBit(pin, TRISSET);
-    uSec(5);
-    // wait for the DHT22 to pull the pin low and return it high then take it low again
-    while(PinRead(pin)) if(readusclock() > timeout) goto error_exit;
-    while(!PinRead(pin)) if(readusclock() > timeout) goto error_exit;
-    while(PinRead(pin)) if(readusclock() > timeout) goto error_exit;
-//    PInt(readusclock());PRet();
-
-    // now we wait for the pin to go high and measure how long it stays high (> 50uS is a one bit, < 50uS is a zero bit)
-    for(r = i = 0; i < 40; i++) {
-    	timeout=400;
-        while(!PinRead(pin)) if(readusclock() > timeout) goto error_exit;
-        timeout=400;writeusclock(0);
-        while(PinRead(pin)) if(readusclock() > timeout) goto error_exit;
-        r <<= 1;
-        r |= (readusclock() > 50);
-    }
-
     // we have all 40 bits
     // first validate against the checksum
+     if((r=DHmem(pin))==-1) goto error_exit;
     if( ( ( ((r >> 8) & 0xff) + ((r >> 16) & 0xff) + ((r >> 24) & 0xff) + ((r >> 32) & 0xff) ) & 0xff) != (r & 0xff)) goto error_exit;                                           // returning temperature
     if(dht22==0){
 		*temp = (MMFLOAT)((r >> 8) &0x7fff) / 10.0;                       // get the temperature
@@ -2077,7 +2084,7 @@ void WS2812(unsigned char *q){
     	} else error("Syntax");
         nbr=getint(argv[4],1,256);
         if(nbr>1){
-            ptr1 = findvar(argv[6], V_FIND | V_EMPTY_OK);
+            ptr1 = findvar(argv[6], V_FIND | V_EMPTY_OK | V_NOFIND_ERR);
             if(vartbl[VarIndex].type & T_INT) {
                 if(vartbl[VarIndex].dims[1] != 0) error("Invalid variable");
                 if(vartbl[VarIndex].dims[0] <= 0) {		// Not an array
@@ -2428,7 +2435,6 @@ void cmd_adc(void){
         adc_set_clkdiv(div);
         // Set up the DMA to start transferring data as soon as it appears in FIFO
         dma_chan = ADC_DMA;
-        dma_channel_claim (dma_chan);
         dma_channel_config cfg = dma_channel_get_default_config(dma_chan);
 
         // Reading from constant address, writing to incrementing byte addresses
@@ -2465,7 +2471,6 @@ void cmd_adc(void){
                 }
             }
             FreeMemory((void *)ADCbuffer);
-            dma_channel_unclaim(dma_chan);
         } else dmarunning=1;
 		return;
 	}
@@ -2519,6 +2524,7 @@ void ClearExternalIO(void) {
     	blitbuff[i].blitbuffptr = NULL;
     }
     CallBackEnabled=0;
+    irq_set_enabled(ALARM_IRQ, false);
     KeypadClose();
     if(*lcd_pins){
         for(i = 0; i < 6; i++) {
@@ -2550,7 +2556,7 @@ void ClearExternalIO(void) {
 	for(i = 0; i < NBRINTERRUPTS; i++) {
       inttbl[i].pin = 0;                                            // disable all interrupts
   	}
-
+    #ifndef PICOMITEWEB
     if(CheckPin(41, CP_NOABORT | CP_IGNORE_INUSE | CP_IGNORE_RESERVED))ExtCfg(41,EXT_DIG_OUT,Option.PWM);
     if(CheckPin(42, CP_NOABORT | CP_IGNORE_INUSE | CP_IGNORE_RESERVED))ExtCfg(42,EXT_DIG_IN,0);
     if(CheckPin(43, CP_NOABORT | CP_IGNORE_INUSE | CP_IGNORE_RESERVED) && !Option.NoHeartbeat){
@@ -2558,13 +2564,13 @@ void ClearExternalIO(void) {
         gpio_set_dir(PinDef[HEARTBEATpin].GPno, GPIO_OUT);
         ExtCurrentConfig[PinDef[HEARTBEATpin].pin]=EXT_HEARTBEAT;
     }
-    FreeMemorySafe((void **)&ds18b20Timers);
     if(CheckPin(44, CP_NOABORT | CP_IGNORE_INUSE | CP_IGNORE_RESERVED))ExtCfg(44,EXT_ANA_IN,0);
+    #endif
+    FreeMemorySafe((void **)&ds18b20Timers);
     KeypadInterrupt = NULL;
 
     for(i = 0; i < NBRSETTICKS; i++) TickInt[i] = NULL;
     for(i = 0; i < NBRSETTICKS; i++) TickActive[i] = 0;
-
 	for(i = 0; i < NBR_PULSE_SLOTS; i++) PulseCnt[i] = 0;             // disable any pending pulse commands
     PulseActive = false;
     slice0=0;slice1=0;slice2=0;slice3=0;slice4=0;slice5=0;slice6=0;slice7=0;
@@ -2611,7 +2617,6 @@ void ClearExternalIO(void) {
     ADCopen=0;
     adc_set_round_robin(0);
     adc_set_clkdiv(0);
-    if(dma_channel_is_claimed(dma_chan))dma_channel_unclaim(dma_chan);
     dmarunning=0;
     ADCInterrupt=NULL;
     KeyInterrupt=NULL;
@@ -2619,6 +2624,7 @@ void ClearExternalIO(void) {
     OnPS2GOSUB=NULL;
     PS2code=0;
     PS2int=0;
+#ifndef PICOMITEWEB
 #ifdef PICOMITEVGA
     CollisionFound = false;
     COLLISIONInterrupt=NULL;
@@ -2628,6 +2634,7 @@ void ClearExternalIO(void) {
     GuiIntDownVector=NULL;
     GuiIntUpVector=NULL;
 #endif
+#endif
     dmarunning=0;
     ADCInterrupt=NULL;
     CSubInterrupt=NULL;
@@ -2635,6 +2642,7 @@ void ClearExternalIO(void) {
     keyselect=0;
     g_myrand=NULL;
     CMM1=0;
+    dirOK=2;
     memset(pioTXlast,0,sizeof(pioTXlast));
     memset(pioRXinterrupts,0,sizeof(pioRXinterrupts));
     memset(pioTXinterrupts,0,sizeof(pioTXinterrupts));
@@ -2644,11 +2652,9 @@ void ClearExternalIO(void) {
 	if(dma_channel_is_busy(dma_rx_chan))
 	{
 		dma_channel_abort(dma_rx_chan);
-		dma_channel_unclaim(dma_rx_chan);
 	}
     if(dma_channel_is_busy(dma_tx_chan)){
 		dma_channel_abort(dma_tx_chan);
-		dma_channel_unclaim(dma_tx_chan);
 	}
 }
 
@@ -2701,9 +2707,12 @@ void __not_in_flash_func(TM_EXTI_Handler_3)(void) {
             INT3Count = 0;
         }
 	}
-	else
-		INT3Count++;
-
+    else {
+        if(CFuncInt3)
+            CallCFuncInt3();                                        // Hardware interrupt 2 for a CFunction (see CFunction.c)
+        else
+            INT3Count++;
+    }
 }
 
 
@@ -2718,8 +2727,12 @@ void __not_in_flash_func(TM_EXTI_Handler_4)(void) {
             INT4Count = 0;
         }
 	}
-	else
-		INT4Count++;
+    else {
+        if(CFuncInt4)
+            CallCFuncInt4();                                        // Hardware interrupt 2 for a CFunction (see CFunction.c)
+        else
+            INT4Count++;
+    }
 
 }
 void __not_in_flash_func(IRHandler)(void) {

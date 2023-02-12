@@ -433,6 +433,9 @@ void cmd_run(void) {
 	PrepareProgram(true);
     IgnorePIN = false;
     if(*ProgMemory != T_NEWLINE) return;                             // no program to run
+#ifdef PICOMITEWEB
+	cleanserver();
+#endif
 	nextstmt = ProgMemory;
 }
 
@@ -707,11 +710,11 @@ void cmd_end(void) {
 	if(dma_channel_is_busy(dma_rx_chan))
 	{
 		dma_channel_abort(dma_rx_chan);
-		dma_channel_unclaim(dma_rx_chan);
+//		dma_channel_unclaim(dma_rx_chan);
 	}
     if(dma_channel_is_busy(dma_tx_chan)){
 		dma_channel_abort(dma_tx_chan);
-		dma_channel_unclaim(dma_tx_chan);
+//		dma_channel_unclaim(dma_tx_chan);
 	}
 	for(int i=0; i< NBRSETTICKS;i++){
 		TickPeriod[i]=0;
@@ -724,10 +727,10 @@ void cmd_end(void) {
     memset(inpbuf,0,STRINGSIZE);
 	CloseAudio(1);
 #ifdef PICOMITEVGA
-	WriteBuf=&AllMemory[HEAP_MEMORY_SIZE + MAXVARS * sizeof(struct s_vartbl) + 2048];
-	DisplayBuf=&AllMemory[HEAP_MEMORY_SIZE + MAXVARS * sizeof(struct s_vartbl) + 2048];
-	LayerBuf=&AllMemory[HEAP_MEMORY_SIZE + MAXVARS * sizeof(struct s_vartbl) + 2048];
-	FrameBuf=&AllMemory[HEAP_MEMORY_SIZE + MAXVARS * sizeof(struct s_vartbl) + 2048];
+	WriteBuf=FRAMEBUFFER;
+	DisplayBuf=FRAMEBUFFER;
+	LayerBuf=FRAMEBUFFER;
+	FrameBuf=FRAMEBUFFER;
 #endif
 
 	if(g_myrand)FreeMemory((void *)g_myrand);
@@ -1363,17 +1366,19 @@ void cmd_subfun(void) {
 }
 
 void cmd_gosub(void) {
-	if(gosubindex >= MAXGOSUB) error("Too many nested GOSUB");
-    errorstack[gosubindex] = CurrentLinePtr;
-	gosubstack[gosubindex++] = nextstmt;
-	LocalIndex++;
-	if(isnamestart(*cmdline))
-		nextstmt = findlabel(cmdline);								// must be a label
-	else
-		nextstmt = findline(getinteger(cmdline), true);				// try for a line number
-	CurrentLinePtr = nextstmt;
-}
+   if(gosubindex >= MAXGOSUB) error("Too many nested GOSUB");
+   char *return_to = nextstmt;
+   if(isnamestart(*cmdline))
+       nextstmt = findlabel(cmdline);
+   else
+       nextstmt = findline(getinteger(cmdline), true);
+   IgnorePIN = false;
 
+   errorstack[gosubindex] = CurrentLinePtr;
+   gosubstack[gosubindex++] = return_to;
+   LocalIndex++;
+   CurrentLinePtr = nextstmt;
+}
 
 void cmd_mid(void){
 	unsigned char *p;

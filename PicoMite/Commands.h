@@ -241,5 +241,4 @@ struct sa_data{
 };
 extern struct sa_data datastore[MAXRESTORE];
 extern int restorepointer;
-
 #endif

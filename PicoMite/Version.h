@@ -25,6 +25,10 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 
 
 
-#define VERSION         "5.07.07b5" 			    // define the version number
+#ifndef PICOMITEWEB
+#define VERSION         "5.07.07b18" 			    // define the version number
+#else
+#define VERSION         "5.07.07a11" 			    // define the version number
+#endif
 #define YEAR			"2011-2023"			    // and the year
 #define YEAR2          "2016-2023"

@@ -259,6 +259,14 @@ void gpio_callback(uint gpio, uint32_t events);
 #define setuptime (12-(Option.CPU_Speed-250000)/50000)
 #define shortpause(a){systick_hw->cvr=0;while(systick_hw->cvr>a){};}
 extern int CheckPin(int pin, int action);
+extern unsigned int CFuncInt1;
+extern unsigned int CFuncInt2;
+extern unsigned int CFuncInt3;
+extern unsigned int CFuncInt4;
+extern void CallCFuncInt1(void);
+extern void CallCFuncInt2(void);
+extern void CallCFuncInt3(void);
+extern void CallCFuncInt4(void);
 
 extern int InterruptUsed;
 typedef enum

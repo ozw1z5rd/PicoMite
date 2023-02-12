@@ -71,6 +71,11 @@
 #define Vector_AudioOutput        *(unsigned int *)(BaseAddress+0xC4)         // AudioOutput(int left, int right)
 #define Vector_IDiv    			  (*(unsigned int *)(BaseAddress+0xC8))       // int IDiv(int a, int b){ return a / b; }
 #define Vector_AUDIO_WRAP         (*(volatile unsigned int *)(BaseAddress+0xCC))// AUDIO_WRAP
+#define Vector_CFuncInt3          *(unsigned int *)(BaseAddress+0xD0 )        // CFuncInt1
+#define Vector_CFuncInt4          *(unsigned int *)(BaseAddress+0xD4)         // CFuncInt2
+#define Vector_PIOExecute         (*(unsigned int *)(BaseAddress+0xD8))       // void PioExecute(int pio, int sm, uint32_t instruction)
+#define Vector_CFuncTimer         *(unsigned int *)(BaseAddress+0xDC)         // CFuncTimer
+#define Vector_SetUpCFuncTimer    (*(unsigned int *)(BaseAddress+0xE0))       // void SetUpCFuncTimer(int uSecs)
 //Macros to call each function.
 #define uSec(a)                         ((void  (*)(unsigned long long )) Vector_uSec) (a)
 #define putConsole(a,b)                 ((void(*)(int, int)) Vector_putConsole) (a,b)
@@ -152,6 +157,11 @@
 #define AudioOutput(a,b)                ((void (*)(uint16_t, uint16_t)) (*(unsigned int *)Vector_AudioOutput)) (a, b)
 #define IDiv(a,b)                       ((int (*)(int, int)) Vector_IDiv) (a,b)
 #define AUDIO_WRAP                      (*(uint16_t *) Vector_AUDIO_WRAP)
+#define CFuncInt3                       (*(unsigned int *) Vector_CFuncInt3)
+#define CFuncInt4                       (*(unsigned int *) Vector_CFuncInt4)
+#define PIOExecute(a,b,c)               ((void (*)(int, int, unsigned int)) Vector_PIOExecute) (a,b,c)
+#define CFuncTimer                      (*(unsigned int *) Vector_CFuncTimer)
+#define SetUpCFunctTimer       			((void (*)(int)) Vector_SetUpCFunctTimer) (a)
 // the structure of the variable table, passed to the CFunction as a pointer Vector_vartbl which is #defined as vartbl
 struct s_vartbl {                               // structure of the variable table
    char name[MAXVARLEN];                       // variable's name

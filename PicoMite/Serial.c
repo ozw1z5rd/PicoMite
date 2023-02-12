@@ -185,15 +185,30 @@ void on_uart_irq1() {
 		}
     }
 }
+
 /***************************************************************************************************
 Initialise the serial function including the timer and interrupts.
 ****************************************************************************************************/
+
 #define UART_ID  (uart ? uart1: uart0)
-void setupuart(int uart, int s2,int parity, int b7, int baud){
+void invert_serial(int uart){
+	int txpin, rxpin;
+	if(uart==0){
+		txpin=PinDef[UART0TXpin].GPno;
+		rxpin=PinDef[UART0RXpin].GPno;
+	} else {
+		txpin=PinDef[UART1TXpin].GPno;
+		rxpin=PinDef[UART1RXpin].GPno;
+	}
+	gpio_set_outover(txpin, GPIO_OVERRIDE_INVERT);
+	gpio_set_inover(rxpin, GPIO_OVERRIDE_INVERT);
+}
+void setupuart(int uart, int s2,int parity, int b7, int baud, int inv){
 	uart_init(UART_ID,baud);
     uart_set_hw_flow(UART_ID, false, false);
     uart_set_format(UART_ID, b7, s2, parity);
     uart_set_fifo_enabled(UART_ID, false);
+	if(inv)invert_serial(uart);
     int UART_IRQ = (UART_ID == uart0 ? UART0_IRQ : UART1_IRQ);
     if(uart){
 		irq_set_exclusive_handler(UART_IRQ, on_uart_irq1);
@@ -209,7 +224,7 @@ void setupuart(int uart, int s2,int parity, int b7, int baud){
 Initialise the serial function including the timer and interrupts.
 ****************************************************************************************************/
 void SerialOpen(unsigned char *spec) {
-	int baud, i, s2, parity, b7, bufsize, ilevel=1;
+	int baud, i, s2, parity, b7, bufsize, inv=0, ilevel=1;
 	char *interrupt, *TXinterrupt;
 
 	getargs(&spec, 21, ":,");										// this is a macro and must be the first executable stmt
@@ -218,7 +233,7 @@ void SerialOpen(unsigned char *spec) {
     b7 = 8;
 	parity = UART_PARITY_NONE;
 	s2 = 1;
-    for(i = 0; i < 3; i++) {
+    for(i = 0; i < 5; i++) {
     	if(str_equal(argv[argc - 1], "EVEN")) {
     		if(parity)error("Syntax");
     		else {parity = UART_PARITY_EVEN; argc -= 2; }	// set even parity
@@ -227,14 +242,13 @@ void SerialOpen(unsigned char *spec) {
     		if(parity)error("Syntax");
     		else {parity = UART_PARITY_ODD; argc -= 2; }	// set even parity
     	}
-    	if(str_equal(argv[argc - 1], "INV")) error("INV not Supported");	// get the two stop bit option
+    	if(str_equal(argv[argc - 1], "INV")) { inv = 1; argc -= 2; };	// invert the serial port
     	if(str_equal(argv[argc - 1], "DE")) error("DE not Supported");	// get the two stop bit option
 	   	if(str_equal(argv[argc - 1], "OC")) error("OC not Supported");	// get the two stop bit option
     	if(str_equal(argv[argc - 1], "9BIT")) error("9BIT not Supported");	// get the two stop bit option
      	if(str_equal(argv[argc - 1], "S2")) { s2 = 2; argc -= 2; }	// get the two stop bit option
     	if(str_equal(argv[argc - 1], "7BIT")) { b7 = 7; argc -= 2; }	// set the 7 bit byte option
     }
-
 	if(argc < 1 || argc > 9) error("COM specification");
 
 	if(argc >= 3 && *argv[2]) {
@@ -289,7 +303,7 @@ void SerialOpen(unsigned char *spec) {
 		com1Tx_head = com1Tx_tail = 0;
 		ExtCfg(UART0TXpin, EXT_COM_RESERVED, 0);
 
-        setupuart(0, s2, parity, b7, baud);
+        setupuart(0, s2, parity, b7, baud, inv);
         com1 = true;
 		uSec(1000);
 		com1Rx_head = com1Rx_tail = 0;
@@ -318,7 +332,7 @@ void SerialOpen(unsigned char *spec) {
 		com2Tx_buf = GetMemory(TX_BUFFER_SIZE);						// setup the buffer
 		com2Tx_head = com2Tx_tail = 0;
 		ExtCfg(UART1TXpin, EXT_COM_RESERVED, 0);                   // reserve the pin for com use
-        setupuart(1, s2, parity, b7, baud);
+        setupuart(1, s2, parity, b7, baud, inv);
         com2 = true;
 		uSec(1000);
 		com2Rx_head = com2Rx_tail = 0;

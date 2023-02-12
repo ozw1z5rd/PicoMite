@@ -271,15 +271,17 @@ extern void __not_in_flash_func(spi_finish)(spi_inst_t *spi);
 #define ST7789A         12
 #define ST7789B         13
 #define ILI9488W        14
-#define GC9A01          15
-#define ILI9481IPS        16
-#define N5110			17
+#define ST7735S_W       15
+#define GC9A01          16
+#define ILI9481IPS      17
+#define N5110			18
 #define BufferedPanel	N5110
-#define SSD1306SPI      18
-#define ST7920			19
-#define TOUCH           20
-#define SPIReadSpeed    21
-#define ST7789RSpeed    22
+#define SSD1306SPI      19
+#define ST7920			20
+#define TOUCH           21
+#define SPIReadSpeed    22
+#define ST7789RSpeed    23
+#define SLOWTOUCH       24
 #define DISP_USER       25
 #define MONOVGA         26
 #define VGADISPLAY      MONOVGA  
@@ -380,6 +382,7 @@ extern void __not_in_flash_func(spi_finish)(spi_inst_t *spi);
 #define FLASH_SPI_SPEED 20000000
 #define LCD_SPI_SPEED   25000000                                   // the speed of the SPI bus when talking to an SPI LCD display controller
 #define TOUCH_SPI_SPEED 1000000
+#define SLOW_TOUCH_SPEED 240000
 #define NOKIA_SPI_SPEED 4000000
 #define ST7920_SPI_SPEED 1200000
 #define SDCARD_SPI_SPEED 0

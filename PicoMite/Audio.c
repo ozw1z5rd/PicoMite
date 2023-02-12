@@ -42,7 +42,6 @@ extern int InitSDCard(void);
 extern const int ErrorMap[21];
 extern char *GetCWD(void);
 extern void ErrorCheck(int fnbr);
-extern void ForceFileClose(int fnbr);
 extern const int mapping[101];
 /********************************************************************************************************************************************
 commands and functions

@@ -28,7 +28,6 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 #include <stdarg.h>
 #include "MMBasic.h"
 #include "pico/stdlib.h"
-
 #include "Functions.h"
 #include "Commands.h"
 #include "Operators.h"
@@ -72,7 +71,7 @@ struct s_hash {                             // structure of the token table
 // these are initialised at startup
 int CommandTableSize, TokenTableSize;
 struct s_funtbl funtbl[MAXSUBFUN];
-struct s_vartbl *vartbl=NULL;                                            // this table stores all variables
+struct s_vartbl __attribute__ ((aligned (64))) vartbl[MAXVARS]={0};                                            // this table stores all variables
 int varcnt;                                                         // number of variables
 int VarIndex;                                                       // Global set by findvar after a variable has been created or found
 int Localvarcnt;                                                         // number of LOCAL variables
@@ -297,12 +296,30 @@ void  InitBasic(void) {
 
 }
 
+int CheckEmpty(char *p){
+        int emptyarray=0;
+        char *pp = strchr(p, '(');
+        if(pp){
+            pp++;
+            skipspace(pp);
+            if(*pp == ')')emptyarray=1;
+        }
+        while(*(++pp)){
+            if(*pp=='(')return 1; // can't be a function call with an implied opening
+            if(*pp==')')return 0; // closing bracket without open so much be implied in a function call e.g. PEEK(
+        }
+        return emptyarray;
+}
 
 
 // run a program
 // this will continuously execute a program until the end (marked by TWO zero chars)
 // the argument p must point to the first line to be executed
 void __not_in_flash_func(ExecuteProgram)(unsigned char *p) {
+#ifdef PICOMITEWEB
+    static long long int lastmsec=0;
+    static int testcount=0;     
+#endif
     int i, SaveLocalIndex = 0;
     jmp_buf SaveErrNext;
     memcpy(SaveErrNext, ErrNext, sizeof(jmp_buf));                  // we call ExecuteProgram() recursively so we need to store/restore old jump buffer between calls
@@ -359,6 +376,15 @@ void __not_in_flash_func(ExecuteProgram)(unsigned char *p) {
                 if(TempMemoryIsChanged) ClearTempMemory();          // at the end of each command we need to clear any temporary string vars
                 CheckAbort();
                 check_interrupt();                                  // check for an MMBasic interrupt or touch event and handle it
+        #ifdef PICOMITEWEB
+                if(testcount == 0 || lastmsec!=mSecTimer){
+                    lastmsec=mSecTimer;
+                    testcount = 0 ;
+                    {if(startupcomplete)cyw43_arch_poll();}
+                }
+                testcount++;
+                if(testcount==10)testcount=0;
+        #endif
             }
             p = nextstmt;
         }
@@ -2583,7 +2609,7 @@ void FloatToStr(char *p, MMFLOAT f, int m, int n, unsigned char ch) {
         exp = 0;
     else
         exp = floor(log10(fabs(f)));                             // get the exponent part
-    if(((fabs(f) < 0.0001 || fabs(f) >= 1000000) && f != 0 && n == STR_AUTO_PRECISION) || n < 0) {
+    if(((fabs(f) < 0.0001 || fabs(f) >= 1000000) && f != 0 && (n == STR_AUTO_PRECISION || n==STR_FLOAT_PRECISION)) || n < 0) {
         // we must use scientific notation
         f /= pow(10, exp);                                         // scale the number to 1.2345
         if(f >= 10) { f /= 10; exp++; }
@@ -2608,6 +2634,12 @@ void FloatToStr(char *p, MMFLOAT f, int m, int n, unsigned char ch) {
             n = STR_SIG_DIGITS - exp;
             if(n < 0) n = 0;
         }
+        if(n == STR_FLOAT_PRECISION) {
+            trim = true;
+            n = STR_FLOAT_DIGITS - exp;
+            if(n < 0) n = 0;
+        }
+
 
         // calculate rounding to hide the vagaries of floating point
         if(n > 0)
@@ -2743,18 +2775,29 @@ void  ClearStack(void) {
 // this is done before running a program
 void ClearRuntime(void) {
     int i;
+#ifdef PICOMITEWEB
+    if(TCPstate){
+        TCP_SERVER_T *state = (TCP_SERVER_T*)TCPstate;
+        for(int i=0 ; i<MaxPcb ; i++){
+            state->write_pcb=i;
+            if(state->client_pcb[i])tcp_server_close(state);
+            if(state->buffer_recv[i])FreeMemorySafe((void **)&state->buffer_recv[i]);
+            state->inttrig[i]=0;
+            state->sent_len[i]=0;
+            state->recv_len[i]=0;
+            state->to_send[i]=0;
+        }
+    }
+#endif
+    CloseAllFiles();
     ClearExternalIO();                                              // this MUST come before InitHeap()
     ClearStack();
     OptionExplicit = false;
     DefaultType = T_NBR;
-    CloseAllFiles();
     findlabel(NULL);                                                // clear the label cache
     OptionErrorSkip = 0;
     MMerrno = 0;                                                    // clear the error flags
    *MMErrMsg = 0;
-	#if defined(MMFAMILY) || defined(DOS)
-	    NbrModules = 0;
-    #endif
     InitHeap();
     m_alloc(M_VAR);
     ClearVars(0);
@@ -2763,11 +2806,13 @@ void ClearRuntime(void) {
     varcnt = 0;
     CurrentLinePtr = ContinuePoint = NULL;
     for(i = 0;  i < MAXSUBFUN; i++)  subfun[i] = NULL;
+#ifdef PICOMITE
     for(i = 1; i < Option.MaxCtrls; i++) {
         memset(&Ctrl[i],0,sizeof(struct s_ctrl));
         Ctrl[i].state = Ctrl[i].type = 0;
         Ctrl[i].s = NULL;
     }
+#endif
 }
 
 

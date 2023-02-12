@@ -41,21 +41,29 @@ extern const uint8_t *flash_progmemory;
 
 // allocate static memory for programs, variables and the heap
 // this is simple memory management because DOS has plenty of memory
-unsigned char __attribute__ ((aligned (32))) AllMemory[ALL_MEMORY_SIZE];
-#ifndef PICOMITEVGA
-unsigned char *CTRLS=&AllMemory[HEAP_MEMORY_SIZE +  MAXVARS * sizeof(struct s_vartbl) + 2048];
+//unsigned char __attribute__ ((aligned (256))) AllMemory[ALL_MEMORY_SIZE];
+#ifdef PICOMITEVGA
+char __attribute__ ((aligned (256))) FRAMEBUFFER[640*480/8];
+unsigned char *WriteBuf=FRAMEBUFFER;
+unsigned char *DisplayBuf=FRAMEBUFFER;
+unsigned char *LayerBuf=FRAMEBUFFER;
+unsigned char *FrameBuf=FRAMEBUFFER;
+#endif
+#ifdef PICOMITE
+struct s_ctrl CTRLS[MAXCONTROLS];
+struct s_ctrl *Ctrl=NULL;
 unsigned char *WriteBuf=NULL;
 unsigned char *LayerBuf=NULL;
 unsigned char *FrameBuf=NULL;
-#else
-unsigned char *WriteBuf=&AllMemory[HEAP_MEMORY_SIZE + MAXVARS * sizeof(struct s_vartbl) + 2048];
-unsigned char *DisplayBuf=&AllMemory[HEAP_MEMORY_SIZE + MAXVARS * sizeof(struct s_vartbl) + 2048];
-unsigned char *LayerBuf=&AllMemory[HEAP_MEMORY_SIZE + MAXVARS * sizeof(struct s_vartbl) + 2048];
-unsigned char *FrameBuf=&AllMemory[HEAP_MEMORY_SIZE + MAXVARS * sizeof(struct s_vartbl) + 2048];
 #endif
-unsigned char *MMHeap=AllMemory;
-struct s_ctrl *Ctrl=NULL;
-unsigned int mmap[HEAP_MEMORY_SIZE/ PAGESIZE / PAGESPERWORD];
+#ifdef PICOMITEWEB
+unsigned char *WriteBuf=NULL;
+unsigned char *LayerBuf=NULL;
+unsigned char *FrameBuf=NULL;
+#endif
+
+unsigned char __attribute__ ((aligned (256))) MMHeap[HEAP_MEMORY_SIZE+256]={0};
+unsigned int mmap[HEAP_MEMORY_SIZE/ PAGESIZE / PAGESPERWORD]={0};
 
 unsigned int MBitsGet(unsigned char *addr);
 void MBitsSet(unsigned char *addr, int bits);
@@ -82,12 +90,32 @@ void cmd_memory(void) {
         if(argc!=7)error("Syntax");
         int i,n=getinteger(argv[4]);
         if(n<=0)return;
-        uint64_t *from=(uint64_t *)GetPokeAddr(argv[0]);
-        if((uint32_t)from % 8)error("Source address not divisible by 8");
         int size=getint(argv[6],1,32);
         if(!(size==1 || size==4 || size==8 || size==16 || size==32))error((char *)"Invalid size");
+        int sourcesize,destinationsize;
+        void *top=NULL;
+        uint64_t *from=NULL;
+        if(CheckEmpty(argv[0])){
+        void *ptr1 = findvar(argv[0], V_FIND | V_EMPTY_OK | V_NOFIND_ERR);
+        if(!(ptr1 && (vartbl[VarIndex].type & T_INT)))error("Invalid source");
+            if(vartbl[VarIndex].dims[1] != 0) error("Invalid variable");
+            sourcesize=vartbl[VarIndex].dims[0] - OptionBase + 1;
+            sourcesize=vartbl[VarIndex].dims[0] - OptionBase + 1;
+            if(n>sourcesize)error("Source array too small");
+            from=(uint64_t *)ptr1;
+        } else from=(uint64_t *)GetPokeAddr(argv[0]);
+        if(CheckEmpty(argv[2])){
+            void *ptr2 = findvar(argv[2], V_FIND | V_EMPTY_OK | V_NOFIND_ERR);
+            if(!(ptr2 && (vartbl[VarIndex].type & T_INT)))error("Invalid destination");
+            if(vartbl[VarIndex].dims[1] != 0) error("Invalid variable");
+            destinationsize=vartbl[VarIndex].dims[0] - OptionBase + 1;
+            destinationsize=vartbl[VarIndex].dims[0] - OptionBase + 1;
+            if(destinationsize*64/size<n)error("Destination array too small");
+            top=(void *)ptr2;
+        } else top=(void *)GetPokeAddr(argv[2]);
+        if((uint32_t)from % 8)error("Source address not divisible by 8");
         if(size==1){
-            uint8_t *to=(uint8_t *)GetPokeAddr(argv[2]);
+            uint8_t *to=(uint8_t *)top;
             for(i=0;i<n;i++){
                 int s= i % 8;
                 if(s==0)*to=0;
@@ -95,7 +123,7 @@ void cmd_memory(void) {
                 if(s==7)to++;
            }
         } else if(size==4){
-            uint8_t *to=(uint8_t *)GetPokeAddr(argv[2]);
+            uint8_t *to=(uint8_t *)top;
             for(i=0;i<n;i++){
                 if((i & 1) == 0){
                     *to=(*from++) & 0xF;
@@ -105,18 +133,18 @@ void cmd_memory(void) {
                 }
            }
         } else if(size==8){
-            uint8_t *to=(uint8_t *)GetPokeAddr(argv[2]);
+            uint8_t *to=(uint8_t *)top;
             while(n--){
             *to++=(uint8_t)*from++;
             }
         } else if(size==16){
-            uint16_t *to=(uint16_t *)GetPokeAddr(argv[2]);
+            uint16_t *to=(uint16_t *)top;
             if((uint32_t)to % 2)error("Destination address not divisible by 2");
             while(n--){
             *to++=(uint16_t)*from++;
             }
         } else if(size==32){
-            uint32_t *to=(uint32_t *)GetPokeAddr(argv[2]);
+            uint32_t *to=(uint32_t *)top;
             if((uint32_t)to % 4)error("Destination address not divisible by 4");
             while(n--){
             *to++=(uint32_t)*from++;
@@ -130,12 +158,32 @@ void cmd_memory(void) {
         if(argc!=7)error("Syntax");
         int i,n=getinteger(argv[4]);
         if(n<=0)return;
-        uint64_t *to=(uint64_t *)GetPokeAddr(argv[2]);
-        if((uint32_t)to % 8)error("Destination address not divisible by 8");
         int size=getint(argv[6],1,32);
         if(!(size==1 || size==4 || size==8 || size==16 || size==32))error((char *)"Invalid size");
+        int sourcesize,destinationsize;
+        uint64_t *to=NULL;
+        void *fromp=NULL;
+        if(CheckEmpty(argv[0])){
+           void *ptr1 = findvar(argv[0], V_FIND | V_EMPTY_OK | V_NOFIND_ERR);
+            if(!(ptr1 && (vartbl[VarIndex].type & T_INT)))error("Invalid source");
+            if(vartbl[VarIndex].dims[1] != 0) error("Invalid variable");
+            sourcesize=vartbl[VarIndex].dims[0] - OptionBase + 1;
+            if(sourcesize*64/size<n)error("Source array too small");
+            fromp=ptr1;
+        } else {
+            fromp=(void*)GetPokeAddr(argv[0]);
+        }
+        if(CheckEmpty(argv[2])){
+            void *ptr2 = findvar(argv[2], V_FIND | V_EMPTY_OK | V_NOFIND_ERR);
+            if(!(ptr2 && (vartbl[VarIndex].type & T_INT)))error("Invalid destination");
+            if(vartbl[VarIndex].dims[1] != 0) error("Invalid variable");
+            destinationsize=vartbl[VarIndex].dims[0] - OptionBase + 1;
+            if(n>destinationsize)error("Destination array too small");
+            to=(uint64_t *)ptr2;
+        } else to=(uint64_t *)GetPokeAddr(argv[2]);
+        if((uint32_t)to % 8)error("Source address not divisible by 8");
         if(size==1){
-            uint8_t *from=(uint8_t *)GetPokeAddr(argv[0]);
+            uint8_t *from=(uint8_t *)fromp;
             for(i=0;i<n;i++){
                 int s= i % 8;
                 *to++ = (*from) & ((0x1<<s) ? 1 : 0);
@@ -143,7 +191,7 @@ void cmd_memory(void) {
            }
 
         } else if(size==4){
-            uint8_t *from=(uint8_t *)GetPokeAddr(argv[0]);
+            uint8_t *from=(uint8_t *)fromp;
             for(i=0;i<n;i++){
                 if((i & 1) == 0){
                     *to++=(*from) & 0xF;
@@ -153,18 +201,18 @@ void cmd_memory(void) {
                 }
            }
         } else if(size==8){
-            uint8_t *from=(uint8_t *)GetPokeAddr(argv[0]);
+            uint8_t *from=(uint8_t *)fromp;
             while(n--){
             *to++=(uint64_t)*from++;
             }
         } else if(size==16){
-            uint16_t *from=(uint16_t *)GetPokeAddr(argv[0]);
+            uint16_t *from=(uint16_t *)fromp;
             if((uint32_t)from % 2)error("Source address not divisible by 2");
             while(n--){
             *to++=(uint64_t)*from++;
             }
         } else if(size==32){
-            uint32_t *from=(uint32_t *)GetPokeAddr(argv[0]);
+            uint32_t *from=(uint32_t *)fromp;
             if((uint32_t)from % 4)error("Source address not divisible by 4");
             while(n--){
             *to++=(uint64_t)*from++;
@@ -515,16 +563,14 @@ void m_alloc(int type) {
         case M_PROG:    // this is called initially in InitBasic() to set the base pointer for program memory
                         // everytime the program size is adjusted up or down this must be called to check for memory overflow
                         ProgMemory = (uint8_t *)flash_progmemory;
-                        memset(MMHeap,0,Option.HEAP_SIZE);
-						Ctrl=NULL;
-#ifndef PICOMITEVGA
+                        memset(MMHeap,0,HEAP_MEMORY_SIZE);
+#ifdef PICOMITE
                         if(Option.MaxCtrls) Ctrl=(struct s_ctrl *)CTRLS;
 #endif
                         break;
                         
         case M_VAR:     // this must be called to initialises the variable memory pointer
                         // everytime the variable table is increased this must be called to verify that enough memory is free
-                        vartbl = (struct s_vartbl *)&AllMemory[HEAP_MEMORY_SIZE+1024];
                         memset(vartbl,0,MAXVARS * sizeof(struct s_vartbl));
                         break;
     }
@@ -607,7 +653,6 @@ void TestStackOverflow(void) {
 void __not_in_flash_func(FreeMemory)(unsigned char *addr) {
     int bits;
     if(addr == NULL) return;
- //   dp(" free = %p", addr);
     do {
         bits = MBitsGet(addr);
         MBitsSet(addr, 0);
@@ -622,10 +667,10 @@ void InitHeap(void) {
     for(i = 0; i < (HEAP_MEMORY_SIZE/PAGESIZE) / PAGESPERWORD; i++) mmap[i] = 0;
     for(i = 0; i < MAXTEMPSTRINGS; i++) StrTmp[i] = NULL;
 #ifdef PICOMITEVGA
-	WriteBuf=&AllMemory[HEAP_MEMORY_SIZE + MAXVARS * sizeof(struct s_vartbl) + 2048];
-	DisplayBuf=&AllMemory[HEAP_MEMORY_SIZE + MAXVARS * sizeof(struct s_vartbl) + 2048];
-	LayerBuf=&AllMemory[HEAP_MEMORY_SIZE + MAXVARS * sizeof(struct s_vartbl) + 2048];
-	FrameBuf=&AllMemory[HEAP_MEMORY_SIZE + MAXVARS * sizeof(struct s_vartbl) + 2048];
+WriteBuf=FRAMEBUFFER;
+DisplayBuf=FRAMEBUFFER;
+LayerBuf=FRAMEBUFFER;
+FrameBuf=FRAMEBUFFER;
 #else
     FrameBuf=NULL;
     WriteBuf=NULL;
@@ -686,27 +731,18 @@ void __not_in_flash_func(*GetMemory)(int size) {
 }    
 
 void *GetAlignedMemory(int size) {
-    unsigned int j, n;
-    unsigned char *addr;
-    j = n = (size + PAGESIZE - 1)/PAGESIZE;                         // nbr of pages rounded up
-    for(addr = MMHeap + Option.HEAP_SIZE - PAGESIZE; addr >= MMHeap; addr -= PAGESIZE) {
-        if(!((MBitsGet(addr) & PUSED)) || ((uint32_t)addr & (size-1))) {
-            if(--n == 0) {                                          // found a free slot
-                j--;
-                MBitsSet(addr + (j * PAGESIZE), PUSED | PLAST);     // show that this is used and the last in the chain of pages
-                while(j--) MBitsSet(addr + (j * PAGESIZE), PUSED);  // set the other pages to show that they are used
-                memset(addr, 0, size);                              // zero the memory
- //               dp("alloc = %p (%d)", addr, size);
-                return (void *)addr;
-            }
-        } else
-            n = j;                                                  // not enough space here so reset our count
+   unsigned char *addr=MMHeap;
+    while(((uint32_t)addr & (size-1)) && (!((MBitsGet(addr) & PUSED))) && ((uint32_t)addr<(uint32_t)MMHeap+HEAP_MEMORY_SIZE))addr+=PAGESIZE;
+    if((uint32_t)addr==(uint32_t)MMHeap+HEAP_MEMORY_SIZE)error("Not enough memory");
+    unsigned char *retaddr=addr;
+    for(;size>0;addr+=PAGESIZE, size-=PAGESIZE){
+         if(!(MBitsGet(addr) & PUSED)){
+            MBitsSet(addr,PUSED);
+         } else error("Not enough memory");
     }
-    // out of memory
-    TempStringClearStart = 0;
-    ClearTempMemory();                                               // hopefully this will give us enough to print the prompt
-    error("Not enough memory");
-    return NULL;                                                    // keep the compiler happy
+    addr-=PAGESIZE;
+    MBitsSet(addr, PUSED | PLAST); 
+    return(retaddr);
 }    
 
 

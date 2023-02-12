@@ -38,22 +38,42 @@ extern "C" {
 #include "MMBasic_Includes.h"
 #include "Hardware_Includes.h"
 #include "hardware/structs/systick.h"
-#include "hardware/structs/scb.h"
+#include "hardware/structs/timer.h"
 #include "hardware/vreg.h"
 #include "hardware/structs/ssi.h"
 #include "pico/unique_id.h"
 #include <pico/bootrom.h>
 #include "hardware/irq.h"
 #include "class/cdc/cdc_device.h" 
+#include "hardware/pio.h"
+#include "hardware/pio_instructions.h"
+#ifdef PICOMITEWEB
+#include "lwipopts.h"
+#include "pico/cyw43_arch.h"
+#include "lwip/pbuf.h"
+#include "lwip/tcp.h"
+#include "lwip/dns.h"
+#include "lwip/pbuf.h"
+#include "lwip/udp.h"
+#include "pico/cyw43_arch.h"
+#endif
 #ifdef PICOMITEVGA
 #include "Include.h"
 #define MES_SIGNON  "\rPicoMiteVGA MMBasic Version " VERSION "\r\n"\
 					"Copyright " YEAR " Geoff Graham\r\n"\
 					"Copyright " YEAR2 " Peter Mather\r\n\r\n"
 #else
+#ifdef PICOMITEWEB
+#define MES_SIGNON  "\rPicoMiteWeb MMBasic Version " VERSION "\r\n"\
+					"Copyright " YEAR " Geoff Graham\r\n"\
+					"Copyright " YEAR2 " Peter Mather\r\n\r\n"
+	volatile int WIFIconnected=0;
+	int startupcomplete=0;
+#else
 #define MES_SIGNON  "\rPicoMite MMBasic Version " VERSION "\r\n"\
 					"Copyright " YEAR " Geoff Graham\r\n"\
 					"Copyright " YEAR2 " Peter Mather\r\n\r\n"
+#endif
 #endif
 #define USBKEEPALIVE 30000
 int ListCnt;
@@ -80,7 +100,7 @@ volatile unsigned int diskchecktimer = DISKCHECKRATE;
 volatile unsigned int clocktimer=60*60*1000;
 volatile unsigned int PauseTimer = 0;
 volatile unsigned int IntPauseTimer = 0;
-volatile unsigned int Timer1=0, Timer2=0;		                       //1000Hz decrement timer
+volatile unsigned int Timer1=0, Timer2=0, Timer4=0;		                       //1000Hz decrement timer
 volatile unsigned int USBKeepalive=USBKEEPALIVE;
 volatile int ds18b20Timer = -1;
 volatile unsigned int ScrewUpTimer = 0;
@@ -141,10 +161,12 @@ extern unsigned int CFuncmSec;
 extern void CallCFuncInt1(void);
 extern void CallCFuncInt2(void);
 extern volatile int CSubComplete;
-static uint64_t __not_in_flash_func(timer)(void){ return time_us_64();}
+static uint64_t __not_in_flash_func(uSecTimer)(void){ return time_us_64();}
 static int64_t PinReadFunc(int a){return gpio_get(PinDef[a].GPno);}
 extern void CallExecuteProgram(char *p);
 extern void CallCFuncmSec(void);
+static uint64_t timer_target;
+unsigned int CFuncFastTimer = (unsigned int)NULL;
 #define CFUNCRAM_SIZE   256
 int CFuncRam[CFUNCRAM_SIZE/sizeof(int)];
 MMFLOAT IntToFloat(long long int a){ return a; }
@@ -152,6 +174,40 @@ MMFLOAT FMul(MMFLOAT a, MMFLOAT b){ return a * b; }
 MMFLOAT FAdd(MMFLOAT a, MMFLOAT b){ return a + b; }
 MMFLOAT FSub(MMFLOAT a, MMFLOAT b){ return a - b; }
 MMFLOAT FDiv(MMFLOAT a, MMFLOAT b){ return a / b; }
+uint32_t CFunc_delay_us;
+void PIOExecute(int pion, int sm, uint32_t ins){
+    PIO pio = (pion ? pio1: pio0);
+    pio_sm_exec(pio, sm, ins);
+}
+void __not_in_flash_func(CFuncFastTimerCallback)(void){
+    uint64_t target=timer_hw->timerawl + CFunc_delay_us;
+    timer_hw->alarm[ALARM_NUM] = (uint32_t) target;
+    typedef void func(void);
+    func* f=(func*)(void *) CFuncFastTimer;
+    hw_clear_bits(&timer_hw->intr, 1u << ALARM_NUM);
+    f();
+}
+
+void CFuncTimer(uint32_t period){
+    CFunc_delay_us=period;
+    hw_set_bits(&timer_hw->inte, 1u << ALARM_NUM);
+    // Set irq handler for alarm irq
+    irq_set_exclusive_handler(ALARM_IRQ, CFuncFastTimerCallback);
+    // Enable the alarm irq
+    // Enable interrupt in block and at processor
+
+    // Alarm is only 32 bits so if trying to delay more
+    // than that need to be careful and keep track of the upper
+    // bits
+    uint64_t target = timer_hw->timerawl + CFunc_delay_us;
+
+    // Write the lower 32 bits of the target time to the alarm which
+    // will arm it
+    timer_hw->alarm[ALARM_NUM] = (uint32_t) target;
+    irq_set_enabled(ALARM_IRQ, true);
+    irq_set_priority(ALARM_IRQ,0x40);
+
+} 
 int IDiv(int a, int b){return a/b;}
 int   FCmp(MMFLOAT a,MMFLOAT b){if(a>b) return 1;else if(a<b)return -1; else return 0;}
 MMFLOAT LoadFloat(unsigned long long c){union ftype{ unsigned long long a; MMFLOAT b;}f;f.a=c;return f.b; }
@@ -194,7 +250,7 @@ const void * const CallTable[] __attribute__((section(".text")))  = {	(void *)uS
 																		(void *)sin,	//0x90
 																		(void *)DrawCircle,	//0x94
 																		(void *)DrawTriangle,	//0x98
-																		(void *)timer,	//0x9c
+																		(void *)uSecTimer,	//0x9c
                                                                         (void *)FMul,//0xa0
                                                                         (void *)FAdd,//0xa4
                                                                         (void *)FSub,//0xa8
@@ -210,7 +266,7 @@ const void * const CallTable[] __attribute__((section(".text")))  = {	(void *)uS
 									   	   	   	   	   	   	   	   	   	   };
 
 const struct s_PinDef PinDef[NBRPINS + 1]={
-	    { 0, 99, "NULL",  UNUSED  ,99, 99},                                                         // pin 0
+	    { 0, 99, "NULL",  UNUSED  ,99, 99},
 	    { 1,  0, "GP0",  DIGITAL_IN | DIGITAL_OUT | SPI0RX | UART0TX  | I2C0SDA | PWM0A,99,0},  	// pin 1
 		{ 2,  1, "GP1",  DIGITAL_IN | DIGITAL_OUT | UART0RX | I2C0SCL | PWM0B ,99,128},    		    // pin 2
 		{ 3, 99, "GND",  UNUSED  ,99,99},                                                           // pin 3
@@ -252,10 +308,12 @@ const struct s_PinDef PinDef[NBRPINS + 1]={
 		{ 38, 99, "GND", UNUSED  ,99, 99},                                                          // pin 38
 		{ 39, 99, "VSYS", UNUSED  ,99, 99},                                                         // pin 39
 		{ 40, 99, "VBUS", UNUSED  ,99, 99},                                                         // pin 40
+    #ifndef PICOMITEWEB
 		{ 41, 23, "GP23", DIGITAL_IN | DIGITAL_OUT | SPI0TX | I2C1SCL| PWM3B  ,99 , 131},           // pseudo pin 41
 		{ 42, 24, "GP24", DIGITAL_IN | DIGITAL_OUT | SPI1RX | UART1TX | I2C0SDA| PWM4A  ,99 , 4},   // pseudo pin 42
 		{ 43, 25, "GP25", DIGITAL_IN | DIGITAL_OUT | UART1RX | I2C0SCL| PWM4B  ,99 , 132},          // pseudo pin 43
 		{ 44, 29, "GP29", DIGITAL_IN | DIGITAL_OUT | ANALOG_IN | UART0RX | I2C0SCL | PWM6B, 3, 134},// pseudo pin 44
+    #endif
 };
 char alive[]="\033[?25h";
 const char DaysInMonth[] = { 0, 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31 };
@@ -280,7 +338,7 @@ void __not_in_flash_func(routinechecks)(void){
     }
 	if(GPSchannel)processgps();
     if(diskchecktimer== 0 || CurrentlyPlaying == P_WAV)CheckSDCard();
-#ifndef PICOMITEVGA
+#ifdef PICOMITE
     if(Ctrl)ProcessTouch();
 #endif
         if(tud_cdc_connected() && USBKeepalive==0){
@@ -295,6 +353,9 @@ void __not_in_flash_func(routinechecks)(void){
 int __not_in_flash_func(getConsole)(void) {
     int c=-1;
     CheckAbort();
+#ifdef PICOMITEWEB
+    {if(startupcomplete)cyw43_arch_poll();}
+#endif
     if(ConsoleRxBufHead != ConsoleRxBufTail) {                            // if the queue has something in it
         c = ConsoleRxBuf[ConsoleRxBufTail];
         ConsoleRxBufTail = (ConsoleRxBufTail + 1) % CONSOLE_RX_BUF_SIZE;   // advance the head of the queue
@@ -308,6 +369,9 @@ void putConsole(int c, int flush) {
 }
 // put a character out to the serial console
 char SerialConsolePutC(char c, int flush) {
+#ifdef PICOMITEWEB
+    {if(startupcomplete)cyw43_arch_poll();}
+#endif
     if(Option.SerialConsole==0 || Option.SerialConsole>4){
         if(tud_cdc_connected()){
             putc(c,stdout);
@@ -791,6 +855,7 @@ void mT4IntEnable(int status){
 	systick_hw->rvr = 249999; //Standard System clock (125Mhz)/ (rvr value + 1) = 1ms 
     systick_hw->csr = 0x7;      //Enable Systic, Enable Exceptions	
 }*/
+volatile int onoff=0;
 bool __not_in_flash_func(timer_callback)(repeating_timer_t *rt)
 {
     mSecTimer++;                                                      // used by the TIMER function
@@ -799,13 +864,13 @@ bool __not_in_flash_func(timer_callback)(repeating_timer_t *rt)
         int ElapsedMicroSec, IrDevTmp, IrCmdTmp;
         AHRSTimer++;
         InkeyTimer++;                                                     // used to delay on an escape character
-        mSecTimer++;                                                      // used by the TIMER function
         PauseTimer++;													// used by the PAUSE command
         IntPauseTimer++;												// used by the PAUSE command inside an interrupt
         ds18b20Timer++;
 		GPSTimer++;
         I2CTimer++;
         if(clocktimer)clocktimer--;
+        if(Timer4)Timer4--;
         if(Timer3)Timer3--;
         if(Timer2)Timer2--;
         if(Timer1)Timer1--;
@@ -858,7 +923,7 @@ bool __not_in_flash_func(timer_callback)(repeating_timer_t *rt)
             IrDevTmp = ((IrBits >> 16) & 0xffff);
             IrCmdTmp = ((IrBits >> 8) & 0xff);
         }
-#ifndef PICOMITEVGA
+#ifdef PICOMITE
     // check on the touch panel, is the pen down?
 
     TouchTimer++;
@@ -922,7 +987,11 @@ bool __not_in_flash_func(timer_callback)(repeating_timer_t *rt)
     ////////////////////////////////// this code runs once a second /////////////////////////////////
     if(++SecondsTimer >= 1000) {
         SecondsTimer -= 1000; 
+    #ifndef PICOMITEWEB
         if(ExtCurrentConfig[PinDef[HEARTBEATpin].pin]==EXT_HEARTBEAT)gpio_xor_mask(1<<PinDef[HEARTBEATpin].GPno);
+    #else
+        onoff=!onoff;
+    #endif
             // keep track of the time and date
         if(++second >= 60) {
             second = 0 ;
@@ -944,7 +1013,37 @@ bool __not_in_flash_func(timer_callback)(repeating_timer_t *rt)
     }
   return 1;
 }
+void __not_in_flash_func(uSec)(int us) {
+#ifdef PICOMITEWEB
+	if(us<500){
+		busy_wait_us(us);
+		{if(startupcomplete)cyw43_arch_poll();}
+	} else {
+    	uint64_t end=time_us_64()+us;
+    	while(time_us_64()<end){
+        if(time_us_64() % 500 ==0){if(startupcomplete)cyw43_arch_poll();}
+    }
+}
+#else
+	busy_wait_us(us);
+#endif
+}
 void __not_in_flash_func(CheckAbort)(void) {
+#ifdef PICOMITEWEB
+    static int lastonoff=0;
+    if(Option.NoHeartbeat){
+        if(lastonoff==1){
+            cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, 0);
+            lastonoff=0;
+        }
+    } else {
+        if(lastonoff!=onoff){
+            lastonoff=onoff;
+            if(lastonoff)cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, 1);
+            else cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, 0);
+        }
+    }
+#endif
     routinechecks();
     if(MMAbort) {
         WDTimer = 0;                                                // turn off the watchdog timer
@@ -1406,7 +1505,6 @@ void QVgaDmaInit()
 {
 
 // ==== prepare DMA control channel
-    dma_channel_claim (QVGA_DMA_CB);
 	// prepare DMA default config
 	dma_channel_config cfg = dma_channel_get_default_config(QVGA_DMA_CB);
 
@@ -1435,7 +1533,6 @@ void QVgaDmaInit()
 // ==== prepare DMA data channel
 
 	// prepare DMA default config
-    dma_channel_claim (QVGA_DMA_PIO);
 
 	cfg = dma_channel_get_default_config(QVGA_DMA_PIO);
 
@@ -1575,6 +1672,7 @@ int main(){
     if(  Option.Baudrate == 0 ||
         !(Option.Tab==2 || Option.Tab==3 || Option.Tab==4 ||Option.Tab==8) ||
         !(Option.Autorun>=0 && Option.Autorun<=MAXFLASHSLOTS+1) ||
+        Option.CPU_Speed<48000 || Option.CPU_Speed>378000 ||
         !(Option.Magic==MagicKey)
         ){
         ResetAllFlash();              // init the options if this is the very first startup
@@ -1582,9 +1680,9 @@ int main(){
         SoftReset();
     }
     m_alloc(M_PROG);                                           // init the variables for program memory
-    busy_wait_ms(100);
+    uSec(100);
     if(Option.CPU_Speed>200000)vreg_set_voltage(VREG_VOLTAGE_1_25);  // Std default @ boot is 1_10
-    busy_wait_ms(100);
+    uSec(100);
     set_sys_clock_khz(Option.CPU_Speed, true);
     pico_get_unique_board_id_string (id_out,12);
     clock_configure(
@@ -1597,7 +1695,7 @@ int main(){
     systick_hw->csr = 0x5;
     systick_hw->rvr = 0x00FFFFFF;
     if(Option.CPU_Speed<=252000)modclock(2);
-    busy_wait_ms(100);
+    uSec(100);
     if(Option.CPU_Speed==378000)QVGA_CLKDIV= 3;
     else if(Option.CPU_Speed==252000)QVGA_CLKDIV= 2;
     else QVGA_CLKDIV= 1;
@@ -1653,6 +1751,23 @@ int main(){
         WatchdogSet = true;                                 // remember if it was a watchdog timeout
         MMPrintString("\r\n\nWatchdog timeout\r\n");
     }
+    #ifdef PICOMITEWEB
+    if (cyw43_arch_init()==0) {
+        if(*Option.SSID){
+            startupcomplete=1;
+            cyw43_arch_enable_sta_mode();
+            printf("Connecting to WiFi...\r\n");
+            if (cyw43_arch_wifi_connect_timeout_ms(Option.SSID, Option.PASSWORD, CYW43_AUTH_WPA2_AES_PSK, 30000)) {
+                printf("failed to connect.\r\n");
+                WIFIconnected=0;
+            } else {
+                printf("Connected %s\r\n",ip4addr_ntoa(netif_ip4_addr(netif_list)));
+                WIFIconnected=1;
+            }
+        }
+        open_tcp_server(1);
+    }
+    #endif
     if(noRTC){
         noRTC=0;
         Option.RTC=0;
@@ -1733,6 +1848,10 @@ int main(){
         if(!*inpbuf) continue;                                      // ignore an empty line
 	  char *p=inpbuf;
 	  skipspace(p);
+      if(strlen(p)==2 && p[1]==':'){
+        if(toupper(*p)=='A')strcpy(p,"drive \"a:\"");
+        if(toupper(*p)=='B')strcpy(p,"drive \"b:\"");
+      }
 	  if(*p=='*'){ //shortform RUN command so convert to a normal version
 		  memmove(&p[4],&p[0],strlen(p)+1);
 		  p[0]='R';p[1]='U';p[2]='N';p[3]='$';p[4]=34;

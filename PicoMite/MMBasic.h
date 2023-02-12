@@ -113,7 +113,7 @@ typedef struct s_vartbl {                               // structure of the vari
     }  val;
 } vartbl_val;
 
-extern struct s_vartbl *vartbl;
+extern struct s_vartbl vartbl[];
 
 extern int varcnt;                              // number of variables defined (eg, largest index into the variable table)
 extern int Localvarcnt;                              // number of LOCAL variables defined (eg, largest index into the variable table)
@@ -250,7 +250,7 @@ void  ClearRuntime(void);
 void  ClearProgram(void);
 void *DoExpression(unsigned char *p, int *t);
 unsigned char *GetNextCommand(unsigned char *p, unsigned char **CLine, unsigned char *EOFMsg) ;
-
+int CheckEmpty(char *p);
 unsigned char *evaluate(unsigned char *p, MMFLOAT *fa, long long int  *ia, unsigned char **sa, int *ta, int noerror);
 unsigned char *doexpr(unsigned char *p, MMFLOAT *fa, long long int  *ia, unsigned char **sa, int *oo, int *t);
 void DefinedSubFun(int iscmd, unsigned char *cmd, int index, MMFLOAT *fa, long long int  *i64, unsigned char **sa, int *t);
@@ -269,6 +269,7 @@ int FunctionType(unsigned char *p);
 unsigned char *getclosebracket(unsigned char *p);
 void makeupper(unsigned char *p);
 void checkend(unsigned char *p);
+char *fstrstr (const char *s1, const char *s2);
 int GetCommandValue(unsigned char *n);
 int GetTokenValue(unsigned char *n);
 unsigned char *checkstring(unsigned char *p, unsigned char *tkn);

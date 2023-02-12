@@ -173,6 +173,7 @@ void fun_format(void);
 	extern char *CSubInterrupt;
 	extern volatile int CSubComplete;
 	extern uint32_t __get_MSP(void);
-
+	extern int ExistsFile(char *p);
+	extern int ExistsDir(char *p, char *q, int *filesystem);
 #endif
 #endif

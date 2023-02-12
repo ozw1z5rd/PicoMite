@@ -99,7 +99,11 @@ void fun_sprite(void);
     { (unsigned char *)"Draw3D",         T_CMD,                      0, cmd_3D },
 	{ (unsigned char *)"Sprite",           T_CMD,                      0, cmd_blit	},
 #else
+#ifndef PICOMITEWEB
   	{ (unsigned char *)"GUI",            T_CMD,                      0, cmd_gui   },
+#else
+  	{ (unsigned char *)"GUI",            T_CMD,                      0, cmd_guiMX170   },
+#endif
 	{ (unsigned char *)"Refresh",        T_CMD,                      0, cmd_refresh	},
 	{ (unsigned char *)"Blit",           T_CMD,                      0, cmd_blit	},
 #endif

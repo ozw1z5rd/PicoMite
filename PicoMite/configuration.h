@@ -27,33 +27,38 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 #ifdef __cplusplus
 extern "C" {
 #endif
+#define MAXVARS             512                     // 8 + MAXVARLEN + MAXDIM * 2  (ie, 56 bytes) - these do not incl array members
 #ifdef PICOMITEVGA
-#define FLASH_TARGET_OFFSET (660 * 1024) 
-#define MagicKey 0x74256772
+#define FLASH_TARGET_OFFSET (720 * 1024) 
+#define MagicKey 0x74821772
 #define HEAPTOP 0x2003f480
-#else
-#define FLASH_TARGET_OFFSET (660 * 1024) 
-#define MagicKey 0x48922427
-#define HEAPTOP 0x2003f000
+#define HEAP_MEMORY_SIZE (100*1024) 
 #endif
+#ifdef PICOMITEWEB
+#define FLASH_TARGET_OFFSET (960 * 1024) 
+#define MagicKey 0x48128327
+#define HEAPTOP 0x2003f800
+#define HEAP_MEMORY_SIZE (96*1024) 
+#define MaxPcb 4
+
+#endif
+#ifdef PICOMITE
+#define FLASH_TARGET_OFFSET (720 * 1024) 
+#define MagicKey 0x48123427
+#define HEAPTOP 0x2003f000
+#define HEAP_MEMORY_SIZE (116*1024) 
+#endif
+
 
 #define MMFLOAT double
 #define FLOAT3D float
 #define sqrt3d sqrtf
 #define round3d roundf
 #define fabs3d fabsf
-#ifdef PICOMITEVGA
-#define ALL_MEMORY_SIZE (172*1024) 
-#define HEAP_MEMORY_SIZE (100*1024) 
-#else
-#define ALL_MEMORY_SIZE (172*1024) 
-#define HEAP_MEMORY_SIZE (116*1024) 
-#endif
 #define MAX_PROG_SIZE HEAP_MEMORY_SIZE
 #define SAVEDVARS_FLASH_SIZE 16384
 #define FLASH_ERASE_SIZE 4096
-#define MAXFLASHSLOTS 5
-#define MAXVARS             512                     // 8 + MAXVARLEN + MAXDIM * 2  (ie, 56 bytes) - these do not incl array members
+#define MAXFLASHSLOTS 4
 #define MAXVARHASH				MAXVARS/2
 
 // more static memory allocations (less important)
@@ -81,9 +86,15 @@ extern "C" {
 // each entry uses zero bytes.  The number is limited by the length of a command line
 #define MAX_ARG_COUNT       50
 #define STR_AUTO_PRECISION  999 
+#define STR_FLOAT_PRECISION  998 
 #define STR_SIG_DIGITS 9                            // number of significant digits to use when converting MMFLOAT to a string
+#define STR_FLOAT_DIGITS 6                            // number of significant digits to use when converting MMFLOAT to a string
 #define NBRSETTICKS         4                       // the number of SETTICK interrupts available
+#ifndef PICOMITEWEB
 #define NBRPINS             44
+#else
+#define NBRPINS             40
+#endif
 #define MAXPROMPTLEN        49                      // max length of a prompt incl the terminating null
 #define BREAK_KEY           3                       // the default value (CTRL-C) for the break key.  Reset at the command prompt.
 #define FNV_prime           16777619
@@ -137,11 +148,12 @@ extern "C" {
 #define PWM5A     (1 << 28)
 #define PWM5B     (1 << 29)
 #define PWM6A     (1 << 30)
-#define PWM6B     (1 << 31)
+#define PWM6B     2147483648
 #define PWM7A     4294967296
 #define PWM7B     8589934592
 #define MAXCOLLISIONS 4
 #define MAXLAYER   4
+#define MAXCONTROLS 200
 //#define DO_NOT_RESET (1 << 5)
 //#define HEARTBEAT    (1 << 6)
 #define HEARTBEATpin  43

@@ -1640,11 +1640,11 @@ void DrawKeyboard(int mode) {
     if(GUIKeyDown == (is_alpha ? 10 : 2)) {                            // this is the enter key
 //        DoCallback(InvokingCtrl, GetCaption(GUIKeyDown, is_alpha, KeyAltShift));
         if(!is_alpha) {
-            int t = STR_AUTO_PRECISION;
+            int t = STR_FLOAT_PRECISION;
             // get the number of digits that have been entered after the decimal point and use that to determine the precision of the display
             if(strchr(Ctrl[InvokingCtrl].s, 'e') == NULL && strchr(Ctrl[InvokingCtrl].s, 'E') == NULL && strchr(Ctrl[InvokingCtrl].s, '.') != NULL) {
                 t = strlen(strchr(Ctrl[InvokingCtrl].s, '.') + 1);
-                if(t < 1 || t > 16) t = STR_AUTO_PRECISION;
+                if(t < 1 || t > 16) t = STR_FLOAT_PRECISION;
             }
             FloatToStr(Ctrl[InvokingCtrl].s, Ctrl[InvokingCtrl].value = atof(Ctrl[InvokingCtrl].s), 1, t, ' ');     // convert to a float and put back on the display
         }
@@ -2232,11 +2232,15 @@ void fun_ctrlval(void) {
     r = getint(ep, 1, Option.MaxCtrls);
     if(Ctrl[r].type == 0) error("Control #% does not exist", r);
     if(Ctrl[r].type == CTRL_NBRBOX) {
-        if(r == InvokingCtrl)                                       // is the keypad for the number box being displayed?
-                fret = atof(CancelValue);                           // if NOT in the call back just return the value saved in case of a cancel
-        else
-            fret = Ctrl[r].value;
-        targ = T_NBR;
+        if(r == InvokingCtrl){                                       // is the keypad for the number box being displayed?
+                fret = (MMFLOAT)atof(CancelValue);                           // if NOT in the call back just return the value saved in case of a cancel
+        }
+        else {
+            char a[16];
+            FloatToStr(a, Ctrl[r].value, 1, STR_FLOAT_PRECISION, ' ');     // convert to a float and put back on the display
+            fret = atof(a);
+            }
+        targ = T_NBR; 
     } else if(Ctrl[r].type == CTRL_TEXTBOX || Ctrl[r].type == CTRL_FMTBOX) {
         sret = GetTempMemory(STRINGSIZE);                                  // this will last for the life of the command
         if(r == InvokingCtrl)                                       // is the keypad for the number box being displayed?
@@ -2252,7 +2256,9 @@ void fun_ctrlval(void) {
         CtoM(sret);                                                 // convert to a MMBasic string
         targ = T_STR;
     } else {
-        fret = Ctrl[r].value;
+        char a[16];
+        FloatToStr(a, Ctrl[r].value, 1, STR_FLOAT_PRECISION, ' ');     // convert to a float and put back on the display
+        fret = atof(a);
         targ = T_NBR;
     }
 }

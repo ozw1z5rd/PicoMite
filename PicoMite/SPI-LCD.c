@@ -44,16 +44,16 @@ const struct Displays display_details[]={
 		{12,"ST7789_135", LCD_SPI_SPEED, 240, 135, 16, 0, SPI_POLARITY_LOW, SPI_PHASE_1EDGE},
 		{13,"ST7789_320", 20000000, 320, 240, 16, 0, SPI_POLARITY_LOW, SPI_PHASE_1EDGE},
 		{14,"ILI9488W", 40000000, 480, 320, 16, 0, SPI_POLARITY_LOW, SPI_PHASE_1EDGE},
-		{15,"GC9A01", LCD_SPI_SPEED, 240, 240, 16, 0, SPI_POLARITY_LOW, SPI_PHASE_1EDGE},
-		{16,"ILI9481IPS", 12000000, 480, 320, 16, 0, SPI_POLARITY_LOW, SPI_PHASE_1EDGE},
-		{17,"N5110", NOKIA_SPI_SPEED, 84, 48, 1, 1, SPI_POLARITY_LOW, SPI_PHASE_1EDGE},
-		{18,"SSD1306SPI", LCD_SPI_SPEED, 128, 64, 1, 1, SPI_POLARITY_LOW, SPI_PHASE_1EDGE},
-		{19,"ST7920", ST7920_SPI_SPEED, 128, 64, 1, 1, SPI_POLARITY_HIGH, SPI_PHASE_2EDGE},
-		{20,"", TOUCH_SPI_SPEED, 0, 0, 0, 0, SPI_POLARITY_LOW, SPI_PHASE_1EDGE},
-		{21,"SPIReadSpeed", 12000000, 480, 320, 16, 0, SPI_POLARITY_LOW, SPI_PHASE_1EDGE},
-		{22,"ST7789RSpeed", 6000000, 320, 240, 16, 0, SPI_POLARITY_LOW, SPI_PHASE_1EDGE},
-		{23,"Dummy", 0, 0, 0, 0, 0, 0 ,0},
-		{24,"Dummy", 0, 0, 0, 0, 0, 0 ,0},
+		{15,"ST7735S_W", LCD_SPI_SPEED, 128, 128, 16, 0, SPI_POLARITY_LOW, SPI_PHASE_1EDGE},
+		{16,"GC9A01", LCD_SPI_SPEED, 240, 240, 16, 0, SPI_POLARITY_LOW, SPI_PHASE_1EDGE},
+		{17,"ILI9481IPS", 12000000, 480, 320, 16, 0, SPI_POLARITY_LOW, SPI_PHASE_1EDGE},
+		{18,"N5110", NOKIA_SPI_SPEED, 84, 48, 1, 1, SPI_POLARITY_LOW, SPI_PHASE_1EDGE},
+		{19,"SSD1306SPI", LCD_SPI_SPEED, 128, 64, 1, 1, SPI_POLARITY_LOW, SPI_PHASE_1EDGE},
+		{10,"ST7920", ST7920_SPI_SPEED, 128, 64, 1, 1, SPI_POLARITY_HIGH, SPI_PHASE_2EDGE},
+		{21,"", TOUCH_SPI_SPEED, 0, 0, 0, 0, SPI_POLARITY_LOW, SPI_PHASE_1EDGE},
+		{22,"SPIReadSpeed", 12000000, 480, 320, 16, 0, SPI_POLARITY_LOW, SPI_PHASE_1EDGE},
+		{23,"ST7789RSpeed", 6000000, 320, 240, 16, 0, SPI_POLARITY_LOW, SPI_PHASE_1EDGE},
+		{24,"", SLOW_TOUCH_SPEED, 0, 0, 0, 0, SPI_POLARITY_LOW, SPI_PHASE_1EDGE},
 		{25,"User", 0, 0, 0, 0, 0, 0 ,0},
 		{26,"Dummy", 0, 0, 0, 0, 0, 0 ,0},
 		{27,"Dummy", 0, 0, 0, 0, 0, 0 ,0},
@@ -130,6 +130,8 @@ void ConfigDisplaySPI(unsigned char *p) {
         DISPLAY_TYPE = ILI9488W;
     } else if(checkstring(argv[0], "ILI9341")) {
         DISPLAY_TYPE = ILI9341;
+    } else if(checkstring(argv[0], "ST7735S_W")) {
+        DISPLAY_TYPE = ST7735S_W;
     } else if(checkstring(argv[0], "GC9A01")) {
         DISPLAY_TYPE = GC9A01;
     } else if(checkstring(argv[0], "N5110")) {
@@ -656,6 +658,7 @@ void InitDisplaySPI(int InitOnly) {
             break;
         case ST7735:
         case ST7735S:
+		case ST7735S_W:
             ResetController();
             spi_write_command(ILI9341_SOFTRESET);                           //software reset
             uSec(20000);
@@ -671,7 +674,7 @@ void InitDisplaySPI(int InitOnly) {
 			spi_write_cd(ST7735_PWCTR4,2,0x8A,0x2A);                //power control
 			spi_write_cd(ST7735_PWCTR5,2,0x8A,0xEE);                //power control
 			spi_write_cd(ST7735_VMCTR1,1,0x0E);                     //power control
-			if(Option.DISPLAY_TYPE==ST7735)spi_write_command(ST7735_INVOFF);                       //don't invert display
+			if(Option.DISPLAY_TYPE==ST7735 || Option.DISPLAY_TYPE==ST7735S_W)spi_write_command(ST7735_INVOFF);                       //don't invert display
 			else spi_write_command(ST7735_INVON);
 			spi_write_cd(ST7735_COLMOD,1,0x05);                     //set color mode
 			spi_write_cd(ST7735_CASET,4,0,0,0,0x7F);                //column addr set
@@ -966,6 +969,34 @@ void DefineRegionSPI(int xstart, int ystart, int xend, int yend, int rw) {
 				xend+=26;
 				ystart++;
 				yend++;
+			}
+		}
+		if(Option.DISPLAY_TYPE==ST7735S_W){
+			switch(Option.DISPLAY_ORIENTATION) {
+				case LANDSCAPE:
+				ystart+=2;
+				yend+=2;
+				xstart+=3;
+				xend+=3;
+				break;
+				case PORTRAIT: 
+				xstart+=2;
+				xend+=2;
+				ystart+=3;
+				yend+=3;
+				break;
+				case RLANDSCAPE:
+				ystart+=2;
+				yend+=2;
+				xstart+=1;
+				xend+=1;
+				break;
+				case RPORTRAIT:
+				xstart+=2;
+				xend+=2;
+				ystart+=1;
+				yend+=1;
+				break;
 			}
 		}
 		SetCS();
