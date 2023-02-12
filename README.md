@@ -1,6 +1,6 @@
 Files to build the PicoMite. MMBasic running on the Raspberry Pi Pico
 
-NB: This should be built against pico-sdk version 1.4. with spi.h and gpio.c replaced with the attached.
+NB: This should be built against pico-sdk version 1.5. with spi.h and gpio.c replaced with the attached.
 
 The file layout should be:
 
@@ -14,6 +14,9 @@ Compiled version and documentation is available on https://geoffg.net/picomite.h
 
 Change list from V5.07.00
 ***********************************************************************************************************************
+PicoMite V5.07.07b18
+Update to SDK 1.5 +lots of other changes
+
 PicoMite V5.07.07b5
 
 Bug fix to CHDIR for flash file system. 
