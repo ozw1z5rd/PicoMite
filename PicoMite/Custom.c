@@ -1243,8 +1243,10 @@ static void ntp_result(NTP_T* state, int status, time_t *result) {
     if (status == 0 && result) {
         *result=*result+timeadjust;
         struct tm *utc = gmtime(result);
-        printf("got ntp response: %02d/%02d/%04d %02d:%02d:%02d\r\n", utc->tm_mday, utc->tm_mon + 1, utc->tm_year + 1900,
+        char buff[STRINGSIZE];
+        sprintf(buff,"got ntp response: %02d/%02d/%04d %02d:%02d:%02d\r\n", utc->tm_mday, utc->tm_mon + 1, utc->tm_year + 1900,
                utc->tm_hour, utc->tm_min, utc->tm_sec);
+        MMPrintString(buff);
         hour = utc->tm_hour;
         minute = utc->tm_min;
         second = utc->tm_sec;
@@ -1289,7 +1291,9 @@ static void ntp_dns_found(const char *hostname, const ip_addr_t *ipaddr, void *a
     NTP_T *state = (NTP_T*)arg;
     if (ipaddr) {
         state->ntp_server_address = *ipaddr;
-        printf("ntp address %s\r\n", ip4addr_ntoa(&state->ntp_server_address));
+        char buff[STRINGSIZE];
+        sprintf(buff,"ntp address %s\r\n", ip4addr_ntoa(&state->ntp_server_address));
+        MMPrintString(buff);
         ntp_request(state);
     } else {
         free(state);
@@ -1345,7 +1349,9 @@ void GetNTPTime(void){
 
         cyw43_arch_lwip_end();
         if (err == ERR_OK) {
-                printf("ntp address %s\r\n", ip4addr_ntoa(&state->ntp_server_address));
+                char buff[STRINGSIZE];
+                sprintf(buff,"ntp address %s\r\n", ip4addr_ntoa(&state->ntp_server_address));
+                MMPrintString(buff);
                 ntp_request(state); // Cached result
         } else if (err != ERR_INPROGRESS) { // ERR_INPROGRESS means expect a callback
                 free(state);
@@ -1357,10 +1363,12 @@ void GetNTPTime(void){
 static int scan_result(void *env, const cyw43_ev_scan_result_t *result) {
     if (result) {
         Timer4=5000;
-        printf("ssid: %-32s rssi: %4d chan: %3d mac: %02x:%02x:%02x:%02x:%02x:%02x sec: %u\r\n",
+        char buff[STRINGSIZE];
+        sprintf(buff,"ssid: %-32s rssi: %4d chan: %3d mac: %02x:%02x:%02x:%02x:%02x:%02x sec: %u\r\n",
             result->ssid, result->rssi, result->channel,
             result->bssid[0], result->bssid[1], result->bssid[2], result->bssid[3], result->bssid[4], result->bssid[5],
             result->auth_mode);
+        MMPrintString(buff);
     } 
     return 0;
 }
@@ -1838,7 +1846,9 @@ static void tcp_dns_found(const char *hostname, const ip_addr_t *ipaddr, void *a
     TCP_CLIENT_T *state = (TCP_CLIENT_T*)arg;
     if (ipaddr) {
         state->remote_addr = *ipaddr;
-        printf("tcp address %s\r\n", ip4addr_ntoa(ipaddr));
+        char buff[STRINGSIZE];
+        sprintf(buff,"tcp address %s\r\n", ip4addr_ntoa(ipaddr));
+        MMPrintString(buff);
         state->complete=1;
 //        ntp_request(state);
     } else {
@@ -1913,7 +1923,9 @@ static err_t tcp_client_connected(void *arg, struct tcp_pcb *tpcb, err_t err) {
 
 static bool tcp_client_open(void *arg) {
     TCP_CLIENT_T *state = (TCP_CLIENT_T*)arg;
-    printf("Connecting to %s port %u\r\n", ip4addr_ntoa(&state->remote_addr), state->TCP_PORT);
+    char buff[STRINGSIZE];
+    sprintf("Connecting to %s port %u\r\n", ip4addr_ntoa(&state->remote_addr), state->TCP_PORT);
+    MMPrintString(buff);
     state->tcp_pcb = tcp_new_ip_type(IP_GET_TYPE(&state->remote_addr));
     if (!state->tcp_pcb) {
         error("failed to create pcb");
@@ -1972,9 +1984,11 @@ void cmd_web(void){
                cyw43_wifi_scan_options_t scan_options = {0};
                 int err = cyw43_wifi_scan(&cyw43_state, &scan_options, NULL, scan_result);
                 if (err == 0) {
-                    printf("\nPerforming wifi scan\n");
+                    MMPrintString("\nPerforming wifi scan\n");
                 } else {
-                    printf("Failed to start scan: %d\n", err);
+                    char buff[STRINGSIZE];
+                    sprintf(buff,"Failed to start scan: %d\n", err);
+                    MMPrintString(buff);
                 }
                 Timer4=500;
             while (Timer4){{if(startupcomplete)cyw43_arch_poll();}}

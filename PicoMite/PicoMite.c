@@ -55,7 +55,6 @@ extern "C" {
 #include "lwip/dns.h"
 #include "lwip/pbuf.h"
 #include "lwip/udp.h"
-#include "pico/cyw43_arch.h"
 #endif
 #ifdef PICOMITEVGA
 #include "Include.h"
@@ -67,7 +66,7 @@ extern "C" {
 #define MES_SIGNON  "\rPicoMiteWeb MMBasic Version " VERSION "\r\n"\
 					"Copyright " YEAR " Geoff Graham\r\n"\
 					"Copyright " YEAR2 " Peter Mather\r\n\r\n"
-	volatile int WIFIconnected=0;
+    volatile int WIFIconnected=0;
 	int startupcomplete=0;
 #else
 #define MES_SIGNON  "\rPicoMite MMBasic Version " VERSION "\r\n"\
@@ -268,7 +267,7 @@ const void * const CallTable[] __attribute__((section(".text")))  = {	(void *)uS
 const struct s_PinDef PinDef[NBRPINS + 1]={
 	    { 0, 99, "NULL",  UNUSED  ,99, 99},
 	    { 1,  0, "GP0",  DIGITAL_IN | DIGITAL_OUT | SPI0RX | UART0TX  | I2C0SDA | PWM0A,99,0},  	// pin 1
-		{ 2,  1, "GP1",  DIGITAL_IN | DIGITAL_OUT | UART0RX | I2C0SCL | PWM0B ,99,128},    		    // pin 2
+		{ 2,  1, "GP1",  DIGITAL_IN | DIGITAL_OUT | UART0RX | I2C0SCL | PWM0B ,99,128},    // pin 2
 		{ 3, 99, "GND",  UNUSED  ,99,99},                                                           // pin 3
 		{ 4,  2, "GP2",  DIGITAL_IN | DIGITAL_OUT | SPI0SCK | I2C1SDA | PWM1A ,99,1},   		    // pin 4
 		{ 5,  3, "GP3",  DIGITAL_IN | DIGITAL_OUT | SPI0TX | I2C1SCL | PWM1B ,99,129},    			// pin 5
@@ -1665,7 +1664,7 @@ void updatebootcount(void){
     err=lfs_file_close(&lfs, &lfs_file);	
 }
 int main(){
-    static int ErrorInPrompt;
+   static int ErrorInPrompt;
     repeating_timer_t timer;
     int i;
     LoadOptions();
@@ -1675,7 +1674,7 @@ int main(){
         Option.CPU_Speed<48000 || Option.CPU_Speed>378000 ||
         !(Option.Magic==MagicKey)
         ){
-        ResetAllFlash();              // init the options if this is the very first startup
+       ResetAllFlash();              // init the options if this is the very first startup
         _excep_code=0;
         SoftReset();
     }
@@ -1700,8 +1699,8 @@ int main(){
     else if(Option.CPU_Speed==252000)QVGA_CLKDIV= 2;
     else QVGA_CLKDIV= 1;
     ticks_per_second = Option.CPU_Speed*1000;
-    // The serial clock won't vary from this point onward, so we can configure
-    // the UART etc.
+// The serial clock won't vary from this point onward, so we can configure
+// the UART etc.
     stdio_set_translate_crlf(&stdio_usb, false);
     LoadOptions();
 	stdio_init_all();
@@ -1737,7 +1736,7 @@ int main(){
 	memset(WriteBuf, 0, 38400);
     if(Option.DISPLAY_TYPE!=MONOVGA)ClearScreen(Option.DefaultBC);
 #endif
-    if(!(_excep_code == RESTART_NOAUTORUN || _excep_code == WATCHDOG_TIMEOUT)){
+   if(!(_excep_code == RESTART_NOAUTORUN || _excep_code == WATCHDOG_TIMEOUT)){
         if(Option.Autorun==0 ){
             if(!(_excep_code == RESET_COMMAND))MMPrintString(MES_SIGNON); //MMPrintString(b);                                 // print sign on message
         } else {
@@ -1753,15 +1752,17 @@ int main(){
     }
     #ifdef PICOMITEWEB
     if (cyw43_arch_init()==0) {
+        startupcomplete=1;
         if(*Option.SSID){
-            startupcomplete=1;
             cyw43_arch_enable_sta_mode();
-            printf("Connecting to WiFi...\r\n");
+            MMPrintString("Connecting to WiFi...\r\n");
             if (cyw43_arch_wifi_connect_timeout_ms(Option.SSID, Option.PASSWORD, CYW43_AUTH_WPA2_AES_PSK, 30000)) {
-                printf("failed to connect.\r\n");
+                MMPrintString("failed to connect.\r\n");
                 WIFIconnected=0;
             } else {
-                printf("Connected %s\r\n",ip4addr_ntoa(netif_ip4_addr(netif_list)));
+                char buff[STRINGSIZE];
+                sprintf(buff,"Connected %s\r\n",ip4addr_ntoa(netif_ip4_addr(netif_list)));
+                MMPrintString(buff);
                 WIFIconnected=1;
             }
         }
