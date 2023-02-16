@@ -127,7 +127,7 @@ int FatFSFileSystemSave=0;
 /******************************************************************************************
 Text for the file related error messages reported by MMBasic
 ******************************************************************************************/
-const char *FErrorMsg[] = {"",
+const char* const FErrorMsg[] = {"",
                            "A hard error occurred in the low level disk I/O layer",
                            "Assertion failed",
                            "SD Card not found",
@@ -148,7 +148,7 @@ const char *FErrorMsg[] = {"",
                            "Number of open files > FF_FS_LOCK",
                            "Given parameter is invalid",
                            "SD card not present"};
-const char *LFSErrorMsg[]={
+const char* const LFSErrorMsg[]= {
                             "",
                             "",
                             "Could not find the file",
@@ -3224,6 +3224,8 @@ void ResetOptions(void)
     Option.KeyboardConfig = CONFIG_US;
     Option.VGABC = 0x0000;
     Option.VGAFC = 0xFFFF;
+    Option.X_TILE=80;
+    Option.Y_TILE=40;
 #else
     Option.CPU_Speed = 133000;
     Option.KeyboardConfig = NO_KEYBOARD;

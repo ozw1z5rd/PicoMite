@@ -123,8 +123,8 @@ extern volatile char ConsoleTxBuf[CONSOLE_TX_BUF_SIZE];
 extern volatile int ConsoleTxBufHead;
 extern volatile int ConsoleTxBufTail;
 extern datetime_t rtc_t;
-extern uint16_t tilefcols[40*30];
-extern uint16_t tilebcols[40*30];
+extern uint16_t tilefcols[];
+extern uint16_t tilebcols[];
 extern void __not_in_flash_func(QVgaCore)(void);
 extern uint32_t core1stack[64];
 extern int QVGA_CLKDIV;
@@ -181,10 +181,15 @@ extern lfs_dir_t lfs_dir;
 extern struct lfs_info lfs_info;
 extern int FatFSFileSystem;
 extern void uSec(int us);
+extern int ytilecount;
+extern int xdups;
+extern int X_TILE, Y_TILE;
+
 #ifdef PICOMITEWEB
 	extern volatile int WIFIconnected;
 	extern volatile int scantimer;
 	extern int startupcomplete;
+	extern void ProcessWeb(void);
 #endif
 // console related I/O
 int __not_in_flash_func(MMInkey)(void);

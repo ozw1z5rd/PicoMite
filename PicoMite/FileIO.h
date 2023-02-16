@@ -75,7 +75,7 @@ struct option_s {
     int  Baudrate;
     int  ColourCode;
     int CPU_Speed; 
-    unsigned int Dummyint;    // used to store the size of the program flash (also start of the LIBRARY code)
+    unsigned int Telnet;    // used to store the size of the program flash (also start of the LIBRARY code)
     int DefaultFC, DefaultBC;      // the default colours
     int DefaultBrightness;         // default backlight brightness //40
     uint16_t VGAFC, VGABC;      // the default colours 36=56
@@ -86,10 +86,15 @@ struct option_s {
     unsigned char RTC_Clock;
     unsigned char RTC_Data; //4=60
 //
-    #ifndef PICOMITEWEB
+    #ifdef PICOMITE
         int MaxCtrls;                // maximum number of controls allowed //48
-    #else
+    #endif
+    #ifdef PICOMITEWEB
         int TCP_PORT;                // maximum number of controls allowed //48
+    #endif
+    #ifdef PICOMITEVGA
+        int16_t X_TILE;                // maximum number of controls allowed //48
+        int16_t Y_TILE;                // maximum number of controls allowed //48
     #endif
         // for the SPI LCDs 4=64
     unsigned char LCD_CD;

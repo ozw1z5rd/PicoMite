@@ -66,8 +66,9 @@ extern "C" {
 #define MES_SIGNON  "\rPicoMiteWeb MMBasic Version " VERSION "\r\n"\
 					"Copyright " YEAR " Geoff Graham\r\n"\
 					"Copyright " YEAR2 " Peter Mather\r\n\r\n"
-    volatile int WIFIconnected=0;
+	volatile int WIFIconnected=0;
 	int startupcomplete=0;
+    void ProcessWeb(void);
 #else
 #define MES_SIGNON  "\rPicoMite MMBasic Version " VERSION "\r\n"\
 					"Copyright " YEAR " Geoff Graham\r\n"\
@@ -122,14 +123,16 @@ const uint8_t *SavedVarsFlash = (const uint8_t *) (XIP_BASE + FLASH_TARGET_OFFSE
 const uint8_t *flash_target_contents = (const uint8_t *) (XIP_BASE + FLASH_TARGET_OFFSET + FLASH_ERASE_SIZE + SAVEDVARS_FLASH_SIZE);
 const uint8_t *flash_progmemory = (const uint8_t *) (XIP_BASE + PROGSTART);
 #ifdef PICOMITEVGA
-    uint16_t M_Foreground[16]={
+    uint32_t M_Foreground[16]={
     0x0000,0x000F,0x00f0,0x00ff,0x0f00,0x0f0F,0x0ff0,0x0fff,0xf000,0xf00F,0xf0f0,0xf0ff,0xff00,0xff0F,0xfff0,0xffff
     };
-    uint16_t M_Background[16]={
+    uint32_t M_Background[16]={
     0xffff,0xfff0,0xff0f,0xff00,0xf0ff,0xf0f0,0xf00f,0xf000,0x0fff,0x0ff0,0x0f0f,0x0f00,0x00ff,0x00f0,0x000f,0x0000
     };
-    uint16_t tilefcols[40*30];
-    uint16_t tilebcols[40*30];
+    uint16_t tilefcols[80*40];
+    uint16_t tilebcols[80*40];
+    int ytilecount=16;
+    int xdups=1;
 #endif
 int ticks_per_second; 
 int InterruptUsed;
@@ -267,7 +270,7 @@ const void * const CallTable[] __attribute__((section(".text")))  = {	(void *)uS
 const struct s_PinDef PinDef[NBRPINS + 1]={
 	    { 0, 99, "NULL",  UNUSED  ,99, 99},
 	    { 1,  0, "GP0",  DIGITAL_IN | DIGITAL_OUT | SPI0RX | UART0TX  | I2C0SDA | PWM0A,99,0},  	// pin 1
-		{ 2,  1, "GP1",  DIGITAL_IN | DIGITAL_OUT | UART0RX | I2C0SCL | PWM0B ,99,128},    // pin 2
+		{ 2,  1, "GP1",  DIGITAL_IN | DIGITAL_OUT | UART0RX | I2C0SCL | PWM0B ,99,128},    		    // pin 2
 		{ 3, 99, "GND",  UNUSED  ,99,99},                                                           // pin 3
 		{ 4,  2, "GP2",  DIGITAL_IN | DIGITAL_OUT | SPI0SCK | I2C1SDA | PWM1A ,99,1},   		    // pin 4
 		{ 5,  3, "GP3",  DIGITAL_IN | DIGITAL_OUT | SPI0TX | I2C1SCL | PWM1B ,99,129},    			// pin 5
@@ -319,7 +322,7 @@ const char DaysInMonth[] = { 0, 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31 }
 void __not_in_flash_func(routinechecks)(void){
     static int c,when=0;
     if(++when & 7 && CurrentLinePtr) return;
-    if(tud_cdc_connected() && (Option.SerialConsole==0 || Option.SerialConsole>4)){
+    if(tud_cdc_connected() && (Option.SerialConsole==0 || Option.SerialConsole>4) && Option.Telnet!=-1){
         while(( c=tud_cdc_read_char())!=-1){
             ConsoleRxBuf[ConsoleRxBufHead] = c;
             if(BreakKey && ConsoleRxBuf[ConsoleRxBufHead] == BreakKey) {// if the user wants to stop the progran
@@ -340,9 +343,9 @@ void __not_in_flash_func(routinechecks)(void){
 #ifdef PICOMITE
     if(Ctrl)ProcessTouch();
 #endif
-        if(tud_cdc_connected() && USBKeepalive==0){
-            SSPrintString(alive);
-        }
+//        if(tud_cdc_connected() && USBKeepalive==0){
+//            SSPrintString(alive);
+//        }
     if(clocktimer==0 && Option.RTC){
         RtcGetTime(0);
         clocktimer=(1000*60*60);
@@ -352,14 +355,14 @@ void __not_in_flash_func(routinechecks)(void){
 int __not_in_flash_func(getConsole)(void) {
     int c=-1;
     CheckAbort();
-#ifdef PICOMITEWEB
-    {if(startupcomplete)cyw43_arch_poll();}
-#endif
     if(ConsoleRxBufHead != ConsoleRxBufTail) {                            // if the queue has something in it
         c = ConsoleRxBuf[ConsoleRxBufTail];
         ConsoleRxBufTail = (ConsoleRxBufTail + 1) % CONSOLE_RX_BUF_SIZE;   // advance the head of the queue
 	}
     return c;
+#ifdef PICOMITEWEB
+    ProcessWeb();
+#endif
 }
 
 void putConsole(int c, int flush) {
@@ -369,7 +372,7 @@ void putConsole(int c, int flush) {
 // put a character out to the serial console
 char SerialConsolePutC(char c, int flush) {
 #ifdef PICOMITEWEB
-    {if(startupcomplete)cyw43_arch_poll();}
+    if(Option.Telnet!=-1){
 #endif
     if(Option.SerialConsole==0 || Option.SerialConsole>4){
         if(tud_cdc_connected()){
@@ -390,6 +393,11 @@ char SerialConsolePutC(char c, int flush) {
 			irq_set_pending((Option.SerialConsole & 3)==1 ? UART0_IRQ : UART1_IRQ);
 		}
     }
+#ifdef PICOMITEWEB
+    }
+    TelnetPutC(c,flush);
+    ProcessWeb();
+#endif
     return c;
 }
 char MMputchar(char c, int flush) {
@@ -820,7 +828,8 @@ int MMgetchar(void) {
 // print a string to the console interfaces
 void MMPrintString(char* s) {
     while(*s) {
-        MMputchar(*s,0);
+        if(s[1])MMputchar(*s,0);
+        else MMputchar(*s,1);
         s++;
     }
     fflush(stdout);
@@ -1027,21 +1036,45 @@ void __not_in_flash_func(uSec)(int us) {
 	busy_wait_us(us);
 #endif
 }
+#ifdef PICOMITEWEB
+void __not_in_flash_func(ProcessWeb)(void){
+    TCP_SERVER_T *state = (TCP_SERVER_T*)TCPstate;
+    if(!(state && WIFIconnected))return;
+    static uint64_t flushtimer=0;
+    static long long int lastmsec=0;
+    static int testcount=0;     
+    if(testcount == 0 || lastmsec>=mSecTimer){
+        lastmsec=mSecTimer+2;
+        testcount = 0 ;
+        {if(startupcomplete)cyw43_arch_poll();}
+    }
+    testcount++;
+    if(testcount==500)testcount=0;
+    if(state->telnetconnected==99)return;
+    if(time_us_64() > flushtimer){
+        TelnetPutC(0,-1);
+        flushtimer=time_us_64()+5000;
+    }
+}
+#endif
 void __not_in_flash_func(CheckAbort)(void) {
 #ifdef PICOMITEWEB
     static int lastonoff=0;
     if(Option.NoHeartbeat){
         if(lastonoff==1){
-            cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, 0);
+            if(startupcomplete)cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, 0);
             lastonoff=0;
         }
     } else {
         if(lastonoff!=onoff){
             lastonoff=onoff;
-            if(lastonoff)cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, 1);
-            else cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, 0);
+            if(startupcomplete){
+                if(lastonoff)cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, 1);
+                else cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, 0);
+            }
         }
     }
+    ProcessWeb();
 #endif
     routinechecks();
     if(MMAbort) {
@@ -1204,12 +1237,12 @@ uint32_t* ScanLineCBNext;	// next control buffer
 volatile int QVgaScanLine; // current processed scan line 0... (next displayed scan line)
 volatile uint32_t QVgaFrame;	// frame counter
 uint16_t fbuff[2][160]={0};
-
+int X_TILE, Y_TILE;
 // saved integer divider state
 // VGA DMA handler - called on end of every scanline
 void __not_in_flash_func(QVgaLine0)()
 {
-    static int nextbuf=0,nowbuf=1;
+    static int nextbuf=0,nowbuf=1, tile=0, tc=0;
     int i,line,bufinx;
 	// Clear the interrupt request for DMA control channel
 	dma_hw->ints0 = (1u << QVGA_DMA_PIO);
@@ -1234,6 +1267,8 @@ void __not_in_flash_func(QVgaLine0)()
 	{
 		QVgaFrame++;	// increment frame counter
 		line = 0; 	// restart scanline
+        tile=0;
+        tc=0;
 	}
 	QVgaScanLine = line;	// store new scanline
 
@@ -1261,19 +1296,25 @@ void __not_in_flash_func(QVgaLine0)()
 		{
         // prepare image line
             if(DISPLAY_TYPE==MONOVGA){
-                int ytile=(line>>4)*40;
                 uint16_t *q=&fbuff[nextbuf][0];
                 unsigned char *p=&DisplayBuf[line * 80];
+                if(tc==ytilecount){
+                    tile++;
+                    tc=0;
+                }
+                tc++;
+                register int pos=tile*X_TILE;
                 for(i=0;i<40;i++){
-                    register int pos=ytile+i;
                     register int low= *p & 0xF;
                     register int high=*p++ >>4;
                     *q++=(M_Foreground[low] & tilefcols[pos]) | (M_Background[low] & tilebcols[pos]) ;
                     *q++=(M_Foreground[high]& tilefcols[pos]) | (M_Background[high] & tilebcols[pos]) ;
+                    if(xdups)pos++;
                     low= *p & 0xF;
                     high=*p++ >>4;
                     *q++=(M_Foreground[low] & tilefcols[pos]) | (M_Background[low] & tilebcols[pos]) ;
                     *q++=(M_Foreground[high]& tilefcols[pos]) | (M_Background[high] & tilebcols[pos]) ;
+                    pos++;
                 }
             } else {
                 line>>=1;
@@ -1312,7 +1353,8 @@ void __not_in_flash_func(QVgaLine0)()
 }
 void __not_in_flash_func(QVgaLine1)()
 {
-    static int nextbuf=0,nowbuf=1,i,line,bufinx;
+    static int nextbuf=0,nowbuf=1, tile=0, tc=0;
+    int i,line,bufinx;
 	// Clear the interrupt request for DMA control channel
 	dma_hw->ints0 = (1u << QVGA_DMA_PIO);
 
@@ -1337,6 +1379,8 @@ void __not_in_flash_func(QVgaLine1)()
 	{
 		QVgaFrame++;	// increment frame counter
 		line = 0; 	// restart scanline
+        tile=0;
+        tc=0;
 	}
 	QVgaScanLine = line;	// store new scanline
 
@@ -1364,19 +1408,25 @@ void __not_in_flash_func(QVgaLine1)()
 		{
 			// prepare image line
             if(DISPLAY_TYPE==MONOVGA){
-                int ytile=(line>>4)*40;
                 uint16_t *q=&fbuff[nextbuf][0];
                 unsigned char *p=&DisplayBuf[line * 80];
+                if(tc==ytilecount){
+                    tile++;
+                    tc=0;
+                }
+                tc++;
+                register int pos=tile*X_TILE;
                 for(i=0;i<40;i++){
-                    register int pos=ytile+i;
                     register int low= *p & 0xF;
                     register int high=*p++ >>4;
                     *q++=(M_Foreground[low] & tilefcols[pos]) | (M_Background[low] & tilebcols[pos]) ;
                     *q++=(M_Foreground[high]& tilefcols[pos]) | (M_Background[high] & tilebcols[pos]) ;
+                    if(xdups)pos++;
                     low= *p & 0xF;
                     high=*p++ >>4;
                     *q++=(M_Foreground[low] & tilefcols[pos]) | (M_Background[low] & tilebcols[pos]) ;
                     *q++=(M_Foreground[high]& tilefcols[pos]) | (M_Background[high] & tilebcols[pos]) ;
+                    pos++;
                 }
             } else {
                 line>>=1;
@@ -1581,6 +1631,10 @@ void QVgaDmaInit()
 // initialize QVGA (can change system clock)
 void QVgaInit()
 {
+    X_TILE=Option.X_TILE;
+    Y_TILE=Option.Y_TILE;
+    ytilecount=X_TILE==80? 12 : 16;
+    xdups= (X_TILE==80? 1:0);
 	// initialize PIO
 	QVgaPioInit();
 
@@ -1664,7 +1718,7 @@ void updatebootcount(void){
     err=lfs_file_close(&lfs, &lfs_file);	
 }
 int main(){
-   static int ErrorInPrompt;
+    static int ErrorInPrompt;
     repeating_timer_t timer;
     int i;
     LoadOptions();
@@ -1674,7 +1728,7 @@ int main(){
         Option.CPU_Speed<48000 || Option.CPU_Speed>378000 ||
         !(Option.Magic==MagicKey)
         ){
-       ResetAllFlash();              // init the options if this is the very first startup
+        ResetAllFlash();              // init the options if this is the very first startup
         _excep_code=0;
         SoftReset();
     }
@@ -1699,15 +1753,15 @@ int main(){
     else if(Option.CPU_Speed==252000)QVGA_CLKDIV= 2;
     else QVGA_CLKDIV= 1;
     ticks_per_second = Option.CPU_Speed*1000;
-// The serial clock won't vary from this point onward, so we can configure
-// the UART etc.
+    // The serial clock won't vary from this point onward, so we can configure
+    // the UART etc.
     stdio_set_translate_crlf(&stdio_usb, false);
     LoadOptions();
 	stdio_init_all();
     adc_init();
     adc_set_temp_sensor_enabled(true);
     add_repeating_timer_us(-1000, timer_callback, NULL, &timer);
-    if(!(Option.SerialConsole==1 || Option.SerialConsole==2)) while (!tud_cdc_connected() && mSecTimer<5000) {}
+    if(!(Option.SerialConsole==1 || Option.SerialConsole==2) || Option.Telnet==-1) while (!tud_cdc_connected() && mSecTimer<5000) {}
     InitReservedIO();
     initKeyboard();
     ClearExternalIO();
@@ -1735,8 +1789,12 @@ int main(){
     multicore_launch_core1_with_stack(QVgaCore,core1stack,256);
 	memset(WriteBuf, 0, 38400);
     if(Option.DISPLAY_TYPE!=MONOVGA)ClearScreen(Option.DefaultBC);
+    X_TILE=Option.X_TILE;
+    Y_TILE=Option.Y_TILE;
+    ytilecount=X_TILE==80? 12 : 16;
+    xdups= (X_TILE==80? 1:0);
 #endif
-   if(!(_excep_code == RESTART_NOAUTORUN || _excep_code == WATCHDOG_TIMEOUT)){
+    if(!(_excep_code == RESTART_NOAUTORUN || _excep_code == WATCHDOG_TIMEOUT)){
         if(Option.Autorun==0 ){
             if(!(_excep_code == RESET_COMMAND))MMPrintString(MES_SIGNON); //MMPrintString(b);                                 // print sign on message
         } else {
@@ -1760,13 +1818,13 @@ int main(){
                 MMPrintString("failed to connect.\r\n");
                 WIFIconnected=0;
             } else {
-                char buff[STRINGSIZE];
+                char buff[STRINGSIZE]={0};
                 sprintf(buff,"Connected %s\r\n",ip4addr_ntoa(netif_ip4_addr(netif_list)));
                 MMPrintString(buff);
                 WIFIconnected=1;
             }
+            open_tcp_server(1);
         }
-        open_tcp_server(1);
     }
     #endif
     if(noRTC){

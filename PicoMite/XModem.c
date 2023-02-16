@@ -158,7 +158,11 @@ static int check(const unsigned char *buf, int sz)
 
 static void flushinput(void)
 {
-  while (_inbyte(((DLY_1S)*3)>>1) >= 0);
+  while (_inbyte(((DLY_1S)*3)>>1) >= 0)
+#ifdef PICOMITEWEB
+  ProcessWeb()
+#endif
+  ;
 }
 
 
@@ -192,7 +196,7 @@ void xmodemReceive(char *sp, int maxbytes, int fnbr, int crunch) {
                     return;                                         // no more data
                 case CAN:
                     flushinput();
-                    MMputchar(ACK,1);;
+                    MMputchar(ACK,1);
                     error("Cancelled by remote");
                     break;
                 default:

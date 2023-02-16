@@ -44,8 +44,8 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 #define GUI_C_BCOLOUR           BLACK
 #define GUI_C_COMMENT           YELLOW
 #define GUI_C_KEYWORD           CYAN
-#define GUI_C_QUOTE             GREEN
-#define GUI_C_NUMBER            RED
+#define GUI_C_QUOTE             MAGENTA
+#define GUI_C_NUMBER            GREEN
 #define GUI_C_LINE              MAGENTA
 #define GUI_C_STATUS            WHITE
 
@@ -64,8 +64,43 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 // these two are the only global variables, the default place for the cursor when the editor opens
 unsigned char *StartEditPoint = NULL;
 int StartEditChar = 0;
+static int r_on=0, markmode=0;
 extern void routinechecks(void);
 #if !defined(LITE)
+#ifdef PICOMITEVGA
+void DisplayPutClever(char c){
+    if(DISPLAY_TYPE==MONOVGA && markmode && Option.ColourCode && X_TILE==80){
+    if(c >= FontTable[gui_font >> 4][2] && c < FontTable[gui_font >> 4][2] + FontTable[gui_font >> 4][3]) {
+        if(CurrentX + gui_font_width > HRes) {
+            DisplayPutClever('\r');
+            DisplayPutClever('\n');
+        }
+    }
+
+    // handle the standard control chars
+    switch(c) {
+        case '\b':  CurrentX -= gui_font_width;
+            if (CurrentX < 0) CurrentX = 0;
+            return;
+        case '\r':  CurrentX = 0;
+                    return;
+        case '\n':  CurrentY += gui_font_height;
+                    if(CurrentY + gui_font_height >= VRes) {
+                        ScrollLCD(CurrentY + gui_font_height - VRes);
+                        CurrentY -= (CurrentY + gui_font_height - VRes);
+                    }
+                    return;
+        case '\t':  do {
+                        DisplayPutClever(' ');
+                    } while((CurrentX/gui_font_width) % 4 /******Option.Tab*/);
+                    return;
+    }
+    if(r_on)tilebcols[CurrentY/gui_font_height*X_TILE+CurrentX/gui_font_width]=0x1111;
+    else tilebcols[CurrentY/gui_font_height*X_TILE+CurrentX/gui_font_width]=Option.VGABC;
+    CurrentX += gui_font_width;
+    } else DisplayPutC(c);
+}
+#endif
 
 void DisplayPutS(char *s) {
     while(*s) DisplayPutC(*s++);
@@ -76,7 +111,11 @@ void DisplayPutS(char *s) {
 
     #define MMputchar           SerialConsolePutC
     #define MMPrintString       SSPrintString
+#ifdef PICOMITEVGA
+    #define MX470PutC(c)        DisplayPutClever(c)
+#else
     #define MX470PutC(c)        DisplayPutC(c)
+#endif
     #define MX470Scroll(n)      if(Option.DISPLAY_CONSOLE)ScrollLCD(n)
 
 //    #define dx(...) {char s[140];sprintf(s,  __VA_ARGS__); SerUSBPutS(s); SerUSBPutS("\r\n");}
@@ -103,12 +142,31 @@ void DisplayPutS(char *s) {
         switch(fn) {
             case DISPLAY_CLS:       ClearScreen(gui_bcolour);
                                     break;
+#ifdef PICOMITEVGA
+            case REVERSE_VIDEO:     if(DISPLAY_TYPE==MONOVGA && Option.ColourCode && X_TILE==80){
+                                        r_on^=1;
+                                    } else {
+                                        t = gui_fcolour;
+                                        gui_fcolour = gui_bcolour;
+                                        gui_bcolour = t;
+                                    }
+                                    break;
+            case CLEAR_TO_EOL:      DrawBox(CurrentX, CurrentY, HRes-1, CurrentY + gui_font_height-1, 0, 0, gui_bcolour);
+                                    if(DISPLAY_TYPE==MONOVGA && Option.ColourCode && X_TILE==80){
+                                        for(int x=CurrentX/gui_font_width;x<X_TILE;x++){
+                                                tilefcols[CurrentY/gui_font_height*X_TILE+x]=Option.VGAFC;
+                                                tilebcols[CurrentY/gui_font_height*X_TILE+x]=Option.VGABC;
+                                        }
+                                    }
+                                    break;
+#else
             case REVERSE_VIDEO:     t = gui_fcolour;
                                     gui_fcolour = gui_bcolour;
                                     gui_bcolour = t;
                                     break;
             case CLEAR_TO_EOL:      DrawBox(CurrentX, CurrentY, HRes-1, CurrentY + gui_font_height-1, 0, 0, gui_bcolour);
                                     break;
+#endif
             case CLEAR_TO_EOS:      DrawBox(CurrentX, CurrentY, HRes-1, CurrentY + gui_font_height-1, 0, 0, gui_bcolour);
                                     DrawRectangle(0, CurrentY + gui_font_height, HRes-1, VRes-1, gui_bcolour);
                                     break;
@@ -116,6 +174,9 @@ void DisplayPutS(char *s) {
                                     break;
             case DRAW_LINE:         DrawBox(0, gui_font_height * (Option.Height - 2), HRes - 1, VRes - 1, 0, 0, gui_bcolour);
                                     DrawLine(0, VRes - gui_font_height - 6, HRes - 1, VRes - gui_font_height - 6, 1, GUI_C_LINE);
+#ifdef PICOMITEVGA
+                                    if(DISPLAY_TYPE==MONOVGA && Option.ColourCode && X_TILE==80)for(int i=0; i<80; i++)tilefcols[38*X_TILE+i]=Option.VGAFC;
+#endif
                                     CurrentX = 0; CurrentY = VRes - gui_font_height;
                                     break;
         }
@@ -253,6 +314,11 @@ void FullScreenEditor(void) {
   int c, i;
   unsigned char *buf, *clipboard;
   unsigned char *p, *tp, BreakKeySave;
+#ifdef PICOMITEVGA
+  int OptionX_TILESave;
+  OptionX_TILESave=X_TILE;
+  if(!Option.ColourCode)X_TILE=40;
+#endif
   unsigned char lastkey = 0;
   int y, statuscount;
   clipboard=(char *)vartbl;
@@ -567,9 +633,12 @@ void FullScreenEditor(void) {
                             MMPrintString("\0338\033[2J\033[H");                  // vt100 clear screen and home cursor
                                 gui_fcolour = PromptFC;
                                 gui_bcolour = PromptBC;
-                                MX470Display(DISPLAY_CLS);                        // clear screen on the MX470 display only
                                 MX470Cursor(0, 0);                                // home the cursor
+                                MX470Display(DISPLAY_CLS);                        // clear screen on the MX470 display only
                             BreakKey = BreakKeySave;
+#ifdef PICOMITEVGA
+                            X_TILE=OptionX_TILESave;
+#endif                          
                             if(c != ESC && TextChanged) SaveToProgMemory();
                             if(c == ESC || c == CTRLKEY('Q') || c == F1) cmd_end();
                             // this must be save, exit and run.  We have done the first two, now do the run part.
@@ -818,7 +887,7 @@ void MarkMode(unsigned char *cb, unsigned char *buf) {
         }
 
         x = curx; y = cury;
-
+        markmode=1;
         // first unmark the area not marked as a result of the keystroke
         if(oldmark < mark) {
             PositionCursor(oldmark);
@@ -869,6 +938,7 @@ void MarkMode(unsigned char *cb, unsigned char *buf) {
             }
             MX470Display(REVERSE_VIDEO);                            // reverse video back to normal on the MX470 display only
         }
+        markmode=0;
         MMPrintString("\033[0m");                                   // normal video
 
         oldx = x; oldy = y; oldmark = mark;

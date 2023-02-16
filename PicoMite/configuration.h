@@ -30,16 +30,21 @@ extern "C" {
 #define MAXVARS             512                     // 8 + MAXVARLEN + MAXDIM * 2  (ie, 56 bytes) - these do not incl array members
 #ifdef PICOMITEVGA
 #define FLASH_TARGET_OFFSET (720 * 1024) 
-#define MagicKey 0x74821772
-#define HEAPTOP 0x2003f480
-#define HEAP_MEMORY_SIZE (100*1024) 
+#define MagicKey 0x74146772
+#define HEAPTOP 0x2003ff00
+#define HEAP_MEMORY_SIZE (96*1024) 
+#define MAX_CPU     378000
+#define MIN_CPU     126000
 #endif
 #ifdef PICOMITEWEB
 #define FLASH_TARGET_OFFSET (960 * 1024) 
-#define MagicKey 0x48128327
+#define MagicKey 0x48262327
 #define HEAPTOP 0x2003f800
 #define HEAP_MEMORY_SIZE (96*1024) 
-#define MaxPcb 4
+#define MaxPcb 8
+#define MAX_CPU     264000
+#define MIN_CPU     64000
+
 
 #endif
 #ifdef PICOMITE
@@ -47,6 +52,9 @@ extern "C" {
 #define MagicKey 0x48123427
 #define HEAPTOP 0x2003f000
 #define HEAP_MEMORY_SIZE (116*1024) 
+#define MAX_CPU     378000
+#define MIN_CPU     48000
+
 #endif
 
 
@@ -75,7 +83,11 @@ extern "C" {
 #define STRINGSIZE          256                     // must be 1 more than MAXSTRLEN.  2 of these buffers are staticaly created
 #define MAXOPENFILES        10                      // maximum number of open files
 #define MAXDIM              5                       // maximum nbr of dimensions to an array
+#ifdef PICOMITEWEB
+#define CONSOLE_RX_BUF_SIZE 1024
+#else
 #define CONSOLE_RX_BUF_SIZE 256
+#endif
 #define CONSOLE_TX_BUF_SIZE 256
 #define MAXOPENFILES  10
 #define MAXCOMPORTS 2
@@ -108,7 +120,6 @@ extern "C" {
 #define MAXCFUNCTION	20
 #define SAVEDVARS_FLASH_SIZE 16384
 #define FLASH_ERASE_SIZE 4096
-#define MAX_CPU     378000
 #define MAX3D   8
 #define MAXCAM  3
 #define MAX_POLYGON_VERTICES 10

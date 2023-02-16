@@ -230,7 +230,7 @@ void __not_in_flash_func(on_pwm_wrap)(void) {
 	AudioOutput(left,right);
 }
 
-void __not_in_flash_func(BitBangSendSPI)(const BYTE *buff, int cnt){
+void BitBangSendSPI(const BYTE *buff, int cnt){
 	int i, SPICount;
 	BYTE SPIData;
     if(SD_SPI_SPEED==SD_SLOW_SPI_SPEED){
@@ -281,7 +281,7 @@ void __not_in_flash_func(BitBangSendSPI)(const BYTE *buff, int cnt){
     	}
 	}
 }
-void __not_in_flash_func(BitBangReadSPI)(BYTE *buff, int cnt){
+void BitBangReadSPI(BYTE *buff, int cnt){
 	int i, SPICount;
 	BYTE SPIData;
 	gpio_put(SD_CLK_PIN,GPIO_PIN_RESET);
@@ -330,7 +330,7 @@ void __not_in_flash_func(BitBangReadSPI)(BYTE *buff, int cnt){
     }
 }
 
-BYTE __not_in_flash_func(BitBangSwapSPI)(BYTE data_out){
+BYTE BitBangSwapSPI(BYTE data_out){
 	BYTE data_in=0;
 	int SPICount;
 	if(SD_SPI_SPEED==SD_SLOW_SPI_SPEED){
@@ -472,7 +472,7 @@ int wait_ready (void)
 /*-----------------------------------------------------------------------*/
 
 static
-void __not_in_flash_func(deselect)(void)
+void deselect(void)
 {
 //	asm("NOP");asm("NOP");//asm("NOP");
 	gpio_put(SD_CS_PIN,GPIO_PIN_SET);
@@ -487,7 +487,7 @@ void __not_in_flash_func(deselect)(void)
 /*-----------------------------------------------------------------------*/
 
 
-int __not_in_flash_func(selectSD)(void)	/* 1:Successful, 0:Timeout */
+int selectSD(void)	/* 1:Successful, 0:Timeout */
 {
 	if(SD_SPI_SPEED==SD_SLOW_SPI_SPEED)	SPISpeedSet(SDSLOW);
 	else SPISpeedSet(SDFAST);
@@ -508,7 +508,7 @@ int __not_in_flash_func(selectSD)(void)	/* 1:Successful, 0:Timeout */
 /*-----------------------------------------------------------------------*/
 
 
-int __not_in_flash_func(rcvr_datablock)(	/* 1:OK, 0:Failed */
+int rcvr_datablock(	/* 1:OK, 0:Failed */
 	BYTE *buff,			/* Data buffer to store received data */
 	UINT btr			/* Byte count (must be multiple of 4) */
 )
@@ -538,7 +538,7 @@ int __not_in_flash_func(rcvr_datablock)(	/* 1:OK, 0:Failed */
 
 
 
-int __not_in_flash_func(xmit_datablock)(	/* 1:OK, 0:Failed */
+int xmit_datablock(	/* 1:OK, 0:Failed */
 	const BYTE *buff,	/* 512 byte data block to be transmitted */
 	BYTE token			/* Data token */
 )
@@ -715,7 +715,7 @@ DSTATUS disk_initialize (
 /* Read Sector(s)                                                        */
 /*-----------------------------------------------------------------------*/
 
-DRESULT __not_in_flash_func(disk_read)(BYTE pdrv, BYTE* buff, LBA_t sector, UINT count)
+DRESULT disk_read(BYTE pdrv, BYTE* buff, LBA_t sector, UINT count)
 {
 	if (pdrv || !count) return RES_PARERR;
 	if (SDCardStat & STA_NOINIT) return RES_NOTRDY;
@@ -748,7 +748,7 @@ DRESULT __not_in_flash_func(disk_read)(BYTE pdrv, BYTE* buff, LBA_t sector, UINT
 /*-----------------------------------------------------------------------*/
 
 
-DRESULT __not_in_flash_func(disk_write)(BYTE pdrv, const BYTE* buff, LBA_t sector, UINT count)
+DRESULT disk_write(BYTE pdrv, const BYTE* buff, LBA_t sector, UINT count)
 {
 	if (pdrv || !count) return RES_PARERR;
 	if (SDCardStat & STA_NOINIT) return RES_NOTRDY;
@@ -785,7 +785,7 @@ DRESULT __not_in_flash_func(disk_write)(BYTE pdrv, const BYTE* buff, LBA_t secto
 /*-----------------------------------------------------------------------*/
 
 
-DRESULT __not_in_flash_func(disk_ioctl)(
+DRESULT disk_ioctl(
 	BYTE pdrv,		/* Physical drive nmuber (0) */
 	BYTE cmd,		/* Control code */
 	void *buff		/* Buffer to send/receive data block */

@@ -316,10 +316,6 @@ int CheckEmpty(char *p){
 // this will continuously execute a program until the end (marked by TWO zero chars)
 // the argument p must point to the first line to be executed
 void __not_in_flash_func(ExecuteProgram)(unsigned char *p) {
-#ifdef PICOMITEWEB
-    static long long int lastmsec=0;
-    static int testcount=0;     
-#endif
     int i, SaveLocalIndex = 0;
     jmp_buf SaveErrNext;
     memcpy(SaveErrNext, ErrNext, sizeof(jmp_buf));                  // we call ExecuteProgram() recursively so we need to store/restore old jump buffer between calls
@@ -376,15 +372,6 @@ void __not_in_flash_func(ExecuteProgram)(unsigned char *p) {
                 if(TempMemoryIsChanged) ClearTempMemory();          // at the end of each command we need to clear any temporary string vars
                 CheckAbort();
                 check_interrupt();                                  // check for an MMBasic interrupt or touch event and handle it
-        #ifdef PICOMITEWEB
-                if(testcount == 0 || lastmsec!=mSecTimer){
-                    lastmsec=mSecTimer;
-                    testcount = 0 ;
-                    {if(startupcomplete)cyw43_arch_poll();}
-                }
-                testcount++;
-                if(testcount==10)testcount=0;
-        #endif
             }
             p = nextstmt;
         }
@@ -2780,7 +2767,7 @@ void ClearRuntime(void) {
         TCP_SERVER_T *state = (TCP_SERVER_T*)TCPstate;
         for(int i=0 ; i<MaxPcb ; i++){
             state->write_pcb=i;
-            if(state->client_pcb[i])tcp_server_close(state);
+            if(state->client_pcb[i] && state->telnetconnected!=i)tcp_server_close(state);
             if(state->buffer_recv[i])FreeMemorySafe((void **)&state->buffer_recv[i]);
             state->inttrig[i]=0;
             state->sent_len[i]=0;

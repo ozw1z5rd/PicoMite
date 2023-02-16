@@ -283,6 +283,7 @@ unsigned char *getCstring(unsigned char *p);
 int IsValidLine(int line);
 void InsertLastcmd(unsigned char *s);
 int  CountLines(unsigned char *target);
+extern jmp_buf ErrNext;   
 int FindSubFun(unsigned char *p, int type);
 void PrepareProgram(int ErrAbort);
 void MMfputs(unsigned char *p, int filenbr);

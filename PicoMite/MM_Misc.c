@@ -1424,6 +1424,7 @@ void printoptions(void){
     if(Option.CPU_Speed!=126000)PO2Int("CPUSPEED (KHz)", Option.CPU_Speed);
     if(Option.DISPLAY_TYPE==COLOURVGA)PO2Str("DEFAULT MODE", "2");
     if(Option.Height != 40 || Option.Width != 80) PO3Int("DISPLAY", Option.Height, Option.Width);
+    if(Option.X_TILE==40)PO2Str("TILE SIZE", "LARGE");
     if(Option.VGAFC !=0xFFFF || Option.VGABC !=0){
         PO("DEFAULT COLOURS");
             if(Option.VGAFC==0xFFFF)MMPrintString("WHITE, ");
@@ -1497,7 +1498,14 @@ void printoptions(void){
     if(Option.MaxCtrls)PO2Int("GUI CONTROLS", Option.MaxCtrls);
     #endif
     #ifdef PICOMITEWEB
+    if(*Option.SSID){
+        char password[]="****************************************************************";
+        password[strlen(Option.PASSWORD)]=0;
+        PO3Str("WIFI",Option.SSID,password);
+    }
     if(Option.TCP_PORT)PO2Int("TCP SERVER PORT", Option.TCP_PORT);
+    if(Option.Telnet==1)PO2Str("TELNET", "CONSOLE ON");
+    if(Option.Telnet==-1)PO2Str("TELNET", "CONSOLE ONLY");
     #endif
     if(Option.TOUCH_CS) {
         PO("TOUCH"); 
@@ -1512,9 +1520,6 @@ void printoptions(void){
             PIntComma(Option.TOUCH_XSCALE * 10000); PIntComma(Option.TOUCH_YSCALE * 10000); MMPrintString("\r\n");
         }
     }
-#endif
-#ifdef PICOMITEWEB
-    if(*Option.SSID)PO3Str("WIFI",Option.SSID,Option.PASSWORD);
 #endif
     if(Option.SD_CS){
         PO("SDCARD");
@@ -1876,10 +1881,10 @@ void cmd_option(void) {
         fcolour= (fcolour<<12) | (fcolour<<8) | (fcolour<<4) | fcolour;
         int bcolour = ((Option.DefaultBC & 0x800000)>> 20) | ((Option.DefaultBC & 0xC000)>>13) | ((Option.DefaultBC & 0x80)>>7);
         bcolour= (bcolour<<12) | (bcolour<<8) | (bcolour<<4) | bcolour;
-        for(int xp=0;xp<40;xp++){
-            for(int yp=0;yp<30;yp++){
-                tilefcols[yp*40+xp]=(uint16_t)fcolour;
-                tilebcols[yp*40+xp]=(uint16_t)bcolour;
+        for(int xp=0;xp<X_TILE;xp++){
+            for(int yp=0;yp<Y_TILE;yp++){
+                tilefcols[yp*X_TILE+xp]=(uint16_t)fcolour;
+                tilebcols[yp*Y_TILE+xp]=(uint16_t)bcolour;
             }
         }
         Option.VGAFC=fcolour;
@@ -1927,6 +1932,19 @@ void cmd_option(void) {
         SoftReset();
         return;
     }
+    tp = checkstring(cmdline, "TELNET CONSOLE");
+    if(tp) {
+        if(checkstring(tp, "OFF"))Option.Telnet=0;
+        else if(checkstring(tp, "ON"))Option.Telnet=1;
+        else if(checkstring(tp, "ONLY")) Option.Telnet=-1;
+        else error("Syntax");
+        SaveOptions();
+         _excep_code = RESET_COMMAND;
+        SoftReset();
+        return;
+        error("Syntax");
+    }
+
 #endif
 
 #ifdef PICOMITEVGA
@@ -1936,6 +1954,22 @@ void cmd_option(void) {
          int CPU_Speed=getinteger(tp);
         if(!(CPU_Speed==126000 || CPU_Speed==252000 || CPU_Speed==378000))error("CpuSpeed 126000, 252000 or 378000 only");
         Option.CPU_Speed=CPU_Speed;
+        SaveOptions();
+        _excep_code = RESET_COMMAND;
+        SoftReset();
+        return;
+    }
+    tp = checkstring(cmdline, "TILE SIZE");
+    if(tp) {
+        if(checkstring(tp, "LARGE")) { 
+            Option.X_TILE=40;
+            Option.Y_TILE=30;
+        }
+        else if(checkstring(tp, "SMALL"))  { 
+            Option.X_TILE=80;
+            Option.Y_TILE=40;
+        }
+        else error("Syntax"); 
         SaveOptions();
         _excep_code = RESET_COMMAND;
         SoftReset();
@@ -2008,10 +2042,10 @@ void cmd_option(void) {
         if(backcol==forcol)error("Foreground and Background colours are the same");
         Option.VGABC=backcol;
         Option.VGAFC=forcol;
-        for(int x=0;x<40;x++){
-            for(int y=0;y<30;y++){
-                tilefcols[y*40+x]=Option.VGAFC;
-                tilebcols[y*40+x]=Option.VGABC;
+        for(int x=0;x<X_TILE;x++){
+            for(int y=0;y<Y_TILE;y++){
+                tilefcols[y*X_TILE+x]=Option.VGAFC;
+                tilebcols[y*X_TILE+x]=Option.VGABC;
             }
         }
         Option.DefaultBC=DefaultBC;
@@ -2046,7 +2080,7 @@ void cmd_option(void) {
     tp = checkstring(cmdline, "CPUSPEED");
     if(tp) {
    	    if(CurrentLinePtr) error("Invalid in a program");
-         Option.CPU_Speed=getint(tp,48000,MAX_CPU);
+        Option.CPU_Speed=getint(tp,MIN_CPU,MAX_CPU);
         SaveOptions();
         _excep_code = RESET_COMMAND;
         SoftReset();

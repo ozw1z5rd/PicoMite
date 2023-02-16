@@ -1243,7 +1243,7 @@ static void ntp_result(NTP_T* state, int status, time_t *result) {
     if (status == 0 && result) {
         *result=*result+timeadjust;
         struct tm *utc = gmtime(result);
-        char buff[STRINGSIZE];
+        char buff[STRINGSIZE]={0};
         sprintf(buff,"got ntp response: %02d/%02d/%04d %02d:%02d:%02d\r\n", utc->tm_mday, utc->tm_mon + 1, utc->tm_year + 1900,
                utc->tm_hour, utc->tm_min, utc->tm_sec);
         MMPrintString(buff);
@@ -1291,7 +1291,7 @@ static void ntp_dns_found(const char *hostname, const ip_addr_t *ipaddr, void *a
     NTP_T *state = (NTP_T*)arg;
     if (ipaddr) {
         state->ntp_server_address = *ipaddr;
-        char buff[STRINGSIZE];
+        char buff[STRINGSIZE]={0};
         sprintf(buff,"ntp address %s\r\n", ip4addr_ntoa(&state->ntp_server_address));
         MMPrintString(buff);
         ntp_request(state);
@@ -1349,7 +1349,7 @@ void GetNTPTime(void){
 
         cyw43_arch_lwip_end();
         if (err == ERR_OK) {
-                char buff[STRINGSIZE];
+                char buff[STRINGSIZE]={0};
                 sprintf(buff,"ntp address %s\r\n", ip4addr_ntoa(&state->ntp_server_address));
                 MMPrintString(buff);
                 ntp_request(state); // Cached result
@@ -1363,7 +1363,7 @@ void GetNTPTime(void){
 static int scan_result(void *env, const cyw43_ev_scan_result_t *result) {
     if (result) {
         Timer4=5000;
-        char buff[STRINGSIZE];
+        char buff[STRINGSIZE]={0};
         sprintf(buff,"ssid: %-32s rssi: %4d chan: %3d mac: %02x:%02x:%02x:%02x:%02x:%02x sec: %u\r\n",
             result->ssid, result->rssi, result->channel,
             result->bssid[0], result->bssid[1], result->bssid[2], result->bssid[3], result->bssid[4], result->bssid[5],
@@ -1391,6 +1391,7 @@ static TCP_SERVER_T* tcp_server_init(void) {
     for(int i=0;i<MaxPcb;i++){
         TCPstate->client_pcb[i]=NULL;
     }
+    TCPstate->telnetconnected=99;
     return TCPstate;
 }
 
@@ -1423,21 +1424,28 @@ static err_t tcp_server_result(void *arg, int status) {
 
 static err_t tcp_server_sent(void *arg, struct tcp_pcb *tpcb, u16_t len) {
     TCP_SERVER_T *state = (TCP_SERVER_T*)arg;
-//    DEBUG_printf("tcp_server_sent %u\n", len);
+    DEBUG_printf("tcp_server_sent %u\n", len);
     state->sent_len[state->write_pcb] = len;
     return ERR_OK;
 }
 
+static err_t tcp_telnet_sent(void *arg, struct tcp_pcb *tpcb, u16_t len) {
+    TCP_SERVER_T *state = (TCP_SERVER_T*)arg;
+//    DEBUG_printf("telnet_server_sent %u\n", len);
+    state->sent_len[state->telnetconnected] = len;
+    return ERR_OK;
+}
 err_t tcp_server_send_data(void *arg, struct tcp_pcb *tpcb)
 {
     TCP_SERVER_T *state = (TCP_SERVER_T*)arg;
-    cyw43_arch_lwip_check();
 
     state->sent_len[state->write_pcb] = 0;
     DEBUG_printf("Writing %d bytes to client %x\r\n",state->to_send[state->write_pcb], (uint32_t)tpcb);
     // this method is callback from lwIP, so cyw43_arch_lwip_begin is not required, however you
     // can use this method to cause an assertion in debug mode, if this method is called when
     // cyw43_arch_lwip_begin IS needed
+    cyw43_arch_lwip_check();
+    while(tcp_sndqueuelen(tpcb)>6)cyw43_arch_poll();
     err_t err = tcp_write(tpcb, state->buffer_sent, state->to_send[state->write_pcb],  0);
     if (err != ERR_OK) {
 //        error("Failed to write data %",err);
@@ -1449,8 +1457,33 @@ err_t tcp_server_send_data(void *arg, struct tcp_pcb *tpcb)
 //    }
     return ERR_OK;
 }
-
+void __not_in_flash_func(TelnetPutC)(int c,int flush){
+        TCP_SERVER_T *state = (TCP_SERVER_T*)TCPstate;
+        static char buff[TCP_MSS]={0};
+        static int pos=0;
+        if(state->telnetconnected==99)return;
+        if(!(flush==-1)){
+                buff[pos]=c;
+                pos++;
+                if(c==255){
+                        buff[pos]=c;
+                        pos++;
+                }
+        }
+        if(pos==TCP_MSS || (flush==-1 && pos)){
+                state->write_pcb=state->telnetconnected;
+                state->to_send[state->write_pcb]=pos;
+                state->buffer_sent=buff;
+                if(state->client_pcb[state->write_pcb]){
+                        cyw43_arch_lwip_check();
+                        tcp_server_send_data(state, state->client_pcb[state->write_pcb]);
+//                        checksent(state,0);
+                }
+                pos=0;
+        }
+}
 err_t tcp_server_recv(void *arg, struct tcp_pcb *tpcb, struct pbuf *p, err_t err) {
+        static int count=0;
         TCP_SERVER_T *state = (TCP_SERVER_T*)arg;
         if (!p) {
                 return ERR_OK;
@@ -1465,7 +1498,7 @@ err_t tcp_server_recv(void *arg, struct tcp_pcb *tpcb, struct pbuf *p, err_t err
                 while(state->client_pcb[i]!=tpcb && i<=MaxPcb)i++;
                 if(i==MaxPcb)error("Internal TCP receive error");
     	        if(!CurrentLinePtr){  // deal with requests when we don't want them
-                        pbuf_free(p);
+                        tcp_recved(tpcb, p->tot_len);
                         DEBUG_printf("Sending 404 on pcb %d, rbuff address is %x ",i, (uint32_t)state->buffer_recv[i]);
                         state->write_pcb=i;
                         state->to_send[state->write_pcb]=strlen(httpheadersfail);
@@ -1478,20 +1511,67 @@ err_t tcp_server_recv(void *arg, struct tcp_pcb *tpcb, struct pbuf *p, err_t err
                 } else {
                         state->buffer_recv[i]=GetMemory(p->tot_len);
                         state->inttrig[i]=1;
-                        DEBUG_printf("tcp_server_recv %x on pcb %d ",(uint32_t)tpcb, i);
+                        DEBUG_printf("tcp_HTTP_recv %d / %d\r\n",count, p->tot_len);
                         state->recv_len[i] = pbuf_copy_partial(p, state->buffer_recv[i] , p->tot_len, 0);
-                        
-                        pbuf_free(p);
-                        DEBUG_printf("%d err %d, %s\r\n", state->recv_len[i], err, state->buffer_recv[i]);
+                        tcp_recved(tpcb, p->tot_len);
                 }
         }
+        pbuf_free(p);
+        return ERR_OK;
+}
+err_t tcp_telnet_recv(void *arg, struct tcp_pcb *tpcb, struct pbuf *p, err_t err) {
+        static char buff[1024]={0};
+        static int count=0, lastchar=-1;
+        TCP_SERVER_T *state = (TCP_SERVER_T*)arg;
+        if (!p) {
+                return ERR_OK;
+        }
+        // this method is callback from lwIP, so cyw43_arch_lwip_begin is not required, however you
+        // can use this method to cause an assertion in debug mode, if this method is called when
+        // cyw43_arch_lwip_begin IS needed
+//        cyw43_arch_lwip_check();
+        if (p->tot_len > 0) {
+                int i=0;
+                while(state->client_pcb[i]!=tpcb && i<=MaxPcb)i++;
+                if(i==MaxPcb || i!=state->telnetconnected)error("Internal TCP receive error");
+                state->recv_len[i] = pbuf_copy_partial(p, buff , sizeof(buff), 0);
+                tcp_recved(tpcb, p->tot_len);
+                count++;
+                DEBUG_printf("tcp_telnet_recv %d / %d\r\n",count, state->recv_len[i]);
+                for(int j=0;j<state->recv_len[i];j++){
+                        ConsoleRxBuf[ConsoleRxBufHead] = buff[j];
+                        if((lastchar==13 && ConsoleRxBuf[ConsoleRxBufHead]==0) ||
+                        (lastchar==255 && ConsoleRxBuf[ConsoleRxBufHead]==255)){
+                                lastchar=-1;
+                                continue;
+                        }
+                        if(BreakKey && ConsoleRxBuf[ConsoleRxBufHead] == BreakKey) {// if the user wants to stop the progran
+                                MMAbort = true;                                        // set the flag for the interpreter to see
+                                ConsoleRxBufHead = ConsoleRxBufTail;                    // empty the buffer
+                        } else if(ConsoleRxBuf[ConsoleRxBufHead] ==keyselect && KeyInterrupt!=NULL){
+                                Keycomplete=1;
+                        } else {
+                                lastchar=ConsoleRxBuf[ConsoleRxBufHead];
+                                ConsoleRxBufHead = (ConsoleRxBufHead + 1) % CONSOLE_RX_BUF_SIZE;     // advance the head of the queue
+                                if(ConsoleRxBufHead == ConsoleRxBufTail) {                           // if the buffer has overflowed
+                                ConsoleRxBufTail = (ConsoleRxBufTail + 1) % CONSOLE_RX_BUF_SIZE; // throw away the oldest char
+                                }
+                        }
+                }
+        }
+        pbuf_free(p);
         return ERR_OK;
 }
 
-/*static err_t tcp_server_poll(void *arg, struct tcp_pcb *tpcb) {
+static err_t tcp_server_poll(void *arg, struct tcp_pcb *tpcb) {
+    TCP_SERVER_T *state = (TCP_SERVER_T*)arg;
     DEBUG_printf("tcp_server_poll_fn\n");
-    return tcp_server_result(arg, -1); // no response is an error?
-}*/
+        int i=0;
+        while(state->client_pcb[i]!=tpcb && i<=MaxPcb)i++;
+        if(i==MaxPcb)error("Internal TCP receive error");
+        state->write_pcb=i;
+        tcp_server_close(arg);
+}
 
 static void tcp_server_err(void *arg, err_t err) {
     if (err != ERR_ABRT) {
@@ -1500,17 +1580,30 @@ static void tcp_server_err(void *arg, err_t err) {
         longjmp(recover, 1);   
     }
 }
+static void tcp_telnet_err(void *arg, err_t err) {
+    TCP_SERVER_T *state = (TCP_SERVER_T*)arg;
+//    if (err != ERR_ABRT) {
+        char buff[STRINGSIZE]={0};
+        sprintf(buff, "Telnet disconnected %d\r\n", err);
+        MMPrintString(buff);
+        state->write_pcb=state->telnetconnected;
+        state->telnetconnected=99;
+        tcp_server_close(arg);
+        if(!CurrentLinePtr) longjmp(mark, 1);  
+        else longjmp(ErrNext,1) ;
+//    }
+}
 
-/*static err_t tcp_server_poll(void *arg, struct tcp_pcb *tpcb) {
+static err_t tcp_telnet_poll(void *arg, struct tcp_pcb *tpcb) {
         TCP_SERVER_T *state = (TCP_SERVER_T*)arg;
         cyw43_arch_lwip_check();
         int i=0;
         while(state->client_pcb[i]!=tpcb && i<=MaxPcb)i++;
         if(i==MaxPcb)error("Internal TCP receive error");
         state->write_pcb=i;
-        printf("tcp_server_poll_fn\r\n");
+        DEBUG_printf("tcp_server_poll_fn\r\n");
         return tcp_server_close(arg); // no activity so close the connection
-}*/
+}
 
 
 static err_t tcp_server_accept(void *arg, struct tcp_pcb *client_pcb, err_t err) {
@@ -1521,8 +1614,6 @@ static err_t tcp_server_accept(void *arg, struct tcp_pcb *client_pcb, err_t err)
         tcp_server_result(arg, err);
         return ERR_VAL;
     }
-    cyw43_arch_lwip_check();
-    cyw43_arch_lwip_begin();
     for(i=0;i<=MaxPcb;i++){
         if(i==MaxPcb)error("No free connections");
         if(state->client_pcb[i]==NULL){
@@ -1530,53 +1621,87 @@ static err_t tcp_server_accept(void *arg, struct tcp_pcb *client_pcb, err_t err)
                 break;
         }
     }
-    cyw43_arch_lwip_end();
-    DEBUG_printf("Client connected %x on pcb %d\r\n",(uint32_t)client_pcb,i);
-    tcp_arg(client_pcb, state);
-    tcp_sent(client_pcb, tcp_server_sent);
-    tcp_recv(client_pcb, tcp_server_recv);
-//    tcp_poll(client_pcb, tcp_server_poll, POLL_TIME_S * 2);
-    tcp_err(client_pcb, tcp_server_err);
+    
+    if(client_pcb->local_port==23 && Option.Telnet){
+        DEBUG_printf("Telnet Client connected %x on pcb %d\r\n",(uint32_t)client_pcb,i);        tcp_arg(client_pcb, state);
+        tcp_sent(client_pcb, tcp_telnet_sent);
+        tcp_recv(client_pcb, tcp_telnet_recv);
+        //    tcp_poll(client_pcb, tcp_server_poll, POLL_TIME_S * 2);
+        tcp_err(client_pcb, tcp_telnet_err);
+        state->telnetconnected=i;
+    } else if(client_pcb->local_port==TCP_PORT && TCP_PORT){
+        DEBUG_printf("HTTP Client connected %x on pcb %d\r\n",(uint32_t)client_pcb,i);        tcp_arg(client_pcb, state);
+        tcp_arg(client_pcb, state);
+        tcp_sent(client_pcb, tcp_server_sent);
+        tcp_recv(client_pcb, tcp_server_recv);
+//        tcp_poll(client_pcb, tcp_server_poll, 50);
+        tcp_err(client_pcb, tcp_server_err);
+    }
 
     return ERR_OK;
 }
 static bool tcp_server_open(void *arg) {
     TCP_SERVER_T *state = (TCP_SERVER_T*)arg;
-    MMPrintString("Starting server at ");
-    MMPrintString(ip4addr_ntoa(netif_ip4_addr(netif_list)));
-    MMPrintString(" on port ");
-    PInt(TCP_PORT);PRet();
-
-    struct tcp_pcb *pcb = tcp_new_ip_type(IPADDR_TYPE_ANY);
-    if (!pcb) {
-        DEBUG_printf("failed to create pcb\r\n");
-        return false;
+    if(TCP_PORT){
+        MMPrintString("Starting server at ");
+        MMPrintString(ip4addr_ntoa(netif_ip4_addr(netif_list)));
+        MMPrintString(" on port ");
+        PInt(TCP_PORT);PRet();
     }
 
-    err_t err = tcp_bind(pcb, NULL, TCP_PORT);
-    if (err) {
-        DEBUG_printf("failed to bind to port %d\n");
+    struct tcp_pcb *httppcb = tcp_new_ip_type(IPADDR_TYPE_ANY);
+    struct tcp_pcb *telnetpcb = tcp_new_ip_type(IPADDR_TYPE_ANY);
+    if (!httppcb || !telnetpcb) {
+        DEBUG_printf("failed to create pcbs\r\n");
         return false;
     }
-
-    state->server_pcb = tcp_listen_with_backlog(pcb, MaxPcb);
-    if (!state->server_pcb) {
-        DEBUG_printf("failed to listen\r\n");
-        if (pcb) {
-            tcp_close(pcb);
+    err_t err;
+    if(TCP_PORT){
+        err = tcp_bind(httppcb, NULL, TCP_PORT);
+        if (err) {
+                char buff[STRINGSIZE]={0};
+                sprintf(buff,"failed to bind to port %d\n",TCP_PORT);
+                MMPrintString(buff);
+                return false;
         }
-        return false;
+        state->server_pcb = tcp_listen_with_backlog(httppcb, MaxPcb);
+        if (!state->server_pcb) {
+                DEBUG_printf("failed to listen\r\n");
+                if (httppcb) {
+                tcp_close(httppcb);
+                }
+                return false;
+        }
+        tcp_arg(state->server_pcb, state);
+        tcp_accept(state->server_pcb, tcp_server_accept);
+    }
+    if(Option.Telnet){    
+        err = tcp_bind(telnetpcb, NULL, 23);
+        if (err) {
+                char buff[STRINGSIZE]={0};
+                sprintf(buff,"failed to bind to port %d\n",23);
+                MMPrintString(buff);
+                return false;
+        }
+        state->telnet_pcb = tcp_listen_with_backlog(telnetpcb, MaxPcb);
+        if (!state->telnet_pcb) {
+                DEBUG_printf("failed to listen\r\n");
+                if (telnetpcb) {
+                tcp_close(telnetpcb);
+                }
+                return false;
+        }
+        tcp_arg(state->telnet_pcb, state);
+        tcp_accept(state->telnet_pcb, tcp_server_accept);
     }
 
-    tcp_arg(state->server_pcb, state);
-    tcp_accept(state->server_pcb, tcp_server_accept);
 
     return true;
 }
 void checksent(void *arg, int fn){
     TCP_SERVER_T *state = (TCP_SERVER_T*)arg;
     Timer4=1000;
-
+    cyw43_arch_lwip_check();
     while(!(state->sent_len[state->write_pcb]==state->to_send[state->write_pcb]) || Timer4==0){ {if(startupcomplete)cyw43_arch_poll();}}
     if(Timer4==0){
         if(fn)ForceFileClose(fn);
@@ -1595,7 +1720,7 @@ void cleanserver(void){
     TCP_SERVER_T *state = (TCP_SERVER_T*)TCPstate;
         for(int i=0 ; i<MaxPcb ; i++){
                 state->write_pcb=i;
-                if(state->client_pcb[i])tcp_server_close(state);
+                if(state->client_pcb[i] && i!=state->telnetconnected)tcp_server_close(state);
         }
 }
 void cmd_transmit(unsigned char *cmd){
@@ -1676,7 +1801,7 @@ void cmd_transmit(unsigned char *cmd){
                 tcp_server_send_data(state, state->client_pcb[state->write_pcb]);
                 checksent(state,0);
         }
-        {if(startupcomplete)cyw43_arch_poll();}
+//        {if(startupcomplete)cyw43_arch_poll();}
         tcp_server_close(state) ;
         return;
     }
@@ -1800,13 +1925,13 @@ void cmd_transmit(unsigned char *cmd){
                 checksent(state,0);
         }
         tcp_server_close(state) ;
-        {if(startupcomplete)cyw43_arch_poll();}
+//        {if(startupcomplete)cyw43_arch_poll();}
         return;
     }
     error("Invalid option");
 }
 void open_tcp_server(int full){
-        if(!Option.TCP_PORT)return;
+//        if(!Option.TCP_PORT)return;
         tcp_server_init();
         if(!full)return;
         TCP_PORT=Option.TCP_PORT;
@@ -1846,7 +1971,7 @@ static void tcp_dns_found(const char *hostname, const ip_addr_t *ipaddr, void *a
     TCP_CLIENT_T *state = (TCP_CLIENT_T*)arg;
     if (ipaddr) {
         state->remote_addr = *ipaddr;
-        char buff[STRINGSIZE];
+        char buff[STRINGSIZE]={0};
         sprintf(buff,"tcp address %s\r\n", ip4addr_ntoa(ipaddr));
         MMPrintString(buff);
         state->complete=1;
@@ -1923,7 +2048,7 @@ static err_t tcp_client_connected(void *arg, struct tcp_pcb *tpcb, err_t err) {
 
 static bool tcp_client_open(void *arg) {
     TCP_CLIENT_T *state = (TCP_CLIENT_T*)arg;
-    char buff[STRINGSIZE];
+    char buff[STRINGSIZE]={0};
     sprintf("Connecting to %s port %u\r\n", ip4addr_ntoa(&state->remote_addr), state->TCP_PORT);
     MMPrintString(buff);
     state->tcp_pcb = tcp_new_ip_type(IP_GET_TYPE(&state->remote_addr));
@@ -1986,7 +2111,7 @@ void cmd_web(void){
                 if (err == 0) {
                     MMPrintString("\nPerforming wifi scan\n");
                 } else {
-                    char buff[STRINGSIZE];
+                    char buff[STRINGSIZE]={0};
                     sprintf(buff,"Failed to start scan: %d\n", err);
                     MMPrintString(buff);
                 }

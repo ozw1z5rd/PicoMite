@@ -434,7 +434,15 @@ void DrawPixelNormal(int x, int y, int c) {
 }
 #endif
 void ClearScreen(int c) {
-    DrawRectangle(0, 0, HRes - 1, VRes - 1, c);
+    if(c!=-1)DrawRectangle(0, 0, HRes - 1, VRes - 1, c);
+#ifdef PICOMITEVGA
+    for(int x=0;x<X_TILE;x++){
+        for(int y=0;y<Y_TILE;y++){
+            tilefcols[y*X_TILE+x]=Option.VGAFC;
+            tilebcols[y*X_TILE+x]=Option.VGABC;
+        } 
+    }
+#endif
 }
 void DrawBuffered(int xti, int yti, int c, int complete){
 	static unsigned char pos=0;
@@ -1434,7 +1442,6 @@ void cmd_text(void) {
     if(argc > 9 && *argv[10]) scale = getint(argv[10], 1, 15);
     if(argc > 11 && *argv[12]) fc = getint(argv[12], 0, WHITE);
     if(argc ==15) bc = getint(argv[14], -1, WHITE);
-    if(DISPLAY_TYPE== MONOVGA && ((fc && bc) || (fc==0 && bc==0)))error("Foreground and Background colours are the same");
     GUIPrintString(x, y, ((font - 1) << 4) | scale, jh, jv, jo, fc, bc, s);
     if(Option.Refresh)Display_Refresh();
 }
@@ -4511,19 +4518,28 @@ void cmd_tile(void){
     uint32_t bcolour=0xFFFFFFFF,fcolour=0xFFFFFFFF;
     int xlen=1,ylen=1;
     if(checkstring(cmdline,"RESET")){
-                for(int x=0;x<40;x++){
-            for(int y=0;y<30;y++){
-                tilefcols[y*40+x]=Option.VGAFC;
-                tilebcols[y*40+x]=Option.VGABC;
+        for(int x=0;x<X_TILE;x++){
+            for(int y=0;y<Y_TILE;y++){
+                tilefcols[y*X_TILE+x]=Option.VGAFC;
+                tilebcols[y*X_TILE+x]=Option.VGABC;
             }
         }
-
+    } else if(checkstring(cmdline,"LARGE")){
+        xdups=0;
+        X_TILE=40;
+        ytilecount=16;
+        ClearScreen(-1);
+    } else if(checkstring(cmdline,"SMALL")){
+        ytilecount=12;
+        X_TILE=80;
+        xdups=1;
+        ClearScreen(-1);
     } else {
         getargs(&cmdline, 11, ",");
         if(!(DISPLAY_TYPE==MONOVGA))return;
         if(argc<5)error("Syntax");
-        int x=getint(argv[0],0,39);
-        int y=getint(argv[2],0,29);
+        int x=getint(argv[0],0,X_TILE);
+        int y=getint(argv[2],0,Y_TILE);
         int tilebcolour, tilefcolour ;
         if(*argv[4]){
             tilefcolour = getColour(argv[4], 0);
@@ -4543,8 +4559,8 @@ void cmd_tile(void){
         }
         for(int xp=x;xp<x+xlen;xp++){
             for(int yp=y;yp<y+ylen;yp++){
-                if(fcolour!=0xFFFFFFFF) tilefcols[yp*40+xp]=(uint16_t)fcolour;
-                if(bcolour!=0xFFFFFFFF) tilebcols[yp*40+xp]=(uint16_t)bcolour;
+                if(fcolour!=0xFFFFFFFF) tilefcols[yp*X_TILE+xp]=(uint16_t)fcolour;
+                if(bcolour!=0xFFFFFFFF) tilebcols[yp*X_TILE+xp]=(uint16_t)bcolour;
             }
         }
     }
@@ -4922,7 +4938,29 @@ void DrawBitmapMono(int x1, int y1, int width, int height, int scale, int fc, in
     int i, j, k, m, x, y, loc;
     unsigned char mask;
     if(x1>=HRes || y1>=VRes || x1+width*scale<0 || y1+height*scale<0)return;
-    for(i = 0; i < height; i++) {                                   // step thru the font scan line by line
+    int xa=X_TILE==80? 8 : 16;
+    int ya=Y_TILE==40? 12 : 16;
+    if(x1 % xa == 0 && y1 % ya==0 && width*scale % xa==0 && height*scale % ya==0){
+        // the bitmap is aligned with the tiles
+        int bcolour, fcolour ;
+        fcolour = ((fc & 0x800000)>> 20) | ((fc & 0xC000)>>13) | ((fc & 0x80)>>7);
+        fcolour= (fcolour<<12) | (fcolour<<8) | (fcolour<<4) | fcolour;
+        bcolour = ((bc & 0x800000)>> 20) | ((bc & 0xC000)>>13) | ((bc & 0x80)>>7);
+        bcolour= (bcolour<<12) | (bcolour<<8) | (bcolour<<4) | bcolour;
+        int xt=x1 / xa;
+        int yt=y1 / ya;
+        int w=width*scale/xa;
+        int h=height*scale/ya;
+        int pos;
+        for(int yy=yt;yy<yt+h;yy++){
+            for(int xx=xt; xx<xt+w;xx++){
+                tilefcols[yy*X_TILE+xx]=(uint16_t)fcolour;
+                tilebcols[yy*X_TILE+xx]=(uint16_t)bcolour;
+            }
+        }
+    }
+    if(bc<=0 || fc==0){
+            for(i = 0; i < height; i++) {                                   // step thru the font scan line by line
         for(j = 0; j < scale; j++) {                                // repeat lines to scale the font
             for(k = 0; k < width; k++) {                            // step through each bit in a scan line
                 for(m = 0; m < scale; m++) {                        // repeat pixels to scale in the x axis
@@ -4950,11 +4988,50 @@ void DrawBitmapMono(int x1, int y1, int width, int height, int scale, int fc, in
         }
     }
 
+    } else {
+    for(i = 0; i < height; i++) {                                   // step thru the font scan line by line
+        for(j = 0; j < scale; j++) {                                // repeat lines to scale the font
+            for(k = 0; k < width; k++) {                            // step through each bit in a scan line
+                for(m = 0; m < scale; m++) {                        // repeat pixels to scale in the x axis
+                    x=x1 + k * scale + m ;
+                    y=y1 + i * scale + j ;
+                    mask=1<<(x % 8); //get the bit position for this bit
+                    if(x >= 0 && x < HRes && y >= 0 && y < VRes) {  // if the coordinates are valid
+                        loc=(y*(HRes>>3))+(x>>3);
+                        if((bitmap[((i * width) + k)/8] >> (((height * width) - ((i * width) + k) - 1) %8)) & 1) {
+                            if(fc){
+                            	WriteBuf[loc]|=mask;
+                             } else {
+                            	 WriteBuf[loc]&= ~mask;
+                             }
+                        } else WriteBuf[loc]&= ~mask;
+                   }
+                }
+            }
+        }
+    }
+    }
+
 }
 
 void ScrollLCDMono(int lines){
     if(lines==0)return;
+
      if(lines >= 0) {
+#ifdef PICOMITEVGA
+    	int ya=Y_TILE==40? 12 : 16;
+        if(lines % ya ==0){
+            int offset=lines/ya;
+            for(int y=0;y<Y_TILE-offset;y++){
+                int d=y*X_TILE;
+                int s=(y+offset)*X_TILE;
+                for(int x=0;x<X_TILE;x++){
+                tilefcols[d+x]=tilefcols[s+x];
+                tilebcols[d+x]=tilebcols[s+x];
+                }
+            }
+        }
+#endif
         for(int i=0;i<VRes-lines;i++) {
             int d=i*(HRes>>3),s=(i+lines)*(HRes>>3); 
             for(int c=0;c<(HRes>>3);c++)WriteBuf[d+c]=WriteBuf[s+c];
@@ -4962,6 +5039,20 @@ void ScrollLCDMono(int lines){
         DrawRectangle(0, VRes-lines, HRes - 1, VRes - 1, 0); // erase the lines to be scrolled off
     } else {
     	lines=-lines;
+#ifdef PICOMITEVGA
+    	int ya=Y_TILE==40? 12 : 16;
+        if(lines % ya ==0){
+            int offset=lines/ya;
+            for(int y=Y_TILE-1;y>=offset;y--){
+                int d=y*X_TILE;
+                int s=(y-offset)*X_TILE;
+                for(int x=0;x<X_TILE;x++){
+                tilefcols[d+x]=tilefcols[s+x];
+                tilebcols[d+x]=tilebcols[s+x];
+                }
+            }
+        }
+#endif
         for(int i=VRes-1;i>=lines;i--) {
             int d=i*(HRes>>3),s=(i-lines)*(HRes>>3); 
             for(int c=0;c<(HRes>>3);c++)WriteBuf[d+c]=WriteBuf[s+c];
@@ -5251,10 +5342,10 @@ void ResetDisplay(void) {
             PromptFC = gui_fcolour;
             PromptBC = gui_bcolour;
         }
-        for(int x=0;x<40;x++){
-            for(int y=0;y<30;y++){
-                tilefcols[y*40+x]=Option.VGAFC;
-                tilebcols[y*40+x]=Option.VGABC;
+        for(int x=0;x<X_TILE;x++){
+            for(int y=0;y<Y_TILE;y++){
+                tilefcols[y*X_TILE+x]=Option.VGAFC;
+                tilebcols[y*X_TILE+x]=Option.VGABC;
             }
         }
 #else
@@ -5371,7 +5462,7 @@ void ShowCursor(int show) {
   newstate = ((CursorTimer <= CURSOR_ON) && show);                  // what should be the state of the cursor?
   if(visible == newstate) return;                                   // we can skip the rest if the cursor is already in the correct state
   visible = newstate;                                               // draw the cursor BELOW the font
-    DrawLine(CurrentX, CurrentY + gui_font_height-1, CurrentX + gui_font_width, CurrentY + gui_font_height-1, (gui_font_height<=8 ? 1 : 2), visible ? gui_fcolour : gui_bcolour);
+    DrawLine(CurrentX, CurrentY + gui_font_height-1, CurrentX + gui_font_width-1, CurrentY + gui_font_height-1, (gui_font_height<=12 ? 1 : 2), visible ? gui_fcolour : gui_bcolour);
 }
 #ifdef PICOMITEVGA
 #define ABS(X) ((X)>0 ? (X) : (-(X)))
