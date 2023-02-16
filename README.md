@@ -14,6 +14,10 @@ Compiled version and documentation is available on https://geoffg.net/picomite.h
 
 Change list from V5.07.00
 ***********************************************************************************************************************
+PicoMite V5.07.07b19
+
+Colour editing in 640x480 resolution for PicoMiteVGA
+
 PicoMite V5.07.07b18
 Update to SDK 1.5 +lots of other changes
 
