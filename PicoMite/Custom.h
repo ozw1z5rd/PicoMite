@@ -28,6 +28,17 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 #include "lwip/pbuf.h"
 #include "lwip/udp.h"
 #include "lwip/tcp.h"
+#include "lwip/apps/mqtt.h"
+#include "lwip/apps/mqtt_priv.h"
+#include "lwip/timeouts.h"
+#include "lwip/ip_addr.h"
+#include "lwip/mem.h"
+#include "lwip/err.h"
+#include "lwip/pbuf.h"
+#include "lwip/altcp.h"
+#include "lwip/altcp_tcp.h"
+#include "lwip/altcp_tls.h"
+#include "lwip/pbuf.h"
 #endif
 
 /**********************************************************************************
@@ -59,23 +70,55 @@ extern char *TCPreceiveInterrupt;
 extern void fun_json(void);
     extern void TelnetPutC(int c,int flush);
     void cmd_web(void);
+    extern int cmd_mqtt(void);
+    extern void cmd_ntp(unsigned char *tp);
+    extern int cmd_tcpclient(void);
+    extern int cmd_tcpserver(void);
+    extern int cmd_tls();
+    extern void closeMQTT(void);
     typedef struct TCP_SERVER_T_ {
         struct tcp_pcb *server_pcb;
         struct tcp_pcb *telnet_pcb;
         struct tcp_pcb* client_pcb[MaxPcb];
-        volatile int client_pcb_write_pointer;
-        volatile int write_pcb;
-        volatile int inttrig[MaxPcb];
-        uint8_t *buffer_sent;
+        volatile int inttrig[MaxPcb]; 
+        uint8_t *buffer_sent[MaxPcb];
         uint8_t* buffer_recv[MaxPcb];
         volatile int sent_len[MaxPcb];
         volatile int recv_len[MaxPcb];
+        volatile int total_sent[MaxPcb];
         volatile int to_send[MaxPcb];
-        volatile int telnetconnected;
+        volatile uint64_t pcbopentime[MaxPcb];
+        volatile int keepalive[MaxPcb];
+        volatile int telnet_pcb_no;
+        volatile int telnet_init_sent;
     } TCP_SERVER_T;
+    typedef struct NTP_T_ {
+        ip_addr_t ntp_server_address;
+        bool dns_request_sent;
+        struct udp_pcb *ntp_pcb;
+        absolute_time_t ntp_test_time;
+        alarm_id_t ntp_resend_alarm;
+    } NTP_T;
+    typedef struct TCP_CLIENT_T_ {
+        struct tcp_pcb *tcp_pcb;
+        ip_addr_t remote_addr;
+        uint8_t *buffer;
+        int buffer_len;
+        volatile bool complete;
+        volatile bool connected;
+        int BUF_SIZE;
+        int TCP_PORT;
+        char *hostname;
+    } TCP_CLIENT_T;
     extern TCP_SERVER_T *TCPstate;
     extern void cleanserver(void);
-	extern err_t tcp_server_close(void *arg);
+    extern err_t tcp_server_close(void *arg, int pcb);
+    extern err_t tcp_server_send_data(void *arg, struct tcp_pcb *tpcb, int pcb);
+    extern void checksent(void *arg, int fn, int pcb);
+    extern TCP_CLIENT_T *TCP_CLIENT;
+    extern TCP_CLIENT_T* tcp_client_init(void);
+    extern void tcp_dns_found(const char *hostname, const ip_addr_t *ipaddr, void *arg);
+    extern void starttelnet(struct tcp_pcb *client_pcb, int pcb, void *arg);
 #endif
 extern int piointerrupt;
 extern char *DMAinterruptRX;

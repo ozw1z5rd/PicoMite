@@ -175,7 +175,7 @@ void DisplayPutS(char *s) {
             case DRAW_LINE:         DrawBox(0, gui_font_height * (Option.Height - 2), HRes - 1, VRes - 1, 0, 0, gui_bcolour);
                                     DrawLine(0, VRes - gui_font_height - 6, HRes - 1, VRes - gui_font_height - 6, 1, GUI_C_LINE);
 #ifdef PICOMITEVGA
-                                    if(DISPLAY_TYPE==MONOVGA && Option.ColourCode && X_TILE==80)for(int i=0; i<80; i++)tilefcols[38*X_TILE+i]=Option.VGAFC;
+                                    if(DISPLAY_TYPE==MONOVGA && Option.ColourCode && X_TILE==80 )for(int i=0; i<80; i++)tilefcols[38*X_TILE+i]=Option.VGAFC;
 #endif
                                     CurrentX = 0; CurrentY = VRes - gui_font_height;
                                     break;
@@ -204,7 +204,7 @@ int TextChanged;                  // true if the program has been modified and t
 
 void FullScreenEditor(void);
 char *findLine(int ln);
-void printLine(int ln);
+void printLine(int ln); 
 void printScreen(void);
 void SCursor(int x, int y);
 int editInsertChar(unsigned char c);
@@ -226,8 +226,9 @@ void cmd_edit(void) {
     unsigned char *fromp, *p;
     int y, x;
 #ifdef PICOMITEVGA
+    int mode =0;
     if(*cmdline){
-        int mode = getint(cmdline,1,2);
+        mode = getint(cmdline,1,2);
         if(mode==2){
             DISPLAY_TYPE=COLOURVGA; 
         } else {
@@ -247,6 +248,9 @@ void cmd_edit(void) {
     if(Option.DISPLAY_CONSOLE == true && gui_font_width > 16) error("Font is too large");
     ClearVars(0);
     ClearRuntime();
+#ifdef PICOMITEVGA
+    if(mode==1) SetFont(1) ;
+#endif
     EdBuff = GetTempMemory(EDIT_BUFFER_SIZE);
     *EdBuff = 0;
 

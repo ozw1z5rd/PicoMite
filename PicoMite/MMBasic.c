@@ -70,7 +70,10 @@ struct s_hash {                             // structure of the token table
 
 // these are initialised at startup
 int CommandTableSize, TokenTableSize;
+#ifdef PICOMITE
 struct s_funtbl funtbl[MAXSUBFUN];
+void hashlabels(int errabort);
+#endif
 struct s_vartbl __attribute__ ((aligned (64))) vartbl[MAXVARS]={0};                                            // this table stores all variables
 int varcnt;                                                         // number of variables
 int VarIndex;                                                       // Global set by findvar after a variable has been created or found
@@ -81,7 +84,6 @@ unsigned char OptionExplicit;                                                // 
 unsigned char DefaultType;                                                   // the default type if a variable is not specifically typed
 int emptyarray=0;
 int TempStringClearStart;                                           // used to prevent clearing of space in an expression that called a FUNCTION
-void hashlabels(int errabort);
 unsigned char *subfun[MAXSUBFUN];                                            // table used to locate all subroutines and functions
 char CurrentSubFunName[MAXVARLEN + 1];                              // the name of the current sub or fun
 char CurrentInterruptName[MAXVARLEN + 1];                           // the name of the current interrupt function
@@ -111,7 +113,7 @@ int OptionBase;                                                     // track the
 #if defined(MMFAMILY)
 unsigned char FunKey[NBRPROGKEYS][MAXKEYLEN + 1];                            // data storage for the programmable function keys
 #endif
-//extern unsigned char MMHeap[Option.HEAP_SIZE];
+//extern unsigned char MMHeap[HEAP_MEMORY_SIZE];
 const char namestart[256]={
 		0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, //0
 		0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, //0x10
@@ -235,8 +237,11 @@ extern long long int CallCFunction(unsigned char *CmdPtr, unsigned char *ArgList
 //
 //void getexpr(unsigned char *);
 //void checktype(int *, int);
+#ifdef PICOMITEWEB
+unsigned char *getvalue(unsigned char *p, MMFLOAT *fa, long long int  *ia, unsigned char **sa, int *oo, int *ta);
+#else
 unsigned char __not_in_flash_func(*getvalue)(unsigned char *p, MMFLOAT *fa, long long int  *ia, unsigned char **sa, int *oo, int *ta);
-
+#endif
 unsigned char tokenTHEN, tokenELSE, tokenGOTO, tokenEQUAL, tokenTO, tokenSTEP, tokenWHILE, tokenUNTIL, tokenGOSUB, tokenAS, tokenFOR;
 unsigned char cmdIF, cmdENDIF, cmdELSEIF, cmdELSE, cmdSELECT_CASE, cmdFOR, cmdNEXT, cmdWHILE, cmdENDSUB, cmdENDFUNCTION, cmdLOCAL, cmdSTATIC, cmdCASE, cmdDO, cmdLOOP, cmdCASE_ELSE, cmdEND_SELECT;
 unsigned char cmdSUB, cmdFUN, cmdCFUN, cmdCSUB, cmdIRET;
@@ -327,7 +332,7 @@ void __not_in_flash_func(ExecuteProgram)(unsigned char *p) {
             CurrentLinePtr = p;                                     // and pointer to the line for error reporting
             TraceBuff[TraceBuffIndex] = p;                          // used by TRACE LIST
             if(++TraceBuffIndex >= TRACE_BUFF_SIZE) TraceBuffIndex = 0;
-            if(TraceOn && p < ProgMemory + Option.PROG_FLASH_SIZE) {
+            if(TraceOn && p < ProgMemory + MAX_PROG_SIZE) {
                 inpbuf[0] = '[';
                 IntToStr(inpbuf + 1, CountLines(p), 10);
                 strcat(inpbuf, "]");
@@ -349,7 +354,6 @@ void __not_in_flash_func(ExecuteProgram)(unsigned char *p) {
             skipelement(nextstmt);
             if(*p && *p != '\'') {                                  // ignore a comment line
                 if(setjmp(ErrNext) == 0) {                          // return to the else leg of this if error and OPTION ERROR SKIP/IGNORE is in effect
-                   SaveLocalIndex = LocalIndex;                        // save this if we need to cleanup after an error
                     SaveLocalIndex = LocalIndex;                    // save this if we need to cleanup after an error
                     if(*(char*)p >= C_BASETOKEN && *(char*)p - C_BASETOKEN < CommandTableSize - 1 && (commandtbl[*(char*)p - C_BASETOKEN].type & T_CMD)) {
                         cmdtoken = *(char*)p;
@@ -400,10 +404,11 @@ void  PrepareProgram(int ErrAbort) {
     
     NbrFuncts = 0;
     CFunctionFlash = CFunctionLibrary = NULL;
-    memset(funtbl,0,sizeof(struct s_funtbl)*MAXSUBFUN);
     PrepareProgramExt(ProgMemory, NbrFuncts,&CFunctionFlash, ErrAbort);
     
     // check the sub/fun table for duplicates
+#ifdef PICOMITE
+    memset(funtbl,0,sizeof(struct s_funtbl)*MAXSUBFUN);
     for(i = 0; i < MAXSUBFUN && subfun[i] != NULL; i++) {
     	// First we will hash the function name and add it to the function table
     	// This allows for a fast check of a variable name being the same as a function name
@@ -434,6 +439,7 @@ void  PrepareProgram(int ErrAbort) {
 		memcpy(funtbl[hash].name,printvar,(namelen == MAXVARLEN ? namelen :namelen+1));
     }
     hashlabels(ErrAbort);
+#endif
     if(!ErrAbort) return;
 
     for(i = 0; i < MAXSUBFUN && subfun[i] != NULL; i++) {
@@ -503,6 +509,7 @@ int  PrepareProgramExt(unsigned char *p, int i, unsigned char **CFunPtr, int Err
 // searches the subfun[] table to locate a defined sub or fun
 // returns with the index of the sub/function in the table or -1 if not found
 // if type = 0 then look for a sub otherwise a function
+#ifdef PICOMITE
 int __not_in_flash_func(FindSubFun)(unsigned char *p, int type) {
     unsigned char *s;
     unsigned char name[MAXVARLEN + 1];
@@ -543,8 +550,27 @@ int __not_in_flash_func(FindSubFun)(unsigned char *p, int type) {
 	}
     return -1;
 }
+#else
+int __not_in_flash_func(FindSubFun)(unsigned char *p, int type) {
+    char *p1, *p2;
+    int i;
 
-
+    for(i = 0;  i < MAXSUBFUN && subfun[i] != NULL; i++) {
+        p2 = subfun[i];                                             // point to the command token
+        if(type == 0) {                                             // if it is a sub and we want a fun or vice versa skip this one
+            if(!(*p2 == cmdSUB || *p2 == cmdCSUB)) continue;
+        } else {
+            if(!(*p2 == cmdFUN /*|| *p2 == cmdCFUN*/)) continue;
+        }
+        p2++; skipspace(p2);                                        // point to the identifier
+        if(toupper(*p) != toupper(*p2)) continue;                   // quick first test
+        p1 = p + 1;  p2++;
+        while(isnamechar(*p1) && toupper(*p1) == toupper(*p2)) { p1++; p2++; };
+        if((*p1 == '$' && *p2 == '$') || (*p1 == '%' && *p2 == '%') || (*p1 == '!' && *p2 == '!') || (!isnamechar(*p1) && !isnamechar(*p2))) return i;          // found it !
+    }
+    return -1;
+}
+#endif
 
 // This function is responsible for executing a defined subroutine or function.
 // As these two are similar they are processed in the one lump of code.
@@ -554,7 +580,11 @@ int __not_in_flash_func(FindSubFun)(unsigned char *p, int type) {
 //   cmd      = pointer to the command name used by the caller (in program memory)
 //   index    = index into subfun[i] which points to the definition of the sub or funct
 //   fa, i64a, sa and typ are pointers to where the return value is to be stored (used by functions only)
+#ifdef PICOMITE
 void __not_in_flash_func(DefinedSubFun)(int isfun, unsigned char *cmd, int index, MMFLOAT *fa, long long int  *i64a, unsigned char **sa, int *typ) {
+#else
+void DefinedSubFun(int isfun, unsigned char *cmd, int index, MMFLOAT *fa, long long int  *i64a, unsigned char **sa, int *typ) {
+#endif
 	unsigned char *p, *s, *tp, *ttp, tcmdtoken;
 	unsigned char *CallersLinePtr, *SubLinePtr = NULL;
     unsigned char *argbuf1; unsigned char **argv1; int argc1;
@@ -1363,7 +1393,11 @@ unsigned char __not_in_flash_func(*doexpr)(unsigned char *p, MMFLOAT *fa, long l
 
 // get a value, either from a constant, function or variable
 // also returns the next operator to the right of the value or E_END if no operator
+#ifdef PICOMITEWEB
+unsigned char *getvalue(unsigned char *p, MMFLOAT *fa, long long int  *ia, unsigned char **sa, int *oo, int *ta) {
+#else
 unsigned char __not_in_flash_func(*getvalue)(unsigned char *p, MMFLOAT *fa, long long int  *ia, unsigned char **sa, int *oo, int *ta) {
+#endif
     MMFLOAT f = 0;
     long long int  i64 = 0;
     unsigned char *s = NULL;
@@ -1633,6 +1667,7 @@ unsigned char *findline(int nbr, int mustfind) {
         error("Line number");
     return p;
 }
+#ifdef PICOMITE
 void hashlabels(int ErrAbort){
     unsigned char *p = (unsigned char *)ProgMemory;
     int j, u, namelen;
@@ -1684,7 +1719,6 @@ void hashlabels(int ErrAbort){
     }
 }
 
-
 // search through program memory looking for a label.
 // returns a pointer to the T_NEWLINE token or throws an error if not found
 // non cached version
@@ -1733,11 +1767,32 @@ unsigned char *__not_in_flash_func(findlabel)(unsigned char *labelptr) {
 	if(funtbl[hash].name[0]==0)error("Cannot find label");
 	return 0;
 
-/*
+}
+#else
+unsigned char *findlabel(unsigned char *labelptr) {
+    char *p, *lastp = ProgMemory + 1;
+    int i;
+    char label[MAXVARLEN + 1];
 
+    // first, just exit we have a NULL argument
+    if(labelptr == NULL) return NULL;
 
-    // point to the main program memory
-    p = (char *)ProgMemory;
+    // convert the label to the token format and load into label[]
+    // this assumes that the first character has already been verified as a valid label character
+    label[1] = *labelptr++;
+    for(i = 2; ; i++) {
+        if(!isnamechar(*labelptr)) break;                           // the end of the label
+        if(i > MAXVARLEN ) error("Label too long");                 // too long, not a correctly formed label
+        label[i] = *labelptr++;
+    }
+    label[0] = i - 1;                                               // the length byte
+
+    // point to the main program memory or the library
+    if(CurrentLinePtr >= ProgMemory + MAX_PROG_SIZE)
+        p = ProgMemory + MAX_PROG_SIZE;
+    else {
+        p = ProgMemory;
+    }
 
     // now do the search
     while(1) {
@@ -1757,17 +1812,16 @@ unsigned char *__not_in_flash_func(findlabel)(unsigned char *labelptr) {
 
         if(p[0] == T_LABEL) {
             p++;                                                    // point to the length of the label
-            if(mem_equal(p, label, label[0] + 1)){                   // compare the strings including the length byte
-            	return lastp;                                       // and if successful return pointing to the beginning of the line
-            }
-                p += p[0] + 1;                                          // still looking! skip over the label
+            if(mem_equal(p, label, label[0] + 1))                   // compare the strings including the length byte
+                return lastp;                                       // and if successful return pointing to the beginning of the line
+            p += p[0] + 1;                                          // still looking! skip over the label
             continue;
         }
 
         p++;
-    }*/
+    }
 }
-
+#endif
 
 // returns true if 'line' is a valid line in the program
 int IsValidLine(int nbr) {
@@ -1846,10 +1900,10 @@ routines for storing and manipulating variables
 // storage of the variable's data:
 //      if it is type T_NBR or T_INT the value is held in the variable slot
 //      for T_STR a block of memory of MAXSTRLEN size (or size determined by the LENGTH keyword) will be malloc'ed and the pointer stored in the variable slot.
-#ifdef PICOMITEVGA
-void *findvar(unsigned char *p, int action) {
-#else
+#ifdef PICOMITE
 void __not_in_flash_func(*findvar)(unsigned char *p, int action) {
+#else
+void *findvar(unsigned char *p, int action) {
 #endif
     unsigned char name[MAXVARLEN + 1];
     int i=0, j, size, ifree, globalifree, localifree, nbr, vtype, vindex, namelen, tmp;
@@ -2132,6 +2186,7 @@ void __not_in_flash_func(*findvar)(unsigned char *p, int action) {
             vtype = DefaultType;
     }
     // now scan the sub/fun table to make sure that there is not a sub/fun with the same name
+#ifdef PICOMITE
     if(!(action & V_FUNCT) && (funtbl[funhash].name[0])) {                                       // don't do this if we are defining the local variable for a function name
 		while(funtbl[funhash].name[0]!=0){
 			ip=name;
@@ -2149,7 +2204,21 @@ void __not_in_flash_func(*findvar)(unsigned char *p, int action) {
 			if(funhash==MAXSUBFUN)funhash=0;
         }
     }
-
+#else
+    if(!(action & V_FUNCT)) {                                       // don't do this if we are defining the local variable for a function name
+        for(i = 0;  i < MAXSUBFUN && subfun[i] != NULL; i++) {
+            x = subfun[i];                                          // point to the command token
+            x++; skipspace(x);                                      // point to the identifier
+            s = name;                                               // point to the new variable
+            if(*s != toupper(*x)) continue;                         // quick first test
+            while(1) {
+                if(!isnamechar(*s) && !isnamechar(*x)) error("A sub/fun has the same name: $", name);
+                if(*s != toupper(*x) || *s == 0 || !isnamechar(*x) || s - name >= MAXVARLEN) break;
+                s++; x++;
+            }
+        }
+    }
+#endif
     // set a default string size
     size = MAXSTRLEN;
 
@@ -2450,7 +2519,7 @@ void error(char *msg, ...) {
     if(MMCharPos > 1) MMPrintString("\r\n");
     if(CurrentLinePtr) {
         tp = p = ProgMemory;
-        if(*CurrentLinePtr != T_NEWLINE && CurrentLinePtr < ProgMemory + Option.PROG_FLASH_SIZE) {
+        if(*CurrentLinePtr != T_NEWLINE && CurrentLinePtr < ProgMemory + MAX_PROG_SIZE) {
             // normally CurrentLinePtr points to a T_NEWLINE token but in this case it does not
             // so we have to search for the start of the line and set CurrentLinePtr to that
           while(*p != 0xff) {
@@ -2473,7 +2542,7 @@ void error(char *msg, ...) {
         llist(tknbuf, CurrentLinePtr);
         p = tknbuf; skipspace(p);
         MMPrintString(MMCharPos > 1 ? "\r\n[" : "[");
-        if(CurrentLinePtr < ProgMemory + Option.PROG_FLASH_SIZE) {
+        if(CurrentLinePtr < ProgMemory + MAX_PROG_SIZE ){
             IntToStr(inpbuf, CountLines(CurrentLinePtr), 10);
             MMPrintString(inpbuf);
             StartEditPoint = CurrentLinePtr;
@@ -2766,8 +2835,7 @@ void ClearRuntime(void) {
     if(TCPstate){
         TCP_SERVER_T *state = (TCP_SERVER_T*)TCPstate;
         for(int i=0 ; i<MaxPcb ; i++){
-            state->write_pcb=i;
-            if(state->client_pcb[i] && state->telnetconnected!=i)tcp_server_close(state);
+            if(state->client_pcb[i] && state->telnet_pcb_no!=i)tcp_server_close(state, i);
             if(state->buffer_recv[i])FreeMemorySafe((void **)&state->buffer_recv[i]);
             state->inttrig[i]=0;
             state->sent_len[i]=0;

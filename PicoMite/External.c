@@ -2624,6 +2624,11 @@ void ClearExternalIO(void) {
     OnPS2GOSUB=NULL;
     PS2code=0;
     PS2int=0;
+#ifdef PICOMITEWEB
+    MQTTInterrupt=NULL;
+    MQTTComplete=0;
+    closeMQTT();
+#endif
 #ifndef PICOMITEWEB
 #ifdef PICOMITEVGA
     CollisionFound = false;

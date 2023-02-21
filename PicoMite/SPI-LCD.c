@@ -68,7 +68,6 @@ int LCD_CS_PIN=0;
 int LCD_CD_PIN=0;
 int LCD_Reset_PIN=0;
 
-unsigned char LCDBuffer[1440]={0};
 
 
 
@@ -1084,7 +1083,7 @@ void DrawRectangleSPI(int x1, int y1, int x2, int y2, int c){
 		if(Option.DISPLAY_TYPE==ILI9488 || Option.DISPLAY_TYPE==ILI9481IPS ){
 			i = x2 - x1 + 1;
 			i*=3;
-			p=LCDBuffer;
+			p=GetTempMemory(i);
 			col[0]=(c>>16);
 			col[1]=(c>>8) & 0xFF;
 			col[2]=(c & 0xFF);
@@ -1096,7 +1095,7 @@ void DrawRectangleSPI(int x1, int y1, int x2, int y2, int c){
 		} else {
 			i = x2 - x1 + 1;
 			i*=2;
-			p=LCDBuffer;
+			p=GetTempMemory(i);
 			col[0]= ((c >> 16) & 0b11111000) | ((c >> 13) & 0b00000111);
 			col[1] = ((c >>  5) & 0b11100000) | ((c >>  3) & 0b00011111);
 			if(Option.DISPLAY_TYPE == GC9A01){
@@ -1320,7 +1319,7 @@ void DrawBufferMEM(int x1, int y1, int x2, int y2, unsigned char* p) {
 	}
 }
 void ReadBufferMEM(int x1, int y1, int x2, int y2, unsigned char* buff) {
-    unsigned char* p=(void *)((unsigned int)LCDBuffer);
+    unsigned char* p=GetTempMemory(1440);
     int x,y,loc,t;
     unsigned char mask;
     if(x1 < 0) x1 = 0;
@@ -1385,7 +1384,7 @@ void ReadBufferMEM(int x1, int y1, int x2, int y2, unsigned char* buff) {
 }
 
 void DrawRectangleMEM(int x1, int y1, int x2, int y2, int c){
-    unsigned char* p=(void *)((unsigned int)LCDBuffer);
+    unsigned char* p=GetTempMemory(1440);
     int x,y,loc,t;
     unsigned char mask;
     if(x1 < 0) x1 = 0;
@@ -1450,7 +1449,7 @@ void DrawPixelMEM(int x1,int y1, int c){
 void DrawBitmapMEM(int x1, int y1, int width, int height, int scale, int fc, int bc, unsigned char *bitmap){
     int i, j, k, m, x, y,t, loc;
     unsigned char omask, amask;
-    unsigned char* p=(void *)((unsigned int)LCDBuffer);
+    unsigned char* p=GetTempMemory(1440);
     if(x1>=HRes || y1>=VRes || x1+width*scale<0 || y1+height*scale<0)return;
     for(i = 0; i < height; i++) {                                   // step thru the font scan line by line
         for(j = 0; j < scale; j++) {                                // repeat lines to scale the font
@@ -1545,7 +1544,7 @@ void ST7920SetXY(int x, int y){
 
 void Display_Refresh(void){
 	if(!(Option.DISPLAY_TYPE<=I2C_PANEL || Option.DISPLAY_TYPE>=BufferedPanel)) return;
-	unsigned char* p=(void *)((unsigned int)LCDBuffer);
+    unsigned char* p=GetTempMemory(1440);
 	if(low_x<0)low_x=0;
 	if(low_y<0)low_y=0;
 	if(high_x>DisplayHRes)high_x=DisplayHRes-1;

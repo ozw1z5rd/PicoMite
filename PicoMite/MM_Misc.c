@@ -72,7 +72,10 @@ extern const void * const CallTable[];
 struct s_inttbl inttbl[NBRINTERRUPTS];
 unsigned char *InterruptReturn;
 extern const char *FErrorMsg[];
-
+#ifdef PICOMITEWEB
+	char *MQTTInterrupt=NULL;
+	volatile int MQTTComplete=0;
+#endif
 int TickPeriod[NBRSETTICKS]={0};
 volatile int TickTimer[NBRSETTICKS]={0};
 unsigned char *TickInt[NBRSETTICKS]={NULL};
@@ -1503,7 +1506,8 @@ void printoptions(void){
         password[strlen(Option.PASSWORD)]=0;
         PO3Str("WIFI",Option.SSID,password);
     }
-    if(Option.TCP_PORT)PO2Int("TCP SERVER PORT", Option.TCP_PORT);
+    if(Option.TCP_PORT && Option.ServerResponceTime!=5000)PO3Int("TCP SERVER PORT", Option.TCP_PORT, Option.ServerResponceTime);
+    if(Option.TCP_PORT && Option.ServerResponceTime==5000)PO2Int("TCP SERVER PORT", Option.TCP_PORT);
     if(Option.Telnet==1)PO2Str("TELNET", "CONSOLE ON");
     if(Option.Telnet==-1)PO2Str("TELNET", "CONSOLE ONLY");
     #endif
@@ -1926,7 +1930,10 @@ void cmd_option(void) {
     }
     tp = checkstring(cmdline, "TCP SERVER PORT");
     if(tp) {
-        Option.TCP_PORT=getint(tp,0,65535);
+        getargs(&tp,3,",");
+        Option.TCP_PORT=getint(argv[0],0,65535);
+        Option.ServerResponceTime=5000;
+        if(argc==3)Option.ServerResponceTime=getint(argv[2],1000,20000);
         SaveOptions();
          _excep_code = RESET_COMMAND;
         SoftReset();
@@ -3482,6 +3489,11 @@ int checkdetailinterrupts(void) {
     if(TCPreceived && TCPreceiveInterrupt){
         intaddr = TCPreceiveInterrupt;                                   // get a pointer to the interrupt routine
         TCPreceived=0;
+        goto GotAnInterrupt;
+    }
+    if(MQTTComplete && MQTTInterrupt != NULL) {
+        MQTTComplete = false;
+        intaddr = MQTTInterrupt;                                      // set the next stmt to the interrupt location
         goto GotAnInterrupt;
     }
 #endif

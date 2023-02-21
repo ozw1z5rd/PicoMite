@@ -29,23 +29,21 @@ extern "C" {
 #endif
 #define MAXVARS             512                     // 8 + MAXVARLEN + MAXDIM * 2  (ie, 56 bytes) - these do not incl array members
 #ifdef PICOMITEVGA
-#define FLASH_TARGET_OFFSET (720 * 1024) 
-#define MagicKey 0x74146772
-#define HEAPTOP 0x2003ff00
-#define HEAP_MEMORY_SIZE (96*1024) 
+#define FLASH_TARGET_OFFSET (840 * 1024) 
+#define MagicKey 0x75851772
+#define HEAPTOP 0x2003f000
+#define HEAP_MEMORY_SIZE (100*1024) 
 #define MAX_CPU     378000
 #define MIN_CPU     126000
 #endif
 #ifdef PICOMITEWEB
-#define FLASH_TARGET_OFFSET (960 * 1024) 
-#define MagicKey 0x48262327
+#define FLASH_TARGET_OFFSET (1024 * 1024) 
+#define MagicKey 0x21708327
 #define HEAPTOP 0x2003f800
-#define HEAP_MEMORY_SIZE (96*1024) 
+#define HEAP_MEMORY_SIZE (88*1024) 
 #define MaxPcb 8
 #define MAX_CPU     264000
 #define MIN_CPU     64000
-
-
 #endif
 #ifdef PICOMITE
 #define FLASH_TARGET_OFFSET (720 * 1024) 
@@ -113,7 +111,7 @@ extern "C" {
 #define FNV_offset_basis    2166136261
 #define use_hash
 #define DISKCHECKRATE       500                    //check for removal of SDcard every 500mSec
-#define EDIT_BUFFER_SIZE    Option.HEAP_SIZE-1024-3*HRes// this is the maximum RAM that we can get
+#define EDIT_BUFFER_SIZE    HEAP_MEMORY_SIZE-1024-3*HRes// this is the maximum RAM that we can get
 #define SCREENWIDTH     80
 #define SCREENHEIGHT    24                          // this is the default and it can be changed using the OPTION command
 #define CONSOLE_BAUDRATE        115200               // only applies to the serial console

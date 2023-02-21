@@ -41,6 +41,7 @@ extern "C" {
 #include "hardware/structs/timer.h"
 #include "hardware/vreg.h"
 #include "hardware/structs/ssi.h"
+#include "hardware/structs/bus_ctrl.h"
 #include "pico/unique_id.h"
 #include <pico/bootrom.h>
 #include "hardware/irq.h"
@@ -122,18 +123,6 @@ const uint8_t *flash_option_contents = (const uint8_t *) (XIP_BASE + FLASH_TARGE
 const uint8_t *SavedVarsFlash = (const uint8_t *) (XIP_BASE + FLASH_TARGET_OFFSET +  FLASH_ERASE_SIZE);
 const uint8_t *flash_target_contents = (const uint8_t *) (XIP_BASE + FLASH_TARGET_OFFSET + FLASH_ERASE_SIZE + SAVEDVARS_FLASH_SIZE);
 const uint8_t *flash_progmemory = (const uint8_t *) (XIP_BASE + PROGSTART);
-#ifdef PICOMITEVGA
-    uint32_t M_Foreground[16]={
-    0x0000,0x000F,0x00f0,0x00ff,0x0f00,0x0f0F,0x0ff0,0x0fff,0xf000,0xf00F,0xf0f0,0xf0ff,0xff00,0xff0F,0xfff0,0xffff
-    };
-    uint32_t M_Background[16]={
-    0xffff,0xfff0,0xff0f,0xff00,0xf0ff,0xf0f0,0xf00f,0xf000,0x0fff,0x0ff0,0x0f0f,0x0f00,0x00ff,0x00f0,0x000f,0x0000
-    };
-    uint16_t tilefcols[80*40];
-    uint16_t tilebcols[80*40];
-    int ytilecount=16;
-    int xdups=1;
-#endif
 int ticks_per_second; 
 int InterruptUsed;
 int calibrate=0;
@@ -1050,7 +1039,7 @@ void __not_in_flash_func(ProcessWeb)(void){
     }
     testcount++;
     if(testcount==500)testcount=0;
-    if(state->telnetconnected==99)return;
+    if(state->telnet_pcb_no==99)return;
     if(time_us_64() > flushtimer){
         TelnetPutC(0,-1);
         flushtimer=time_us_64()+5000;
@@ -1717,8 +1706,105 @@ void updatebootcount(void){
     err=lfs_file_write(&lfs, &lfs_file, &boot_count, sizeof(boot_count));
     err=lfs_file_close(&lfs, &lfs_file);	
 }
+
+/**
+ * @brief Transforms input beginning with * into a corresponding RUN command.
+ *
+ * e.g.
+ *   *foo              =>  RUN "foo"
+ *   *"foo bar"        =>  RUN "foo bar"
+ *   *foo --wombat     =>  RUN "foo", "--wombat"
+ *   *foo "wom"        =>  RUN "foo", Chr$(34) + "wom" + Chr$(34)
+ *   *foo "wom" "bat"  =>  RUN "foo", Chr$(34) + "wom" + Chr$(34) + " " + Chr$(34) + "bat" + Chr$(34)
+ *   *foo --wom="bat"  =>  RUN "foo", "--wom=" + Chr$(34) + "bat" + Chr$(34)
+ */
+static void transform_star_command(char *input) {
+    char *src = input;
+    while (isspace(*src)) src++; // Skip leading whitespace.
+    if (*src != '*') error("Internal fault");
+    src++;
+
+    // Trim any trailing whitespace from the input.
+    char *end = input + strlen(input) - 1;
+    while (isspace(*end)) *end-- = '\0';
+
+    // Allocate extra space to avoid string overrun.
+    char *tmp = (char *) GetTempMemory(STRINGSIZE + 32);
+    strcpy(tmp, "RUN");
+    char *dst = tmp + 3;
+
+    if (*src == '"') {
+        // Everything before the second quote is the name of the file to RUN.
+        *dst++ = ' ';
+        *dst++ = *src++; // Leading quote.
+        while (*src && *src != '"') *dst++ = *src++;
+        if (*src == '"') *dst++ = *src++; // Trailing quote.
+    } else {
+        // Everything before the first space is the name of the file to RUN.
+        int count = 0;
+        while (*src && !isspace(*src)) {
+            if (++count == 1) {
+                *dst++ = ' ';
+                *dst++ = '\"';
+            }
+            *dst++ = *src++;
+        }
+        if (count) *dst++ = '\"';
+    }
+
+    while (isspace(*src)) src++; // Skip whitespace.
+
+    // Anything else is arguments.
+    if (*src) {
+        *dst++ = ',';
+        *dst++ = ' ';
+
+        // If 'src' starts with double-quote then replace with: Chr$(34) +
+        if (*src == '"') {
+            memcpy(dst, "Chr$(34) + ", 11);
+            dst += 11;
+            src++;
+        }
+
+        *dst++ = '\"';
+
+        // Copy from 'src' to 'dst'.
+        while (*src) {
+            if (*src == '"') {
+                // Close current set of quotes to insert a Chr$(34)
+                memcpy(dst, "\" + Chr$(34)", 12);
+                dst += 12;
+
+                // Open another set of quotes unless this was the last character.
+                if (*(src + 1)) {
+                    memcpy(dst, " + \"", 4);
+                    dst += 4;
+                }
+                src++;
+            } else {
+                *dst++ = *src++;
+            }
+            if (dst - tmp >= STRINGSIZE) error("String too long");
+        }
+
+        // End with a double quote unless 'src' ended with one.
+        if (*(src - 1) != '"') *dst++ = '\"';
+
+        *dst = '\0';
+    }
+
+    if (dst - tmp >= STRINGSIZE) error("String too long");
+
+    // Copy transformed string back into the input buffer.
+    memcpy(input, tmp, STRINGSIZE);
+    input[STRINGSIZE - 1] = '\0';
+
+    ClearSpecificTempMemory(tmp);
+}
+
+
 int main(){
-    static int ErrorInPrompt;
+   static int ErrorInPrompt;
     repeating_timer_t timer;
     int i;
     LoadOptions();
@@ -1726,6 +1812,7 @@ int main(){
         !(Option.Tab==2 || Option.Tab==3 || Option.Tab==4 ||Option.Tab==8) ||
         !(Option.Autorun>=0 && Option.Autorun<=MAXFLASHSLOTS+1) ||
         Option.CPU_Speed<48000 || Option.CPU_Speed>378000 ||
+        Option.PROG_FLASH_SIZE!=MAX_PROG_SIZE ||
         !(Option.Magic==MagicKey)
         ){
         ResetAllFlash();              // init the options if this is the very first startup
@@ -1786,13 +1873,14 @@ int main(){
     exception_set_exclusive_handler(HARDFAULT_EXCEPTION,sigbus);
     while((i=getConsole())!=-1){}
 #ifdef PICOMITEVGA
-    multicore_launch_core1_with_stack(QVgaCore,core1stack,256);
-	memset(WriteBuf, 0, 38400);
-    if(Option.DISPLAY_TYPE!=MONOVGA)ClearScreen(Option.DefaultBC);
     X_TILE=Option.X_TILE;
     Y_TILE=Option.Y_TILE;
     ytilecount=X_TILE==80? 12 : 16;
     xdups= (X_TILE==80? 1:0);
+    bus_ctrl_hw->priority=0x100;
+    multicore_launch_core1_with_stack(QVgaCore,core1stack,256);
+	memset(WriteBuf, 0, 38400);
+    if(Option.DISPLAY_TYPE!=MONOVGA)ClearScreen(Option.DefaultBC);
 #endif
     if(!(_excep_code == RESTART_NOAUTORUN || _excep_code == WATCHDOG_TIMEOUT)){
         if(Option.Autorun==0 ){
@@ -1905,7 +1993,7 @@ int main(){
         InsertLastcmd(inpbuf);                                  // save in case we want to edit it later
 //        MMgetline(0, inpbuf);                                       // get the input
         if(!*inpbuf) continue;                                      // ignore an empty line
-	  char *p=inpbuf;
+/*	  char *p=inpbuf;
 	  skipspace(p);
       if(strlen(p)==2 && p[1]==':'){
         if(toupper(*p)=='A')strcpy(p,"drive \"a:\"");
@@ -1921,8 +2009,17 @@ int main(){
 			  q[0]=34;
 		  } else strcat(p,"\"");
 		  p[3]=' ';
-	  }
-        tokenise(true);                                             // turn into executable code
+	  }*/
+        char *p=inpbuf;
+        skipspace(p);
+            if(strlen(p)==2 && p[1]==':'){
+                if(toupper(*p)=='A')strcpy(p,"drive \"a:\"");
+                if(toupper(*p)=='B')strcpy(p,"drive \"b:\"");
+            }
+        if(*p=='*'){ //shortform RUN command so convert to a normal version
+                transform_star_command(inpbuf);
+                p = inpbuf;
+        }        tokenise(true);                                             // turn into executable code
         i=0;
         if(*tknbuf==GetCommandValue((char *)"RUN"))i=1;
         if (setjmp(jmprun) != 0) {
@@ -1980,7 +2077,7 @@ void SaveProgramToFlash(unsigned char *pm, int msg) {
         while(!(p[0] == 0 && p[1] == 0)) {
             FlashWriteByte(*p++); nbr++;
 
-            if((int)((char *)realflashpointer - (uint32_t)PROGSTART) >= Option.PROG_FLASH_SIZE - 5)  goto exiterror;
+            if((int)((char *)realflashpointer - (uint32_t)PROGSTART) >= MAX_PROG_SIZE - 5)  goto exiterror;
         }
         FlashWriteByte(0); nbr++;                              // terminate that line in flash
     }
@@ -2063,7 +2160,7 @@ void SaveProgramToFlash(unsigned char *pm, int msg) {
                             enable_interrupts();
                             error("Invalid hex word");
                          }
-                         if((int)((char *)realflashpointer - (uint32_t)PROGSTART) >= Option.PROG_FLASH_SIZE - 5) goto exiterror;
+                         if((int)((char *)realflashpointer - (uint32_t)PROGSTART) >= MAX_PROG_SIZE - 5) goto exiterror;
                          n = n << 4;
                          if(*p <= '9')
                              n |= (*p - '0');
@@ -2168,7 +2265,7 @@ void SaveProgramToFlash(unsigned char *pm, int msg) {
                             enable_interrupts();
                             error("Invalid hex word");
                          }
-                         if((int)((char *)realflashpointer - (uint32_t)PROGSTART) >= Option.PROG_FLASH_SIZE - 5) goto exiterror;
+                         if((int)((char *)realflashpointer - (uint32_t)PROGSTART) >= MAX_PROG_SIZE - 5) goto exiterror;
                          n = n << 4;
                          if(*p <= '9')
                              n |= (*p - '0');

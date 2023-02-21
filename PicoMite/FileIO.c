@@ -394,7 +394,7 @@ void cmd_flash(void)
         disable_interrupts();
         flash_range_erase(j, MAX_PROG_SIZE);
         enable_interrupts();
-        j = (Option.PROG_FLASH_SIZE >> 2);
+        j = (MAX_PROG_SIZE >> 2);
         uSec(250000);
         int *pp = (int *)(flash_target_contents + (i - 1) * MAX_PROG_SIZE);
         while (j--)
@@ -437,7 +437,7 @@ void cmd_flash(void)
             for (i = 1; i <= MAXFLASHSLOTS; i++)
             {
                 k = 0;
-                j = Option.PROG_FLASH_SIZE >> 2;
+                j = MAX_PROG_SIZE >> 2;
                 pp = (int *)(flash_target_contents + (i - 1) * MAX_PROG_SIZE);
                 while (j--)
                     if (*pp++ != 0xFFFFFFFF)
@@ -482,7 +482,7 @@ void cmd_flash(void)
         disable_interrupts();
         flash_range_erase(j, MAX_PROG_SIZE);
         enable_interrupts();
-        j = (Option.PROG_FLASH_SIZE >> 2);
+        j = (MAX_PROG_SIZE >> 2);
         uSec(250000);
         int *pp = (int *)(flash_target_contents + (i - 1) * MAX_PROG_SIZE);
         while (j--)
@@ -505,11 +505,11 @@ void cmd_flash(void)
     {
         if (CurrentLinePtr)
             error("Invalid in program");
-        int j = (Option.PROG_FLASH_SIZE >> 2), i = getint(p, 1, MAXFLASHSLOTS);
+        int j = (MAX_PROG_SIZE>> 2), i = getint(p, 1, MAXFLASHSLOTS);
         disable_interrupts();
         flash_range_erase(PROGSTART, MAX_PROG_SIZE);
         enable_interrupts();
-        j = (Option.PROG_FLASH_SIZE >> 2);
+        j = (MAX_PROG_SIZE >> 2);
         uSec(250000);
         int *pp = (int *)flash_progmemory;
         while (j--)
@@ -3217,6 +3217,7 @@ void ResetOptions(void)
     Option.DefaultFont = 0x01;
     Option.DefaultBrightness = 100;
     Option.Baudrate = CONSOLE_BAUDRATE;
+    Option.PROG_FLASH_SIZE=MAX_PROG_SIZE;
 #ifdef PICOMITEVGA
     Option.CPU_Speed = 126000;
     Option.DISPLAY_CONSOLE = 1;
@@ -3230,6 +3231,9 @@ void ResetOptions(void)
     Option.CPU_Speed = 133000;
     Option.KeyboardConfig = NO_KEYBOARD;
 #endif
+#ifdef PICOMITEWEB
+    Option.ServerResponceTime=5000;
+#endif
     Option.AUDIO_SLICE = 99;
     Option.SDspeed = 10;
     Option.DISPLAY_ORIENTATION = DISPLAY_LANDSCAPE;
@@ -3237,8 +3241,6 @@ void ResetOptions(void)
     Option.DefaultFC = WHITE;
     Option.DefaultBC = BLACK;
     Option.LCDVOP = 0xB1;
-    Option.PROG_FLASH_SIZE = MAX_PROG_SIZE;
-    Option.HEAP_SIZE = MAX_PROG_SIZE;
     Option.INT1pin = 9;
     Option.INT2pin = 10;
     Option.INT3pin = 11;

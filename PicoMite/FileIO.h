@@ -90,7 +90,8 @@ struct option_s {
         int MaxCtrls;                // maximum number of controls allowed //48
     #endif
     #ifdef PICOMITEWEB
-        int TCP_PORT;                // maximum number of controls allowed //48
+        uint16_t TCP_PORT;                // maximum number of controls allowed //48
+        uint16_t ServerResponceTime;
     #endif
     #ifdef PICOMITEVGA
         int16_t X_TILE;                // maximum number of controls allowed //48

@@ -424,16 +424,58 @@ void ListProgram(unsigned char *p, int all) {
 
 
 void cmd_run(void) {
-	skipspace(cmdline);
+/*	skipspace(cmdline);
 	if(*cmdline && *cmdline != '\''){
 		if(!FileLoadProgram(cmdline))return;
 	}
-	ClearRuntime();
-    WatchdogSet = false;
-	PrepareProgram(true);
+	ClearRuntime();*/
+    // RUN [ filename$ ] [, cmd_args$ ]
+    unsigned char *filename = "", *cmd_args = "";
+    getargs(&cmdline, 3, ",");
+    switch (argc) {
+        case 0:
+            break;
+        case 1:
+            filename = getCstring(argv[0]);
+            break;
+        case 2:
+            cmd_args = getCstring(argv[1]);
+            break;
+        default:
+            filename = getCstring(argv[0]);
+            cmd_args = getCstring(argv[2]);
+            break;
+    }
+
+    // The memory allocated by getCstring() is not preserved across
+    // a call to FileLoadProgram() so we need to cache 'filename' and
+    // 'cmd_args' on the stack.
+    unsigned char buf[MAXSTRLEN + 1];
+    if (snprintf(buf, MAXSTRLEN + 1, "\"%s\",%s", filename, cmd_args) > MAXSTRLEN) {
+        error("RUN command line too long");
+    }
+    unsigned char *pcmd_args = buf + strlen(filename) + 2;
+
+    if (*filename && !FileLoadProgram(buf)) return;
+
+    ClearRuntime();
+	WatchdogSet = false;
+//	PrepareProgram(true);
+    PrepareProgram(true);
+
+    // Create a global constant MM.CMDLINE$ containing 'cmd_args'.
+    void *ptr = findvar("MM.CMDLINE$", V_FIND | V_DIM_VAR | T_CONST);
+    CtoM(pcmd_args);
+    memcpy(ptr, pcmd_args + 1, *pcmd_args);
+
     IgnorePIN = false;
     if(*ProgMemory != T_NEWLINE) return;                             // no program to run
 #ifdef PICOMITEWEB
+    void *v;
+    v = findvar("MM.TOPIC$", T_STR | V_NOFIND_NULL);    // create the variable
+    if(v==NULL)findvar("MM.TOPIC$", V_FIND | V_DIM_VAR | T_CONST);
+    v = findvar("MM.MESSAGE$", T_STR | V_NOFIND_NULL);    // create the variable
+    if(v==NULL)findvar("MM.MESSAGE$", V_FIND | V_DIM_VAR | T_CONST);
 	cleanserver();
 #endif
 	nextstmt = ProgMemory;
@@ -521,7 +563,11 @@ void cmd_clear(void) {
 }
 
 
+#ifdef PICOMITEWEB
+void cmd_goto(void) {
+#else
 void __no_inline_not_in_flash_func(cmd_goto)(void) {
+#endif
 	if(isnamestart(*cmdline))
 		nextstmt = findlabel(cmdline);								// must be a label
 	else
@@ -531,7 +577,11 @@ void __no_inline_not_in_flash_func(cmd_goto)(void) {
 
 
 
+#ifdef PICOMITEWEB
+void cmd_if(void) {
+#else
 void __not_in_flash_func(cmd_if)(void) {
+#endif
  	int r, i, testgoto, testelseif;
 	unsigned char ss[3];														// this will be used to split up the argument line
 	unsigned char *p, *tp;
@@ -675,7 +725,11 @@ retest_an_if:
 
 
 
+#ifdef PICOMITEWEB
+void cmd_else(void) {
+#else
 void __not_in_flash_func(cmd_else)(void) {
+#endif
 	int i;
 	unsigned char *p, *tp;
 
@@ -982,7 +1036,11 @@ void cmd_trace(void) {
 
 
 // FOR command
+#ifdef PICOMITEWEB
+void cmd_for(void) {
+#else
 void __not_in_flash_func(cmd_for)(void) {
+#endif
 	int i, t, vlen, test;
 	unsigned char ss[4];														// this will be used to split up the argument line
 	unsigned char *p, *tp, *xp;
@@ -1098,7 +1156,11 @@ void __not_in_flash_func(cmd_for)(void) {
 
 
 
+#ifdef PICOMITEWEB
+void cmd_next(void) {
+#else
 void __not_in_flash_func(cmd_next)(void) {
+#endif
 	int i, vindex, test;
 	void *vtbl[MAXFORLOOPS];
 	int vcnt;
@@ -1178,7 +1240,11 @@ void __not_in_flash_func(cmd_next)(void) {
 
 
 
+#ifdef PICOMITEWEB
+void cmd_do(void) {
+#else
 void __not_in_flash_func(cmd_do)(void) {
+#endif
 	int i;
 	unsigned char *p, *tp, *evalp;
     if(cmdtoken==cmdWHILE)error("Unknown command");
@@ -1248,7 +1314,11 @@ void __not_in_flash_func(cmd_do)(void) {
 
 
 
+#ifdef PICOMITEWEB
+void cmd_loop(void) {
+#else
 void __not_in_flash_func(cmd_loop)(void) {
+#endif
     unsigned char *p;
 	int tst = 0;                                                    // initialise tst to stop the compiler from complaining
 	int i;

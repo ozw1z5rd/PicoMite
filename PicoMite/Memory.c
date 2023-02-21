@@ -44,6 +44,16 @@ extern const uint8_t *flash_progmemory;
 //unsigned char __attribute__ ((aligned (256))) AllMemory[ALL_MEMORY_SIZE];
 #ifdef PICOMITEVGA
 char __attribute__ ((aligned (256))) FRAMEBUFFER[640*480/8];
+uint32_t M_Foreground[16] ={
+0x0000,0x000F,0x00f0,0x00ff,0x0f00,0x0f0F,0x0ff0,0x0fff,0xf000,0xf00F,0xf0f0,0xf0ff,0xff00,0xff0F,0xfff0,0xffff
+};
+uint32_t M_Background[16] ={
+0xffff,0xfff0,0xff0f,0xff00,0xf0ff,0xf0f0,0xf00f,0xf000,0x0fff,0x0ff0,0x0f0f,0x0f00,0x00ff,0x00f0,0x000f,0x0000
+};
+uint16_t __attribute__ ((aligned (256))) tilefcols[80*40];
+uint16_t __attribute__ ((aligned (256))) tilebcols[80*40];
+int ytilecount=16;
+int xdups=1;
 unsigned char *WriteBuf=FRAMEBUFFER;
 unsigned char *DisplayBuf=FRAMEBUFFER;
 unsigned char *LayerBuf=FRAMEBUFFER;
@@ -164,7 +174,7 @@ void cmd_memory(void) {
         uint64_t *to=NULL;
         void *fromp=NULL;
         if(CheckEmpty(argv[0])){
-           void *ptr1 = findvar(argv[0], V_FIND | V_EMPTY_OK | V_NOFIND_ERR);
+            void *ptr1 = findvar(argv[0], V_FIND | V_EMPTY_OK | V_NOFIND_ERR);
             if(!(ptr1 && (vartbl[VarIndex].type & T_INT)))error("Invalid source");
             if(vartbl[VarIndex].dims[1] != 0) error("Invalid variable");
             sourcesize=vartbl[VarIndex].dims[0] - OptionBase + 1;
@@ -372,7 +382,7 @@ void cmd_memory(void) {
     int CFunctSize, CFunctSizeK, CFunctNbr, CFunctPercent, FontSize, FontSizeK, FontNbr, FontPercent, LibrarySizeK, LibraryPercent;
     unsigned int CurrentRAM, *pint;
 
-    CurrentRAM = Option.HEAP_SIZE + MAXVARS * sizeof(struct s_vartbl);
+    CurrentRAM = HEAP_MEMORY_SIZE + MAXVARS * sizeof(struct s_vartbl);
 
     // calculate the space allocated to variables on the heap
     for(i = VarCnt = vsize = var = 0; var < MAXVARS; var++) {
@@ -423,7 +433,7 @@ void cmd_memory(void) {
     }
     SavedVarSize = p - (SavedVarsFlash);
     SavedVarSizeK = (SavedVarSize + 512) / 1024;
-    SavedVarPercent = (SavedVarSize * 100) / (Option.PROG_FLASH_SIZE + SAVEDVARS_FLASH_SIZE);
+    SavedVarPercent = (SavedVarSize * 100) / (MAX_PROG_SIZE + SAVEDVARS_FLASH_SIZE);
     if(SavedVarCnt && SavedVarSizeK == 0) SavedVarPercent = SavedVarSizeK = 1;        // adjust if it is zero and we have some variables
 
     // count the space used by CFunctions, CSubs and fonts
@@ -441,10 +451,10 @@ void cmd_memory(void) {
         }
         pint += (*pint + 4) / sizeof(unsigned int);
     }
-    CFunctPercent = (CFunctSize * 100) /  (Option.PROG_FLASH_SIZE + SAVEDVARS_FLASH_SIZE);
+    CFunctPercent = (CFunctSize * 100) /  (MAX_PROG_SIZE + SAVEDVARS_FLASH_SIZE);
     CFunctSizeK = (CFunctSize + 512) / 1024;
     if(CFunctNbr && CFunctSizeK == 0) CFunctPercent = CFunctSizeK = 1;              // adjust if it is zero and we have some functions
-    FontPercent = (FontSize * 100) /  (Option.PROG_FLASH_SIZE + SAVEDVARS_FLASH_SIZE);
+    FontPercent = (FontSize * 100) /  (MAX_PROG_SIZE + SAVEDVARS_FLASH_SIZE);
     FontSizeK = (FontSize + 512) / 1024;
     if(FontNbr && FontSizeK == 0) FontPercent = FontSizeK = 1;                      // adjust if it is zero and we have some functions
 */
@@ -464,7 +474,7 @@ void cmd_memory(void) {
 		while(*p) p++;												// look for the zero marking the start of an element
     }
     ProgramSize = ((p - ProgMemory) + 512)/1024;
-    ProgramPercent = ((p - ProgMemory) * 100)/(Option.PROG_FLASH_SIZE + SAVEDVARS_FLASH_SIZE);
+    ProgramPercent = ((p - ProgMemory) * 100)/(MAX_PROG_SIZE + SAVEDVARS_FLASH_SIZE);
     if(ProgramPercent > 100) ProgramPercent = 100;
     if(i && ProgramSize == 0) ProgramPercent = ProgramSize = 1;                                        // adjust if it is zero and we have some lines
 
@@ -498,7 +508,7 @@ void cmd_memory(void) {
 
     LibrarySizeK = LibraryPercent = 0;
 
-    IntToStrPad(inpbuf, ((Option.PROG_FLASH_SIZE/* + SAVEDVARS_FLASH_SIZE*/) + 512)/1024 - ProgramSize - CFunctSizeK - FontSizeK - SavedVarSizeK - LibrarySizeK, ' ', 4, 10); strcat(inpbuf, "K (");
+    IntToStrPad(inpbuf, ((MAX_PROG_SIZE/* + SAVEDVARS_FLASH_SIZE*/) + 512)/1024 - ProgramSize - CFunctSizeK - FontSizeK - SavedVarSizeK - LibrarySizeK, ' ', 4, 10); strcat(inpbuf, "K (");
     IntToStrPad(inpbuf + strlen(inpbuf), 100 - ProgramPercent - CFunctPercent - FontPercent - SavedVarPercent - LibraryPercent, ' ', 2, 10); strcat(inpbuf, "%) Free\r\n");
 	MMPrintString(inpbuf);
 
@@ -710,7 +720,7 @@ void __not_in_flash_func(*GetMemory)(int size) {
     unsigned int j, n;
     unsigned char *addr;
     j = n = (size + PAGESIZE - 1)/PAGESIZE;                         // nbr of pages rounded up
-    for(addr = MMHeap + Option.HEAP_SIZE - PAGESIZE; addr >= MMHeap; addr -= PAGESIZE) {
+    for(addr = MMHeap + HEAP_MEMORY_SIZE - PAGESIZE; addr >= MMHeap; addr -= PAGESIZE) {
         if(!(MBitsGet(addr) & PUSED)) {
             if(--n == 0) {                                          // found a free slot
                 j--;
@@ -750,7 +760,7 @@ int FreeSpaceOnHeap(void) {
     unsigned int nbr;
     unsigned char *addr;
     nbr = 0;
-    for(addr = MMHeap + Option.HEAP_SIZE - PAGESIZE; addr >= MMHeap; addr -= PAGESIZE)
+    for(addr = MMHeap + HEAP_MEMORY_SIZE - PAGESIZE; addr >= MMHeap; addr -= PAGESIZE)
         if(!(MBitsGet(addr) & PUSED)) nbr++;
     return nbr * PAGESIZE;
 }    
@@ -761,7 +771,7 @@ unsigned int UsedHeap(void) {
     unsigned int nbr;
     unsigned char *addr;
     nbr = 0;
-    for(addr = MMHeap + Option.HEAP_SIZE - PAGESIZE; addr >= MMHeap; addr -= PAGESIZE)
+    for(addr = MMHeap + HEAP_MEMORY_SIZE - PAGESIZE; addr >= MMHeap; addr -= PAGESIZE)
         if(MBitsGet(addr) & PUSED) nbr++;
     return nbr * PAGESIZE;
 }    
@@ -772,14 +782,14 @@ unsigned char *HeapBottom(void) {
     unsigned char *p;
     unsigned char *addr;
     
-    for(p = addr = MMHeap + Option.HEAP_SIZE - PAGESIZE; addr > MMHeap; addr -= PAGESIZE)
+    for(p = addr = MMHeap + HEAP_MEMORY_SIZE - PAGESIZE; addr > MMHeap; addr -= PAGESIZE)
         if(MBitsGet(addr) & PUSED) p = addr;
     return (unsigned char *)p;
 }   
 int MemSize(void *addr){ //returns the amount of heap memory allocated to an address
     int i=0;
     int bits;
-    if(addr >= (void *)MMHeap && addr < (void *)(MMHeap + Option.HEAP_SIZE)){
+    if(addr >= (void *)MMHeap && addr < (void *)(MMHeap + HEAP_MEMORY_SIZE)){
         do {
             bits = MBitsGet(addr);
             addr += PAGESIZE;
@@ -803,6 +813,6 @@ void *ReAllocMemory(void *addr, size_t msize){
 }
 void __not_in_flash_func(FreeMemorySafe)(void **addr){
 	if(*addr!=NULL){
-        if(*addr >= (void *)MMHeap && *addr < (void *)(MMHeap + Option.HEAP_SIZE)) {FreeMemory(*addr);*addr=NULL;}
+        if(*addr >= (void *)MMHeap && *addr < (void *)(MMHeap + HEAP_MEMORY_SIZE)) {FreeMemory(*addr);*addr=NULL;}
 	}
 }

@@ -141,7 +141,7 @@ void fun_format(void);
     extern int check_interrupt(void);
     extern unsigned char *GetIntAddress(unsigned char *p);
     extern void CrunchData(unsigned char **p, int c);
-
+	extern uint32_t getFreeHeap(void);
     // struct for the interrupt configuration
     #define T_LOHI   1
     #define T_HILO   2
@@ -170,6 +170,8 @@ void fun_format(void);
 	extern void disable_systemspi(void);
 	extern void disable_systemi2c(void);
 	extern void disable_audio(void);
+	extern char *MQTTInterrupt;
+	extern volatile int MQTTComplete;
 	extern char *CSubInterrupt;
 	extern volatile int CSubComplete;
 	extern uint32_t __get_MSP(void);

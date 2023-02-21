@@ -230,7 +230,11 @@ void __not_in_flash_func(on_pwm_wrap)(void) {
 	AudioOutput(left,right);
 }
 
+#ifdef PICOMITEVGA
+void __not_in_flash_func(BitBangSendSPI)(const BYTE *buff, int cnt){
+#else
 void BitBangSendSPI(const BYTE *buff, int cnt){
+#endif
 	int i, SPICount;
 	BYTE SPIData;
     if(SD_SPI_SPEED==SD_SLOW_SPI_SPEED){
@@ -281,7 +285,11 @@ void BitBangSendSPI(const BYTE *buff, int cnt){
     	}
 	}
 }
+#ifdef PICOMITEVGA
+void __not_in_flash_func(BitBangReadSPI)(BYTE *buff, int cnt){
+#else
 void BitBangReadSPI(BYTE *buff, int cnt){
+#endif
 	int i, SPICount;
 	BYTE SPIData;
 	gpio_put(SD_CLK_PIN,GPIO_PIN_RESET);
@@ -330,7 +338,11 @@ void BitBangReadSPI(BYTE *buff, int cnt){
     }
 }
 
+#ifdef PICOMITEVGA
+BYTE __not_in_flash_func(BitBangSwapSPI)(BYTE data_out){
+#else
 BYTE BitBangSwapSPI(BYTE data_out){
+#endif
 	BYTE data_in=0;
 	int SPICount;
 	if(SD_SPI_SPEED==SD_SLOW_SPI_SPEED){
@@ -472,7 +484,11 @@ int wait_ready (void)
 /*-----------------------------------------------------------------------*/
 
 static
+#ifdef PICOMITEVGA
+void __not_in_flash_func(deselect)(void)
+#else
 void deselect(void)
+#endif
 {
 //	asm("NOP");asm("NOP");//asm("NOP");
 	gpio_put(SD_CS_PIN,GPIO_PIN_SET);
@@ -487,7 +503,12 @@ void deselect(void)
 /*-----------------------------------------------------------------------*/
 
 
+static
+#ifdef PICOMITEVGA
+int __not_in_flash_func(selectSD)(void)	/* 1:Successful, 0:Timeout */
+#else
 int selectSD(void)	/* 1:Successful, 0:Timeout */
+#endif
 {
 	if(SD_SPI_SPEED==SD_SLOW_SPI_SPEED)	SPISpeedSet(SDSLOW);
 	else SPISpeedSet(SDFAST);
@@ -508,7 +529,12 @@ int selectSD(void)	/* 1:Successful, 0:Timeout */
 /*-----------------------------------------------------------------------*/
 
 
+static
+#ifdef PICOMITEVGA
+int __not_in_flash_func(rcvr_datablock)(	/* 1:OK, 0:Failed */
+#else
 int rcvr_datablock(	/* 1:OK, 0:Failed */
+#endif
 	BYTE *buff,			/* Data buffer to store received data */
 	UINT btr			/* Byte count (must be multiple of 4) */
 )
@@ -538,7 +564,12 @@ int rcvr_datablock(	/* 1:OK, 0:Failed */
 
 
 
+static
+#ifdef PICOMITEVGA
+int __not_in_flash_func(xmit_datablock)(	/* 1:OK, 0:Failed */
+#else
 int xmit_datablock(	/* 1:OK, 0:Failed */
+#endif
 	const BYTE *buff,	/* 512 byte data block to be transmitted */
 	BYTE token			/* Data token */
 )
@@ -715,7 +746,11 @@ DSTATUS disk_initialize (
 /* Read Sector(s)                                                        */
 /*-----------------------------------------------------------------------*/
 
+#ifdef PICOMITEVGA
+DRESULT __not_in_flash_func(disk_read)(BYTE pdrv, BYTE* buff, LBA_t sector, UINT count)
+#else
 DRESULT disk_read(BYTE pdrv, BYTE* buff, LBA_t sector, UINT count)
+#endif
 {
 	if (pdrv || !count) return RES_PARERR;
 	if (SDCardStat & STA_NOINIT) return RES_NOTRDY;
@@ -748,7 +783,11 @@ DRESULT disk_read(BYTE pdrv, BYTE* buff, LBA_t sector, UINT count)
 /*-----------------------------------------------------------------------*/
 
 
+#ifdef PICOMITEVGA
+DRESULT __not_in_flash_func(disk_write)(BYTE pdrv, const BYTE* buff, LBA_t sector, UINT count)
+#else
 DRESULT disk_write(BYTE pdrv, const BYTE* buff, LBA_t sector, UINT count)
+#endif
 {
 	if (pdrv || !count) return RES_PARERR;
 	if (SDCardStat & STA_NOINIT) return RES_NOTRDY;
@@ -785,7 +824,11 @@ DRESULT disk_write(BYTE pdrv, const BYTE* buff, LBA_t sector, UINT count)
 /*-----------------------------------------------------------------------*/
 
 
+#ifdef PICOMITEVGA
+DRESULT __not_in_flash_func(disk_ioctl)(
+#else
 DRESULT disk_ioctl(
+#endif
 	BYTE pdrv,		/* Physical drive nmuber (0) */
 	BYTE cmd,		/* Control code */
 	void *buff		/* Buffer to send/receive data block */

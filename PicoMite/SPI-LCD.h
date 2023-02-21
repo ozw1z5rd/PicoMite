@@ -417,7 +417,6 @@ extern int (*SET_SPI_CLK)(int speed, int polarity, int edge);
 extern void SPISpeedSet(int device);
 extern BYTE (*xchg_byte)(BYTE data_out);
 extern int SD_SPI_SPEED;
-extern unsigned char LCDBuffer[1440];
 extern int __not_in_flash_func(HW0Clk)(int speed, int polarity, int edge);
 extern int __not_in_flash_func(HW1Clk)(int speed, int polarity, int edge);
 extern int __not_in_flash_func(BitBangSetClk)(int speed, int polarity, int edge);

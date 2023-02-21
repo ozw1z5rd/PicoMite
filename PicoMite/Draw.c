@@ -4206,6 +4206,7 @@ void cmd_framebuffer(void){
         if(y1 + h > VRes) h = VRes - y1;
         if(y2 + h > VRes) h = VRes - y2;
         if(w < 1 || h < 1 || x1 < 0 || x1 + w > HRes || x2 < 0 || x2 + w > HRes || y1 < 0 || y1 + h > VRes || y2 < 0 || y2 + h > VRes) return;
+        char *LCDBuffer=GetTempMemory(1440);
         int step=sizeof(LCDBuffer)/3/w;
         int y_top=(h/step)*step;
         for(int y=0;y<y_top;y+=step){
@@ -4267,6 +4268,7 @@ void cmd_framebuffer(void){
 	            unsigned char col[3]={0};
                 int c;
                 if(complex==1){//copying from the real display
+                    char *LCDBuffer=GetTempMemory(1440);
                     int SPImode=0;
                     if(DrawBufferSPI==DrawBuffer) SPImode=1;
                     WriteBuf=d;
@@ -4552,10 +4554,10 @@ void cmd_tile(void){
             bcolour= (bcolour<<12) | (bcolour<<8) | (bcolour<<4) | bcolour;
         }
         if(argc>=9 && *argv[8]){
-            xlen=getint(argv[8],1,40-x);
+            xlen=getint(argv[8],1,X_TILE-x);
         }
         if(argc>=11 && *argv[10]){
-            ylen=getint(argv[10],1,30-y);
+            ylen=getint(argv[10],1,Y_TILE-y);
         }
         for(int xp=x;xp<x+xlen;xp++){
             for(int yp=y;yp<y+ylen;yp++){
