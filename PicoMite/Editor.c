@@ -69,7 +69,7 @@ extern void routinechecks(void);
 #if !defined(LITE)
 #ifdef PICOMITEVGA
 void DisplayPutClever(char c){
-    if(DISPLAY_TYPE==MONOVGA && markmode && Option.ColourCode && X_TILE==80){
+    if(DISPLAY_TYPE==MONOVGA && markmode && Option.ColourCode && ytilecount==12){
     if(c >= FontTable[gui_font >> 4][2] && c < FontTable[gui_font >> 4][2] + FontTable[gui_font >> 4][3]) {
         if(CurrentX + gui_font_width > HRes) {
             DisplayPutClever('\r');
@@ -143,7 +143,7 @@ void DisplayPutS(char *s) {
             case DISPLAY_CLS:       ClearScreen(gui_bcolour);
                                     break;
 #ifdef PICOMITEVGA
-            case REVERSE_VIDEO:     if(DISPLAY_TYPE==MONOVGA && Option.ColourCode && X_TILE==80){
+            case REVERSE_VIDEO:     if(DISPLAY_TYPE==MONOVGA && Option.ColourCode && ytilecount==12){
                                         r_on^=1;
                                     } else {
                                         t = gui_fcolour;
@@ -152,7 +152,7 @@ void DisplayPutS(char *s) {
                                     }
                                     break;
             case CLEAR_TO_EOL:      DrawBox(CurrentX, CurrentY, HRes-1, CurrentY + gui_font_height-1, 0, 0, gui_bcolour);
-                                    if(DISPLAY_TYPE==MONOVGA && Option.ColourCode && X_TILE==80){
+                                    if(DISPLAY_TYPE==MONOVGA && Option.ColourCode && ytilecount==12){
                                         for(int x=CurrentX/gui_font_width;x<X_TILE;x++){
                                                 tilefcols[CurrentY/gui_font_height*X_TILE+x]=Option.VGAFC;
                                                 tilebcols[CurrentY/gui_font_height*X_TILE+x]=Option.VGABC;
@@ -175,7 +175,7 @@ void DisplayPutS(char *s) {
             case DRAW_LINE:         DrawBox(0, gui_font_height * (Option.Height - 2), HRes - 1, VRes - 1, 0, 0, gui_bcolour);
                                     DrawLine(0, VRes - gui_font_height - 6, HRes - 1, VRes - gui_font_height - 6, 1, GUI_C_LINE);
 #ifdef PICOMITEVGA
-                                    if(DISPLAY_TYPE==MONOVGA && Option.ColourCode && X_TILE==80 )for(int i=0; i<80; i++)tilefcols[38*X_TILE+i]=Option.VGAFC;
+                                    if(DISPLAY_TYPE==MONOVGA && Option.ColourCode && ytilecount==12)for(int i=0; i<80; i++)tilefcols[38*X_TILE+i]=Option.VGAFC;
 #endif
                                     CurrentX = 0; CurrentY = VRes - gui_font_height;
                                     break;
@@ -202,7 +202,7 @@ int TextChanged;                  // true if the program has been modified and t
 #define EDIT  1                   // used to select the status line string
 #define MARK  2
 
-void FullScreenEditor(void);
+void FullScreenEditor(int x, int y);
 char *findLine(int ln);
 void printLine(int ln); 
 void printScreen(void);
@@ -302,11 +302,8 @@ void cmd_edit(void) {
         if(edy < 0) edy = 0;                                        // compensate if we are near the start
         y = y - edy;                                                // y is the line on the screen
     }
-    printScreen();                                                  // draw the screen
-    SCursor(x, y);
-    drawstatusline = true;
     m_alloc(M_VAR);                                                 //clean up clipboard usage
-    FullScreenEditor();
+    FullScreenEditor(x,y);
     m_alloc(M_VAR);                                                 //clean up clipboard usage
     memset(tknbuf, 0, STRINGSIZE);                                  // zero this so that nextstmt is pointing to the end of program
     MMCharPos = 0;
@@ -314,15 +311,24 @@ void cmd_edit(void) {
 
 
 
-void FullScreenEditor(void) {
+void FullScreenEditor(int xx, int yy) {
   int c, i;
   unsigned char *buf, *clipboard;
   unsigned char *p, *tp, BreakKeySave;
 #ifdef PICOMITEVGA
-  int OptionX_TILESave;
-  OptionX_TILESave=X_TILE;
-  if(!Option.ColourCode)X_TILE=40;
+  int OptionY_TILESave;
+  int ytilecountsave;
+  ytilecountsave=ytilecount;
+  OptionY_TILESave=Y_TILE;
+  if(!Option.ColourCode)ytilecount=16;
+  else {
+    ytilecount=12;
+    Y_TILE=40;
+  }
 #endif
+  printScreen();                                                  // draw the screen
+  SCursor(xx, yy);
+  drawstatusline = true;
   unsigned char lastkey = 0;
   int y, statuscount;
   clipboard=(char *)vartbl;
@@ -641,7 +647,8 @@ void FullScreenEditor(void) {
                                 MX470Display(DISPLAY_CLS);                        // clear screen on the MX470 display only
                             BreakKey = BreakKeySave;
 #ifdef PICOMITEVGA
-                            X_TILE=OptionX_TILESave;
+                            Y_TILE=OptionY_TILESave;
+                            ytilecount=ytilecountsave;
 #endif                          
                             if(c != ESC && TextChanged) SaveToProgMemory();
                             if(c == ESC || c == CTRLKEY('Q') || c == F1) cmd_end();

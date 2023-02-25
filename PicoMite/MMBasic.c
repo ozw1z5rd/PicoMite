@@ -354,7 +354,7 @@ void __not_in_flash_func(ExecuteProgram)(unsigned char *p) {
             skipelement(nextstmt);
             if(*p && *p != '\'') {                                  // ignore a comment line
                 if(setjmp(ErrNext) == 0) {                          // return to the else leg of this if error and OPTION ERROR SKIP/IGNORE is in effect
-                    SaveLocalIndex = LocalIndex;                    // save this if we need to cleanup after an error
+                    SaveLocalIndex = LocalIndex;                        // save this if we need to cleanup after an error
                     if(*(char*)p >= C_BASETOKEN && *(char*)p - C_BASETOKEN < CommandTableSize - 1 && (commandtbl[*(char*)p - C_BASETOKEN].type & T_CMD)) {
                         cmdtoken = *(char*)p;
                         targ = T_CMD;
@@ -2696,7 +2696,7 @@ void FloatToStr(char *p, MMFLOAT f, int m, int n, unsigned char ch) {
             if(n < 0) n = 0;
         }
 
-
+ 
         // calculate rounding to hide the vagaries of floating point
         if(n > 0)
             rounding = 0.5/pow(10, n);

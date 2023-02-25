@@ -1961,22 +1961,8 @@ void cmd_option(void) {
          int CPU_Speed=getinteger(tp);
         if(!(CPU_Speed==126000 || CPU_Speed==252000 || CPU_Speed==378000))error("CpuSpeed 126000, 252000 or 378000 only");
         Option.CPU_Speed=CPU_Speed;
-        SaveOptions();
-        _excep_code = RESET_COMMAND;
-        SoftReset();
-        return;
-    }
-    tp = checkstring(cmdline, "TILE SIZE");
-    if(tp) {
-        if(checkstring(tp, "LARGE")) { 
-            Option.X_TILE=40;
-            Option.Y_TILE=30;
-        }
-        else if(checkstring(tp, "SMALL"))  { 
-            Option.X_TILE=80;
-            Option.Y_TILE=40;
-        }
-        else error("Syntax"); 
+        Option.X_TILE=80;
+        Option.Y_TILE=40;
         SaveOptions();
         _excep_code = RESET_COMMAND;
         SoftReset();

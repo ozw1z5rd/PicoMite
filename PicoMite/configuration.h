@@ -30,7 +30,7 @@ extern "C" {
 #define MAXVARS             512                     // 8 + MAXVARLEN + MAXDIM * 2  (ie, 56 bytes) - these do not incl array members
 #ifdef PICOMITEVGA
 #define FLASH_TARGET_OFFSET (840 * 1024) 
-#define MagicKey 0x75851772
+#define MagicKey 0x75852342
 #define HEAPTOP 0x2003f000
 #define HEAP_MEMORY_SIZE (100*1024) 
 #define MAX_CPU     378000

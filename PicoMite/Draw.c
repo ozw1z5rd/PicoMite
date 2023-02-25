@@ -600,7 +600,6 @@ void DrawLine(int x1, int y1, int x2, int y2, int w, int c) {
     if(Option.Refresh)Display_Refresh();
 }
 
-
 /**********************************************************************************************
 Draw a box
      x1, y1 - the start coordinate
@@ -988,13 +987,13 @@ void DrawTriangle(int x0, int y0, int x1, int y1, int x2, int y2, int c, int f) 
 			CalcLine(x1, y1, x2, y2, xmin, xmax);
 			CalcLine(x2, y2, x0, y0, xmin, xmax);
 			for(y=y0;y<=y2;y++){
-				if(y>=0 && y<VRes)DrawRectangle(xmin[y], y, xmax[y], y, c);
+				if(y>=0 && y<VRes)DrawRectangle(xmin[y], y, xmax[y], y, f);
 			}
-            if(c!=f){
+//            if(c!=f){
 				DrawLine(x0, y0, x1, y1, 1, c);
 				DrawLine(x1, y1, x2, y2, 1, c);
 				DrawLine(x2, y2, x0, y0, 1, c);
-            }
+//            }
             FreeMemory((unsigned char *)xmin);
             FreeMemory((unsigned char *)xmax);
 		}
@@ -4517,6 +4516,7 @@ void cmd_colour(void) {
 }
 #ifdef PICOMITEVGA
 void cmd_tile(void){
+    unsigned char *tp;
     uint32_t bcolour=0xFFFFFFFF,fcolour=0xFFFFFFFF;
     int xlen=1,ylen=1;
     if(checkstring(cmdline,"RESET")){
@@ -4526,15 +4526,10 @@ void cmd_tile(void){
                 tilebcols[y*X_TILE+x]=Option.VGABC;
             }
         }
-    } else if(checkstring(cmdline,"LARGE")){
-        xdups=0;
-        X_TILE=40;
-        ytilecount=16;
-        ClearScreen(-1);
-    } else if(checkstring(cmdline,"SMALL")){
-        ytilecount=12;
-        X_TILE=80;
-        xdups=1;
+    } else if(tp=checkstring(cmdline,"HEIGHT")){
+        ytilecount=getint(tp,12,480);
+        Y_TILE=480/ytilecount;
+        if(Y_TILE % ytilecount)Y_TILE++;
         ClearScreen(-1);
     } else {
         getargs(&cmdline, 11, ",");
@@ -4940,9 +4935,9 @@ void DrawBitmapMono(int x1, int y1, int width, int height, int scale, int fc, in
     int i, j, k, m, x, y, loc;
     unsigned char mask;
     if(x1>=HRes || y1>=VRes || x1+width*scale<0 || y1+height*scale<0)return;
-    int xa=X_TILE==80? 8 : 16;
-    int ya=Y_TILE==40? 12 : 16;
-    if(x1 % xa == 0 && y1 % ya==0 && width*scale % xa==0 && height*scale % ya==0){
+    int xa= 8;
+    int ya=ytilecount;
+     if(x1 % xa == 0 && y1 % ya==0 && width*scale % xa==0 && height*scale % ya==0){
         // the bitmap is aligned with the tiles
         int bcolour, fcolour ;
         fcolour = ((fc & 0x800000)>> 20) | ((fc & 0xC000)>>13) | ((fc & 0x80)>>7);
@@ -5021,6 +5016,7 @@ void ScrollLCDMono(int lines){
 
      if(lines >= 0) {
 #ifdef PICOMITEVGA
+        while(QVgaScanLine!=480){}
     	int ya=Y_TILE==40? 12 : 16;
         if(lines % ya ==0){
             int offset=lines/ya;
@@ -5042,6 +5038,7 @@ void ScrollLCDMono(int lines){
     } else {
     	lines=-lines;
 #ifdef PICOMITEVGA
+        while(QVgaScanLine!=50){}
     	int ya=Y_TILE==40? 12 : 16;
         if(lines % ya ==0){
             int offset=lines/ya;

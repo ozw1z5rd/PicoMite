@@ -1232,7 +1232,7 @@ int X_TILE, Y_TILE;
 void __not_in_flash_func(QVgaLine0)()
 {
     static int nextbuf=0,nowbuf=1, tile=0, tc=0;
-    int i,line,bufinx;
+    int i,line;
 	// Clear the interrupt request for DMA control channel
 	dma_hw->ints0 = (1u << QVGA_DMA_PIO);
 
@@ -1241,12 +1241,10 @@ void __not_in_flash_func(QVgaLine0)()
 	// save integer divider state
 //	hw_divider_save_state(&SaveDividerState);
 
-	// switch current buffer index (bufinx = current preparing buffer, MiniVgaBufInx = current running buffer)
-	bufinx = QVgaBufInx;
-	QVgaBufInx = bufinx ^ 1;
-
 	// prepare control buffer to be processed
-	uint32_t* cb = &ScanLineCB[bufinx*CB_MAX];
+	uint32_t* cb = &ScanLineCB[QVgaBufInx*CB_MAX];
+	// switch current buffer index (bufinx = current preparing buffer, MiniVgaBufInx = current running buffer)
+    QVgaBufInx ^= 1;
 	ScanLineCBNext = cb;
 
 	// increment scanline (1..)
@@ -1298,7 +1296,7 @@ void __not_in_flash_func(QVgaLine0)()
                     register int high=*p++ >>4;
                     *q++=(M_Foreground[low] & tilefcols[pos]) | (M_Background[low] & tilebcols[pos]) ;
                     *q++=(M_Foreground[high]& tilefcols[pos]) | (M_Background[high] & tilebcols[pos]) ;
-                    if(xdups)pos++;
+                    pos++;
                     low= *p & 0xF;
                     high=*p++ >>4;
                     *q++=(M_Foreground[low] & tilefcols[pos]) | (M_Background[low] & tilebcols[pos]) ;
@@ -1410,7 +1408,7 @@ void __not_in_flash_func(QVgaLine1)()
                     register int high=*p++ >>4;
                     *q++=(M_Foreground[low] & tilefcols[pos]) | (M_Background[low] & tilebcols[pos]) ;
                     *q++=(M_Foreground[high]& tilefcols[pos]) | (M_Background[high] & tilebcols[pos]) ;
-                    if(xdups)pos++;
+                    pos++;
                     low= *p & 0xF;
                     high=*p++ >>4;
                     *q++=(M_Foreground[low] & tilefcols[pos]) | (M_Background[low] & tilebcols[pos]) ;
@@ -1834,7 +1832,7 @@ int main(){
     );
     systick_hw->csr = 0x5;
     systick_hw->rvr = 0x00FFFFFF;
-    if(Option.CPU_Speed<=252000)modclock(2);
+    if(Option.CPU_Speed<=200000)modclock(2);
     uSec(100);
     if(Option.CPU_Speed==378000)QVGA_CLKDIV= 3;
     else if(Option.CPU_Speed==252000)QVGA_CLKDIV= 2;
