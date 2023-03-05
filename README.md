@@ -14,6 +14,10 @@ Compiled version and documentation is available on https://geoffg.net/picomite.h
 
 Change list from V5.07.00
 ***********************************************************************************************************************
+PicoMite V5.07.07b25
+
+Rework of vartbl to reduce memory usage. Finalisation of colour support in 640x480 mode.
+
 PicoMite V5.07.07b22
 
 More defines to support PICOMITEWEB.
