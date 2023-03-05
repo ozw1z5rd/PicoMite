@@ -63,9 +63,9 @@ const struct s_tokentbl tokentbl[] = {
 };
 #undef INCLUDE_TOKEN_TABLE
 
-struct s_hash {                             // structure of the token table
-	short hash;                                 // the string (eg, PRINT, FOR, ASC(, etc)
-    short level;                                  // the type returned (T_NBR, T_STR, T_INT)
+struct s_hash {                            
+	short hash;                                
+    short level;                       
 };
 
 // these are initialised at startup
@@ -237,11 +237,7 @@ extern long long int CallCFunction(unsigned char *CmdPtr, unsigned char *ArgList
 //
 //void getexpr(unsigned char *);
 //void checktype(int *, int);
-#ifdef PICOMITEWEB
-unsigned char *getvalue(unsigned char *p, MMFLOAT *fa, long long int  *ia, unsigned char **sa, int *oo, int *ta);
-#else
 unsigned char __not_in_flash_func(*getvalue)(unsigned char *p, MMFLOAT *fa, long long int  *ia, unsigned char **sa, int *oo, int *ta);
-#endif
 unsigned char tokenTHEN, tokenELSE, tokenGOTO, tokenEQUAL, tokenTO, tokenSTEP, tokenWHILE, tokenUNTIL, tokenGOSUB, tokenAS, tokenFOR;
 unsigned char cmdIF, cmdENDIF, cmdELSEIF, cmdELSE, cmdSELECT_CASE, cmdFOR, cmdNEXT, cmdWHILE, cmdENDSUB, cmdENDFUNCTION, cmdLOCAL, cmdSTATIC, cmdCASE, cmdDO, cmdLOOP, cmdCASE_ELSE, cmdEND_SELECT;
 unsigned char cmdSUB, cmdFUN, cmdCFUN, cmdCSUB, cmdIRET;
@@ -580,11 +576,7 @@ int __not_in_flash_func(FindSubFun)(unsigned char *p, int type) {
 //   cmd      = pointer to the command name used by the caller (in program memory)
 //   index    = index into subfun[i] which points to the definition of the sub or funct
 //   fa, i64a, sa and typ are pointers to where the return value is to be stored (used by functions only)
-#ifdef PICOMITE
 void __not_in_flash_func(DefinedSubFun)(int isfun, unsigned char *cmd, int index, MMFLOAT *fa, long long int  *i64a, unsigned char **sa, int *typ) {
-#else
-void DefinedSubFun(int isfun, unsigned char *cmd, int index, MMFLOAT *fa, long long int  *i64a, unsigned char **sa, int *typ) {
-#endif
 	unsigned char *p, *s, *tp, *ttp, tcmdtoken;
 	unsigned char *CallersLinePtr, *SubLinePtr = NULL;
     unsigned char *argbuf1; unsigned char **argv1; int argc1;
@@ -1393,11 +1385,7 @@ unsigned char __not_in_flash_func(*doexpr)(unsigned char *p, MMFLOAT *fa, long l
 
 // get a value, either from a constant, function or variable
 // also returns the next operator to the right of the value or E_END if no operator
-#ifdef PICOMITEWEB
-unsigned char *getvalue(unsigned char *p, MMFLOAT *fa, long long int  *ia, unsigned char **sa, int *oo, int *ta) {
-#else
 unsigned char __not_in_flash_func(*getvalue)(unsigned char *p, MMFLOAT *fa, long long int  *ia, unsigned char **sa, int *oo, int *ta) {
-#endif
     MMFLOAT f = 0;
     long long int  i64 = 0;
     unsigned char *s = NULL;
@@ -1900,11 +1888,7 @@ routines for storing and manipulating variables
 // storage of the variable's data:
 //      if it is type T_NBR or T_INT the value is held in the variable slot
 //      for T_STR a block of memory of MAXSTRLEN size (or size determined by the LENGTH keyword) will be malloc'ed and the pointer stored in the variable slot.
-#ifdef PICOMITE
 void __not_in_flash_func(*findvar)(unsigned char *p, int action) {
-#else
-void *findvar(unsigned char *p, int action) {
-#endif
     unsigned char name[MAXVARLEN + 1];
     int i=0, j, size, ifree, globalifree, localifree, nbr, vtype, vindex, namelen, tmp;
     unsigned char *s, *x, u;
@@ -2317,8 +2301,7 @@ void *findvar(unsigned char *p, int action) {
         else mptr = GetMemory(tmp);
     }  else {
     	tmp=(nbr * (size + 1));
-    	if(tmp<=16 && j==0)mptr = (void *)&vartbl[ifree].dims[1];
-    	else if(tmp<=12 && vartbl[ifree].dims[1]==0)mptr = (void *)&vartbl[ifree].dims[2];
+    	if(tmp<=(MAXDIM-1)*sizeof(short) && j==0)mptr = (void *)&vartbl[ifree].dims[1];
     	else if(tmp<=256)mptr = GetMemory(STRINGSIZE);
         else mptr = GetMemory(tmp);
     }

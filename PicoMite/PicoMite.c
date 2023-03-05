@@ -1014,11 +1014,10 @@ void __not_in_flash_func(uSec)(int us) {
 #ifdef PICOMITEWEB
 	if(us<500){
 		busy_wait_us(us);
-		{if(startupcomplete)cyw43_arch_poll();}
 	} else {
     	uint64_t end=time_us_64()+us;
     	while(time_us_64()<end){
-        if(time_us_64() % 500 ==0){if(startupcomplete)cyw43_arch_poll();}
+        if(time_us_64() % 500 ==0)ProcessWeb();
     }
 }
 #else
@@ -1226,7 +1225,7 @@ uint32_t* ScanLineCBNext;	// next control buffer
 volatile int QVgaScanLine; // current processed scan line 0... (next displayed scan line)
 volatile uint32_t QVgaFrame;	// frame counter
 uint16_t fbuff[2][160]={0};
-int X_TILE, Y_TILE;
+int X_TILE=80, Y_TILE=40;
 // saved integer divider state
 // VGA DMA handler - called on end of every scanline
 void __not_in_flash_func(QVgaLine0)()
@@ -1878,7 +1877,7 @@ int main(){
     bus_ctrl_hw->priority=0x100;
     multicore_launch_core1_with_stack(QVgaCore,core1stack,256);
 	memset(WriteBuf, 0, 38400);
-    if(Option.DISPLAY_TYPE!=MONOVGA)ClearScreen(Option.DefaultBC);
+    ClearScreen(Option.DefaultBC);
 #endif
     if(!(_excep_code == RESTART_NOAUTORUN || _excep_code == WATCHDOG_TIMEOUT)){
         if(Option.Autorun==0 ){

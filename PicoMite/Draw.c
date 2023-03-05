@@ -113,6 +113,7 @@ int lastx,lasty;
 const int colourmap[16]={BLACK,BLUE,GREEN,CYAN,RED,MAGENTA,YELLOW,WHITE,MYRTLE,COBALT,MIDGREEN,CERULEAN,RUST,FUCHSIA,BROWN,LILAC};
 // pointers to the drawing primitives
 #ifdef PICOMITEVGA
+const int monomap[16]=  {BLACK,BLUE,MYRTLE,COBALT,MIDGREEN,CERULEAN,GREEN,CYAN,RED,MAGENTA,RUST,FUCHSIA,BROWN,LILAC,YELLOW,WHITE};
 int gui_font_width, gui_font_height, last_bcolour, last_fcolour;
 volatile int CursorTimer=0;               // used to time the flashing cursor
 extern volatile int QVgaScanLine;
@@ -2611,7 +2612,7 @@ void cmd_cls(void) {
 #ifdef PICOMITE
     HideAllControls();
 #endif
-   skipspace(cmdline);
+    skipspace(cmdline);
     if(!(*cmdline == 0 || *cmdline == '\''))
         ClearScreen(getint(cmdline, 0, WHITE));
     else
@@ -3924,7 +3925,7 @@ void cmd_blit(void) {
             if (current)FreeMemory((unsigned char *)current);
         }
     }else {
-        int memory, max_x;
+        int memory, max_x, ww;
         getargs(&cmdline, 11, ",");
         if((void *)ReadBuffer == (void *)DisplayNotSet) error("Invalid on this display");
         if(argc != 11) error("Syntax");
@@ -3944,6 +3945,7 @@ void cmd_blit(void) {
         if(y1 + h > VRes) h = VRes - y1;
         if(y2 + h > VRes) h = VRes - y2;
         if(w < 1 || h < 1 || x1 < 0 || x1 + w > HRes || x2 < 0 || x2 + w > HRes || y1 < 0 || y1 + h > VRes || y2 < 0 || y2 + h > VRes) return;
+        ww=w;
         if(x1 >= x2) {
             max_x = 1;
             buff = GetMemory((max_x * h)>>1);
@@ -3957,7 +3959,23 @@ void cmd_blit(void) {
             ReadBufferFast(x1, y1, x1 + w - 1, y1 + h - 1, buff);
             DrawBufferFast(x2, y2, x2 + w - 1, y2 + h - 1, -1, buff);
             FreeMemory(buff);
-            return;
+            if(DISPLAY_TYPE==MONOVGA && (x1 % 8==0) && (x2 % 8 ==0) && (y1 % ytilecount==0) && (y2 % ytilecount ==0) && (ww % 8==0) && (h % ytilecount==0)){
+                int tx1=x1/8;
+                int xc=ww/8;
+                int ty1=y1/ytilecount;
+                int yc=h/ytilecount;
+                int tx2=x2/8;
+                int ty2=y2/ytilecount;
+                for (int x=0;x<xc;x++){
+                    for(int y=0;y<yc;y++){
+                        int s=(y+ty1)*X_TILE+x+tx1;
+                        int d=(y+ty2)*X_TILE+x+tx2;
+                        tilefcols[d]=tilefcols[s];
+                        tilebcols[d]=tilebcols[s];
+                    }
+                }
+            }
+                return;
         }
         if(x1 < x2) {
             int start_x1, start_x2;
@@ -3975,6 +3993,22 @@ void cmd_blit(void) {
             ReadBufferFast(x1, y1, x1 + w - 1, y1 + h - 1, buff);
             DrawBufferFast(x2, y2, x2 + w - 1, y2 + h - 1, -1, buff);
             FreeMemory(buff);
+            if(DISPLAY_TYPE==MONOVGA && (x1 % 8==0) && (x2 % 8 ==0) && (y1 % ytilecount==0) && (y2 % ytilecount ==0) && (ww % 8==0) && (h % ytilecount==0)){
+                int tx1=x1/8;
+                int xc=ww/8;
+                int ty1=y1/ytilecount;
+                int yc=h/ytilecount;
+                int tx2=x2/8;
+                int ty2=y2/ytilecount;
+                for (int x=xc-1;x>=0;x--){
+                    for(int y=0;y<yc;y++){
+                        int s=(y+ty1)*X_TILE+x+tx1;
+                        int d=(y+ty2)*X_TILE+x+tx2;
+                        tilefcols[d]=tilefcols[s];
+                        tilebcols[d]=tilebcols[s];
+                    }
+                }
+            }
             return;
         }
     }
@@ -4937,7 +4971,7 @@ void DrawBitmapMono(int x1, int y1, int width, int height, int scale, int fc, in
     if(x1>=HRes || y1>=VRes || x1+width*scale<0 || y1+height*scale<0)return;
     int xa= 8;
     int ya=ytilecount;
-     if(x1 % xa == 0 && y1 % ya==0 && width*scale % xa==0 && height*scale % ya==0){
+    if(x1 % xa == 0 && y1 % ya==0 && width*scale % xa==0 && height*scale % ya==0){
         // the bitmap is aligned with the tiles
         int bcolour, fcolour ;
         fcolour = ((fc & 0x800000)>> 20) | ((fc & 0xC000)>>13) | ((fc & 0x80)>>7);
@@ -4956,6 +4990,7 @@ void DrawBitmapMono(int x1, int y1, int width, int height, int scale, int fc, in
             }
         }
     }
+    if(fc==0 && bc!=0 && fc!=bc && bc!=-1)fc=1;
     if(bc<=0 || fc==0){
             for(i = 0; i < height; i++) {                                   // step thru the font scan line by line
         for(j = 0; j < scale; j++) {                                // repeat lines to scale the font
@@ -4986,27 +5021,27 @@ void DrawBitmapMono(int x1, int y1, int width, int height, int scale, int fc, in
     }
 
     } else {
-    for(i = 0; i < height; i++) {                                   // step thru the font scan line by line
-        for(j = 0; j < scale; j++) {                                // repeat lines to scale the font
-            for(k = 0; k < width; k++) {                            // step through each bit in a scan line
-                for(m = 0; m < scale; m++) {                        // repeat pixels to scale in the x axis
-                    x=x1 + k * scale + m ;
-                    y=y1 + i * scale + j ;
-                    mask=1<<(x % 8); //get the bit position for this bit
-                    if(x >= 0 && x < HRes && y >= 0 && y < VRes) {  // if the coordinates are valid
-                        loc=(y*(HRes>>3))+(x>>3);
-                        if((bitmap[((i * width) + k)/8] >> (((height * width) - ((i * width) + k) - 1) %8)) & 1) {
-                            if(fc){
-                            	WriteBuf[loc]|=mask;
-                             } else {
-                            	 WriteBuf[loc]&= ~mask;
-                             }
-                        } else WriteBuf[loc]&= ~mask;
-                   }
+        for(i = 0; i < height; i++) {                                   // step thru the font scan line by line
+            for(j = 0; j < scale; j++) {                                // repeat lines to scale the font
+                for(k = 0; k < width; k++) {                            // step through each bit in a scan line
+                    for(m = 0; m < scale; m++) {                        // repeat pixels to scale in the x axis
+                        x=x1 + k * scale + m ;
+                        y=y1 + i * scale + j ;
+                        mask=1<<(x % 8); //get the bit position for this bit
+                        if(x >= 0 && x < HRes && y >= 0 && y < VRes) {  // if the coordinates are valid
+                            loc=(y*(HRes>>3))+(x>>3);
+                            if((bitmap[((i * width) + k)/8] >> (((height * width) - ((i * width) + k) - 1) %8)) & 1) {
+                                if(fc){
+                                    WriteBuf[loc]|=mask;
+                                } else {
+                                    WriteBuf[loc]&= ~mask;
+                                }
+                            } else WriteBuf[loc]&= ~mask;
+                    }
+                    }
                 }
             }
         }
-    }
     }
 
 }
@@ -5130,7 +5165,7 @@ void DrawBufferMonoFast(int x1, int y1, int x2, int y2, int blank, unsigned char
     }
 }
 
-void ReadBufferMono(int x1, int y1, int x2, int y2, unsigned char *c){
+/*void ReadBufferMono(int x1, int y1, int x2, int y2, unsigned char *c){
     int x,y,t,loc;
     uint8_t *pp;
     unsigned char mask;
@@ -5160,7 +5195,42 @@ void ReadBufferMono(int x1, int y1, int x2, int y2, unsigned char *c){
             }
         }
     }
+}*/
+void ReadBufferMono(int x1, int y1, int x2, int y2, unsigned char *c){
+    int x,y,t,loc;
+    uint8_t *pp;
+    unsigned char mask;
+    if(x2 <= x1) { t = x1; x1 = x2; x2 = t; }
+    if(y2 <= y1) { t = y1; y1 = y2; y2 = t; }
+    int xx1=x1, yy1=y1, xx2=x2, yy2=y2;
+    if(x1 < 0) xx1 = 0;
+    if(x1 >= HRes) xx1 = HRes - 1;
+    if(x2 < 0) xx2 = 0;
+    if(x2 >= HRes) xx2 = HRes - 1;
+    if(y1 < 0) yy1 = 0;
+    if(y1 >= VRes) yy1 = VRes - 1;
+    if(y2 < 0) yy2 = 0;
+    if(y2 >= VRes) yy2 = VRes - 1;
+	for(y=y1;y<=y2;y++){
+    	for(x=x1;x<=x2;x++){
+            int tile= x/8 + (y/ytilecount)*X_TILE;
+            int back=monomap[tilebcols[tile] & 0xF];
+            int front=monomap[tilefcols[tile] & 0xF];
+            loc=(y*(HRes>>3))+(x>>3);
+            mask=1<<(x % 8); //get the bit position for this bit
+            if(WriteBuf[loc]&mask){
+                *c++=(front&0xFF);
+                *c++=(front>>8)&0xFF;
+                *c++=front>>16;
+            } else {
+                *c++=(back&0xFF);
+                *c++=(back>>8)&0xFF;
+                *c++=back>>16;
+            }
+        }
+    }
 }
+
 void ReadBufferMonoFast(int x1, int y1, int x2, int y2, unsigned char *c){
     int x,y,t,loc,toggle=0;;
     uint8_t *pp;
@@ -5345,7 +5415,7 @@ void ResetDisplay(void) {
             for(int y=0;y<Y_TILE;y++){
                 tilefcols[y*X_TILE+x]=Option.VGAFC;
                 tilebcols[y*X_TILE+x]=Option.VGABC;
-            }
+           }
         }
 #else
 #ifndef PICOMITEWEB

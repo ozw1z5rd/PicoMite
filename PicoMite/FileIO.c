@@ -1219,6 +1219,11 @@ void cmd_kill(void)
         else lfs_dir_close(&lfs, &lfs_dir);
         FatFSFileSystem=FatFSFileSystemSave;
     } else {
+        int localsave=FatFSFileSystem;
+        int waste=0, t=FatFSFileSystem+1;
+        t = drivecheck(tp,&waste);
+        tp+=waste;
+        FatFSFileSystem=t-1;
         getfullfilepath(tp,q);
         if(!FatFSFileSystem){
             FSerror=lfs_remove(&lfs, q);	ErrorCheck(0);
@@ -1227,6 +1232,7 @@ void cmd_kill(void)
             FSerror = f_unlink(q);
             ErrorCheck(0);
         }
+        FatFSFileSystem=FatFSFileSystemSave;
     }
 }
 
@@ -1303,13 +1309,142 @@ void cmd_name(void)
 void cmd_save(void)
 {
     int fnbr;
-    unsigned char *pp, *flinebuf, *p; // get the file name and change to the directory
+    unsigned char *pp, *flinebuf, *outbuf, *p; // get the file name and change to the directory
     int maxH = VRes;
     int maxW = HRes;
     if (!InitSDCard()) return;
     fnbr = FindFreeFileNbr();
     if ((p = checkstring(cmdline, "IMAGE")) != NULL)
     {
+#ifdef PICOMITEVGA
+        unsigned int nbr;
+        int i, x, y, w, h, filesize;
+        union colourmap
+        {
+        char rgbbytes[4];
+        unsigned int rgb;
+        } c;
+        unsigned char fcolour;
+        unsigned char bmpfileheader[14] = {'B', 'M', 0, 0, 0, 0, 0, 0, 0, 0, 0x76, 0, 0, 0};
+        unsigned char bmpinfoheader[40] = {40, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 4, 0,
+        0,0,0,0,0,0,0,0,0x13,0xb,0,0,0x13,0xb,0,0,
+        16,0,0,0,16,0,0,0
+        };
+        unsigned char bmpcolourpallette[16*4]={
+            0,0,0,0,
+            0,0,255,0,
+            0,64,0,0,
+            0,64,255,0,
+            0,128,0,0,
+            0,128,255,0,
+            0,255,0,0,
+            0,255,255,0,
+            255,0,0,0,
+            255,0,255,0,
+            255,64,0,0,
+            255,64,255,0,
+            255,128,0,0,
+            255,128,255,0,
+            255,255,0,0,
+            255,255,255,0
+        };
+        
+        unsigned char bmppad[3] = {0, 0, 0};
+        getargs(&p, 9, ",");
+        if (!InitSDCard())
+            return;
+        if ((void *)ReadBuffer == (void *)DisplayNotSet)
+            error("SAVE IMAGE not available on this display");
+        pp = getCstring(argv[0]);
+        if (argc != 1 && argc != 9)
+            error("Syntax");
+        if (strchr(pp, '.') == NULL)
+            strcat(pp, ".bmp");
+        if (!BasicFileOpen(pp, fnbr, FA_WRITE | FA_CREATE_ALWAYS))
+            return;
+        if (argc == 1)
+        {
+            x = 0;
+            y = 0;
+            h = maxH;
+            w = maxW;
+        }
+        else
+        {
+            x = getint(argv[2], 0, maxW - 1);
+            y = getint(argv[4], 0, maxH - 1);
+            w = getint(argv[6], 1, maxW - x);
+            h = getint(argv[8], 1, maxH - y);
+        }
+        filesize = 54 + 16* 4 + w * h / 2;
+        bmpfileheader[2] = (unsigned char)(filesize);
+        bmpfileheader[3] = (unsigned char)(filesize >> 8);
+        bmpfileheader[4] = (unsigned char)(filesize >> 16);
+        bmpfileheader[5] = (unsigned char)(filesize >> 24);
+
+        bmpinfoheader[4] = (unsigned char)(w);
+        bmpinfoheader[5] = (unsigned char)(w >> 8);
+        bmpinfoheader[6] = (unsigned char)(w >> 16);
+        bmpinfoheader[7] = (unsigned char)(w >> 24);
+        bmpinfoheader[8] = (unsigned char)(h);
+        bmpinfoheader[9] = (unsigned char)(h >> 8);
+        bmpinfoheader[10] = (unsigned char)(h >> 16);
+        bmpinfoheader[11] = (unsigned char)(h >> 24);
+        bmpinfoheader[20] = (unsigned char)(h*w/2);
+        bmpinfoheader[21] = (unsigned char)((h*w/2) >> 8);
+        bmpinfoheader[22] = (unsigned char)((h*w/2) >> 16);
+        bmpinfoheader[23] = (unsigned char)((h*w/2) >> 24);
+
+        if(filesource[fnbr]==FATFSFILE) {
+            f_write(FileTable[fnbr].fptr, bmpfileheader, 14, &nbr);
+            f_write(FileTable[fnbr].fptr, bmpinfoheader, 40, &nbr);
+            f_write(FileTable[fnbr].fptr, bmpcolourpallette, 64, &nbr);
+        } else {
+            FSerror=lfs_file_write(&lfs, FileTable[fnbr].lfsptr, bmpfileheader, 14); 
+            if(FSerror>0)FSerror=0;
+            ErrorCheck(fnbr);
+            FSerror=lfs_file_write(&lfs, FileTable[fnbr].lfsptr, bmpinfoheader, 40); 
+            if(FSerror>0)FSerror=0;
+            FSerror=lfs_file_write(&lfs, FileTable[fnbr].lfsptr, bmpcolourpallette, 64); 
+            if(FSerror>0)FSerror=0;
+            ErrorCheck(fnbr);
+        }
+        flinebuf = GetTempMemory(maxW * 4);
+        outbuf=GetTempMemory(maxW/2);
+        for (i = y + h - 1; i >= y; i--)
+        {
+            ReadBuffer(x, i, x + w - 1, i, flinebuf);
+            p=flinebuf;
+            pp=outbuf;
+            for(int k=0;k<w;k++){
+                c.rgbbytes[2]=*p++; //this order swaps the bytes to match the .BMP file
+	            c.rgbbytes[1]=*p++;
+	            c.rgbbytes[0]=*p++;
+                fcolour = ((c.rgb & 0x800000)>> 20) | ((c.rgb & 0xC000)>>13) | ((c.rgb & 0x80)>>7);
+                if(k & 1){
+                    *pp |=(fcolour);
+                    pp++;
+                } else {
+                    *pp = fcolour<<4;
+                }
+            }
+            if(filesource[fnbr]==FATFSFILE) f_write(FileTable[fnbr].fptr, outbuf, w / 2, &nbr);
+            else {
+                    FSerror=lfs_file_write(&lfs, FileTable[fnbr].lfsptr, outbuf, w /2); 
+            }
+            if(FSerror>0)FSerror=0;
+            ErrorCheck(fnbr);
+            if ((w / 2) % 4 != 0)
+                if(filesource[fnbr]==FATFSFILE)f_write(FileTable[fnbr].fptr, bmppad, 4 - ((w / 2 ) % 4), &nbr);
+                else {
+                    FSerror=lfs_file_write(&lfs, FileTable[fnbr].lfsptr, bmppad, 4 - ((w / 2 ) % 4)); 
+                }
+                if(FSerror>0)FSerror=0;
+                ErrorCheck(fnbr);
+        }
+        FileClose(fnbr);
+        return;
+#else
         unsigned int nbr;
         int i, x, y, w, h, filesize;
         unsigned char bmpfileheader[14] = {'B', 'M', 0, 0, 0, 0, 0, 0, 0, 0, 54, 0, 0, 0};
@@ -1355,7 +1490,7 @@ void cmd_save(void)
         bmpinfoheader[9] = (unsigned char)(h >> 8);
         bmpinfoheader[10] = (unsigned char)(h >> 16);
         bmpinfoheader[11] = (unsigned char)(h >> 24);
-        if(FatFSFileSystem) {
+        if(filesource[fnbr]==FATFSFILE) {
             f_write(FileTable[fnbr].fptr, bmpfileheader, 14, &nbr);
             f_write(FileTable[fnbr].fptr, bmpinfoheader, 40, &nbr);
         } else {
@@ -1370,14 +1505,14 @@ void cmd_save(void)
         for (i = y + h - 1; i >= y; i--)
         {
             ReadBuffer(x, i, x + w - 1, i, flinebuf);
-            if(FatFSFileSystem) f_write(FileTable[fnbr].fptr, flinebuf, w * 3, &nbr);
+            if(filesource[fnbr]==FATFSFILE) f_write(FileTable[fnbr].fptr, flinebuf, w * 3, &nbr);
             else {
                     FSerror=lfs_file_write(&lfs, FileTable[fnbr].lfsptr, flinebuf, w * 3); 
                     if(FSerror>0)FSerror=0;
                     ErrorCheck(fnbr);
             }
             if ((w * 3) % 4 != 0)
-                if(FatFSFileSystem) f_write(FileTable[fnbr].fptr, bmppad, 4 - ((w * 3) % 4), &nbr);
+                if(filesource[fnbr]==FATFSFILE)f_write(FileTable[fnbr].fptr, bmppad, 4 - ((w * 3) % 4), &nbr);
                 else {
                     FSerror=lfs_file_write(&lfs, FileTable[fnbr].lfsptr, bmppad, 4 - ((w * 3) % 4)); 
                     if(FSerror>0)FSerror=0;
@@ -1386,6 +1521,7 @@ void cmd_save(void)
         }
         FileClose(fnbr);
         return;
+#endif
     }
     else
     {

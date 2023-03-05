@@ -23,7 +23,6 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 
 ************************************************************************************************************************/#ifndef __CONFIGURATION_H
 #define __CONFIGURATION_H
-
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -37,10 +36,11 @@ extern "C" {
 #define MIN_CPU     126000
 #endif
 #ifdef PICOMITEWEB
+#include "lwipopts_examples_common.h"
 #define FLASH_TARGET_OFFSET (1024 * 1024) 
 #define MagicKey 0x21708327
 #define HEAPTOP 0x2003f800
-#define HEAP_MEMORY_SIZE (88*1024) 
+#define HEAP_MEMORY_SIZE (84*1024) 
 #define MaxPcb 8
 #define MAX_CPU     264000
 #define MIN_CPU     64000
@@ -48,8 +48,8 @@ extern "C" {
 #ifdef PICOMITE
 #define FLASH_TARGET_OFFSET (720 * 1024) 
 #define MagicKey 0x48123427
-#define HEAPTOP 0x2003f000
-#define HEAP_MEMORY_SIZE (116*1024) 
+#define HEAPTOP 0x2003E000
+#define HEAP_MEMORY_SIZE (128*1024) 
 #define MAX_CPU     378000
 #define MIN_CPU     48000
 
@@ -80,9 +80,9 @@ extern "C" {
 #define MAXSTRLEN           255                     // maximum length of a string
 #define STRINGSIZE          256                     // must be 1 more than MAXSTRLEN.  2 of these buffers are staticaly created
 #define MAXOPENFILES        10                      // maximum number of open files
-#define MAXDIM              5                       // maximum nbr of dimensions to an array
+#define MAXDIM              6                       // maximum nbr of dimensions to an array
 #ifdef PICOMITEWEB
-#define CONSOLE_RX_BUF_SIZE 1024
+#define CONSOLE_RX_BUF_SIZE TCP_MSS
 #else
 #define CONSOLE_RX_BUF_SIZE 256
 #endif

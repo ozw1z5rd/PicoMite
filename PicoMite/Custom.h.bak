@@ -98,7 +98,6 @@ extern void fun_json(void);
         struct udp_pcb *ntp_pcb;
         absolute_time_t ntp_test_time;
         alarm_id_t ntp_resend_alarm;
-        volatile bool complete;
     } NTP_T;
     typedef struct TCP_CLIENT_T_ {
         struct tcp_pcb *tcp_pcb;
