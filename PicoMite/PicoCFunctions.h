@@ -18,7 +18,7 @@
 #define MAXKEYLEN 64
 
 //Addresses in the API Table for the pointers to each function
-#define BaseAddress   0x10000310
+#define BaseAddress   0x10000308
 #define Vector_uSec               (*(unsigned int *)(BaseAddress+0x00))       // void uSec(unsigned int us)
 #define Vector_putConsole         (*(unsigned int *)(BaseAddress+0x04))       // void putConsole(int C))
 #define Vector_getConsole         (*(unsigned int *)(BaseAddress+0x08))       // int getConsole(void)
@@ -74,8 +74,6 @@
 #define Vector_CFuncInt3          *(unsigned int *)(BaseAddress+0xD0 )        // CFuncInt1
 #define Vector_CFuncInt4          *(unsigned int *)(BaseAddress+0xD4)         // CFuncInt2
 #define Vector_PIOExecute         (*(unsigned int *)(BaseAddress+0xD8))       // void PioExecute(int pio, int sm, uint32_t instruction)
-#define Vector_CFuncTimer         *(unsigned int *)(BaseAddress+0xDC)         // CFuncTimer
-#define Vector_SetUpCFuncTimer    (*(unsigned int *)(BaseAddress+0xE0))       // void SetUpCFuncTimer(int uSecs)
 //Macros to call each function.
 #define uSec(a)                         ((void  (*)(unsigned long long )) Vector_uSec) (a)
 #define putConsole(a,b)                 ((void(*)(int, int)) Vector_putConsole) (a,b)
@@ -160,8 +158,6 @@
 #define CFuncInt3                       (*(unsigned int *) Vector_CFuncInt3)
 #define CFuncInt4                       (*(unsigned int *) Vector_CFuncInt4)
 #define PIOExecute(a,b,c)               ((void (*)(int, int, unsigned int)) Vector_PIOExecute) (a,b,c)
-#define CFuncTimer                      (*(unsigned int *) Vector_CFuncTimer)
-#define SetUpCFunctTimer       			((void (*)(int)) Vector_SetUpCFunctTimer) (a)
 // the structure of the variable table, passed to the CFunction as a pointer Vector_vartbl which is #defined as vartbl
 struct s_vartbl {                               // structure of the variable table
    char name[MAXVARLEN];                       // variable's name

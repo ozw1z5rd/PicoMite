@@ -4990,36 +4990,35 @@ void DrawBitmapMono(int x1, int y1, int width, int height, int scale, int fc, in
             }
         }
     }
-    if(fc==0 && bc!=0 && fc!=bc && bc!=-1)fc=1;
+    if(fc==0 && bc!=0 && fc!=bc && bc!=-1 && !editactive) fc=1;
     if(bc<=0 || fc==0){
-            for(i = 0; i < height; i++) {                                   // step thru the font scan line by line
-        for(j = 0; j < scale; j++) {                                // repeat lines to scale the font
-            for(k = 0; k < width; k++) {                            // step through each bit in a scan line
-                for(m = 0; m < scale; m++) {                        // repeat pixels to scale in the x axis
-                    x=x1 + k * scale + m ;
-                    y=y1 + i * scale + j ;
-                    mask=1<<(x % 8); //get the bit position for this bit
-                    if(x >= 0 && x < HRes && y >= 0 && y < VRes) {  // if the coordinates are valid
-                        loc=(y*(HRes>>3))+(x>>3);
-                        if((bitmap[((i * width) + k)/8] >> (((height * width) - ((i * width) + k) - 1) %8)) & 1) {
-                            if(fc){
-                            	WriteBuf[loc]|=mask;
-                             } else {
-                            	 WriteBuf[loc]&= ~mask;
-                             }
-                       } else {
-                            if(bc>0){
-                            	WriteBuf[loc]|=mask;
-                            } else if(bc==0) {
-                            	WriteBuf[loc]&= ~mask;
+        for(i = 0; i < height; i++) {                                   // step thru the font scan line by line
+            for(j = 0; j < scale; j++) {                                // repeat lines to scale the font
+                for(k = 0; k < width; k++) {                            // step through each bit in a scan line
+                    for(m = 0; m < scale; m++) {                        // repeat pixels to scale in the x axis
+                        x=x1 + k * scale + m ;
+                        y=y1 + i * scale + j ;
+                        mask=1<<(x % 8); //get the bit position for this bit
+                        if(x >= 0 && x < HRes && y >= 0 && y < VRes) {  // if the coordinates are valid
+                            loc=(y*(HRes>>3))+(x>>3);
+                            if((bitmap[((i * width) + k)/8] >> (((height * width) - ((i * width) + k) - 1) %8)) & 1) {
+                                if(fc){
+                                    WriteBuf[loc]|=mask;
+                                } else {
+                                    WriteBuf[loc]&= ~mask;
+                                }
+                        } else {
+                                if(bc>0){
+                                    WriteBuf[loc]|=mask;
+                                } else if(bc==0) {
+                                    WriteBuf[loc]&= ~mask;
+                                }
                             }
-                        }
-                   }
+                    }
+                    }
                 }
             }
         }
-    }
-
     } else {
         for(i = 0; i < height; i++) {                                   // step thru the font scan line by line
             for(j = 0; j < scale; j++) {                                // repeat lines to scale the font

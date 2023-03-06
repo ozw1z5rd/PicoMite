@@ -71,7 +71,7 @@ extern unsigned char *StartEditPoint;
 extern int StartEditChar;
 extern unsigned char *EdBuff;                      // the buffer used for editing the text
 extern int EdBuffSize;                    // size of the buffer in characters
-
+extern int editactive;
 // the values returned by the standard control keys
 #define TAB       0x9
 #define BKSP      0x8

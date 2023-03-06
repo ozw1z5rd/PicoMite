@@ -170,35 +170,6 @@ void PIOExecute(int pion, int sm, uint32_t ins){
     PIO pio = (pion ? pio1: pio0);
     pio_sm_exec(pio, sm, ins);
 }
-void __not_in_flash_func(CFuncFastTimerCallback)(void){
-    uint64_t target=timer_hw->timerawl + CFunc_delay_us;
-    timer_hw->alarm[ALARM_NUM] = (uint32_t) target;
-    typedef void func(void);
-    func* f=(func*)(void *) CFuncFastTimer;
-    hw_clear_bits(&timer_hw->intr, 1u << ALARM_NUM);
-    f();
-}
-
-void CFuncTimer(uint32_t period){
-    CFunc_delay_us=period;
-    hw_set_bits(&timer_hw->inte, 1u << ALARM_NUM);
-    // Set irq handler for alarm irq
-    irq_set_exclusive_handler(ALARM_IRQ, CFuncFastTimerCallback);
-    // Enable the alarm irq
-    // Enable interrupt in block and at processor
-
-    // Alarm is only 32 bits so if trying to delay more
-    // than that need to be careful and keep track of the upper
-    // bits
-    uint64_t target = timer_hw->timerawl + CFunc_delay_us;
-
-    // Write the lower 32 bits of the target time to the alarm which
-    // will arm it
-    timer_hw->alarm[ALARM_NUM] = (uint32_t) target;
-    irq_set_enabled(ALARM_IRQ, true);
-    irq_set_priority(ALARM_IRQ,0x40);
-
-} 
 int IDiv(int a, int b){return a/b;}
 int   FCmp(MMFLOAT a,MMFLOAT b){if(a>b) return 1;else if(a<b)return -1; else return 0;}
 MMFLOAT LoadFloat(unsigned long long c){union ftype{ unsigned long long a; MMFLOAT b;}f;f.a=c;return f.b; }
@@ -254,6 +225,9 @@ const void * const CallTable[] __attribute__((section(".text")))  = {	(void *)uS
 																		(void *)&AudioOutput,	//0xc4
                                                                         (void *)IDiv,//0x0xc8
                                                                         (void *)&AUDIO_WRAP,//0x0xcc
+                                                                        (void *)&CFuncInt3,	//0xb8
+                                                                        (void *)&CFuncInt4,	//0xbc
+                                                                        (void *)PIOExecute,
 									   	   	   	   	   	   	   	   	   	   };
 
 const struct s_PinDef PinDef[NBRPINS + 1]={

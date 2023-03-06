@@ -68,8 +68,9 @@ static int r_on=0, markmode=0;
 extern void routinechecks(void);
 #if !defined(LITE)
 #ifdef PICOMITEVGA
+int editactive=0;
 void DisplayPutClever(char c){
-    if(DISPLAY_TYPE==MONOVGA && markmode && Option.ColourCode && ytilecount==12 && gui_font==0){
+    if(DISPLAY_TYPE==MONOVGA && markmode && Option.ColourCode && ytilecount==12 && gui_font==1){
     if(c >= FontTable[gui_font >> 4][2] && c < FontTable[gui_font >> 4][2] + FontTable[gui_font >> 4][3]) {
         if(CurrentX + gui_font_width > HRes) {
             DisplayPutClever('\r');
@@ -143,7 +144,7 @@ void DisplayPutS(char *s) {
             case DISPLAY_CLS:       ClearScreen(gui_bcolour);
                                     break;
 #ifdef PICOMITEVGA
-            case REVERSE_VIDEO:     if(DISPLAY_TYPE==MONOVGA && Option.ColourCode && ytilecount==12 && gui_font==0){
+            case REVERSE_VIDEO:     if(DISPLAY_TYPE==MONOVGA && Option.ColourCode && ytilecount==12 && gui_font==1){
                                         r_on^=1;
                                     } else {
                                         t = gui_fcolour;
@@ -152,7 +153,7 @@ void DisplayPutS(char *s) {
                                     }
                                     break;
             case CLEAR_TO_EOL:      DrawBox(CurrentX, CurrentY, HRes-1, CurrentY + gui_font_height-1, 0, 0, gui_bcolour);
-                                    if(DISPLAY_TYPE==MONOVGA && Option.ColourCode && ytilecount==12 && gui_font==0){
+                                    if(DISPLAY_TYPE==MONOVGA && Option.ColourCode && ytilecount==12 && gui_font==1){
                                         for(int x=CurrentX/gui_font_width;x<X_TILE;x++){
                                                 tilefcols[CurrentY/gui_font_height*X_TILE+x]=Option.VGAFC;
                                                 tilebcols[CurrentY/gui_font_height*X_TILE+x]=Option.VGABC;
@@ -175,7 +176,7 @@ void DisplayPutS(char *s) {
             case DRAW_LINE:         DrawBox(0, gui_font_height * (Option.Height - 2), HRes - 1, VRes - 1, 0, 0, gui_bcolour);
                                     DrawLine(0, VRes - gui_font_height - 6, HRes - 1, VRes - gui_font_height - 6, 1, GUI_C_LINE);
 #ifdef PICOMITEVGA
-                                    if(DISPLAY_TYPE==MONOVGA && Option.ColourCode && ytilecount==12 && gui_font==0)for(int i=0; i<80; i++)tilefcols[38*X_TILE+i]=Option.VGAFC;
+                                    if(DISPLAY_TYPE==MONOVGA && Option.ColourCode && ytilecount==12 && gui_font==1)for(int i=0; i<80; i++)tilefcols[38*X_TILE+i]=Option.VGAFC;
 #endif
                                     CurrentX = 0; CurrentY = VRes - gui_font_height;
                                     break;
@@ -188,7 +189,7 @@ void DisplayPutS(char *s) {
  THE EDIT COMMAND
 ********************************************************************************************************************************************/
 
-unsigned char *EdBuff;                     // the buffer used for editing the text
+unsigned char *EdBuff=NULL;                     // the buffer used for editing the text
 int nbrlines;                     // size of the text held in the buffer (in lines)
 int VWidth, VHeight;              // editing screen width and height in characters
 int edx, edy;                     // column and row at the top left hand corner of the editing screen (in characters)
@@ -226,6 +227,7 @@ void cmd_edit(void) {
     unsigned char *fromp, *p;
     int y, x;
 #ifdef PICOMITEVGA
+    editactive=1;
     int mode =0;
     if(*cmdline){
         mode = getint(cmdline,1,2);
@@ -638,6 +640,7 @@ void FullScreenEditor(int xx, int yy) {
               case F1:             // Save and exit
               case CTRLKEY('W'):   // Save, exit and run
               case F2:             // Save, exit and run
+                            editactive=0;
                             c=buf[0];
                             MMPrintString("\033[?1000l");                         // Tera Term turn off mouse click report in vt200 mode
                             MMPrintString("\0338\033[2J\033[H");                  // vt100 clear screen and home cursor
