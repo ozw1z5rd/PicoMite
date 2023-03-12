@@ -13,7 +13,12 @@ The code is developed under VSCODE on W11 using GCC 12.2.1 arm-none-eabi
 Compiled version and documentation is available on https://geoffg.net/picomite.html
 
 Change list from V5.07.00
-***********************************************************************************************************************
+**********************************************************************************************************************PicoMite V5.07.07b25
+PicoMite V5.07.07b27
+
+Implemntation of virtual display drivers. Implementation of escape sequences in strings. 
+VGA version can now disable console and change display width and height
+
 PicoMite V5.07.07b25
 
 Rework of vartbl to reduce memory usage. Finalisation of colour support in 640x480 mode.
