@@ -182,7 +182,6 @@ extern struct lfs_info lfs_info;
 extern int FatFSFileSystem;
 extern void uSec(int us);
 extern int ytilecount;
-extern int xdups;
 extern int X_TILE, Y_TILE;
 extern char id_out[];
 #ifdef PICOMITEVGA

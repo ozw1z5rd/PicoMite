@@ -1595,7 +1595,7 @@ void fun_math(void){
 			y=getnumber(argv[0]);
 			x=getnumber(argv[2]);
 			z=atan2(y,x);
-			if (z < 0.0) z = z + 2.0 * PI_VALUE;
+			if (z < 0.0) z = z + M_TWOPI;
 			fret=z;
 			targ = T_NBR;
 			return;

@@ -248,6 +248,7 @@ void cmd_edit(void) {
         gui_bcolour = BLACK;
     }
     if(Option.DISPLAY_CONSOLE == true && gui_font_width > 16) error("Font is too large");
+    if(Option.DISPLAY_TYPE>=VIRTUAL && WriteBuf)FreeMemorySafe((void **)&WriteBuf);
     ClearVars(0);
     ClearRuntime();
 #ifdef PICOMITEVGA
@@ -640,16 +641,16 @@ void FullScreenEditor(int xx, int yy) {
               case F1:             // Save and exit
               case CTRLKEY('W'):   // Save, exit and run
               case F2:             // Save, exit and run
-                            editactive=0;
                             c=buf[0];
                             MMPrintString("\033[?1000l");                         // Tera Term turn off mouse click report in vt200 mode
                             MMPrintString("\0338\033[2J\033[H");                  // vt100 clear screen and home cursor
-                                gui_fcolour = PromptFC;
-                                gui_bcolour = PromptBC;
-                                MX470Cursor(0, 0);                                // home the cursor
-                                MX470Display(DISPLAY_CLS);                        // clear screen on the MX470 display only
+                            gui_fcolour = PromptFC;
+                            gui_bcolour = PromptBC;
+                            MX470Cursor(0, 0);                                // home the cursor
+                            MX470Display(DISPLAY_CLS);                        // clear screen on the MX470 display only
                             BreakKey = BreakKeySave;
 #ifdef PICOMITEVGA
+                            editactive=0;
                             Y_TILE=OptionY_TILESave;
                             ytilecount=ytilecountsave;
 #endif                          

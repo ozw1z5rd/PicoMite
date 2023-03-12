@@ -1479,7 +1479,7 @@ void printoptions(void){
             MMputchar(',',1);;MMPrintString((char *)PinDef[Option.LCD_CS].pinname);
         }
         if(!(Option.DISPLAY_TYPE<=I2C_PANEL || Option.DISPLAY_TYPE>=BufferedPanel ) && Option.DISPLAY_BL){
-            MMputchar(',',1);;MMPrintString((char *)PinDef[Option.DISPLAY_BL].pinname);
+            MMputchar(',',1);MMPrintString((char *)PinDef[Option.DISPLAY_BL].pinname);
         }
         if(Option.DISPLAY_TYPE==SSD1306SPI && Option.I2Coffset)PIntComma(Option.I2Coffset);
         if(Option.DISPLAY_TYPE==N5110 && Option.LCDVOP!=0xC8)PIntComma(Option.LCDVOP);
@@ -1490,13 +1490,16 @@ void printoptions(void){
         if(Option.DISPLAY_TYPE==SSD1306I2C && Option.I2Coffset)PIntComma(Option.I2Coffset);
         MMPrintString("\r\n");
     }
-    if(Option.DISPLAY_TYPE >= SSDPANEL) {
+    if(Option.DISPLAY_TYPE >= SSDPANEL && Option.DISPLAY_TYPE<VIRTUAL) {
         PO("LCDPANEL"); MMPrintString((char *)display_details[Option.DISPLAY_TYPE].name); MMPrintString(", "); MMPrintString((char *)OrientList[(int)i - 1]);
 		if(Option.DISPLAY_BL){
-            MMputchar(',',1);;MMPrintString((char *)PinDef[Option.DISPLAY_BL].pinname);
+            MMputchar(',',1);MMPrintString((char *)PinDef[Option.DISPLAY_BL].pinname);
 		}
         PRet();
     }
+    if(Option.DISPLAY_TYPE >= VIRTUAL){
+        PO("LCDPANEL"); MMPrintString((char *)display_details[Option.DISPLAY_TYPE].name); PRet();
+    } 
     #ifdef PICOMITE
     if(Option.MaxCtrls)PO2Int("GUI CONTROLS", Option.MaxCtrls);
     #endif
@@ -2060,16 +2063,6 @@ void cmd_option(void) {
         SoftReset();
     }
 #endif
-    tp = checkstring(cmdline, "DISPLAY");
-    if(tp) {
-        getargs(&tp, 3, ",");
-        if(Option.DISPLAY_CONSOLE) error("Cannot change LCD console");
-        Option.Height = getint(argv[0], 5, 100);
-        if(argc == 3) Option.Width = getint(argv[2], 37, 240);
-        setterminal();
-        SaveOptions();
-        return;
-    }
     tp = checkstring(cmdline, "CPUSPEED");
     if(tp) {
    	    if(CurrentLinePtr) error("Invalid in a program");
@@ -2105,6 +2098,7 @@ void cmd_option(void) {
 		} else {
             if(Option.DISPLAY_TYPE && !CurrentLinePtr) error("Display already configured");
             ConfigDisplaySPI(tp);
+            if(!Option.DISPLAY_TYPE)ConfigDisplayVirtual(tp);
             if(!Option.DISPLAY_TYPE)ConfigDisplaySSD(tp);
             if(!Option.DISPLAY_TYPE)ConfigDisplayI2C(tp);
         }
@@ -2129,6 +2123,16 @@ void cmd_option(void) {
         return;
   }
 #endif
+    tp = checkstring(cmdline, "DISPLAY");
+    if(tp) {
+        getargs(&tp, 3, ",");
+        if(Option.DISPLAY_CONSOLE) error("Cannot change LCD console");
+        Option.Height = getint(argv[0], 5, 100);
+        if(argc == 3) Option.Width = getint(argv[2], 37, 240);
+        setterminal();
+        SaveOptions();
+        return;
+    }
     tp = checkstring(cmdline, "CASE");
     if(tp) {
         if(checkstring(tp, "LOWER"))    { Option.Listcase = CONFIG_LOWER; SaveOptions(); return; }
@@ -2442,8 +2446,12 @@ void fun_device(void){
     sret = GetTempMemory(STRINGSIZE);                                        // this will last for the life of the command
 #ifdef PICOMITEVGA
     strcpy(sret, "PicoMiteVGA");
-#else
+#endif
+#ifdef PICOMITE
     strcpy(sret, "PicoMite");
+#endif
+#ifdef PICOMITEWEB
+    strcpy(sret, "PicoMiteWeb");
 #endif
     CtoM(sret);
     targ = T_STR;
@@ -2525,6 +2533,12 @@ void fun_info(void){
     } else if((tp=checkstring(ep, "TCP REQUEST"))){
         int i=getint(tp,1,MaxPcb)-1;
         iret=TCPstate->inttrig[i];
+        targ=T_INT;
+        return;
+#endif
+#ifdef PICOMITEVGA
+    } else if((tp=checkstring(ep, "TILE HEIGHT"))){
+        iret=ytilecount;
         targ=T_INT;
         return;
 #endif
@@ -2819,6 +2833,14 @@ void fun_info(void){
             iret= 1 << rxbuf[3];
 			targ=T_INT;
 			return;
+        } else if(checkstring(tp, "HEIGHT")){
+            iret = Option.Height;
+            targ = T_INT;
+            return;
+        } else if(checkstring(tp, "WIDTH")){
+            iret = Option.Width;
+            targ = T_INT;
+            return;
 		} else error("Syntax");
     } else if(*ep=='p' || *ep=='P'){
         if(tp=checkstring(ep, "PINNO")){
@@ -2971,6 +2993,10 @@ void fun_info(void){
             targ=T_INT;
             return;
         } else error("Syntax");
+	} else if(checkstring(ep, "WRITEBUFF")){
+        iret=(int64_t)((uint32_t)WriteBuf);
+        targ=T_INT;
+        return;
     } else error("Syntax");
 }
 
@@ -3074,7 +3100,7 @@ void cmd_poke(void) {
         } else {
             getargs(&p,(MAX_ARG_COUNT * 2) - 3,",");
             if(!argc)return;
-            if(Option.DISPLAY_TYPE>=SSDPANEL){
+            if(Option.DISPLAY_TYPE>=SSDPANEL && Option.DISPLAY_TYPE<VIRTUAL){
                 WriteCommand(getinteger(argv[0]));
                 for(int i = 2; i < argc; i += 2) {
                     WriteData(getinteger(argv[i]));

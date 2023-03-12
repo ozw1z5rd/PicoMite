@@ -1594,7 +1594,6 @@ void QVgaInit()
     X_TILE=Option.X_TILE;
     Y_TILE=Option.Y_TILE;
     ytilecount=X_TILE==80? 12 : 16;
-    xdups= (X_TILE==80? 1:0);
 	// initialize PIO
 	QVgaPioInit();
 
@@ -1837,17 +1836,21 @@ int main(){
     InitDisplaySSD();
     InitDisplaySPI(0);
     InitDisplayI2C(0);
+    InitDisplayVirtual();
     InitTouch();
 #endif
     ResetDisplay();
     ErrorInPrompt = false;
     exception_set_exclusive_handler(HARDFAULT_EXCEPTION,sigbus);
+    exception_set_exclusive_handler(SVCALL_EXCEPTION,sigbus);
+    exception_set_exclusive_handler(PENDSV_EXCEPTION,sigbus);
+    exception_set_exclusive_handler(NMI_EXCEPTION ,sigbus);
+    exception_set_exclusive_handler(SYSTICK_EXCEPTION,sigbus);
     while((i=getConsole())!=-1){}
 #ifdef PICOMITEVGA
     X_TILE=Option.X_TILE;
     Y_TILE=Option.Y_TILE;
     ytilecount=X_TILE==80? 12 : 16;
-    xdups= (X_TILE==80? 1:0);
     bus_ctrl_hw->priority=0x100;
     multicore_launch_core1_with_stack(QVgaCore,core1stack,256);
 	memset(WriteBuf, 0, 38400);

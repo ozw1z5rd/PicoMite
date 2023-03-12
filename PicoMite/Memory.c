@@ -53,7 +53,6 @@ uint32_t M_Background[16] ={
 uint16_t __attribute__ ((aligned (256))) tilefcols[80*40];
 uint16_t __attribute__ ((aligned (256))) tilebcols[80*40];
 int ytilecount=16;
-int xdups=1;
 unsigned char *WriteBuf=FRAMEBUFFER;
 unsigned char *DisplayBuf=FRAMEBUFFER;
 unsigned char *LayerBuf=FRAMEBUFFER;

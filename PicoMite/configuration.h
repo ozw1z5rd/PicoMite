@@ -26,9 +26,9 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 #ifdef __cplusplus
 extern "C" {
 #endif
-#define MAXVARS             512                     // 8 + MAXVARLEN + MAXDIM * 2  (ie, 56 bytes) - these do not incl array members
 #ifdef PICOMITEVGA
-#define FLASH_TARGET_OFFSET (840 * 1024) 
+#define MAXVARS             512                     // 8 + MAXVARLEN + MAXDIM * 2  (ie, 56 bytes) - these do not incl array members
+#define FLASH_TARGET_OFFSET (800 * 1024) 
 #define MagicKey 0x75852342
 #define HEAPTOP 0x2003f000
 #define HEAP_MEMORY_SIZE (100*1024) 
@@ -37,6 +37,7 @@ extern "C" {
 #endif
 #ifdef PICOMITEWEB
 #include "lwipopts_examples_common.h"
+#define MAXVARS             480                    // 8 + MAXVARLEN + MAXDIM * 2  (ie, 56 bytes) - these do not incl array members
 #define FLASH_TARGET_OFFSET (1024 * 1024) 
 #define MagicKey 0x21708327
 #define HEAPTOP 0x2003f800
@@ -46,6 +47,7 @@ extern "C" {
 #define MIN_CPU     64000
 #endif
 #ifdef PICOMITE
+#define MAXVARS             512                     // 8 + MAXVARLEN + MAXDIM * 2  (ie, 56 bytes) - these do not incl array members
 #define FLASH_TARGET_OFFSET (720 * 1024) 
 #define MagicKey 0x48123427
 #define HEAPTOP 0x2003E000

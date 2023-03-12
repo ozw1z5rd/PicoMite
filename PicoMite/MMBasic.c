@@ -1325,6 +1325,14 @@ unsigned char __not_in_flash_func(*getCstring)(unsigned char *p) {
     MtoC(tp);                                                       // convert to a C style string
     return tp;
 }
+unsigned char __not_in_flash_func(*getFstring)(unsigned char *p) {
+    unsigned char *tp;
+    tp = GetTempMemory(STRINGSIZE);                                        // this will last for the life of the command
+    for(int i=1;i<=*p;i++)if(p[i]=='\\')p[i]='/';
+    Mstrcpy(tp, getstring(p));                                      // get the string and save in a temp place
+    MtoC(tp);                                                       // convert to a C style string
+    return tp;
+}
 
 
 
@@ -1588,7 +1596,79 @@ unsigned char __not_in_flash_func(*getvalue)(unsigned char *p, MMFLOAT *fa, long
 			p++;                                                        // step over the quote
 			p1 = s = GetTempMemory(STRINGSIZE);                                // this will last for the life of the command
 			tp = strchr(p, '"');
-			while(p != tp) *p1++ = *p++;
+                int toggle=0;
+                while(p != tp){
+                    if(*p=='\\')toggle^=1;
+                    if(toggle){
+                        if(*p=='\\' && isdigit(p[1]) && isdigit(p[2]) && isdigit(p[3])){
+                            p++;
+                            i=(*p++)-48;
+                            i*=10;
+                            i+=(*p++)-48;
+                            i*=10;
+                            i+=(*p++)-48;
+                            *p1++=i;
+                        } else {
+                            p++;
+                            switch(*p){
+                                case '\\':
+                                    *p1++='\\';
+                                    p++;
+                                    break;
+                                case 'a':
+                                    *p1++='\a';
+                                    p++;
+                                    break;
+                                case 'b':
+                                    *p1++='\b';
+                                    p++;
+                                    break;
+                                case 'e':
+                                    *p1++='\e';
+                                    p++;
+                                    break;
+                                case 'f':
+                                    *p1++='\f';
+                                    p++;
+                                    break;
+                                case 'n':
+                                    *p1++='\n';
+                                    p++;
+                                    break;
+                                case 'q':
+                                    *p1++='\"';
+                                    p++;
+                                    break;
+                                case 'r':
+                                    *p1++='\r';
+                                    p++;
+                                    break;
+                                case 't':
+                                    *p1++='\t';
+                                    p++;
+                                    break;
+                                case 'v':
+                                    *p1++='\v';
+                                    p++;
+                                    break;
+                                case '&':
+                                    p++;
+                                    if(isxdigit(*p) && isxdigit(p[1])){
+                                        i=0;
+                                        i = (i << 4) | ((mytoupper(*p) >= 'A') ? mytoupper(*p) - 'A' + 10 : *p - '0');
+                                        p++;
+                                        i = (i << 4) | ((mytoupper(*p) >= 'A') ? mytoupper(*p) - 'A' + 10 : *p - '0');
+                                        p++;
+                                        *p1++=i;
+                                    } else *p1++='x';
+                                    break;
+                                default:
+                                    *p1++=*p++;
+                            }
+                        }
+                        toggle=0;
+                    } else *p1++ = *p++;
+                } 
 			p++;
 			CtoM(s);                                                    // convert to a MMBasic string
 			t = T_STR;
@@ -2642,7 +2722,10 @@ void FloatToStr(char *p, MMFLOAT f, int m, int n, unsigned char ch) {
     int exp, trim = false, digit;
     MMFLOAT rounding;
     char *pp;
-
+    if(f==INFINITY){
+        strcpy(p,"INF");
+        return;
+    }
     ch &= 0x7f;                                                     // make sure that ch is an ASCII char
     if(f == 0)
         exp = 0;
@@ -2861,6 +2944,7 @@ void ClearProgram(void) {
 //    InitHeap();
     initFonts();
     m_alloc(M_PROG);                                           // init the variables for program memory
+    if(Option.DISPLAY_TYPE>=VIRTUAL && WriteBuf)FreeMemorySafe((void **)&WriteBuf);
     ClearRuntime();
 //    ProgMemory[0] = ProgMemory[1] = ProgMemory[3] = ProgMemory[4] = 0;
     PSize = 0;

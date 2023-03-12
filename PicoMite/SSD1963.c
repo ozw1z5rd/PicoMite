@@ -110,7 +110,7 @@ void ConfigDisplaySSD(unsigned char *p) {
 // initialise the display controller
 // this is used in the initial boot sequence of the Micromite
 void InitDisplaySSD(void) {
-    if(Option.DISPLAY_TYPE<SSDPANEL)return;
+    if(Option.DISPLAY_TYPE<SSDPANEL || Option.DISPLAY_ORIENTATION>=VIRTUAL)return;
 
     // the parameters for the display panel are set here (refer to the data sheet for the glass)
     switch(Option.DISPLAY_TYPE) {

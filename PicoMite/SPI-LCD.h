@@ -293,7 +293,9 @@ extern void __not_in_flash_func(spi_finish)(spi_inst_t *spi);
 #define SSD1963_7       31
 #define SSD1963_7A      32
 #define SSD1963_8       33
-
+#define VIRTUAL_C       34
+#define VIRTUAL         VIRTUAL_C
+#define VIRTUAL_M       35
 #define TFT_NOP 0x00
 #define TFT_SWRST 0x01
 
@@ -381,7 +383,7 @@ extern void __not_in_flash_func(spi_finish)(spi_inst_t *spi);
 
 #define FLASH_SPI_SPEED 20000000
 #define LCD_SPI_SPEED   25000000                                   // the speed of the SPI bus when talking to an SPI LCD display controller
-#define TOUCH_SPI_SPEED 1000000
+#define TOUCH_SPI_SPEED 300000
 #define SLOW_TOUCH_SPEED 240000
 #define NOKIA_SPI_SPEED 4000000
 #define ST7920_SPI_SPEED 1200000

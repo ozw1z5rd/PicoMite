@@ -190,8 +190,7 @@ int GetTouchAxis(int cmd) {
 int GetTouchValue(int cmd) {
     int val;
     unsigned int lb, hb;
-	if(Option.DISPLAY_TYPE<SSDPANEL)SPISpeedSet(TOUCH);
-    else SPISpeedSet(SLOWTOUCH);
+	SPISpeedSet(TOUCH);
     gpio_put(TOUCH_CS_PIN,GPIO_PIN_RESET);  // set CS low
     TDelay();
     val=xchg_byte(cmd);    //    SpiChnPutC(TOUCH_SPI_CHANNEL, cmd);

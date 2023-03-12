@@ -60,9 +60,11 @@ union colourmap
 {
   char rgbbytes[4];
   unsigned int rgb;
-} colour;
+} colour, colour2;
 #define  IMG_vSetColor(red, green, blue)    {colour.rgbbytes[2] = red; colour.rgbbytes[1] = green; colour.rgbbytes[0] = blue;}
+#define  IMG_vSetColor2(red, green, blue)    {colour2.rgbbytes[2] = red; colour2.rgbbytes[1] = green; colour2.rgbbytes[0] = blue;}
 #define  IMG_vPutPixel(xx, yy)              DrawPixel(xx + x, yy + y, colour.rgb)
+#define  IMG_vPutPixel2(xx, yy)              DrawPixel(xx + x, yy + y, colour2.rgb)
 #define LONG long
 int IMG_wImageWidth, IMG_wImageHeight;
 int bufpos;
@@ -234,7 +236,7 @@ BYTE BMP_bDecode(int x, int y, int fnbr)
         unsigned int nbr;
         BDEC_vResetData(&BmpDec);
         BDEC_bReadHeader(&BmpDec, fnbr);
-        if(BmpDec.blBmMarkerFlag == 0 || BmpDec.bHeaderType < 40 || (BmpDec.blCompressionType != 0 && BmpDec.blCompressionType != 3))
+        if(BmpDec.blBmMarkerFlag == 0 || BmpDec.bHeaderType < 40 || (BmpDec.blCompressionType != 0 && BmpDec.blCompressionType != 2 && BmpDec.blCompressionType != 3))
         {
             return 100;
         }    
@@ -362,7 +364,7 @@ BYTE BMP_bDecode(int x, int y, int fnbr)
                          }
                 }
         }
-        else if(BmpDec.wPaletteEntries != 0 && BmpDec.bBitsPerPixel == 4) /* 16 colors Image */
+        else if(BmpDec.wPaletteEntries != 0 && BmpDec.bBitsPerPixel == 4 && BmpDec.blCompressionType != 2) /* 16 colors Image */
         {
                 WORD wBytesPerRow = BmpDec.lWidth/2;
                 BYTE bAdditionalNibblePerRow = BmpDec.lWidth % 2;
@@ -397,13 +399,39 @@ BYTE BMP_bDecode(int x, int y, int fnbr)
                          }
                 }
         }
+        else if(BmpDec.wPaletteEntries != 0 && BmpDec.bBitsPerPixel == 4 && BmpDec.blCompressionType==2) /* 16 colors Image */
+        {
+                BYTE bIndex, bValue;
+                int c,j,i;
+                unsigned char b[2];
+                for(wY = 0; wY < BmpDec.lHeight; wY++)
+                {
+                        IMG_vCheckAndAbort();
+                        i=0;
+                        wX=0;
+                        do {
+                                FSerror = IMG_FREAD(IMG_FILE, b, 2, &nbr);  
+                                c=b[0];
+                                bIndex = b[1] >> 4;
+                                IMG_vSetColor(BmpDec.aPalette[bIndex][0], BmpDec.aPalette[bIndex][1], BmpDec.aPalette[bIndex][2]);
+                                bIndex = b[1] & 0xf;
+                                IMG_vSetColor2(BmpDec.aPalette[bIndex][0], BmpDec.aPalette[bIndex][1], BmpDec.aPalette[bIndex][2]);
+                                while(c){
+                                        IMG_vPutPixel(wX++, BmpDec.lHeight - wY - 1);
+                                        IMG_vPutPixel2(wX++, BmpDec.lHeight - wY - 1);
+                                        c-=2;
+                                }
+                        } while(!(b[0]==0 && b[1]==0));
+                        
+                }
+        }
+
         else if(BmpDec.wPaletteEntries != 0 && BmpDec.bBitsPerPixel == 8) /* 256 colors Image */
         {
                 bPadding = (4 - (BmpDec.lWidth % 4))%4;
                 for(wY = 0; wY < BmpDec.lHeight; wY++)
                 {
-                         IMG_vLoopCallback();
-                         IMG_vCheckAndAbort();
+                         IMG_vLoopCallback();                         IMG_vCheckAndAbort();
                          for(wX = 0; wX < BmpDec.lWidth; wX++)
                          {
                                    BYTE bIndex;

@@ -60,9 +60,10 @@ void  __not_in_flash_func(op_invalid)(void) {
 
 void  __not_in_flash_func(op_exp)(void) {
     long long int  i;
-    errno = 0;
-    if(targ & T_NBR)
+    if(targ & T_NBR){
         fret = (MMFLOAT)pow(farg1, farg2);
+        if(fret==INFINITY) error("Overflow");
+    }
     else {
         if(iarg2 < 0) {
             targ = T_NBR;
@@ -70,13 +71,14 @@ void  __not_in_flash_func(op_exp)(void) {
         } else
             for(iret = i = 1; i <= iarg2; i++) iret *= iarg1;
     }
-    if(errno) error("Overflow");
 }
 
 
 void  __not_in_flash_func(op_mul)(void) {
-    if(targ & T_NBR)
+    if(targ & T_NBR){
         fret = farg1 * farg2;
+        if(fret==INFINITY) error("Overflow");
+    }
     else
         iret = iarg1 * iarg2;
 }
@@ -86,6 +88,7 @@ void  __not_in_flash_func(op_mul)(void) {
 void  __not_in_flash_func(op_div)(void) {
     if(farg2 == 0) error("Divide by zero");
     fret = farg1 / farg2;
+    if(fret==INFINITY) error("Overflow");
     targ = T_NBR;
 }
 
@@ -97,8 +100,10 @@ void  __not_in_flash_func(op_divint)(void) {
 
 
 void  __not_in_flash_func(op_add)(void) {
-	if(targ & T_NBR)
+	if(targ & T_NBR){
 		fret = farg1 + farg2;
+        if(fret==INFINITY) error("Overflow");
+    }
 	else if(targ & T_INT)
 		iret = iarg1 + iarg2;
     else {

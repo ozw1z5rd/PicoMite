@@ -84,7 +84,6 @@ void fun_bound(void);
 void fun_ternary(void);
 void fun_call(void);
 #define RADCONV   (MMFLOAT)57.2957795130823229	  // Used when converting degrees -> radians and vice versa
-#define PI_VALUE  (MMFLOAT)3.14159265358979323
 #define Rad(a)  (((MMFLOAT)a) / RADCONV)
 
 

@@ -280,6 +280,7 @@ void Mstrcpy(unsigned char *dest, unsigned char *src);
 void Mstrcat(unsigned char *dest, unsigned char *src);
 int Mstrcmp(unsigned char *s1, unsigned char *s2);
 unsigned char *getCstring(unsigned char *p);
+unsigned char *getFstring(unsigned char *p);
 int IsValidLine(int line);
 void InsertLastcmd(unsigned char *s);
 int  CountLines(unsigned char *target);

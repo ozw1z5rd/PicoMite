@@ -53,6 +53,7 @@ void cmd_xmodem(void) {
     if(*cmdline == 0 || *cmdline == '\'') {
         // no file name, so this is a transfer to/from program memory
         if(CurrentLinePtr) error("Invalid in a program");
+        if(Option.DISPLAY_TYPE>=VIRTUAL && WriteBuf)FreeMemorySafe((void **)&WriteBuf);
         if(rcv)ClearProgram();                                             // we need all the RAM
         else ClearVars(0);
         buf = GetTempMemory(EDIT_BUFFER_SIZE);

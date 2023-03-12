@@ -1598,8 +1598,78 @@ search_again:
             if(vtype[vidx] & T_STR) {
                 char *p1, *p2;
                 if(*argv[NextData] == '"') {                               // if quoted string
-                    for(len = 0, p1 = vtbl[vidx], p2 = argv[NextData] + 1; *p2 && *p2 != '"'; len++, p1++, p2++) {
-                       *p1 = *p2;                                   // copy up to the quote
+                  	int toggle=0;
+                    for(len = 0, p1 = vtbl[vidx], p2 = argv[NextData] + 1; *p2 && *p2 != '"'; len++) {
+	                    if(*p2=='\\')toggle^=1;
+	                    if(toggle){
+	                        if(*p2=='\\' && isdigit(p2[1]) && isdigit(p2[2]) && isdigit(p2[3])){
+	                            p2++;
+	                            i=(*p2++)-48;
+	                            i*=10;
+	                            i+=(*p2++)-48;
+	                            i*=10;
+	                            i+=(*p2++)-48;
+	                            *p1++=i;
+	                        } else {
+	                            p2++;
+	                            switch(*p2){
+	                                case '\\':
+	                                    *p1++='\\';
+	                                    p2++;
+	                                    break;
+	                                case 'a':
+	                                    *p1++='\a';
+	                                    p2++;
+	                                    break;
+	                                case 'b':
+	                                    *p1++='\b';
+	                                    p2++;
+	                                    break;
+	                                case 'e':
+	                                    *p1++='\e';
+	                                    p2++;
+	                                    break;
+	                                case 'f':
+	                                    *p1++='\f';
+	                                    p2++;
+	                                    break;
+	                                case 'n':
+	                                    *p1++='\n';
+	                                    p2++;
+	                                    break;
+	                                case 'q':
+	                                    *p1++='\"';
+	                                    p2++;
+	                                    break;
+	                                case 'r':
+	                                    *p1++='\r';
+	                                    p2++;
+	                                    break;
+	                                case 't':
+	                                    *p1++='\t';
+	                                    p2++;
+	                                    break;
+	                                case 'v':
+	                                    *p1++='\v';
+	                                    p2++;
+	                                    break;
+	                                case '&':
+	                                    p2++;
+	                                    if(isxdigit(*p2) && isxdigit(p2[1])){
+	                                        i=0;
+	                                        i = (i << 4) | ((mytoupper(*p2) >= 'A') ? mytoupper(*p2) - 'A' + 10 : *p2 - '0');
+	                                        p++;
+	                                        i = (i << 4) | ((mytoupper(*p2) >= 'A') ? mytoupper(*p2) - 'A' + 10 : *p2 - '0');
+	                                        p2++;
+	                                        *p1++=i;
+	                                    } else *p1++='x';
+	                                    break;
+	                                default:
+	                                    *p1++=*p2++;
+	                            }
+	                        }
+	                        toggle=0;
+	                    } else *p1++ = *p2++;
                     }
                 } else {                                            // else if not quoted
                     for(len = 0, p1 = vtbl[vidx], p2 = argv[NextData]; *p2 && *p2 != '\'' ; len++, p1++, p2++) {

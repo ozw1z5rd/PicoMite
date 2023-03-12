@@ -633,7 +633,7 @@ void fun_mid(void) {
 // Return the value of Pi.  Thanks to Alan Williams for the contribution
 // n = PI
 void fun_pi(void) {
-	fret = PI_VALUE;
+	fret = M_PI;
     targ = T_NBR;
 }
 
@@ -966,9 +966,9 @@ void fun_asin(void) {
      MMFLOAT f = getnumber(ep);
      if(f < -1.0 || f > 1.0) error("Number out of bounds");
      if (f == 1.0) {
-          fret = PI_VALUE/2;
+          fret = M_PI_2;
      } else if (f == -1.0) {
-          fret = -PI_VALUE/2;
+          fret = -M_PI_2;
      } else {
           fret = arcsinus(f);
      }
@@ -984,9 +984,9 @@ void fun_acos(void) {
      if (f == 1.0L) {
           fret = 0.0L;
      } else if (f == -1.0L) {
-          fret = PI_VALUE;
+          fret = M_PI;
      } else {
-          fret = PI_VALUE/2 - arcsinus(f);
+          fret = M_PI_2 - arcsinus(f);
      }
     targ = T_NBR;
 }
