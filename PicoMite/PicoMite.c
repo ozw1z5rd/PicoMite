@@ -1886,6 +1886,7 @@ int main(){
                 WIFIconnected=1;
             }
             open_tcp_server(1);
+            cmd_tftp_server_init();
         }
     }
     #endif
