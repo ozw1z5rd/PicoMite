@@ -62,12 +62,12 @@ extern char *pioRXinterrupts[4];
 extern char *pioTXinterrupts[4];
 #endif
 #ifdef PICOMITEWEB
-    extern void GetNTPTime(void);
-    extern void checkTCPOptions(void);
-    extern void open_tcp_server(int full);
-    extern volatile int TCPreceived;
-    extern char *TCPreceiveInterrupt;
-    extern void fun_json(void);
+extern void GetNTPTime(void);
+extern void checkTCPOptions(void);
+extern void open_tcp_server(int full);
+extern volatile int TCPreceived;
+extern char *TCPreceiveInterrupt;
+extern void fun_json(void);
     extern void TelnetPutC(int c,int flush);
     void cmd_web(void);
     extern int cmd_mqtt(void);

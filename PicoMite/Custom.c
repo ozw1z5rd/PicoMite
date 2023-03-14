@@ -1297,6 +1297,7 @@ void fun_json(void){
     dest = (long long int *)ptr1;
     json_string=(char *)&dest[1];
     } else error("Argument 1 must be integer array");
+    cJSON_InitHooks(NULL);
     cJSON * parse = cJSON_Parse(json_string);
     if(parse==NULL)error("Invalid JSON data");
     root=parse;
@@ -1377,6 +1378,8 @@ void fun_json(void){
         targ=T_STR;
         return;
     }
+    cJSON_Delete(parse);
+    targ=T_STR;
     sret=a;
 }
 

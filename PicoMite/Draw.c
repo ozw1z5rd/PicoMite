@@ -5278,7 +5278,7 @@ void ReadBufferMonoFast(int x1, int y1, int x2, int y2, unsigned char *c){
 }
 
 void ConfigDisplayVirtual(unsigned char *p) {
-	getargs(&p, 1, ",");
+	getargs(&p, 13, ",");
 	if(checkstring(argv[0], "VIRTUAL_M")) {
         DISPLAY_TYPE = VIRTUAL_M;
     } else if(checkstring(argv[0], "VIRTUAL_C")) {
