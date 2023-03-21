@@ -100,6 +100,7 @@ extern char id_out[12];
 extern void WriteCommand(int cmd);
 extern void WriteData(int data);
 char *CSubInterrupt;
+MMFLOAT optionangle=1.0;
 volatile int CSubComplete=0;
 uint64_t timeroffset=0;
 int SaveOptionErrorSkip=0;
@@ -1638,7 +1639,17 @@ void cmd_option(void) {
         OptionExplicit = true;
         return;
     }
+	tp = checkstring(cmdline, "ANGLE");
+	if(tp) {
+		if(checkstring(tp, "DEGREES"))	{ optionangle=RADCONV; return; }
+		if(checkstring(tp, "RADIANS"))	{ optionangle=1.0; return; }
+	}
 
+    tp = checkstring(cmdline, "ESCAPE");
+    if(tp) {
+        OptionEscape = true;
+        return;
+    }
     tp = checkstring(cmdline, "DEFAULT");
     if(tp) {
         if(checkstring(tp, "INTEGER"))  { DefaultType = T_INT;  return; }
@@ -1918,6 +1929,7 @@ void cmd_option(void) {
     if(tp) {
         getargs(&tp,3,",");
         if(argc!=3)error("Syntax");
+   	    if(CurrentLinePtr) error("Invalid in a program");
         char *ssid=GetTempMemory(STRINGSIZE);
         char *password=GetTempMemory(STRINGSIZE);
         strcpy(ssid,getCstring(argv[0]));
@@ -1934,6 +1946,7 @@ void cmd_option(void) {
     tp = checkstring(cmdline, "TCP SERVER PORT");
     if(tp) {
         getargs(&tp,3,",");
+   	    if(CurrentLinePtr) error("Invalid in a program");
         Option.TCP_PORT=getint(argv[0],0,65535);
         Option.ServerResponceTime=5000;
         if(argc==3)Option.ServerResponceTime=getint(argv[2],1000,20000);
@@ -1944,6 +1957,7 @@ void cmd_option(void) {
     }
     tp = checkstring(cmdline, "TELNET CONSOLE");
     if(tp) {
+   	    if(CurrentLinePtr) error("Invalid in a program");
         if(checkstring(tp, "OFF"))Option.Telnet=0;
         else if(checkstring(tp, "ON"))Option.Telnet=1;
         else if(checkstring(tp, "ONLY")) Option.Telnet=-1;
@@ -2057,7 +2071,8 @@ void cmd_option(void) {
     if(tp) {
         getargs(&tp, 1, ",");
     	if(CurrentLinePtr) error("Invalid in a program");
-        Option.MaxCtrls=getint(argv[0],0,MAXCONTROLS);
+        Option.MaxCtrls=getint(argv[0],0,MAXCONTROLS-1);
+        if(Option.MaxCtrls)Option.MaxCtrls++;
         SaveOptions();
         _excep_code = RESET_COMMAND;
         SoftReset();
@@ -2807,6 +2822,9 @@ void fun_info(void){
 			iret=BreakKey;
 			targ=T_INT;
 			return;
+		} else if(checkstring(tp, "ANGLE")){
+			if(optionangle==1.0)strcpy(sret,"DEGREES");
+			else strcpy(sret,"RADIANS");
  		} else if(checkstring(tp, "DEFAULT")){
 			if(DefaultType == T_INT)strcpy(sret,"Integer");
 			else if(DefaultType == T_NBR)strcpy(sret,"Float");

@@ -1906,6 +1906,7 @@ int main(){
         ProgMemory=(uint8_t *)flash_progmemory;
         ContinuePoint = nextstmt;                               // in case the user wants to use the continue command
 		*tknbuf = 0;											// we do not want to run whatever is in the token buffer
+		optionangle=1.0;
     } else {
         if(*ProgMemory == 0x01 ) ClearVars(0);
         else {

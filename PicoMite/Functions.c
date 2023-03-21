@@ -382,7 +382,7 @@ void fun_asc(void) {
 
 // return the arctangent of a number in radians
 void fun_atn(void) {
-	fret = atan(getnumber(ep));
+	fret = atan(getnumber(ep))*optionangle;
     targ = T_NBR;
 }
 
@@ -393,7 +393,7 @@ void fun_atan2(void) {
     y=getnumber(argv[0]);
     x=getnumber(argv[2]);
     z=atan2(y,x);
-    fret=z;
+    fret=z*optionangle;
     targ = T_NBR;
 }
 
@@ -421,7 +421,7 @@ void fun_cint(void) {
 
 // return the cosine of a number in radians
 void fun_cos(void) {
-	fret = cos(getnumber(ep));
+	fret = cos(getnumber(ep)/optionangle);
     targ = T_NBR;
 }
 
@@ -675,7 +675,7 @@ void fun_sgn(void) {
 // Return the sine of the argument 'number' in radians.
 // n = SIN( number )
 void fun_sin(void) {
-	fret = sin(getnumber(ep));
+	fret = sin(getnumber(ep)/optionangle);
     targ = T_NBR;
 }
 
@@ -696,7 +696,7 @@ void fun_sqr(void) {
 // Return the tangent of the argument 'number' in radians.
 // n = TAN( number )
 void fun_tan(void) {
-	fret = tan(getnumber(ep));
+	fret = tan(getnumber(ep)/optionangle);
     targ = T_NBR;
 }
 
@@ -972,7 +972,8 @@ void fun_asin(void) {
      } else {
           fret = arcsinus(f);
      }
-    targ = T_NBR;
+	 fret *=optionangle;
+     targ = T_NBR;
 }
 
 
@@ -988,7 +989,8 @@ void fun_acos(void) {
      } else {
           fret = M_PI_2 - arcsinus(f);
      }
-    targ = T_NBR;
+	 fret *=optionangle;
+     targ = T_NBR;
 }
 
 

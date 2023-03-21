@@ -84,6 +84,8 @@ int SPI0locked=0;
 int SPI1locked=0;
 int BacklightSlice=-1;
 int BacklightChannel=-1;
+extern const unsigned short whitenoise[2];
+
 void DefaultAudio(uint16_t left, uint16_t right){
 	pwm_set_both_levels(AUDIO_SLICE,left,right);
 }
@@ -197,22 +199,46 @@ void __not_in_flash_func(on_pwm_wrap)(void) {
         	}
         }
     } else if(CurrentlyPlaying == P_SOUND) {
+    	static int noisedwellleft[MAXSOUNDS]={0}, noisedwellright[MAXSOUNDS]={0};
+    	static uint32_t noiseleft[MAXSOUNDS]={0}, noiseright[MAXSOUNDS]={0};
     	int i,j;
     	int leftv=0, rightv=0;
     	for(i=0;i<MAXSOUNDS;i++){ //first update the 8 sound pointers
     		if(sound_mode_left[i]!=nulltable){
-				sound_PhaseAC_left[i] = sound_PhaseAC_left[i] + sound_PhaseM_left[i];
-				if(sound_PhaseAC_left[i]>=4096.0)sound_PhaseAC_left[i]-=4096.0;
-				j = (int)sound_mode_left[i][(int)sound_PhaseAC_left[i]];
-				j= (j-2000)*mapping[sound_v_left[i]]/2000;
-				leftv+=j;
+				if(sound_mode_left[i]!=whitenoise){
+					sound_PhaseAC_left[i] = sound_PhaseAC_left[i] + sound_PhaseM_left[i];
+					if(sound_PhaseAC_left[i]>=4096.0)sound_PhaseAC_left[i]-=4096.0;
+					j = (int)sound_mode_left[i][(int)sound_PhaseAC_left[i]];
+					j= (j-2000)*mapping[sound_v_left[i]]/2000;
+					leftv+=j;
+				} else {
+    				if(noisedwellleft[i]<=0){
+    					noisedwellleft[i]=sound_PhaseM_left[i];
+    				    noiseleft[i]=(float)rand()/RAND_MAX *3800.0+100;
+    				}
+    				if(noisedwellleft[i])noisedwellleft[i]--;
+    				j = (int)noiseleft[i];
+    				j= (j-2000)*mapping[sound_v_left[i]]/2000;
+    				leftv+=j;
+    			}
     		}
     		if(sound_mode_right[i]!=nulltable){
-				sound_PhaseAC_right[i] = sound_PhaseAC_right[i] + sound_PhaseM_right[i];
-				if(sound_PhaseAC_right[i]>=4096.0)sound_PhaseAC_right[i]-=4096.0;
-				j = (int)sound_mode_right[i][(int)sound_PhaseAC_right[i]];
-				j= (j-2000)*mapping[sound_v_right[i]]/2000;
-				rightv += j;
+    			if(sound_mode_right[i]!=whitenoise){
+					sound_PhaseAC_right[i] = sound_PhaseAC_right[i] + sound_PhaseM_right[i];
+					if(sound_PhaseAC_right[i]>=4096.0)sound_PhaseAC_right[i]-=4096.0;
+					j = (int)sound_mode_right[i][(int)sound_PhaseAC_right[i]];
+					j= (j-2000)*mapping[sound_v_right[i]]/2000;
+					rightv += j;
+				}  else {
+    				if(noisedwellright[i]<=0){
+    					noisedwellright[i]=sound_PhaseM_right[i];
+    				    noiseright[i]=(float)rand()/RAND_MAX*3800.0+100;
+    				}
+    				if(noisedwellright[i])noisedwellright[i]--;
+    				j = (int)noiseright[i];
+    				j= (j-2000)*mapping[sound_v_right[i]]/2000;
+    				rightv+=j;
+    			}
    			}
     	}
 		leftv+=2000;

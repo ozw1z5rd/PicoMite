@@ -109,6 +109,8 @@ drwav mywav;
 //drmp3 mymp3;
 a_flist *alist=NULL;
 int trackplaying=0, trackstoplay=0;
+unsigned short *noisetable=NULL;
+const unsigned short whitenoise[2]={0};
 
 
 void* my_malloc(size_t sz, void* pUserData)
@@ -1069,6 +1071,7 @@ void CloseAudio(int all){
 //	if(was_playing == P_MP3 || was_playing == P_PAUSE_MP3 )drmp3_uninit(&mymp3);
 	FreeMemorySafe((void **)&sbuff1);
 	FreeMemorySafe((void **)&sbuff2);
+	FreeMemorySafe((void **)&noisetable);
 //	if(was_playing == P_FLAC || was_playing == P_PAUSE_FLAC )FreeMemorySafe((void **)&myflac);
 //	FreeMemorySafe((void **)&mymp3);
 	if(all){
@@ -1148,6 +1151,48 @@ void wavcallback(char *p){
     ppos=0;
     playreadcomplete=0;
 	pwm_set_irq_enabled(AUDIO_SLICE, true);
+}
+void rampvolume(int l, int r, int channel, int target){
+	if(sound_v_left[channel]>target){
+		if(l){
+			for(int i=sound_v_left[channel]-1;i>=target;i--){
+				sound_v_left[channel]=i;
+				uSec(48);
+			}
+		}
+		if(r){
+			for(int i=sound_v_right[channel]-1;i>=target;i--){
+				sound_v_right[channel]=i;
+				uSec(48);
+			}
+		}
+	} else {
+		if(l){
+			for(int i=sound_v_left[channel]+1;i<=target;i++){
+				sound_v_left[channel]=i;
+				uSec(48);
+			}
+		}
+		if(r){
+			for(int i=sound_v_right[channel]+1;i<=target;i++){
+				sound_v_right[channel]=i;
+				uSec(48);
+			}
+		}
+	}
+
+}
+void setnoise(void){
+    uint32_t noise;
+    int i;
+    if(noisetable)return;
+	noisetable=GetMemory(4096*sizeof(uint16_t));
+    for(i=0;i<4096;i++){
+    	noise=(float)rand()/(float)RAND_MAX*3800.0+100;
+        noisetable[i]=(int)noise;
+    }
+    return;
+
 }
 
 // The MMBasic command:  PLAY
@@ -1257,9 +1302,9 @@ void cmd_play(void) {
     }
     if((tp = checkstring(cmdline, "SOUND"))) {//PLAY SOUND channel, type, position, frequency, volume
         float f_in, PhaseM;
-        int channel, left=0, right=0, lset=0, rset=0;
+        int channel, left=0, right=0, lset=0, rset=0, lastleftv, lastrightv,local_sound_v_left,local_sound_v_right;
 		char *p;
-        uint16_t *lastleft=NULL, *lastright=NULL;
+        uint16_t *lastleft=NULL, *lastright=NULL, *local_sound_mode_left=NULL, *local_sound_mode_right=NULL;
         // get the command line arguments
         getargs(&tp, 9,",");                                       // this MUST be the first executable line in the function
         if(!(argc == 9 || argc == 7 || argc == 5)) error("Argument count");
@@ -1268,81 +1313,103 @@ void cmd_play(void) {
         channel=getint(argv[0],1,MAXSOUNDS)-1;
         lastleft=(uint16_t *)sound_mode_left[channel];
         lastright=(uint16_t *)sound_mode_right[channel];
+		lastleftv=sound_v_left[channel];
+		lastrightv=sound_v_right[channel];
         if(checkstring(argv[2],"L")!=NULL){
         	left=1;
-        	sound_mode_left[channel]=(uint16_t *)nulltable;
         } else if(checkstring(argv[2],"R")!=NULL){
         	right=1;
-        	sound_mode_right[channel]=(uint16_t *)nulltable;
         } else if(checkstring(argv[2],"B")!=NULL){
         	right=1;
         	left=1;
-        	sound_mode_left[channel]=(uint16_t *)nulltable;
-        	sound_mode_right[channel]=(uint16_t *)nulltable;
         } else {
 			p=getCstring(argv[2]);
 			if(strcasecmp(p,"B")==0){
 				right=1;
 				left=1;
-				sound_mode_left[channel]=(uint16_t *)nulltable;
-				sound_mode_right[channel]=(uint16_t *)nulltable;
 			} else if (strcasecmp(p,"L")==0){
 				left=1;
-				sound_mode_left[channel]=(uint16_t *)nulltable;
 			} else if (strcasecmp(p,"R")==0){
 				right=1;
-				sound_mode_right[channel]=(uint16_t *)nulltable;
 			} else error("Position must be L, R, or B");
 		}
         if(!(CurrentlyPlaying == P_NOTHING || CurrentlyPlaying == P_SOUND || CurrentlyPlaying == P_PAUSE_SOUND)) error("Sound output in use");
-        if(checkstring(argv[4],"O")!=NULL && left){lset=1;sound_mode_left[channel]=(uint16_t *)nulltable;}
-        if(checkstring(argv[4],"O")!=NULL && right){rset=1;sound_mode_right[channel]=(uint16_t *)nulltable;}
-        if(checkstring(argv[4],"Q")!=NULL && left){lset=1;sound_mode_left[channel]=(uint16_t *)squaretable;}
-        if(checkstring(argv[4],"Q")!=NULL && right){rset=1;sound_mode_right[channel]=(uint16_t *)squaretable;}
-        if(checkstring(argv[4],"T")!=NULL && left){lset=1;sound_mode_left[channel]=(uint16_t *)triangletable;}
-        if(checkstring(argv[4],"T")!=NULL && right){rset=1;sound_mode_right[channel]=(uint16_t *)triangletable;}
-        if(checkstring(argv[4],"W")!=NULL && left){lset=1;sound_mode_left[channel]=(uint16_t *)sawtable;}
-        if(checkstring(argv[4],"W")!=NULL && right){rset=1;sound_mode_right[channel]=(uint16_t *)sawtable;}
-        if(checkstring(argv[4],"S")!=NULL && left){lset=1;sound_mode_left[channel]=(uint16_t *)SineTable;}
-        if(checkstring(argv[4],"S")!=NULL && right){rset=1;sound_mode_right[channel]=(uint16_t *)SineTable;}
+        if(checkstring(argv[4],"O")!=NULL && left){lset=1;local_sound_mode_left=(uint16_t *)nulltable;}
+        if(checkstring(argv[4],"O")!=NULL && right){rset=1;local_sound_mode_right=(uint16_t *)nulltable;}
+        if(checkstring(argv[4],"Q")!=NULL && left){lset=1;local_sound_mode_left=(uint16_t *)squaretable;}
+        if(checkstring(argv[4],"Q")!=NULL && right){rset=1;local_sound_mode_right=(uint16_t *)squaretable;}
+        if(checkstring(argv[4],"T")!=NULL && left){lset=1;local_sound_mode_left=(uint16_t *)triangletable;}
+        if(checkstring(argv[4],"T")!=NULL && right){rset=1;local_sound_mode_right=(uint16_t *)triangletable;}
+        if(checkstring(argv[4],"W")!=NULL && left){lset=1;local_sound_mode_left=(uint16_t *)sawtable;}
+        if(checkstring(argv[4],"W")!=NULL && right){rset=1;local_sound_mode_right=(uint16_t *)sawtable;}
+        if(checkstring(argv[4],"S")!=NULL && left){lset=1;local_sound_mode_left=(uint16_t *)SineTable;}
+        if(checkstring(argv[4],"S")!=NULL && right){rset=1;local_sound_mode_right=(uint16_t *)SineTable;}
+        if(checkstring(argv[4],"P")!=NULL && left){lset=1;local_sound_mode_left=(uint16_t *)noisetable;setnoise();}
+        if(checkstring(argv[4],"P")!=NULL && right){rset=1;local_sound_mode_right=(uint16_t *)noisetable;setnoise();}
+        if(checkstring(argv[4],"N")!=NULL && left){lset=1;local_sound_mode_left=(uint16_t *)whitenoise;}
+        if(checkstring(argv[4],"N")!=NULL && right){rset=1;local_sound_mode_right=(uint16_t *)whitenoise;}
 		if(left && lset==0){
 			p=getCstring(argv[4]);
-			if(strcasecmp(p,"O")==0 && left)sound_mode_left[channel]=(uint16_t *)nulltable;
-			if(strcasecmp(p,"Q")==0 && left)sound_mode_left[channel]=(uint16_t *)squaretable;
-			if(strcasecmp(p,"T")==0 && left)sound_mode_left[channel]=(uint16_t *)triangletable;
-			if(strcasecmp(p,"W")==0 && left)sound_mode_left[channel]=(uint16_t *)sawtable;
-			if(strcasecmp(p,"S")==0 && left)sound_mode_left[channel]=(uint16_t *)SineTable;
-			if(left && sound_mode_left[channel]==NULL)error("Invalid type");
+			if(strcasecmp(p,"O")==0)local_sound_mode_left=(uint16_t *)nulltable;
+			if(strcasecmp(p,"Q")==0)local_sound_mode_left=(uint16_t *)squaretable;
+			if(strcasecmp(p,"T")==0)local_sound_mode_left=(uint16_t *)triangletable;
+			if(strcasecmp(p,"W")==0)local_sound_mode_left=(uint16_t *)sawtable;
+			if(strcasecmp(p,"S")==0)local_sound_mode_left=(uint16_t *)SineTable;
+			if(strcasecmp(p,"P")==0){local_sound_mode_left=(uint16_t *)noisetable;setnoise();}
+			if(strcasecmp(p,"N")==0)local_sound_mode_left=(uint16_t *)whitenoise;
+			if(local_sound_mode_left==NULL)error("Invalid type");
+			else lset=1;
 		}
 		if(right && rset==0){
 			p=getCstring(argv[4]);
-			if(strcasecmp(p,"O")==0 && right)sound_mode_right[channel]=(uint16_t *)nulltable;
-			if(strcasecmp(p,"Q")==0 && right)sound_mode_right[channel]=(uint16_t *)squaretable;
-			if(strcasecmp(p,"T")==0 && right)sound_mode_right[channel]=(uint16_t *)triangletable;
-			if(strcasecmp(p,"W")==0 && right)sound_mode_right[channel]=(uint16_t *)sawtable;
-			if(strcasecmp(p,"S")==0 && right)sound_mode_right[channel]=(uint16_t *)SineTable;
-			if(right && sound_mode_right[channel]==NULL)error("Invalid type");
+			if(strcasecmp(p,"O")==0)local_sound_mode_right=(uint16_t *)nulltable;
+			if(strcasecmp(p,"Q")==0)local_sound_mode_right=(uint16_t *)squaretable;
+			if(strcasecmp(p,"T")==0)local_sound_mode_right=(uint16_t *)triangletable;
+			if(strcasecmp(p,"W")==0)local_sound_mode_right=(uint16_t *)sawtable;
+			if(strcasecmp(p,"S")==0)local_sound_mode_right=(uint16_t *)SineTable;
+			if(strcasecmp(p,"P")==0){local_sound_mode_right=(uint16_t *)noisetable;setnoise();}
+			if(strcasecmp(p,"N")==0)local_sound_mode_right=(uint16_t *)whitenoise;
+			if(local_sound_mode_right==NULL)error("Invalid type");
+			else rset=1;
 		}
         f_in=10.0;
         if(argc>=7)f_in = getnumber(argv[6]);
         // get the arguments
         if(f_in<1.0 || f_in>20000.0)error("Valid is 1Hz to 20KHz");
         if(left){
-        	PhaseM =  f_in/ (float)PWM_FREQ * 4096.0;;
-        	if(lastleft==(uint16_t *)nulltable)sound_PhaseAC_left[channel] = 0.0;
+        	if(!(sound_mode_left[channel]==whitenoise )){
+        		PhaseM =  f_in  / (float)PWM_FREQ * 4096.0;
+        	} else {
+        		PhaseM =  f_in;
+        	}
+        	if(lastleft!=local_sound_mode_left){
+				rampvolume(1,0,channel,0);
+				sound_PhaseAC_left[channel] = 0.0;
+			}
         	sound_PhaseM_left[channel] = PhaseM;
-            if(argc==9)sound_v_left[channel]=getint(argv[8],0,100/MAXSOUNDS);
-            else sound_v_left[channel]=25;
-			sound_v_left[channel]=sound_v_left[channel]*41/(100/MAXSOUNDS);
+            if(argc==9)local_sound_v_left=getint(argv[8],0,100/MAXSOUNDS);
+            else local_sound_v_left=25;
+			local_sound_v_left=local_sound_v_left*41/(100/MAXSOUNDS);
         }
         if(right){
-        	PhaseM =  f_in/ (float)PWM_FREQ * 4096.0;;
-        	if(lastright==(uint16_t *)nulltable)sound_PhaseAC_right[channel] = 0.0;
+        	if(!(sound_mode_right[channel]==whitenoise )){
+        		PhaseM =  f_in  / (float)PWM_FREQ * 4096.0;
+        	} else {
+        		PhaseM =  f_in;
+        	}
+        	if(lastright!=local_sound_mode_right){
+				rampvolume(0,1,channel,0);
+				sound_PhaseAC_right[channel] = 0.0;
+			}
         	sound_PhaseM_right[channel] = PhaseM;
-            if(argc==9)sound_v_right[channel]=getint(argv[8],0,100/MAXSOUNDS);
-            else sound_v_right[channel]=25;
-			sound_v_right[channel]=sound_v_right[channel]*41/(100/MAXSOUNDS);
+            if(argc==9)local_sound_v_right=getint(argv[8],0,100/MAXSOUNDS);
+            else local_sound_v_right=25;
+			local_sound_v_right=local_sound_v_right*41/(100/MAXSOUNDS);
         }
+		if(left && lastleft==local_sound_mode_left)rampvolume(1,0,channel,local_sound_v_left);
+		if(right && lastright!=local_sound_mode_right)rampvolume(0,1,channel,local_sound_v_left);
+		if(left)sound_mode_left[channel]=local_sound_mode_left;
+		if(right)sound_mode_right[channel]=local_sound_mode_right;
         if(!(CurrentlyPlaying == P_SOUND)){
 			setrate(PWM_FREQ);
     		pwm_set_irq_enabled(AUDIO_SLICE, true);

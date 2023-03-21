@@ -2914,6 +2914,9 @@ void cmd_files(void)
         ListCnt = 2;
         for (i = dirs = 0; i < fcnt; i++)
         {
+            #ifdef PICOMITEWEB
+                ProcessWeb();
+            #endif
             routinechecks();
             if (MMAbort)
             {
@@ -2955,6 +2958,9 @@ void cmd_files(void)
                 do
                 {
                     ShowCursor(1);
+                #ifdef PICOMITEWEB
+                    ProcessWeb();
+                #endif
                     routinechecks();
                     if (MMAbort)
                     {

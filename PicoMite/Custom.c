@@ -597,8 +597,12 @@ void cmd_pio(void){
                                         ss++;
                                         skipspace(ss);
                                 }
-                                if(*ss>='0' && *ss<='9'){
+                                if((*ss>='0' && *ss<='9') || *ss=='&' ){
                                         char *ppp=ss;
+                                        if(*ss=='&'){
+                                                if(!(toupper(ss[1])=='B' || toupper(ss[1])=='H' || toupper(ss[1])=='O')) error("Syntax");
+                                                ppp+=2;
+                                        } 
                                         while(*ppp>='0' && *ppp<='9' && *ppp){ppp++;}
                                         if(*ppp){
                                                 save=*ppp;
@@ -652,12 +656,20 @@ void cmd_pio(void){
                                 }
                                 char save;
                                 char *ppp=ss;
-                                while(*ppp>='0' && *ppp<='9' && *ppp){ppp++;}
-                                if(*ppp){
-                                        save=*ppp;
-                                        *ppp=',';
-                                }
+                                if((*ss>='0' && *ss<='9') || *ss=='&' ){
+                                        char *ppp=ss;
+                                        if(*ss=='&'){
+                                                if(!(toupper(ss[1])=='B' || toupper(ss[1])=='H' || toupper(ss[1])=='O')) error("Syntax");
+                                                ppp+=2;
+                                        } 
+                                        while(*ppp>='0' && *ppp<='9' && *ppp){ppp++;}
+                                        if(*ppp){
+                                                save=*ppp;
+                                                *ppp=',';
+                                        }
+                                } else error("Syntax");
                                 int bits=getint(ss,0,rel==2? 31 : 7);
+                                if(*ppp==',')*ppp=save;
                                 if(rel==1) bits |=0x10;
                                 ins |=bits;
                        } else if(!strncasecmp(ss,"IN ",3)){
@@ -689,11 +701,18 @@ void cmd_pio(void){
                                 char save;
                                 skipspace(ss);
                                 char *ppp=ss;
-                                while(*ppp>='0' && *ppp<='9' && *ppp){ppp++;}
-                                if(*ppp){
-                                        save=*ppp;
-                                        *ppp=',';
-                                }
+                                if((*ss>='0' && *ss<='9') || *ss=='&' ){
+                                        char *ppp=ss;
+                                        if(*ss=='&'){
+                                                if(!(toupper(ss[1])=='B' || toupper(ss[1])=='H' || toupper(ss[1])=='O')) error("Syntax");
+                                                ppp+=2;
+                                        } 
+                                        while(*ppp>='0' && *ppp<='9' && *ppp){ppp++;}
+                                        if(*ppp){
+                                                save=*ppp;
+                                                *ppp=',';
+                                        }
+                                } else error("Syntax");
                                 int bits=getint(ss,1,32);
                                 if(bits==32)bits=0;
                                 ins|=bits;
@@ -730,11 +749,18 @@ void cmd_pio(void){
                                 char save;
                                 skipspace(ss);
                                 char *ppp=ss;
-                                while(*ppp>='0' && *ppp<='9' && *ppp){ppp++;}
-                                if(*ppp){
-                                        save=*ppp;
-                                        *ppp=',';
-                                }
+                                if((*ss>='0' && *ss<='9') || *ss=='&' ){
+                                        char *ppp=ss;
+                                        if(*ss=='&'){
+                                                if(!(toupper(ss[1])=='B' || toupper(ss[1])=='H' || toupper(ss[1])=='O')) error("Syntax");
+                                                ppp+=2;
+                                        } 
+                                        while(*ppp>='0' && *ppp<='9' && *ppp){ppp++;}
+                                        if(*ppp){
+                                                save=*ppp;
+                                                *ppp=',';
+                                        }
+                                } else error("Syntax");
                                 int bits=getint(ss,1,32);
                                 if(bits==32)bits=0;
                                 ins|=bits;
@@ -790,23 +816,23 @@ void cmd_pio(void){
                                 skipspace(ss);
                                 if(strncasecmp(ss,"PINS",4)==0 && (ss[4]==' ' || ss[4]==',') ){
                                         ss+=4;
-                                } else if(strncasecmp(ss,"X",1)==0 && (ss[1]==' ' || ss[1]==',') ){
+                                } else if(strncasecmp(ss,"X",1)==0 && (ss[1]==0 || ss[1]==' ' || ss[1]==',') ){
                                         ss++;
                                         ins|=0b1;
-                                } else if(strncasecmp(ss,"Y",1)==0 && (ss[1]==' ' || ss[1]==',') ){
+                                } else if(strncasecmp(ss,"Y",1)==0 && (ss[1]==0 || ss[1]==' ' || ss[1]==',') ){
                                         ss++;
                                         ins|=0b10;
-                                } else if(strncasecmp(ss,"NULL",4)==0 && (ss[4]==' ' || ss[4]==',') ){
+                                } else if(strncasecmp(ss,"NULL",4)==0 && (ss[4]==0 || ss[4]==' ' || ss[4]==',') ){
                                         ss+=4;
                                         ins|=0b11;
-                                } else if(strncasecmp(ss,"STATUS",6)==0 && (ss[6]==' ' || ss[6]==',') ){
+                                } else if(strncasecmp(ss,"STATUS",6)==0 && (ss[6]==0 || ss[6]==' ' || ss[6]==',') ){
                                         ss+=6;
                                         ins|=0b101;
-                                } else if(strncasecmp(ss,"ISR",3)==0 && (ss[3]==' ' || ss[3]==',') ){
-                                        ss+=4;
+                                } else if(strncasecmp(ss,"ISR",3)==0 && (ss[3]==0 || ss[3]==' ' || ss[3]==',') ){
+                                        ss+=3;
                                         ins|=0b110;
-                                } else if(strncasecmp(ss,"OSR",3)==0 && (ss[3]==' ' || ss[3]==',') ){
-                                        ss+=4;
+                                } else if(strncasecmp(ss,"OSR",3)==0 && (ss[3]==0 || ss[3]==' ' || ss[3]==',') ){
+                                        ss+=3;
                                         ins|=0b111;
                                  } else error("Syntax");
 
@@ -863,11 +889,18 @@ void cmd_pio(void){
                                 char save;
                                 skipspace(ss);
                                 char *ppp=ss;
-                                while(*ppp>='0' && *ppp<='9' && *ppp){ppp++;}
-                                if(*ppp){
-                                        save=*ppp;
-                                        *ppp=',';
-                                }
+                                if((*ss>='0' && *ss<='9') || *ss=='&' ){
+                                        char *ppp=ss;
+                                        if(*ss=='&'){
+                                                if(!(toupper(ss[1])=='B' || toupper(ss[1])=='H' || toupper(ss[1])=='O')) error("Syntax");
+                                                ppp+=2;
+                                        } 
+                                        while(*ppp>='0' && *ppp<='9' && *ppp){ppp++;}
+                                        if(*ppp){
+                                                save=*ppp;
+                                                *ppp=',';
+                                        }
+                                } else error("Syntax");
                                 ins|=getint(ss,0,31);
                                 if(*ppp==',')*ppp=save;
                         } else error("PIO instruction not found");

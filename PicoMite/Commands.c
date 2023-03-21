@@ -1600,7 +1600,7 @@ search_again:
                 if(*argv[NextData] == '"') {                               // if quoted string
                   	int toggle=0;
                     for(len = 0, p1 = vtbl[vidx], p2 = argv[NextData] + 1; *p2 && *p2 != '"'; len++) {
-	                    if(*p2=='\\')toggle^=1;
+                    	if(*p2=='\\' && p2[1]!='"' && OptionEscape)toggle^=1;
 	                    if(toggle){
 	                        if(*p2=='\\' && isdigit(p2[1]) && isdigit(p2[2]) && isdigit(p2[3])){
 	                            p2++;

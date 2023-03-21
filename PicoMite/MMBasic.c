@@ -80,7 +80,7 @@ int VarIndex;                                                       // Global se
 int Localvarcnt;                                                         // number of LOCAL variables
 int Globalvarcnt;                                                         // number of GLOBAL variables
 int LocalIndex;                                                     // used to track the level of local variables
-unsigned char OptionExplicit;                                                // used to force the declaration of variables before their use
+unsigned char OptionExplicit, OptionEscape;                                                // used to force the declaration of variables before their use
 unsigned char DefaultType;                                                   // the default type if a variable is not specifically typed
 int emptyarray=0;
 int TempStringClearStart;                                           // used to prevent clearing of space in an expression that called a FUNCTION
@@ -1598,7 +1598,7 @@ unsigned char __not_in_flash_func(*getvalue)(unsigned char *p, MMFLOAT *fa, long
 			tp = strchr(p, '"');
                 int toggle=0;
                 while(p != tp){
-                    if(*p=='\\')toggle^=1;
+                    if(*p=='\\' && tp>p+1 && OptionEscape)toggle^=1;
                     if(toggle){
                         if(*p=='\\' && isdigit(p[1]) && isdigit(p[2]) && isdigit(p[3])){
                             p++;
@@ -2914,9 +2914,11 @@ void ClearRuntime(void) {
     ClearExternalIO();                                              // this MUST come before InitHeap()
     ClearStack();
     OptionExplicit = false;
+    OptionEscape = false;
     DefaultType = T_NBR;
     findlabel(NULL);                                                // clear the label cache
     OptionErrorSkip = 0;
+	optionangle=1.0;
     MMerrno = 0;                                                    // clear the error flags
    *MMErrMsg = 0;
     InitHeap();
