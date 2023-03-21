@@ -1153,34 +1153,32 @@ void wavcallback(char *p){
 	pwm_set_irq_enabled(AUDIO_SLICE, true);
 }
 void rampvolume(int l, int r, int channel, int target){
-	if(sound_v_left[channel]>target){
-		if(l){
+	if(l){
+		if(sound_v_left[channel]>target){
 			for(int i=sound_v_left[channel]-1;i>=target;i--){
 				sound_v_left[channel]=i;
 				uSec(48);
 			}
-		}
-		if(r){
-			for(int i=sound_v_right[channel]-1;i>=target;i--){
-				sound_v_right[channel]=i;
-				uSec(48);
-			}
-		}
-	} else {
-		if(l){
+		} else {
 			for(int i=sound_v_left[channel]+1;i<=target;i++){
 				sound_v_left[channel]=i;
 				uSec(48);
 			}
 		}
-		if(r){
+	}
+	if(r){
+		if(sound_v_right[channel]>target){
+			for(int i=sound_v_right[channel]-1;i>=target;i--){
+				sound_v_right[channel]=i;
+				uSec(48);
+			}
+		} else {
 			for(int i=sound_v_right[channel]+1;i<=target;i++){
 				sound_v_right[channel]=i;
 				uSec(48);
 			}
 		}
 	}
-
 }
 void setnoise(void){
     uint32_t noise;
