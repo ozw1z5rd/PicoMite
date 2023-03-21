@@ -15,6 +15,12 @@ Compiled version and documentation is available on https://geoffg.net/picomite.h
 Change list from V5.07.00
 **********************************************************************************************************************
 
+PicoMite V5.07.07b28
+
+Enhancements to PLAY SOUND to remove clicks and pops. 
+Implements OPTION ESCAPE. 
+PIO ASSEMBLE now accepts &B, &O, and &H for numeric values.
+
 PicoMite V5.07.07b27
 
 Implementation of virtual display drivers. Implementation of escape sequences in strings. 
