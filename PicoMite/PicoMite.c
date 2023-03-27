@@ -62,20 +62,21 @@ extern "C" {
 #define MES_SIGNON  "\rPicoMiteVGA MMBasic Version " VERSION "\r\n"\
 					"Copyright " YEAR " Geoff Graham\r\n"\
 					"Copyright " YEAR2 " Peter Mather\r\n\r\n"
-#else
+#endif
 #ifdef PICOMITEWEB
 #define MES_SIGNON  "\rPicoMiteWeb MMBasic Version " VERSION "\r\n"\
 					"Copyright " YEAR " Geoff Graham\r\n"\
 					"Copyright " YEAR2 " Peter Mather\r\n\r\n"
-	volatile int WIFIconnected=0;
-	int startupcomplete=0;
-    void ProcessWeb(void);
-#else
+volatile int WIFIconnected=0;
+int startupcomplete=0;
+void ProcessWeb(void);
+#endif
+#ifdef PICOMITE
 #define MES_SIGNON  "\rPicoMite MMBasic Version " VERSION "\r\n"\
 					"Copyright " YEAR " Geoff Graham\r\n"\
 					"Copyright " YEAR2 " Peter Mather\r\n\r\n"
 #endif
-#endif
+
 #define USBKEEPALIVE 30000
 int ListCnt;
 int MMCharPos;
@@ -960,8 +961,6 @@ bool __not_in_flash_func(timer_callback)(repeating_timer_t *rt)
         SecondsTimer -= 1000; 
     #ifndef PICOMITEWEB
         if(ExtCurrentConfig[PinDef[HEARTBEATpin].pin]==EXT_HEARTBEAT)gpio_xor_mask(1<<PinDef[HEARTBEATpin].GPno);
-    #else
-        onoff=!onoff;
     #endif
             // keep track of the time and date
         if(++second >= 60) {
@@ -1022,18 +1021,18 @@ void __not_in_flash_func(ProcessWeb)(void){
 void __not_in_flash_func(CheckAbort)(void) {
 #ifdef PICOMITEWEB
     static int lastonoff=0;
+    static uint64_t lastmsec=0;
     if(Option.NoHeartbeat){
         if(lastonoff==1){
             if(startupcomplete)cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, 0);
             lastonoff=0;
         }
     } else {
-        if(lastonoff!=onoff){
-            lastonoff=onoff;
-            if(startupcomplete){
-                if(lastonoff)cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, 1);
-                else cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, 0);
-            }
+        if(mSecTimer-lastmsec>(WIFIconnected ? 500:1000) && startupcomplete){
+            lastmsec=mSecTimer;
+            if(lastonoff)cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, 1);
+            else cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, 0);
+            lastonoff^=1;
         }
     }
     ProcessWeb();
@@ -1771,6 +1770,25 @@ static void transform_star_command(char *input) {
 
     ClearSpecificTempMemory(tmp);
 }
+#ifdef PICOMITEWEB
+void WebConnect(void){
+    if(*Option.SSID){
+        cyw43_arch_enable_sta_mode();
+        MMPrintString("Connecting to WiFi...\r\n");
+        if (cyw43_arch_wifi_connect_timeout_ms(Option.SSID, Option.PASSWORD, CYW43_AUTH_WPA2_AES_PSK, 30000)) {
+            MMPrintString("failed to connect.\r\n");
+            WIFIconnected=0;
+        } else {
+            char buff[STRINGSIZE]={0};
+            sprintf(buff,"Connected %s\r\n",ip4addr_ntoa(netif_ip4_addr(netif_list)));
+            MMPrintString(buff);
+            WIFIconnected=1;
+            open_tcp_server(1);
+            cmd_tftp_server_init();
+        }
+    }
+}
+#endif
 
 
 int main(){
@@ -1839,7 +1857,6 @@ int main(){
     InitDisplayVirtual();
     InitTouch();
 #endif
-    ResetDisplay();
     ErrorInPrompt = false;
     exception_set_exclusive_handler(HARDFAULT_EXCEPTION,sigbus);
     exception_set_exclusive_handler(SVCALL_EXCEPTION,sigbus);
@@ -1854,8 +1871,8 @@ int main(){
     bus_ctrl_hw->priority=0x100;
     multicore_launch_core1_with_stack(QVgaCore,core1stack,256);
 	memset(WriteBuf, 0, 38400);
-    ClearScreen(Option.DefaultBC);
 #endif
+    ResetDisplay();
     if(!(_excep_code == RESTART_NOAUTORUN || _excep_code == WATCHDOG_TIMEOUT)){
         if(Option.Autorun==0 ){
             if(!(_excep_code == RESET_COMMAND))MMPrintString(MES_SIGNON); //MMPrintString(b);                                 // print sign on message
@@ -1873,21 +1890,7 @@ int main(){
     #ifdef PICOMITEWEB
     if (cyw43_arch_init()==0) {
         startupcomplete=1;
-        if(*Option.SSID){
-            cyw43_arch_enable_sta_mode();
-            MMPrintString("Connecting to WiFi...\r\n");
-            if (cyw43_arch_wifi_connect_timeout_ms(Option.SSID, Option.PASSWORD, CYW43_AUTH_WPA2_AES_PSK, 30000)) {
-                MMPrintString("failed to connect.\r\n");
-                WIFIconnected=0;
-            } else {
-                char buff[STRINGSIZE]={0};
-                sprintf(buff,"Connected %s\r\n",ip4addr_ntoa(netif_ip4_addr(netif_list)));
-                MMPrintString(buff);
-                WIFIconnected=1;
-            }
-            open_tcp_server(1);
-            cmd_tftp_server_init();
-        }
+        WebConnect();
     }
     #endif
     if(noRTC){
@@ -1967,25 +1970,7 @@ int main(){
         ErrorInPrompt = false;
         EditInputLine();
         InsertLastcmd(inpbuf);                                  // save in case we want to edit it later
-//        MMgetline(0, inpbuf);                                       // get the input
         if(!*inpbuf) continue;                                      // ignore an empty line
-/*	  char *p=inpbuf;
-	  skipspace(p);
-      if(strlen(p)==2 && p[1]==':'){
-        if(toupper(*p)=='A')strcpy(p,"drive \"a:\"");
-        if(toupper(*p)=='B')strcpy(p,"drive \"b:\"");
-      }
-	  if(*p=='*'){ //shortform RUN command so convert to a normal version
-		  memmove(&p[4],&p[0],strlen(p)+1);
-		  p[0]='R';p[1]='U';p[2]='N';p[3]='$';p[4]=34;
-		  char  *q;
-		  if((q=strchr(p,' ')) != 0){ //command line after the filename
-			  *q=','; //chop the command at the first space character
-			  memmove(&q[1],&q[0],strlen(q)+1);
-			  q[0]=34;
-		  } else strcat(p,"\"");
-		  p[3]=' ';
-	  }*/
         char *p=inpbuf;
         skipspace(p);
             if(strlen(p)==2 && p[1]==':'){

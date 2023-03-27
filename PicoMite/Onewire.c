@@ -311,22 +311,16 @@ void owWrite(unsigned char *p) {
 }
 
 void owReadCore(int pin, int * buf, int len, int flag){
-	disable_interrupts();
-	for (int i = 0; i < len; i++) {
-		if (flag & 0x04) {
-			PinSetBit(pin, LATCLR);											// drive pin low
-			uSec(3);
-			PinSetBit(pin, LATSET);											// release the bus
-			PinSetBit(pin, TRISSET);										// set as input
-			uSec(10);
-			buf[i] = PinRead(pin);											// read pin
-			PinSetBit(pin, TRISCLR);										// set as output
-			uSec(53);														// wait 56uSec
-		} else {
-			buf[i] = ow_readByte(pin);
-		}
-	}
-	enable_interrupts();
+    disable_interrupts();
+    PinSetBit(pin, TRISCLR);          // set as output *** added this line
+    for (int i = 0; i < len; i++) {
+        if (flag & 0x04) {
+            buf[i] = ow_readBit(pin);
+        } else {
+            buf[i] = ow_readByte(pin);
+        }
+    }
+    enable_interrupts();
 }
 
 // read one wire data

@@ -733,6 +733,7 @@ void InitDisplaySPI(int InitOnly) {
             uSec(20000);
             break;
         case SSD1306SPI:
+            ResetController();
             spi_write_command(0xAE);//DISPLAYOFF
             spi_write_command(0xD5);//DISPLAYCLOCKDIV
             spi_write_command(0x80);//the suggested ratio &H80
@@ -874,7 +875,7 @@ void ResetController(void){
     PinSetBit(Option.LCD_Reset, LATCLR);
     uSec(10000);
     PinSetBit(Option.LCD_Reset, LATSET);
-    uSec(20000);
+    uSec(200000);
 }
 
 

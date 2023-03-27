@@ -437,11 +437,16 @@ void DrawPixelNormal(int x, int y, int c) {
 void ClearScreen(int c) {
     if(c!=-1)DrawRectangle(0, 0, HRes - 1, VRes - 1, c);
 #ifdef PICOMITEVGA
-    for(int x=0;x<X_TILE;x++){
-        for(int y=0;y<Y_TILE;y++){
-            tilefcols[y*X_TILE+x]=Option.VGAFC;
-            tilebcols[y*X_TILE+x]=Option.VGABC;
-        } 
+    if(DISPLAY_TYPE==MONOVGA){
+        memset(WriteBuf,0,38400);
+        int bcolour = ((c & 0x800000)>> 20) | ((c & 0xC000)>>13) | ((c & 0x80)>>7);
+        bcolour= (bcolour<<12) | (bcolour<<8) | (bcolour<<4) | bcolour;
+        for(int x=0;x<X_TILE;x++){
+            for(int y=0;y<Y_TILE;y++){
+                tilefcols[y*X_TILE+x]=Option.VGAFC;
+                tilebcols[y*X_TILE+x]=bcolour;
+            } 
+        }
     }
 #endif
 }
@@ -4678,8 +4683,6 @@ void DrawRectangleColour(int x1, int y1, int x2, int y2, int c){
     if(y2 >= VRes) y2 = VRes - 1;
     if(x2 <= x1) { t = x1; x1 = x2; x2 = t; }
     if(y2 <= y1) { t = y1; y1 = y2; y2 = t; }
-    if(x2 <= x1) { t = x1; x1 = x2; x2 = t; }
-    if(y2 <= y1) { t = y1; y1 = y2; y2 = t; }
     for(y=y1;y<=y2;y++){
         x1p=x1;
         x2p=x2;
@@ -5456,10 +5459,8 @@ void ResetDisplay(void) {
             DrawBufferFast=DrawBufferMonoFast;
             ReadBufferFast=ReadBufferMonoFast;
             DrawPixel=DrawPixelMono;
-            gui_fcolour = WHITE;
-            gui_bcolour = BLACK;
-            PromptFC = gui_fcolour;
-            PromptBC = gui_bcolour;
+            PromptFC = gui_fcolour= monomap[Option.VGAFC & 0xf];
+            PromptBC = gui_bcolour= monomap[Option.VGABC & 0xf];
         }
         for(int x=0;x<X_TILE;x++){
             for(int y=0;y<Y_TILE;y++){
@@ -5576,12 +5577,12 @@ void DisplayPutC(char c) {
 }
 void ShowCursor(int show) {
   static int visible = false;
-    int newstate;
-    if(!Option.DISPLAY_CONSOLE) return;
+  int newstate;
+  if(!Option.DISPLAY_CONSOLE) return;
   newstate = ((CursorTimer <= CURSOR_ON) && show);                  // what should be the state of the cursor?
   if(visible == newstate) return;                                   // we can skip the rest if the cursor is already in the correct state
   visible = newstate;                                               // draw the cursor BELOW the font
-    DrawLine(CurrentX, CurrentY + gui_font_height-1, CurrentX + gui_font_width-1, CurrentY + gui_font_height-1, (gui_font_height<=12 ? 1 : 2), visible ? gui_fcolour : gui_bcolour);
+  DrawLine(CurrentX, CurrentY + gui_font_height-1, CurrentX + gui_font_width-1, CurrentY + gui_font_height-1, (gui_font_height<=12 ? 1 : 2), visible ? gui_fcolour : (DISPLAY_TYPE==MONOVGA ? 0 :gui_bcolour));
 }
 #ifdef PICOMITEVGA
 #define ABS(X) ((X)>0 ? (X) : (-(X)))

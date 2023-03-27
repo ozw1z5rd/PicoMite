@@ -2447,7 +2447,7 @@ void cmd_option(void) {
 	tp = checkstring(cmdline, "RESET");
     if(tp) {
    	    if(CurrentLinePtr) error("Invalid in a program");
-         ResetOptions();
+        ResetOptions();
         _excep_code = RESET_COMMAND;
         SoftReset();
     }
@@ -2744,6 +2744,14 @@ void fun_info(void){
         return;
     } else if(checkstring(ep,"MAX CONNECTIONS")){  
         iret=MaxPcb;
+        targ=T_INT;
+        return;
+    } else if(checkstring(ep,"WIFI STATUS")){  
+        iret=cyw43_wifi_link_status(&cyw43_state,CYW43_ITF_STA);
+        targ=T_INT;
+        return;
+    } else if(checkstring(ep,"TCPIP STATUS")){  
+        iret=cyw43_tcpip_link_status(&cyw43_state,CYW43_ITF_STA);
         targ=T_INT;
         return;
 #endif

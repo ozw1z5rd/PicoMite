@@ -924,8 +924,7 @@ void cmd_pio(void){
                                                 totallines++;
                                         }
                                 }
-
-                                for(int i=PIOstart; i<totallines;i++){
+                                for(int i=PIOstart; i<PIOstart+totallines;i++){
                                         if(!(instructions[i] & 0x1E000)){ // jmp instructions needs resolving
                                                 int notfound=1;
                                                 for(int j=PIOstart;j<totallines;j++){
@@ -941,7 +940,7 @@ void cmd_pio(void){
                                 ss+=12;
                                 skipspace(ss);
                                 if(!strncasecmp(ss,"LIST",4) && (ss[4]==0 || ss[4]==' '))
-                                for(int i=PIOstart;i<totallines;i++){
+                                for(int i=PIOstart;i<PIOstart+totallines;i++){
                                         pio->instr_mem[i]=instructions[i];
                                         char c[10]={0};
                                         PInt(i);
@@ -1269,8 +1268,20 @@ static int scan_result(void *env, const cyw43_ev_scan_result_t *result) {
     return 0;
 }
 void cmd_web(void){
-        if(!WIFIconnected)error("WIFI not connected");
         unsigned char *tp;
+        tp=checkstring(cmdline, "CONNECT");
+        if(tp){
+            if(cyw43_wifi_link_status(&cyw43_state,CYW43_ITF_STA)== CYW43_LINK_NONET){
+                WebConnect();
+            }
+            return;   
+        }
+        if(!(WIFIconnected &&  cyw43_tcpip_link_status(&cyw43_state,CYW43_ITF_STA)==CYW43_LINK_UP))error("WIFI not connected");
+        tp=checkstring(cmdline, "NTP");
+        if(tp){
+            cmd_ntp(tp);
+            return;   
+        }
         tp=checkstring(cmdline, "NTP");
         if(tp){
             cmd_ntp(tp);

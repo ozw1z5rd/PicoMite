@@ -2668,6 +2668,9 @@ void cmd_files(void)
         if(FatFSFileSystem){
             while (FSerror == FR_OK && fnod.fname[0])
             {
+            #ifdef PICOMITEWEB
+                ProcessWeb();
+            #endif
                 if (fcnt >= MAXFILES)
                 {
                     FreeMemorySafe((void **)&flist);
@@ -2784,6 +2787,9 @@ void cmd_files(void)
             } 
         } else {
             while(1){
+            #ifdef PICOMITEWEB
+                ProcessWeb();
+            #endif
                 int found=0;
                 FSerror=lfs_dir_read(&lfs, &lfs_dir, &lfs_info);
                 if(FSerror==0)break;

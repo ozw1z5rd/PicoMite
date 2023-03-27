@@ -195,6 +195,7 @@ extern uint16_t __attribute__ ((aligned (256))) tilebcols[80*40];
 	extern volatile int scantimer;
 	extern int startupcomplete;
 	extern void ProcessWeb(void);
+	extern void WebConnect(void);
 #endif
 // console related I/O
 int __not_in_flash_func(MMInkey)(void);

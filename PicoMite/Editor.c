@@ -155,7 +155,7 @@ void DisplayPutS(char *s) {
             case CLEAR_TO_EOL:      DrawBox(CurrentX, CurrentY, HRes-1, CurrentY + gui_font_height-1, 0, 0, gui_bcolour);
                                     if(DISPLAY_TYPE==MONOVGA && Option.ColourCode && ytilecount==12 && gui_font==1){
                                         for(int x=CurrentX/gui_font_width;x<X_TILE;x++){
-                                                tilefcols[CurrentY/gui_font_height*X_TILE+x]=Option.VGAFC;
+                                                tilefcols[CurrentY/gui_font_height*X_TILE+x]=Option.VGABC;
                                                 tilebcols[CurrentY/gui_font_height*X_TILE+x]=Option.VGABC;
                                         }
                                     }
@@ -173,7 +173,7 @@ void DisplayPutS(char *s) {
                                     break;
             case SCROLL_DOWN:
                                     break;
-            case DRAW_LINE:         DrawBox(0, gui_font_height * (Option.Height - 2), HRes - 1, VRes - 1, 0, 0, gui_bcolour);
+            case DRAW_LINE:         DrawBox(0, gui_font_height * (Option.Height - 2), HRes - 1, VRes - 1, 0, 0, (DISPLAY_TYPE==MONOVGA ? 0 :gui_bcolour));
                                     DrawLine(0, VRes - gui_font_height - 6, HRes - 1, VRes - gui_font_height - 6, 1, GUI_C_LINE);
 #ifdef PICOMITEVGA
                                     if(DISPLAY_TYPE==MONOVGA && Option.ColourCode && ytilecount==12 && gui_font==1)for(int i=0; i<80; i++)tilefcols[38*X_TILE+i]=Option.VGAFC;

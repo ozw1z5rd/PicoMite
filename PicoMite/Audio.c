@@ -1404,8 +1404,8 @@ void cmd_play(void) {
             else local_sound_v_right=25;
 			local_sound_v_right=local_sound_v_right*41/(100/MAXSOUNDS);
         }
-		if(left && lastleft==local_sound_mode_left)rampvolume(1,0,channel,local_sound_v_left);
-		if(right && lastright!=local_sound_mode_right)rampvolume(0,1,channel,local_sound_v_left);
+		if(left)rampvolume(1,0,channel,local_sound_v_left);
+		if(right)rampvolume(0,1,channel,local_sound_v_right);
 		if(left)sound_mode_left[channel]=local_sound_mode_left;
 		if(right)sound_mode_right[channel]=local_sound_mode_right;
         if(!(CurrentlyPlaying == P_SOUND)){
