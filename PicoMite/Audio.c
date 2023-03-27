@@ -1186,7 +1186,7 @@ void setnoise(void){
     if(noisetable)return;
 	noisetable=GetMemory(4096*sizeof(uint16_t));
     for(i=0;i<4096;i++){
-    	noise=(float)rand()/(float)RAND_MAX*3800.0+100;
+    	noise=rand() % 3800+100;
         noisetable[i]=(int)noise;
     }
     return;

@@ -214,7 +214,7 @@ void __not_in_flash_func(on_pwm_wrap)(void) {
 				} else {
     				if(noisedwellleft[i]<=0){
     					noisedwellleft[i]=sound_PhaseM_left[i];
-    				    noiseleft[i]=(float)rand()/RAND_MAX *3800.0+100;
+    				    noiseleft[i]=rand() % 3800+100;
     				}
     				if(noisedwellleft[i])noisedwellleft[i]--;
     				j = (int)noiseleft[i];
@@ -232,7 +232,7 @@ void __not_in_flash_func(on_pwm_wrap)(void) {
 				}  else {
     				if(noisedwellright[i]<=0){
     					noisedwellright[i]=sound_PhaseM_right[i];
-    				    noiseright[i]=(float)rand()/RAND_MAX*3800.0+100;
+    				    noiseright[i]=rand() % 3800+100;
     				}
     				if(noisedwellright[i])noisedwellright[i]--;
     				j = (int)noiseright[i];
