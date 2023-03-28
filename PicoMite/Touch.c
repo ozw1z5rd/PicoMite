@@ -27,6 +27,9 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 #include "MMBasic_Includes.h"
 #include "Hardware_Includes.h"
 #include "hardware/structs/systick.h"
+#ifdef PICOMITEWEB
+#include "pico/cyw43_arch.h"
+#endif
 
 int GetTouchValue(int cmd);
 void TDelay(void);
@@ -190,7 +193,8 @@ int GetTouchAxis(int cmd) {
 int GetTouchValue(int cmd) {
     int val;
     unsigned int lb, hb;
-	SPISpeedSet(TOUCH);
+	if(Option.DISPLAY_TYPE<SSDPANEL)SPISpeedSet(TOUCH);
+    else SPISpeedSet(SLOWTOUCH);
     gpio_put(TOUCH_CS_PIN,GPIO_PIN_RESET);  // set CS low
     TDelay();
     val=xchg_byte(cmd);    //    SpiChnPutC(TOUCH_SPI_CHANNEL, cmd);
@@ -199,6 +203,9 @@ int GetTouchValue(int cmd) {
     lb=xchg_byte(0);                             // send the read command (also selects the axis)
     val |= (lb >> 3) & 0b11111;          // the bottom 5 bits
     ClearCS(Option.TOUCH_CS);
+    #ifdef PICOMITEWEB
+            {if(startupcomplete)cyw43_arch_poll();}
+    #endif
    return val;
 }
 
@@ -217,6 +224,7 @@ void fun_touch(void) {
         iret = GetTouch(GET_X_AXIS);
     else if(checkstring(ep, "Y"))
         iret = GetTouch(GET_Y_AXIS);
+#ifndef PICOMITEWEB
     else if(checkstring(ep, "REF"))
         iret = CurrentRef;
     else if(checkstring(ep, "LASTREF"))
@@ -229,6 +237,7 @@ void fun_touch(void) {
         iret = TOUCH_DOWN;
     else if(checkstring(ep, "UP"))
         iret = !TOUCH_DOWN;
+#endif        
     else
         error("Invalid argument");
 
