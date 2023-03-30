@@ -50,6 +50,7 @@ void cmd_cfunction(void);
 void cmd_longString(void);
 void cmd_sort(void);
 void cmd_csubinterrupt(void);
+void cmd_library(void);
 void fun_timer(void);
 void fun_date(void);
 void fun_time(void);
@@ -79,7 +80,7 @@ void fun_format(void);
 **********************************************************************************/
 #ifdef INCLUDE_COMMAND_TABLE
 
-	{ (unsigned char *)"AutoSave",		T_CMD,				0, cmd_autosave	},
+//	{ (unsigned char *)"AutoSave",		T_CMD,				0, cmd_autosave	},
 	{ (unsigned char *)"Option",			T_CMD,				0, cmd_option	},
 	{ (unsigned char *)"Pause",			T_CMD,				0, cmd_pause	},
 	{ (unsigned char *)"Timer",			T_CMD | T_FUN,      0, cmd_timer	},
@@ -97,7 +98,7 @@ void fun_format(void);
 	{ (unsigned char *)"Interrupt", 	T_CMD,              	0, cmd_csubinterrupt},
 	{ (unsigned char *)"CSub",           T_CMD,              0, cmd_cfunction},
 	{ (unsigned char *)"End CSub",       T_CMD,              0, cmd_null     },
-	{ (unsigned char *)"Update Firmware",       T_CMD,              0, cmd_update     },
+//	{ (unsigned char *)"Update Firmware",       T_CMD,              0, cmd_update     },
 
 #endif
 

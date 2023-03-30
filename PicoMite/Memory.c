@@ -376,9 +376,10 @@ void cmd_memory(void) {
     	memset(to, val, n);
     	return;
     }
+    //MEMORY Usage
     int i, j, var, nbr, vsize, VarCnt;
     int ProgramSize, ProgramPercent, VarSize, VarPercent, GeneralSize, GeneralPercent, SavedVarSize, SavedVarSizeK, SavedVarPercent, SavedVarCnt;
-    int CFunctSize, CFunctSizeK, CFunctNbr, CFunctPercent, FontSize, FontSizeK, FontNbr, FontPercent, LibrarySizeK, LibraryPercent;
+    int CFunctSize, CFunctSizeK, CFunctNbr, CFunctPercent, FontSize, FontSizeK, FontNbr, FontPercent, LibrarySizeK, LibraryPercent,LibraryMaxK;
     unsigned int CurrentRAM, *pint;
 
     CurrentRAM = HEAP_MEMORY_SIZE + MAXVARS * sizeof(struct s_vartbl);
@@ -432,14 +433,15 @@ void cmd_memory(void) {
     }
     SavedVarSize = p - (SavedVarsFlash);
     SavedVarSizeK = (SavedVarSize + 512) / 1024;
-    SavedVarPercent = (SavedVarSize * 100) / (MAX_PROG_SIZE + SAVEDVARS_FLASH_SIZE);
+    SavedVarPercent = (SavedVarSize * 100) / (/*MAX_PROG_SIZE +*/ SAVEDVARS_FLASH_SIZE);
     if(SavedVarCnt && SavedVarSizeK == 0) SavedVarPercent = SavedVarSizeK = 1;        // adjust if it is zero and we have some variables
 
     // count the space used by CFunctions, CSubs and fonts
-    /*CFunctSize = CFunctNbr = FontSize = FontNbr = 0;
+    CFunctSize = CFunctNbr = FontSize = FontNbr = 0;
     pint = (unsigned int *)CFunctionFlash;
     while(*pint != 0xffffffff) {
-        if(*pint < FONT_TABLE_SIZE) {
+        //if(*pint < FONT_TABLE_SIZE) {
+        if(*pint >> 31 ){    
             pint++;
             FontNbr++;
             FontSize += *pint + 8;
@@ -453,10 +455,10 @@ void cmd_memory(void) {
     CFunctPercent = (CFunctSize * 100) /  (MAX_PROG_SIZE + SAVEDVARS_FLASH_SIZE);
     CFunctSizeK = (CFunctSize + 512) / 1024;
     if(CFunctNbr && CFunctSizeK == 0) CFunctPercent = CFunctSizeK = 1;              // adjust if it is zero and we have some functions
-    FontPercent = (FontSize * 100) /  (MAX_PROG_SIZE + SAVEDVARS_FLASH_SIZE);
+    FontPercent = (FontSize * 100) /  (MAX_PROG_SIZE /*+ SAVEDVARS_FLASH_SIZE*/);
     FontSizeK = (FontSize + 512) / 1024;
     if(FontNbr && FontSizeK == 0) FontPercent = FontSizeK = 1;                      // adjust if it is zero and we have some functions
-*/
+
     // count the number of lines in the program
     p = ProgMemory;
     i = 0;
@@ -473,7 +475,7 @@ void cmd_memory(void) {
 		while(*p) p++;												// look for the zero marking the start of an element
     }
     ProgramSize = ((p - ProgMemory) + 512)/1024;
-    ProgramPercent = ((p - ProgMemory) * 100)/(MAX_PROG_SIZE + SAVEDVARS_FLASH_SIZE);
+    ProgramPercent = ((p - ProgMemory) * 100)/(MAX_PROG_SIZE /*+ SAVEDVARS_FLASH_SIZE*/);
     if(ProgramPercent > 100) ProgramPercent = 100;
     if(i && ProgramSize == 0) ProgramPercent = ProgramSize = 1;                                        // adjust if it is zero and we have some lines
 
@@ -496,7 +498,7 @@ void cmd_memory(void) {
         IntToStr(inpbuf, FontNbr, 10); strcat(inpbuf, " Embedded Fonts"); strcat(inpbuf, FontNbr == 1 ? "\r\n":"s\r\n");
         MMPrintString(inpbuf);
     }
-
+/*
     if(SavedVarCnt) {
         IntToStrPad(inpbuf, SavedVarSizeK, ' ', 4, 10); strcat(inpbuf, "K (");
         IntToStrPad(inpbuf + strlen(inpbuf), SavedVarPercent, ' ', 2, 10); strcat(inpbuf, "%)");
@@ -504,12 +506,73 @@ void cmd_memory(void) {
         IntToStr(inpbuf + strlen(inpbuf), SavedVarSize, 10); strcat(inpbuf, " bytes)\r\n");
         MMPrintString(inpbuf);
     }
+*/
 
-    LibrarySizeK = LibraryPercent = 0;
 
-    IntToStrPad(inpbuf, ((MAX_PROG_SIZE/* + SAVEDVARS_FLASH_SIZE*/) + 512)/1024 - ProgramSize - CFunctSizeK - FontSizeK - SavedVarSizeK - LibrarySizeK, ' ', 4, 10); strcat(inpbuf, "K (");
-    IntToStrPad(inpbuf + strlen(inpbuf), 100 - ProgramPercent - CFunctPercent - FontPercent - SavedVarPercent - LibraryPercent, ' ', 2, 10); strcat(inpbuf, "%) Free\r\n");
+
+    IntToStrPad(inpbuf, ((MAX_PROG_SIZE/* + SAVEDVARS_FLASH_SIZE*/) + 512)/1024 - ProgramSize - CFunctSizeK - FontSizeK /*- SavedVarSizeK - LibrarySizeK*/, ' ', 4, 10); strcat(inpbuf, "K (");
+    IntToStrPad(inpbuf + strlen(inpbuf), 100 - ProgramPercent - CFunctPercent - FontPercent /*- SavedVarPercent - LibraryPercent*/, ' ', 2, 10); strcat(inpbuf, "%) Free\r\n");
 	MMPrintString(inpbuf);
+
+     //Get the library size
+    LibrarySizeK = LibraryPercent = 0;
+    LibraryMaxK= MAX_PROG_SIZE/1024;
+    if(Option.LIBRARY_FLASH_SIZE == MAX_PROG_SIZE) {
+           i = 0;
+           // first count the normal program code residing in the Library
+           p = LibMemory;
+           while(!(p[0] == 0 && p[1] == 0)) {
+               	p++; i++;
+           }
+           while(*p == 0){ // the end of the program can have multiple zeros -count them
+               p++;i++;
+           }
+           p++; i++;    //get 0xFF that ends the program and count it
+           while((unsigned int)p & 0b11) { //count to the next word boundary
+           	p++;i++;
+           }
+               
+           //Now add the binary used for CSUB and Fonts
+           if(CFunctionLibrary != NULL) {
+             j=0;
+             pint = (unsigned int *)CFunctionLibrary;
+             while(*pint != 0xffffffff) {
+              pint++;                                      //step over the address or Font No.
+              j += *pint + 8;                              //Read the size
+              pint += (*pint + 4) / sizeof(unsigned int);  //set pointer to start of next CSUB/Font
+             }
+             i=i+j;
+           }
+
+
+           LibrarySizeK=(i+512)/1024;
+           LibraryPercent = (LibrarySizeK * 100)/LibraryMaxK;
+           if(LibrarySizeK == 0) LibrarySizeK = 1;              // adjust if it is zero and we have any library
+           if(LibraryPercent == 0) LibraryPercent = 1;          // adjust if it is zero and we have any library
+     
+           MMPrintString("\r\nLibrary:\r\n");
+        
+           IntToStrPad(inpbuf, LibrarySizeK, ' ', 4, 10); strcat(inpbuf, "K (");
+	       //IntToStrPad(inpbuf, (128*1024  + 512)/1024  - LibrarySizeK, ' ', 4, 10); strcat(inpbuf, "K (");
+	       IntToStrPad(inpbuf + strlen(inpbuf), LibraryPercent, ' ', 2, 10); strcat(inpbuf, "%) "); strcat(inpbuf, "Library\r\n");
+	       IntToStrPad(inpbuf + strlen(inpbuf), LibraryMaxK-LibrarySizeK, ' ', 4, 10); strcat(inpbuf, "K (");
+	       IntToStrPad(inpbuf + strlen(inpbuf), 100 - LibraryPercent, ' ', 2, 10); strcat(inpbuf, "%) Free\r\n");
+	       MMPrintString(inpbuf);
+       }
+   
+
+     MMPrintString("\r\nSaved Variables:\r\n");
+	 if(SavedVarCnt) {
+	        IntToStrPad(inpbuf, SavedVarSizeK, ' ', 4, 10); strcat(inpbuf, "K (");
+	        IntToStrPad(inpbuf + strlen(inpbuf), SavedVarPercent, ' ', 2, 10); strcat(inpbuf, "%)");
+	        IntToStrPad(inpbuf + strlen(inpbuf), SavedVarCnt, ' ', 2, 10); strcat(inpbuf, " Saved Variable"); strcat(inpbuf, SavedVarCnt == 1 ? " (":"s (");
+	        IntToStr(inpbuf + strlen(inpbuf), SavedVarSize, 10); strcat(inpbuf, " bytes)\r\n");
+	        MMPrintString(inpbuf);
+	 }
+	 IntToStrPad(inpbuf, (( SAVEDVARS_FLASH_SIZE) + 512)/1024 - SavedVarSizeK, ' ', 4, 10); strcat(inpbuf, "K (");
+	 IntToStrPad(inpbuf + strlen(inpbuf), 100 -  SavedVarPercent, ' ', 2, 10); strcat(inpbuf, "%) Free\r\n");
+	 MMPrintString(inpbuf);
+
 
     MMPrintString("\r\nRAM:\r\n");
     IntToStrPad(inpbuf, VarSize, ' ', 4, 10); strcat(inpbuf, "K (");

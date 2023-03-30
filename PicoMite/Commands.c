@@ -323,14 +323,19 @@ void cmd_list(void) {
    } else if((p = checkstring(cmdline, "COMMANDS"))) {
     	step=5;
     	m=0;
-		char** c=GetTempMemory((CommandTableSize+5)*sizeof(*c)+(CommandTableSize+5)*18);
-		for(i=0;i<CommandTableSize+5;i++){
-				c[m]= (char *)((int)c + sizeof(char *) * (CommandTableSize+5) + m*18);
+		char** c=GetTempMemory((CommandTableSize+10)*sizeof(*c)+(CommandTableSize+10)*18);
+		for(i=0;i<CommandTableSize+10;i++){
+				c[m]= (char *)((int)c + sizeof(char *) * (CommandTableSize+10) + m*18);
     			if(m<CommandTableSize)strcpy(c[m],commandtbl[i].name);
     			else if(m==CommandTableSize)strcpy(c[m],"Color");
     			else if(m==CommandTableSize+1)strcpy(c[m],"Else If");
     			else if(m==CommandTableSize+2)strcpy(c[m],"End If");
     			else if(m==CommandTableSize+3)strcpy(c[m],"Exit Do");
+				else if(m==CommandTableSize+4)strcpy(c[m],"Library");
+				else if(m==CommandTableSize+5)strcpy(c[m],"New");
+				else if(m==CommandTableSize+6)strcpy(c[m],"Autosave");
+				else if(m==CommandTableSize+7)strcpy(c[m],"Files");
+				else if(m==CommandTableSize+8)strcpy(c[m],"Update Firmware");
     			else strcpy(c[m],"Cat");
     			m++;
 		}
@@ -469,6 +474,7 @@ void cmd_run(void) {
     memcpy(ptr, pcmd_args + 1, *pcmd_args);
 
     IgnorePIN = false;
+	if(Option.LIBRARY_FLASH_SIZE == MAX_PROG_SIZE) ExecuteProgram(LibMemory );       // run anything that might be in the library
     if(*ProgMemory != T_NEWLINE) return;                             // no program to run
 #ifdef PICOMITEWEB
     void *v;

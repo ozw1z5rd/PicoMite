@@ -1271,7 +1271,7 @@ void cmd_web(void){
         unsigned char *tp;
         tp=checkstring(cmdline, "CONNECT");
         if(tp){
-            if(cyw43_wifi_link_status(&cyw43_state,CYW43_ITF_STA)== CYW43_LINK_NONET){
+            if(cyw43_wifi_link_status(&cyw43_state,CYW43_ITF_STA)<0){
                 WebConnect();
             }
             return;   

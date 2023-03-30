@@ -30,9 +30,10 @@ static int64_t PinReadFunc(int a){return gpio_get(PinDef[a].GPno);}
 
 
 // used by CallCFunction() below to find a CFunction or CSub in program flash or the library
-unsigned int *FindCFunction(unsigned int *p, unsigned char *CmdPtr) {
+unsigned int *FindCFunction(unsigned int *p, unsigned char *CmdPtr, unsigned char *offset) {
     while(*p != 0xffffffff) {
-        if(*p++ == (unsigned int)(CmdPtr-ProgMemory)) return p;
+        //if(*p++ == (unsigned int)(CmdPtr-ProgMemory)) return p;
+        if(*p++ == (unsigned int)(CmdPtr-offset)) return p;
         p += (*p + 4) / sizeof(unsigned int);
     }
     return p;
@@ -51,7 +52,9 @@ long long int CallCFunction(unsigned char *CmdPtr, unsigned char *ArgList, unsig
 //    if((uint32_t)p > 0x10000000)error("Internal error");
     // find the C code in flash
     if(*ArgList == '(') ArgList++;                                  // and step over it
-    p = FindCFunction((unsigned int *)CFunctionFlash, CmdPtr);      // search through the program flash looking for a match to the function being called
+    p = FindCFunction((unsigned int *)CFunctionFlash, CmdPtr,ProgMemory);      // search through the program flash looking for a match to the function being called
+    if(*p == 0xffffffff && CFunctionLibrary != NULL)
+         p = FindCFunction((unsigned int *)CFunctionLibrary, CmdPtr,LibMemory);// if unsuccessful search the library area
     if(*p == 0xffffffff) error("Internal fault 5(sorry)");
 
     // next, get the argument types (if specified)

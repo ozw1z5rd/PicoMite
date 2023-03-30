@@ -11,14 +11,26 @@
 *  NB: Base address has changed from previous versions to match V5.07.05
 *  V1.6.3  struct option_s updated to match 5.07.05 as defined in fileIO.h
 *  V1.6.4  Additional links
+*  v1.6.5  Latest Beta27 and PICOMITEVGA PICOMITEWEB Compiled with GCC 11.2.1
+*
+*
+*  Note: Use ? HEX$(MM.INFO(CALLTABLE)) to verify the location of the callatble.
+*  The BaseAddress should be changed to match the value returned it it is different.
+*  It can vary depending on which version of GCC is used to compile.
+*
 ******************************************************************************************/
+#define PICOMITE
+//#define PICOMITEVGA
+//#define PICOMITEWEB
+
 #define MAXVARLEN           32                      // maximum length of a variable name
 #define MAXDIM              5                       // maximum nbr of dimensions to an array
 #define MMFLOAT double
 #define MAXKEYLEN 64
 
 //Addresses in the API Table for the pointers to each function
-#define BaseAddress   0x10000308
+//#define BaseAddress   0x10000304    //GCC 10.2.1
+#define BaseAddress   0x10000308    //GCC 11.2.1/GCC 12.2.1
 #define Vector_uSec               (*(unsigned int *)(BaseAddress+0x00))       // void uSec(unsigned int us)
 #define Vector_putConsole         (*(unsigned int *)(BaseAddress+0x04))       // void putConsole(int C))
 #define Vector_getConsole         (*(unsigned int *)(BaseAddress+0x08))       // int getConsole(void)
@@ -196,95 +208,107 @@ struct s_vartbl {                               // structure of the variable tab
 
 //The Option structure
 struct option_s {
-   int  Magic;
-   char Autorun;
-   char Tab;
-   char Invert;
-   char Listcase; //4
- //
-   unsigned int PROG_FLASH_SIZE;
-   unsigned int HEAP_SIZE;
-   char Height;
-   char Width;
-   char DISPLAY_TYPE;
-   char DISPLAY_ORIENTATION; //8
+    int  Magic;
+    char Autorun;
+    char Tab;
+    char Invert;
+    char Listcase; //8
+  //
+    unsigned int PROG_FLASH_SIZE;
+    unsigned int HEAP_SIZE;
+    char Height;
+    char Width;
+    char DISPLAY_TYPE;
+    char DISPLAY_ORIENTATION; //12=20
 //
-   int  PIN;
-   int  Baudrate;
-   int  ColourCode;
-   int CPU_Speed;
-   unsigned int Dummyint;    // used to store the size of the program flash (also start of the LIBRARY code)
-   int DefaultFC, DefaultBC;      // the default colours
-   int DefaultBrightness;         // default backlight brightness //40
-  // uint16_t VGAFC, VGABC;      // the default colours
-   unsigned short VGAFC, VGABC;      // the default colours
+    int  PIN;
+    int  Baudrate;
+    int  ColourCode;
+    int CPU_Speed; 
+    unsigned int Telnet;    // used to store the size of the program flash (also start of the LIBRARY code)
+    int DefaultFC, DefaultBC;      // the default colours
+    int DefaultBrightness;         // default backlight brightness //40
+   // uint16_t VGAFC, VGABC;      // the default colours 36=56
+    unsigned short VGAFC, VGABC;      // the default colours 36=56
 //
-   // display related
-   unsigned char DefaultFont;
-   unsigned char KeyboardConfig;
-   unsigned char RTC_Clock, RTC_Data; //44
+    // display related
+    unsigned char DefaultFont;
+    unsigned char KeyboardConfig;
+    unsigned char RTC_Clock;
+    unsigned char RTC_Data; //4=60
 //
-   int MaxCtrls;                // maximum number of controls allowed //48
-   // for the SPI LCDs
-   unsigned char LCD_CD;
-   unsigned char LCD_CS;
-   unsigned char LCD_Reset;
-   // touch related
-   unsigned char TOUCH_CS;
-   unsigned char TOUCH_IRQ;
-   char TOUCH_SWAPXY;
-   unsigned char repeat;
-   char dummy;//56
-   int  TOUCH_XZERO;
-   int  TOUCH_YZERO;
-   float TOUCH_XSCALE;
-   float TOUCH_YSCALE; //72
-   unsigned int fullrefresh;
-   unsigned int FlashSize;
-
-    // these are only used in the MX470 version
-   unsigned char SD_CS;
-   unsigned char SYSTEM_MOSI;
-   unsigned char SYSTEM_MISO;
-   unsigned char SYSTEM_CLK;
-   unsigned char DISPLAY_BL;
-   unsigned char DISPLAY_CONSOLE;
-   unsigned char TOUCH_Click;
-   char LCD_RD;                   // used for the RD pin for SSD1963  //78
-   unsigned char AUDIO_L;
-   unsigned char AUDIO_R;
-   unsigned char AUDIO_SLICE;
-   unsigned char pins[8];                  // general use storage for CFunctions written by PeterM //86
-   unsigned char SDspeed;
-   char LCDVOP;
-   char I2Coffset;
-   unsigned char NoHeartbeat;
-   char Refresh;
-   unsigned char SYSTEM_I2C_SDA;
-   unsigned char SYSTEM_I2C_SCL;
-   unsigned char RTC;
-   char PWM;
-   unsigned char INT1pin;
-   unsigned char INT2pin;
-   unsigned char INT3pin;
-   unsigned char INT4pin;
-   unsigned char SD_CLK_PIN;
-   unsigned char SD_MOSI_PIN;
-   unsigned char SD_MISO_PIN;
-   unsigned char SerialConsole;
-   unsigned char SerialTX;
-   unsigned char SerialRX;
-   unsigned char numlock;
-   unsigned char capslock;
-   unsigned char F1key[MAXKEYLEN];
-   unsigned char F5key[MAXKEYLEN];
-   unsigned char F6key[MAXKEYLEN];
-   unsigned char F7key[MAXKEYLEN];
-   unsigned char F8key[MAXKEYLEN];
-   unsigned char F9key[MAXKEYLEN];
-   // To enable older CFunctions to run any new options *MUST* be added at the end of the list
+    #ifdef PICOMITE
+        int MaxCtrls;                // maximum number of controls allowed //48
+    #endif
+    #ifdef PICOMITEWEB
+        uint16_t TCP_PORT;                // maximum number of controls allowed //48
+        uint16_t ServerResponceTime;
+    #endif
+    #ifdef PICOMITEVGA
+        int16_t X_TILE;                // maximum number of controls allowed //48
+        int16_t Y_TILE;                // maximum number of controls allowed //48
+    #endif
+        // for the SPI LCDs 4=64
+    unsigned char LCD_CD;
+    unsigned char LCD_CS;
+    unsigned char LCD_Reset;
+    // touch related
+    unsigned char TOUCH_CS;
+    unsigned char TOUCH_IRQ;
+    char TOUCH_SWAPXY; 
+    unsigned char repeat;
+    char disabletftp;//56   8=72
+    int  TOUCH_XZERO;
+    int  TOUCH_YZERO;
+    float TOUCH_XSCALE;
+    float TOUCH_YSCALE; //72 16=88
+    unsigned int fullrefresh;
+    unsigned int FlashSize; //8=96
+    unsigned char SD_CS;
+    unsigned char SYSTEM_MOSI;
+    unsigned char SYSTEM_MISO;
+    unsigned char SYSTEM_CLK;
+    unsigned char DISPLAY_BL;
+    unsigned char DISPLAY_CONSOLE;
+    unsigned char TOUCH_Click;
+    char LCD_RD;                   // used for the RD pin for SSD1963  //8=104
+    unsigned char AUDIO_L;
+    unsigned char AUDIO_R;
+    unsigned char AUDIO_SLICE; 
+    unsigned char SDspeed;
+    unsigned char pins[8];  //12=116                // general use storage for CFunctions written by PeterM //86
+    char LCDVOP;
+    char I2Coffset;
+    unsigned char NoHeartbeat; 
+    char Refresh;
+    unsigned char SYSTEM_I2C_SDA;
+    unsigned char SYSTEM_I2C_SCL;
+    unsigned char RTC;
+    char PWM;  //8=124
+    unsigned char INT1pin;
+    unsigned char INT2pin;
+    unsigned char INT3pin; 
+    unsigned char INT4pin;
+    unsigned char SD_CLK_PIN;
+    unsigned char SD_MOSI_PIN;
+    unsigned char SD_MISO_PIN;
+    unsigned char SerialConsole; //8=132
+    unsigned char SerialTX;
+    unsigned char SerialRX;
+    unsigned char numlock; 
+    unsigned char capslock; //4=136
+    unsigned int LIBRARY_FLASH_SIZE; // 4=140
+    unsigned char x[116]; //116=256
+    unsigned char F1key[MAXKEYLEN]; //204
+    unsigned char F5key[MAXKEYLEN]; //268
+    unsigned char F6key[MAXKEYLEN]; //332
+    unsigned char F7key[MAXKEYLEN]; //396
+    unsigned char F8key[MAXKEYLEN]; //460
+    unsigned char F9key[MAXKEYLEN]; //524
+    unsigned char SSID[MAXKEYLEN];  //588
+    unsigned char PASSWORD[MAXKEYLEN]; //652=768
+    // To enable older CFunctions to run any new options *MUST* be added at the end of the list
 } __attribute__((packed));
-
 
 
 // Define the offsets from the PORT address

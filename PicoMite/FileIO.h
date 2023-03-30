@@ -106,7 +106,7 @@ struct option_s {
     unsigned char TOUCH_IRQ;
     char TOUCH_SWAPXY; 
     unsigned char repeat;
-    char dummy;//56   8=72
+    char disabletftp;//56   8=72
     int  TOUCH_XZERO;
     int  TOUCH_YZERO;
     float TOUCH_XSCALE;
@@ -146,7 +146,8 @@ struct option_s {
     unsigned char SerialRX;
     unsigned char numlock; 
     unsigned char capslock; //4=136
-    unsigned char x[120]; //120=256
+    unsigned int LIBRARY_FLASH_SIZE; // 4=140
+    unsigned char x[116]; //116=256
     unsigned char F1key[MAXKEYLEN]; //204
     unsigned char F5key[MAXKEYLEN]; //268
     unsigned char F6key[MAXKEYLEN]; //332
@@ -167,6 +168,8 @@ extern void FlashWriteByte(unsigned char b);
 extern void FlashWriteAlign(void);
 extern void FlashWriteClose(void);
 extern void FlashWriteInit(int region);
+void FlashSetAddress(int address);  //new
+extern void FlashWriteAlignWord(void);  //new
 extern void ResetFlashStorage(int umount);
 extern volatile uint32_t realflashpointer;
 extern int drivecheck(char *p, int *waste);
@@ -175,6 +178,7 @@ extern int FSerror;
 extern int lfs_FileFnbr;
 extern struct lfs_config pico_lfs_cfg;
 #define SAVED_OPTIONS_FLASH 4
+#define LIBRARY_FLASH 5
 #define SAVED_VARS_FLASH 2
 #define PROGRAM_FLASH 1
 typedef union uFileTable

@@ -72,7 +72,8 @@ struct s_hash {
 int CommandTableSize, TokenTableSize;
 #ifdef PICOMITE
 struct s_funtbl funtbl[MAXSUBFUN];
-void hashlabels(int errabort);
+//void hashlabels(int errabort);
+void hashlabels(unsigned char *p,int ErrAbort);
 #endif
 struct s_vartbl __attribute__ ((aligned (64))) vartbl[MAXVARS]={0};                                            // this table stores all variables
 int varcnt;                                                         // number of variables
@@ -97,6 +98,7 @@ unsigned char PromptString[MAXPROMPTLEN];                                    // 
 int ProgramChanged;                                                 // true if the program in memory has been changed and not saved
 struct s_hash hashlist[MAXVARS/2]={0};
 int hashlistpointer=0;
+unsigned char *LibMemory;                                           //This is where the library is stored. At the last flash slot (4)
 
 unsigned char *ProgMemory;                                                      // program memory, this is where the program is stored
 int PSize;                                                          // the size of the program stored in ProgMemory[]
@@ -400,6 +402,8 @@ void  PrepareProgram(int ErrAbort) {
     
     NbrFuncts = 0;
     CFunctionFlash = CFunctionLibrary = NULL;
+    if(Option.LIBRARY_FLASH_SIZE == MAX_PROG_SIZE)
+         NbrFuncts = PrepareProgramExt(LibMemory , 0, &CFunctionLibrary, ErrAbort);
     PrepareProgramExt(ProgMemory, NbrFuncts,&CFunctionFlash, ErrAbort);
     
     // check the sub/fun table for duplicates
@@ -434,7 +438,13 @@ void  PrepareProgram(int ErrAbort) {
 		funtbl[hash].index=i;
 		memcpy(funtbl[hash].name,printvar,(namelen == MAXVARLEN ? namelen :namelen+1));
     }
-    hashlabels(ErrAbort);
+        if(Option.LIBRARY_FLASH_SIZE == MAX_PROG_SIZE){
+            hashlabels(LibMemory,ErrAbort);
+           // if(!ErrAbort) return;
+        }   
+          hashlabels(ProgMemory,ErrAbort);
+          //if(!ErrAbort) return;
+
 #endif
     if(!ErrAbort) return;
 
@@ -492,9 +502,10 @@ int  PrepareProgramExt(unsigned char *p, int i, unsigned char **CFunPtr, int Err
     if(i < MAXSUBFUN) subfun[i] = NULL;
     CurrentLinePtr = NULL;
     // now, step through the CFunction area looking for fonts to add to the font table
+    //Bit 7 on the last address byte is used to identify a font.
     cfp = *(unsigned int **)CFunPtr;
     while(*cfp != 0xffffffff) {
-        if(*cfp < FONT_TABLE_SIZE)
+        if((*cfp) >> 31 )
             FontTable[*cfp] = (unsigned char *)(cfp + 2);
         cfp++;
         cfp += (*cfp + 4) / sizeof(unsigned int);
@@ -1699,13 +1710,31 @@ unsigned char __not_in_flash_func(*getvalue)(unsigned char *p, MMFLOAT *fa, long
 // returns a pointer to the T_NEWLINE token or a pointer to the two zero characters representing the end of the program
 unsigned char *findline(int nbr, int mustfind) {
     unsigned char *p;
-    int i;
-
-   p = ProgMemory;
+    unsigned char *next;
+    int i,j=0;
+    p = ProgMemory;
+    next=LibMemory;
+    if (Option.LIBRARY_FLASH_SIZE==MAX_PROG_SIZE){
+       if (CurrentLinePtr >= LibMemory && CurrentLinePtr <= LibMemory + MAX_PROG_SIZE){
+          p=LibMemory;
+          next=ProgMemory;
+       }
+    }
    while(1) {
         if(p[0] == 0 && p[1] == 0) {
-            i = MAXLINENBR;
-            break;
+             
+             if (Option.LIBRARY_FLASH_SIZE==MAX_PROG_SIZE){
+                if(j==0){
+                  j=1;  
+                  p = next;
+                }else{
+                  i = MAXLINENBR;
+                  break;   
+                } 
+             } else{
+               i = MAXLINENBR;
+               break;
+             } 
         }
 
         if(p[0] == T_NEWLINE) {
@@ -1736,11 +1765,12 @@ unsigned char *findline(int nbr, int mustfind) {
     return p;
 }
 #ifdef PICOMITE
-void hashlabels(int ErrAbort){
-    unsigned char *p = (unsigned char *)ProgMemory;
+void hashlabels(unsigned char *p,int ErrAbort){   
+    //unsigned char *p = (unsigned char *)ProgMemory;
     int j, u, namelen;
     uint32_t originalhash,hash=FNV_offset_basis;
-    char *lastp = (char *)ProgMemory + 1;
+   // char *lastp = (char *)ProgMemory + 1;
+    char *lastp = (char *)p + 1;
     // now do the search
     while(1) {
         if(p[0] == 0 && p[1] == 0)                                  // end of the program
@@ -1816,7 +1846,7 @@ unsigned char *__not_in_flash_func(findlabel)(unsigned char *labelptr) {
 	hash %= MAXSUBHASH; //scale to size of table
 	if(funtbl[hash].name[0]==0)error("Cannot find label");
 	while(funtbl[hash].name[0]!=0){
-		if(funtbl[hash].index>=(uint32_t)ProgMemory){
+		//if(funtbl[hash].index>=(uint32_t)ProgMemory){  //Is there a need to test this? Without this we can find labels in the Library
 			tp=funtbl[hash].name;
 			ip=&label[1];
 			if(*ip++ == *tp++) {                 // preliminary quick check
@@ -1828,7 +1858,7 @@ unsigned char *__not_in_flash_func(findlabel)(unsigned char *labelptr) {
 					return (char *)funtbl[hash].index;
 				}
 			}
-		}
+		//}
 		hash++;
 		hash %= MAXSUBFUN;
 	}
@@ -1839,7 +1869,8 @@ unsigned char *__not_in_flash_func(findlabel)(unsigned char *labelptr) {
 #else
 unsigned char *findlabel(unsigned char *labelptr) {
     char *p, *lastp = ProgMemory + 1;
-    int i;
+    char *next;
+    int i,j=0;
     char label[MAXVARLEN + 1];
 
     // first, just exit we have a NULL argument
@@ -1854,19 +1885,31 @@ unsigned char *findlabel(unsigned char *labelptr) {
         label[i] = *labelptr++;
     }
     label[0] = i - 1;                                               // the length byte
-
-    // point to the main program memory or the library
-    if(CurrentLinePtr >= ProgMemory + MAX_PROG_SIZE)
-        p = ProgMemory + MAX_PROG_SIZE;
-    else {
-        p = ProgMemory;
+   
+    p = ProgMemory;
+    next=LibMemory;
+    if (Option.LIBRARY_FLASH_SIZE==MAX_PROG_SIZE){
+       if (CurrentLinePtr >= LibMemory && CurrentLinePtr <= LibMemory + MAX_PROG_SIZE){
+          p=LibMemory;
+          next=ProgMemory;
+       }
     }
 
     // now do the search
     while(1) {
-        if(p[0] == 0 && p[1] == 0)                                  // end of the program
-            error("Cannot find label");
-
+        if(p[0] == 0 && p[1] == 0) {                                // end of the program
+            if (Option.LIBRARY_FLASH_SIZE==MAX_PROG_SIZE){
+                if(j==0){
+                  j=1;  
+                  p = next;
+                }else{
+                  error("Cannot find label"); 
+                } 
+             } else{
+               error("Cannot find label");
+             } 
+            
+        }
         if(p[0] == T_NEWLINE) {
             lastp = p;                                              // save in case this is the right line
             p++;                                                    // and step over the line number
@@ -2582,7 +2625,10 @@ void error(char *msg, ...) {
     if(MMCharPos > 1) MMPrintString("\r\n");
     if(CurrentLinePtr) {
         tp = p = ProgMemory;
-        if(*CurrentLinePtr != T_NEWLINE && CurrentLinePtr < ProgMemory + MAX_PROG_SIZE) {
+        if (Option.LIBRARY_FLASH_SIZE==MAX_PROG_SIZE && CurrentLinePtr < LibMemory+MAX_PROG_SIZE)
+           tp = p = LibMemory;
+        //if(*CurrentLinePtr != T_NEWLINE && CurrentLinePtr < ProgMemory + MAX_PROG_SIZE) {
+        if(*CurrentLinePtr != T_NEWLINE && ((CurrentLinePtr < ProgMemory + MAX_PROG_SIZE) || (Option.LIBRARY_FLASH_SIZE==MAX_PROG_SIZE && CurrentLinePtr < LibMemory+MAX_PROG_SIZE))) {    
             // normally CurrentLinePtr points to a T_NEWLINE token but in this case it does not
             // so we have to search for the start of the line and set CurrentLinePtr to that
           while(*p != 0xff) {
@@ -2605,7 +2651,7 @@ void error(char *msg, ...) {
         llist(tknbuf, CurrentLinePtr);
         p = tknbuf; skipspace(p);
         MMPrintString(MMCharPos > 1 ? "\r\n[" : "[");
-        if(CurrentLinePtr < ProgMemory + MAX_PROG_SIZE ){
+        if(CurrentLinePtr >= ProgMemory && CurrentLinePtr < ProgMemory + MAX_PROG_SIZE ){
             IntToStr(inpbuf, CountLines(CurrentLinePtr), 10);
             MMPrintString(inpbuf);
             StartEditPoint = CurrentLinePtr;

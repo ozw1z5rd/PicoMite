@@ -43,6 +43,8 @@ extern const uint8_t *flash_target_contents;
 extern const uint8_t *flash_option_contents;
 extern const uint8_t *SavedVarsFlash;
 extern const uint8_t *flash_progmemory;
+//LIBRARY
+extern const uint8_t *flash_libgmemory;
 extern void routinechecks(void);
 struct option_s __attribute__ ((aligned (256))) Option;
 int dirflags;
@@ -364,9 +366,12 @@ void cmd_flash(void)
         if (CurrentLinePtr)
             error("Invalid in program");
         uint32_t j = FLASH_TARGET_OFFSET + FLASH_ERASE_SIZE + SAVEDVARS_FLASH_SIZE;
+        int k=MAXFLASHSLOTS;
+        if(Option.LIBRARY_FLASH_SIZE==MAX_PROG_SIZE )
+           k--;
         uSec(250000);
         disable_interrupts();
-        for (int i = 0; i < MAXFLASHSLOTS; i++)
+        for (int i = 0; i < k; i++)
         {
             uint32_t j = FLASH_TARGET_OFFSET + FLASH_ERASE_SIZE + SAVEDVARS_FLASH_SIZE + (i * MAX_PROG_SIZE);
             flash_range_erase(j, MAX_PROG_SIZE);
@@ -378,6 +383,7 @@ void cmd_flash(void)
         if (CurrentLinePtr)
             error("Invalid in program");
         int i = getint(p, 1, MAXFLASHSLOTS);
+        if(Option.LIBRARY_FLASH_SIZE==MAX_PROG_SIZE && i==MAXFLASHSLOTS) error("Library is using Slot % ",MAXFLASHSLOTS);
         uint32_t j = FLASH_TARGET_OFFSET + FLASH_ERASE_SIZE + SAVEDVARS_FLASH_SIZE + ((i - 1) * MAX_PROG_SIZE);
         uSec(250000);
         disable_interrupts();
@@ -389,6 +395,7 @@ void cmd_flash(void)
         if (CurrentLinePtr)
             error("Invalid in program");
         int i = getint(p, 1, MAXFLASHSLOTS);
+        if(Option.LIBRARY_FLASH_SIZE==MAX_PROG_SIZE && i==MAXFLASHSLOTS) error("Library is using Slot % ",MAXFLASHSLOTS);
         uint32_t j = FLASH_TARGET_OFFSET + FLASH_ERASE_SIZE + SAVEDVARS_FLASH_SIZE + ((i - 1) * MAX_PROG_SIZE);
         uSec(250000);
         disable_interrupts();
@@ -421,6 +428,7 @@ void cmd_flash(void)
         if (argc)
         {
             int i = getint(argv[0], 1, MAXFLASHSLOTS);
+            if(Option.LIBRARY_FLASH_SIZE==MAX_PROG_SIZE && i==MAXFLASHSLOTS) error("Library is using Slot % ",MAXFLASHSLOTS);
             ProgMemory = (char *)(flash_target_contents + (i - 1) * MAX_PROG_SIZE);
             if (argc == 1)
                 ListProgram((char *)ProgMemory, false);
@@ -434,7 +442,10 @@ void cmd_flash(void)
         }
         else
         {
-            for (i = 1; i <= MAXFLASHSLOTS; i++)
+            int n=MAXFLASHSLOTS;
+            if(Option.LIBRARY_FLASH_SIZE==MAX_PROG_SIZE )
+                n--;
+            for (i = 1; i <= n; i++)
             {
                 k = 0;
                 j = MAX_PROG_SIZE >> 2;
@@ -466,6 +477,11 @@ void cmd_flash(void)
                     MMPrintString(" available\r\n");
                 }
             }
+            if(Option.LIBRARY_FLASH_SIZE==MAX_PROG_SIZE ){
+                    MMPrintString(" Slot ");
+                    PInt(MAXFLASHSLOTS);
+                    MMPrintString(" in use: Library\r\n");
+            }
         }
     }
     else if ((p = checkstring(cmdline, "SAVE")))
@@ -473,6 +489,7 @@ void cmd_flash(void)
         if (CurrentLinePtr)
             error("Invalid in program");
         int i = getint(p, 1, MAXFLASHSLOTS);
+        if(Option.LIBRARY_FLASH_SIZE==MAX_PROG_SIZE && i==MAXFLASHSLOTS) error("Library is using Slot % ",MAXFLASHSLOTS);
         uint32_t *c = (uint32_t *)(flash_target_contents + (i - 1) * MAX_PROG_SIZE);
         if (*c != 0xFFFFFFFF)
             error("Already programmed");
@@ -505,7 +522,8 @@ void cmd_flash(void)
     {
         if (CurrentLinePtr)
             error("Invalid in program");
-        int j = (MAX_PROG_SIZE>> 2), i = getint(p, 1, MAXFLASHSLOTS);
+        int j = (Option.PROG_FLASH_SIZE >> 2), i = getint(p, 1, MAXFLASHSLOTS);
+        if(Option.LIBRARY_FLASH_SIZE==MAX_PROG_SIZE && i==MAXFLASHSLOTS) error("Library is using Slot % ",MAXFLASHSLOTS);
         disable_interrupts();
         flash_range_erase(PROGSTART, MAX_PROG_SIZE);
         enable_interrupts();
@@ -545,6 +563,7 @@ void cmd_flash(void)
         if (!CurrentLinePtr)
             error("Invalid at command prompt");
         int i = getint(p, 0, MAXFLASHSLOTS);
+        if(Option.LIBRARY_FLASH_SIZE==MAX_PROG_SIZE && i==MAXFLASHSLOTS) error("Library is using Slot % ",MAXFLASHSLOTS);
         if(i) ProgMemory = (char *)(flash_target_contents + (i - 1) * MAX_PROG_SIZE);
         else ProgMemory = (char *)(flash_target_contents + MAXFLASHSLOTS * MAX_PROG_SIZE);
         FlashLoad = i;
@@ -554,10 +573,13 @@ void cmd_flash(void)
     else if ((p = checkstring(cmdline, "RUN")))
     {
         int i = getint(p, 0, MAXFLASHSLOTS);
+         if(Option.LIBRARY_FLASH_SIZE==MAX_PROG_SIZE && i==MAXFLASHSLOTS) error("Library is using Slot % ",MAXFLASHSLOTS);
         if(i) ProgMemory = (char *)(flash_target_contents + (i - 1) * MAX_PROG_SIZE);
         else ProgMemory = (char *)(flash_target_contents + MAXFLASHSLOTS * MAX_PROG_SIZE);
         ClearRuntime();
+        FlashLoad = i;
         PrepareProgram(true);
+        if(Option.LIBRARY_FLASH_SIZE == MAX_PROG_SIZE) ExecuteProgram(LibMemory);  // run anything that might be in the library
         nextstmt = (unsigned char *)ProgMemory;
     }
     else
@@ -1758,6 +1780,7 @@ void cmd_load(void)
         WatchdogSet = false;
         PrepareProgram(true);
         IgnorePIN = false;
+        if(Option.LIBRARY_FLASH_SIZE == MAX_PROG_SIZE) ExecuteProgram(ProgMemory - Option.LIBRARY_FLASH_SIZE);  // run anything that might be in the library
         nextstmt = ProgMemory;
     }
 }
@@ -3059,8 +3082,7 @@ void cmd_autosave(void)
     int c, prevc = 0, crunch = false;
     int count = 0;
     uint64_t timeout;
-    if (CurrentLinePtr)
-        error("Invalid in a program");
+    if (CurrentLinePtr)error("Invalid in a program");
     char *tp=checkstring(cmdline,"APPEND");
     if(tp){
         ClearVars(0);
@@ -3499,7 +3521,6 @@ void ResetOptions(void)
     Option.DISPLAY_CONSOLE = 1;
     Option.DISPLAY_TYPE = MONOVGA;
     Option.KeyboardConfig = CONFIG_US;
-    Option.VGABC = 0x0000;
     Option.VGAFC = 0xFFFF;
     Option.X_TILE=80;
     Option.Y_TILE=40;
@@ -3558,6 +3579,8 @@ void FlashWriteInit(int region)
         realflashpointer = (uint32_t)PROGSTART;
     else if (region == SAVED_VARS_FLASH)
         realflashpointer = (uint32_t)(FLASH_TARGET_OFFSET + FLASH_ERASE_SIZE);
+    else if (region == LIBRARY_FLASH)
+        realflashpointer = (uint32_t)(PROGSTART - MAX_PROG_SIZE);  //i.e the last slot  
     disable_interrupts();
 }
 void FlashWriteBlock(void)
@@ -3587,6 +3610,20 @@ void FlashWriteWord(unsigned int i)
     FlashWriteByte((i >> 16) & 0xFF);
     FlashWriteByte((i >> 24) & 0xFF);
 }
+// Set the pointer to a specific address
+void FlashSetAddress(int address) {
+	 realflashpointer=(uint32_t)PROGSTART+address;
+}
+
+void FlashWriteAlignWord(void)
+{
+    while ((mi8p %4) != 0)
+    {
+        FlashWriteByte(0x0);
+    }
+    FlashWriteWord(0xFFFFFFFF);
+}
+
 
 void FlashWriteAlign(void)
 {

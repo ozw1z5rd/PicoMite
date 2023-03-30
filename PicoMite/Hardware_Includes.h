@@ -321,7 +321,7 @@ extern struct tagMTRand *g_myrand;
 	{ (unsigned char *)"Copy",		T_CMD,				0, cmd_copy		},
 	{ (unsigned char *)"Rename",	T_CMD,				0, cmd_name		},
 	{ (unsigned char *)"Seek",		T_CMD,				0, cmd_seek     },
-	{ (unsigned char *)"Files",		T_CMD,				0, cmd_files    },
+//	{ (unsigned char *)"Files",		T_CMD,				0, cmd_files    },
 	{ (unsigned char *)"Flash",		T_CMD,				0, cmd_flash    },
 	{ (unsigned char *)"VAR",		T_CMD,				0, cmd_var     	},
 	{ (unsigned char *)"Flush",		T_CMD,				0, cmd_flush    },

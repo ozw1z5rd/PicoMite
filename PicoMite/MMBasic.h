@@ -289,6 +289,7 @@ int FindSubFun(unsigned char *p, int type);
 void PrepareProgram(int ErrAbort);
 void MMfputs(unsigned char *p, int filenbr);
 extern int TempStringClearStart;                                           // used to prevent clearing of space in an expression that called a FUNCTION
+extern unsigned char *LibMemory;                           // library memory
 extern unsigned char *ProgMemory;                           // program memory
 extern int PSize;                               // size of the program in program memory
 extern unsigned char *cmdline;                           // Command line terminated with a zero unsigned char and trimmed of spaces

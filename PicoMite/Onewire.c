@@ -298,6 +298,7 @@ void owWrite(unsigned char *p) {
 	ExtCfg(pin, EXT_NOT_CONFIG, 0);									// set pin to unconfigured
 	PinSetBit(pin, LATSET);
 	PinSetBit(pin, ODCSET);
+    PinSetBit(pin, TRISCLR);                                        // this line added by JH
 
 	if (flag & 0x01) ow_reset(pin);
 	owWriteCore(pin, buf, len, flag);	

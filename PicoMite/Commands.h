@@ -133,7 +133,7 @@ void cmd_mid(void);
 	{ (unsigned char *)"Load",		T_CMD,				0, cmd_load		},
 	{ (unsigned char *)"Local",		T_CMD,				0, cmd_dim	},
 	{ (unsigned char *)"Loop",		T_CMD,				0, cmd_loop	},
-	{ (unsigned char *)"New",		T_CMD,				0, cmd_new	},
+//	{ (unsigned char *)"New",		T_CMD,				0, cmd_new	},
 	{ (unsigned char *)"Next",		T_CMD,				0, cmd_next	},
 	{ (unsigned char *)"On",			T_CMD,				0, cmd_on	},
 	{ (unsigned char *)"Print",		T_CMD,				0, cmd_print	},
