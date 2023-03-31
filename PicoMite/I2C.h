@@ -115,11 +115,12 @@ extern unsigned int I2C_Timeout;									// master timeout value
 extern unsigned int I2C2_Timeout;									// master timeout value
 extern volatile unsigned int I2C_Status;                            // status flags
 extern volatile unsigned int I2C2_Status;                            // status flags
-extern int noRTC;
+extern int noRTC, noI2C;
 extern char *I2C_Slave_Send_IntLine;                                // pointer to the slave send interrupt line number
 extern char *I2C_Slave_Receive_IntLine;                             // pointer to the slave receive interrupt line number
 extern char *I2C2_Slave_Send_IntLine;                                // pointer to the slave send interrupt line number
 extern char *I2C2_Slave_Receive_IntLine;                             // pointer to the slave receive interrupt line number
 extern void I2C_Send_Command(char command);
+extern void CheckI2CKeyboard(int noerror);
 #endif
 #endif

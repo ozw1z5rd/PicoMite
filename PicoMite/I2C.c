@@ -40,7 +40,7 @@ void i2cSendSlave(unsigned char *p, int channel);
 void i2cReceive(unsigned char *p);
 void i2c_disable(void);
 void i2c_enable(int bps);
-void i2c_masterCommand(int timer);
+void i2c_masterCommand(int timer, unsigned char *buff);
 void i2cCheck(unsigned char *p);
 void i2c2Enable(unsigned char *p);
 void i2c2Disable(unsigned char *p);
@@ -48,7 +48,7 @@ void i2c2Send(unsigned char *p);
 void i2c2Receive(unsigned char *p);
 void i2c2_disable(void);
 void i2c2_enable(int bps);
-void i2c2_masterCommand(int timer);
+void i2c2_masterCommand(int timer, unsigned char *buff);
 void i2c2Check(unsigned char *p);
 static MMFLOAT *I2C_Rcvbuf_Float;										// pointer to the master receive buffer for a MMFLOAT
 static long long int *I2C_Rcvbuf_Int;								// pointer to the master receive buffer for an integer
@@ -80,7 +80,7 @@ static char I2C2_Rcv_Buffer[256];                                // I2C receive 
 char *I2C2_Slave_Send_IntLine;                                   // pointer to the slave send interrupt line number
 char *I2C2_Slave_Receive_IntLine;                                // pointer to the slave receive interrupt line number
 static unsigned int I2C2_Slave_Addr;                                 // slave address
-int noRTC=0;
+int noRTC=0, noI2C=0;
 extern void SaveToBuffer(void);
 extern void CompareToBuffer(void);
 extern void DrawPixelMEM(int x1, int y1, int c);
@@ -331,18 +331,97 @@ void i2c2Slave(unsigned char *p){
 	I2C2_Status=I2C_Status_Slave;
 
 }
-int DoRtcI2C(int addr) {
+int DoRtcI2C(int addr, unsigned char *buff) {
     if(I2C0locked){
     	I2C_Addr = addr;                                                // address of the device
-		i2c_masterCommand(1);
+		i2c_masterCommand(1,buff);
 	}
 	else {
     	I2C2_Addr = addr;                                                // address of the device
-		i2c2_masterCommand(1);
+		i2c2_masterCommand(1,buff);
 	}
     return !mmI2Cvalue;
 }
 
+void CheckI2CKeyboard(int noerror){
+	uint16_t buff;
+	int readover=0; 
+	static int ctrlheld=0;
+	while(readover==0){
+		if(I2C0locked){
+			I2C_Sendlen = 1;                                                // send one byte
+			I2C_Rcvlen = 0;
+			I2C_Status = 0;
+			I2C_Send_Buffer[0] = 9;                                           // the first register to read
+			if(!(DoRtcI2C(0x1F, NULL))) goto i2c_error_exit;
+			I2C_Rcvbuf_String = (char *)&buff;                                       // we want a string of bytes
+			I2C_Rcvbuf_Float = NULL;
+			I2C_Rcvbuf_Int = NULL;
+			I2C_Rcvlen = 2;                                                 // get 7 bytes
+			I2C_Sendlen = 0;
+			if(!DoRtcI2C(0x1F, (unsigned char *)&buff)) goto i2c_error_exit;
+		} else {
+			I2C2_Sendlen = 1;                                                // send one byte
+			I2C2_Rcvlen = 0;
+			I2C2_Status = 0;
+			I2C_Send_Buffer[0] = 9;                                           // the first register to read
+			if(!(DoRtcI2C(0x1F, NULL)))goto i2c_error_exit;
+			I2C2_Rcvbuf_String = (char *)&buff;                                       // we want a string of bytes
+			I2C2_Rcvbuf_Float = NULL;
+			I2C2_Rcvbuf_Int = NULL;
+			I2C2_Rcvlen = 2;                                                 // get 7 bytes
+			I2C2_Sendlen = 0;
+			if(!DoRtcI2C(0x1F, (unsigned char *)&buff)) goto i2c_error_exit;
+		}
+		if(buff){
+			if(buff==0x1203)ctrlheld=0;
+			else if(buff==0x1202) {
+				ctrlheld=1;
+			}
+			else if((buff & 0xff)==1) {
+				int c=buff>>8;
+				if(c==6)c=ESC;
+				if(c==0x11)c=F1;
+				if(c==5)c=F2;
+				if(c==0x7)c=F4;
+				if(c>='a' && c<='z' && ctrlheld)c=c-'a'+1;
+				if(c==BreakKey)
+					{                                      // if the user wants to stop the progran
+						MMAbort = true;                      // set the flag for the interpreter to see
+						ConsoleRxBufHead = ConsoleRxBufTail; // empty the buffer
+															// break;
+					}
+				else {
+					ConsoleRxBuf[ConsoleRxBufHead] = c; // store the byte in the ring buffer
+					if (ConsoleRxBuf[ConsoleRxBufHead] == keyselect && KeyInterrupt != NULL)
+					{
+						Keycomplete = 1;
+					}
+					else
+					{
+						ConsoleRxBufHead = (ConsoleRxBufHead + 1) % CONSOLE_RX_BUF_SIZE; // advance the head of the queue
+						if (ConsoleRxBufHead == ConsoleRxBufTail)
+						{                                                                  // if the buffer has overflowed
+						ConsoleRxBufTail = (ConsoleRxBufTail + 1) % CONSOLE_RX_BUF_SIZE; // throw away the oldest char
+						}
+					}
+				}
+			}
+		} else readover=1;
+	}
+	return;
+
+i2c_error_exit:
+	if(noerror){
+		noI2C=1;
+		return;
+	}
+    if(CurrentLinePtr) error("I2C Keyboard not responding");
+    if(Option.KeyboardConfig==CONFIG_I2C){
+		MMPrintString("I2C Keyboard not responding");
+    	MMPrintString("\r\n");
+	}
+}
 
 
 void RtcGetTime(int noerror) {
@@ -353,31 +432,31 @@ void RtcGetTime(int noerror) {
 		I2C_Rcvlen = 0;
 		I2C_Status = 0;
 		I2C_Send_Buffer[0] = 0;                                           // the first register to read
-		if(!(DS1307 = DoRtcI2C(0x68))) {
+		if(!(DS1307 = DoRtcI2C(0x68, NULL))) {
 			I2C_Send_Buffer[0] = 2;                                       // the first register is different for the PCF8563
-			if(!DoRtcI2C(0x51)) goto error_exit;
+			if(!DoRtcI2C(0x51, NULL)) goto error_exit;
 		}
 		I2C_Rcvbuf_String = buff;                                       // we want a string of bytes
 		I2C_Rcvbuf_Float = NULL;
 		I2C_Rcvbuf_Int = NULL;
 		I2C_Rcvlen = 7;                                                 // get 7 bytes
 		I2C_Sendlen = 0;
-		if(!DoRtcI2C(DS1307 ? 0x68 : 0x51)) goto error_exit;
+		if(!DoRtcI2C(DS1307 ? 0x68 : 0x51, buff)) goto error_exit;
 	} else {
 		I2C2_Sendlen = 1;                                                // send one byte
 		I2C2_Rcvlen = 0;
 		I2C2_Status = 0;
 		I2C_Send_Buffer[0] = 0;                                           // the first register to read
-		if(!(DS1307 = DoRtcI2C(0x68))) {
+		if(!(DS1307 = DoRtcI2C(0x68,NULL))) {
 			I2C_Send_Buffer[0] = 2;                                       // the first register is different for the PCF8563
-			if(!DoRtcI2C(0x51)) goto error_exit;
+			if(!DoRtcI2C(0x51,NULL)) goto error_exit;
 		}
 		I2C2_Rcvbuf_String = buff;                                       // we want a string of bytes
 		I2C2_Rcvbuf_Float = NULL;
 		I2C2_Rcvbuf_Int = NULL;
 		I2C2_Rcvlen = 7;                                                 // get 7 bytes
 		I2C2_Sendlen = 0;
-		if(!DoRtcI2C(DS1307 ? 0x68 : 0x51)) goto error_exit;
+		if(!DoRtcI2C(DS1307 ? 0x68 : 0x51, buff)) goto error_exit;
 	}
     mT4IntEnable(0);
     second = ((buff[0] & 0x7f) >> 4) * 10 + (buff[0] & 0x0f);
@@ -461,7 +540,7 @@ void cmd_rtc(void) {
 			I2C_Send_Buffer[4] = 1;
 			I2C_Rcvlen = 0;
 			I2C_Sendlen = 9;                                            // send 7 bytes
-			if(!DoRtcI2C(0x68)) {
+			if(!DoRtcI2C(0x68, NULL)) {
 				I2C_Send_Buffer[9] = I2C_Send_Buffer[7];                // year
 				I2C_Send_Buffer[8] = I2C_Send_Buffer[6];                // month
 				I2C_Send_Buffer[7] = 1;
@@ -471,7 +550,7 @@ void cmd_rtc(void) {
 				I2C_Send_Buffer[3] = I2C_Send_Buffer[1];                // seconds
 				I2C_Send_Buffer[0] = I2C_Send_Buffer[1] = I2C_Send_Buffer[2] = 0;  // set the register pointer to the first register then zero the first two registers
 				I2C_Sendlen = 10;                                       // send 10 bytes
-				if(!DoRtcI2C(0x51)) error("RTC not responding");
+				if(!DoRtcI2C(0x51, NULL)) error("RTC not responding");
 			}
 		} else {
 			if(argc == 1) {
@@ -502,7 +581,7 @@ void cmd_rtc(void) {
 			I2C_Send_Buffer[4] = 1;
 			I2C2_Rcvlen = 0;
 			I2C2_Sendlen = 9;                                            // send 7 bytes
-			if(!DoRtcI2C(0x68)) {
+			if(!DoRtcI2C(0x68, NULL)) {
 				I2C_Send_Buffer[9] = I2C_Send_Buffer[7];                // year
 				I2C_Send_Buffer[8] = I2C_Send_Buffer[6];                // month
 				I2C_Send_Buffer[7] = 1;
@@ -512,7 +591,7 @@ void cmd_rtc(void) {
 				I2C_Send_Buffer[3] = I2C_Send_Buffer[1];                // seconds
 				I2C_Send_Buffer[0] = I2C_Send_Buffer[1] = I2C_Send_Buffer[2] = 0;  // set the register pointer to the first register then zero the first two registers
 				I2C2_Sendlen = 10;                                       // send 10 bytes
-				if(!DoRtcI2C(0x51)) error("RTC not responding");
+				if(!DoRtcI2C(0x51, NULL)) error("RTC not responding");
 			}
 		}
         RtcGetTime(0);
@@ -532,8 +611,8 @@ void cmd_rtc(void) {
         if(vartbl[VarIndex].type & T_CONST) error("Cannot change a constant");
         if(vartbl[VarIndex].type & T_STR)  error("Invalid variable");
 
-        if(!(DS1307 = DoRtcI2C(0x68))) {
-            if(!DoRtcI2C(0x51)) error("RTC not responding");
+        if(!(DS1307 = DoRtcI2C(0x68, NULL))) {
+            if(!DoRtcI2C(0x51, NULL)) error("RTC not responding");
         }
 		if(I2C0locked){
 			I2C_Rcvbuf_String = buff;                                   // we want a string of bytes
@@ -548,7 +627,7 @@ void cmd_rtc(void) {
 			I2C2_Rcvlen = 1;                                             // get 1 byte
 			I2C2_Sendlen = 0;
 		}
-        if(!DoRtcI2C(DS1307 ? 0x68 : 0x51)) error("RTC not responding1");
+        if(!DoRtcI2C(DS1307 ? 0x68 : 0x51, buff)) error("RTC not responding1");
         if(vartbl[VarIndex].type & T_NBR)
             *(MMFLOAT *)ptr = buff[0];
         else
@@ -567,8 +646,8 @@ void cmd_rtc(void) {
 			I2C_Send_Buffer[1] = getint(argv[2], 0, 255);               // and the data to be written
 			I2C2_Sendlen = 2;                                            // send 2 bytes
 		}
-        if(!DoRtcI2C(0x68)) {
-            if(!DoRtcI2C(0x51)) error("RTC not responding");
+        if(!DoRtcI2C(0x68, NULL)) {
+            if(!DoRtcI2C(0x51, NULL)) error("RTC not responding");
         }
     } else
         error("Unknown command");
@@ -670,7 +749,7 @@ void i2cSend(unsigned char *p) {
 	I2C_Sendlen = sendlen;
 	I2C_Rcvlen = 0;
 
-	i2c_masterCommand(1);
+	i2c_masterCommand(1,NULL);
 }
 // send data to an I2C slave - master mode
 void i2cSendSlave(unsigned char *p, int channel) {
@@ -777,7 +856,7 @@ void i2c2Send(unsigned char *p) {
 	I2C2_Sendlen = sendlen;
 	I2C2_Rcvlen = 0;
 
-	i2c2_masterCommand(1);
+	i2c2_masterCommand(1, NULL);
 }
 
 void i2cCheck(unsigned char *p) {
@@ -847,8 +926,9 @@ void i2cReceive(unsigned char *p) {
 	I2C_Rcvlen = rcvlen;
 
 	I2C_Sendlen = 0;
+	char *buff=GetTempMemory(STRINGSIZE);
 //	PInt((uint32_t)I2C_Rcvbuf_String);
-	i2c_masterCommand(1);
+	i2c_masterCommand(1, buff);
 //	PIntComma(rcvlen);
 //	PInt((uint32_t)I2C_Rcvbuf_String);PRet();
 //	if(vartbl[VarIndex].type & T_STR)*(char *)ptr = rcvlen;
@@ -992,7 +1072,8 @@ void i2c2Receive(unsigned char *p) {
 
 	I2C2_Sendlen = 0;
 
-	i2c2_masterCommand(1);
+	char *buff=GetTempMemory(STRINGSIZE);
+	i2c2_masterCommand(1, buff);
 }
 
 /**************************************************************************************************
@@ -1095,7 +1176,7 @@ void i2c2_disable() {
 /**************************************************************************************************
 Send and/or Receive data - master mode
 ***************************************************************************************************/
-void i2c_masterCommand(int timer) {
+void i2c_masterCommand(int timer, unsigned char *I2C_Rcv_Buffer) {
 //	unsigned char start_type,
 	unsigned char i,i2caddr=I2C_Addr;
 	if(I2C_Sendlen){
@@ -1105,7 +1186,6 @@ void i2c_masterCommand(int timer) {
 		if(i2cret==PICO_ERROR_TIMEOUT)mmI2Cvalue=2;
 	}
 	if(I2C_Rcvlen){
-		unsigned char *I2C_Rcv_Buffer=GetTempMemory(STRINGSIZE);
 		int i2cret=i2c_read_timeout_us(i2c0, (uint8_t)i2caddr, (uint8_t *)I2C_Rcv_Buffer, I2C_Rcvlen, (I2C_Status == I2C_Status_BusHold ? true:false), I2C_Timeout*1000);
 		mmI2Cvalue=0;
 		if(i2cret==PICO_ERROR_GENERIC)mmI2Cvalue=1;
@@ -1127,7 +1207,7 @@ void i2c_masterCommand(int timer) {
 	}
 }
 
-void i2c2_masterCommand(int timer) {
+void i2c2_masterCommand(int timer, unsigned char *I2C2_Rcv_Buffer) {
 //	unsigned char start_type,
 	unsigned char i,i2c2addr=I2C2_Addr;
 	if(I2C2_Sendlen){
@@ -1137,7 +1217,6 @@ void i2c2_masterCommand(int timer) {
 		if(i2cret==PICO_ERROR_TIMEOUT)mmI2Cvalue=2;
 	}
 	if(I2C2_Rcvlen){
-		unsigned char *I2C2_Rcv_Buffer=GetTempMemory(STRINGSIZE);
 		int i2cret=i2c_read_timeout_us(i2c1, (uint8_t)i2c2addr, (uint8_t *)I2C2_Rcv_Buffer, I2C2_Rcvlen, (I2C2_Status == I2C_Status_BusHold ? true:false), I2C2_Timeout*1000);
 		mmI2Cvalue=0;
 		if(i2cret==PICO_ERROR_GENERIC)mmI2Cvalue=1;

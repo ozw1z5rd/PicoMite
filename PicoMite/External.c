@@ -2806,7 +2806,7 @@ void __not_in_flash_func(IRHandler)(void) {
         }
     }
 void __not_in_flash_func(gpio_callback)(uint gpio, uint32_t events) {
-    if(Option.KeyboardConfig |= NO_KEYBOARD && gpio==PinDef[KEYBOARD_CLOCK].GPno) CNInterrupt(gpio_get_all());
+    if(!(Option.KeyboardConfig == NO_KEYBOARD || Option.KeyboardConfig == CONFIG_I2C ) && gpio==PinDef[KEYBOARD_CLOCK].GPno) CNInterrupt(gpio_get_all());
     if(gpio==PinDef[IRpin].GPno)IRHandler();
     if(gpio==PinDef[Option.INT1pin].GPno)TM_EXTI_Handler_1();
     if(gpio==PinDef[Option.INT2pin].GPno)TM_EXTI_Handler_2();

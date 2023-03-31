@@ -758,7 +758,6 @@ DSTATUS disk_initialize (
 	deselect();
 	if (ty) {		/* Function succeded */
 		SDCardStat &= ~STA_NOINIT;	/* Clear STA_NOINIT */
-		SD_SPI_SPEED=Option.SDspeed*1000000;
 		SPISpeedSet(SDFAST);
 //		SET_SPI_CLK(SD_SPI_SPEED, false, false);
 	}
@@ -1194,7 +1193,7 @@ void InitReservedIO(void) {
 		gpio_set_function(PinDef[Option.SYSTEM_I2C_SDA].GPno, GPIO_FUNC_I2C);
 		if(PinDef[Option.SYSTEM_I2C_SDA].mode & I2C0SDA){
 			I2C0locked=1;
-			i2c_init(i2c0, 100000);
+			i2c_init(i2c0, 400000);
 			gpio_pull_up(PinDef[Option.SYSTEM_I2C_SCL].GPno);
 			gpio_pull_up(PinDef[Option.SYSTEM_I2C_SDA].GPno);
 			I2C_enabled=1;
@@ -1203,7 +1202,7 @@ void InitReservedIO(void) {
 			I2C_Timeout=100;
 		} else {
 			I2C1locked=1;
-			i2c_init(i2c1, 100000);
+			i2c_init(i2c1, 400000);
 			gpio_pull_up(PinDef[Option.SYSTEM_I2C_SCL].GPno);
 			gpio_pull_up(PinDef[Option.SYSTEM_I2C_SDA].GPno);
 			I2C2_enabled=1;	
@@ -1212,6 +1211,7 @@ void InitReservedIO(void) {
 			I2C2_Timeout=100;
 		}
 		if(Option.RTC)RtcGetTime(1);
+		if(Option.KeyboardConfig==CONFIG_I2C)CheckI2CKeyboard(1);
 	}
 	if(Option.SYSTEM_CLK){
 		SPI_CLK_PIN=PinDef[Option.SYSTEM_CLK].GPno;
@@ -1309,13 +1309,17 @@ void InitReservedIO(void) {
 	}
 #ifndef PICOMITEWEB
 	if(Option.PWM){
-		gpio_init(23);
-		gpio_put(23,GPIO_PIN_SET);
-		gpio_set_dir(23, GPIO_OUT);
+		if(CheckPin(41, CP_NOABORT | CP_IGNORE_INUSE | CP_IGNORE_RESERVED)){
+			gpio_init(23);
+			gpio_put(23,GPIO_PIN_SET);
+			gpio_set_dir(23, GPIO_OUT);
+		}
 	} else {
-		gpio_init(23);
-		gpio_put(23,GPIO_PIN_RESET);
-		gpio_set_dir(23, GPIO_OUT);
+		if(CheckPin(41, CP_NOABORT | CP_IGNORE_INUSE | CP_IGNORE_RESERVED)){
+			gpio_init(23);
+			gpio_put(23,GPIO_PIN_RESET);
+			gpio_set_dir(23, GPIO_OUT);
+		}
 	}
 #endif
 	if(Option.SerialConsole){
@@ -1331,7 +1335,7 @@ void InitReservedIO(void) {
 		irq_set_enabled((Option.SerialConsole & 3)==1  ? UART0_IRQ : UART1_IRQ, true);
 		uart_set_irq_enables((Option.SerialConsole & 3)==1  ? uart0: uart1, true, false);
 	}
-	if(Option.KeyboardConfig!=NO_KEYBOARD){
+	if(!(Option.KeyboardConfig==NO_KEYBOARD || Option.KeyboardConfig==CONFIG_I2C)){
 		ExtCfg(KEYBOARD_CLOCK, EXT_BOOT_RESERVED, 0);
     	ExtCfg(KEYBOARD_DATA, EXT_BOOT_RESERVED, 0);
 		gpio_init(PinDef[KEYBOARD_CLOCK].GPno);
@@ -1341,7 +1345,6 @@ void InitReservedIO(void) {
 		gpio_init(PinDef[KEYBOARD_DATA].GPno);
 		gpio_set_pulls(PinDef[KEYBOARD_DATA].GPno,true,false);
 		gpio_set_dir(PinDef[KEYBOARD_DATA].GPno, GPIO_IN);
-//		gpio_set_input_hysteresis_enabled(PinDef[KEYBOARD_DATA].GPno,true);
 	}
 }
 

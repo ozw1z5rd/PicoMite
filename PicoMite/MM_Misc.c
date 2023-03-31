@@ -1685,7 +1685,7 @@ void printoptions(void){
     if(Option.PWM == true) PO2Str("POWER PWM", "ON");
     if(Option.Listcase != CONFIG_TITLE) PO2Str("CASE", CaseList[(int)Option.Listcase]);
     if(Option.Tab != 2) PO2Int("TAB", Option.Tab);
-    if(Option.KeyboardConfig != NO_KEYBOARD){
+    if(!(Option.KeyboardConfig == NO_KEYBOARD ||Option.KeyboardConfig == CONFIG_I2C)){
         PO("KEYBOARD"); MMPrintString((char *)KBrdList[(int)Option.KeyboardConfig]); 
         if(Option.capslock || Option.numlock!=1 || Option.repeat!=0b00101100){
             PIntComma(Option.capslock);PIntComma(Option.numlock);PIntComma(Option.repeat>>5);
@@ -1693,6 +1693,7 @@ void printoptions(void){
         }
         PRet();
     } 
+    if(Option.KeyboardConfig == CONFIG_I2C)PO2Str("KEYBOARD", "I2C");
     if(Option.NoHeartbeat)PO2Str("HEARTBEAT", "OFF");
 #ifdef PICOMITEVGA
     if(Option.CPU_Speed!=126000)PO2Int("CPUSPEED (KHz)", Option.CPU_Speed);
@@ -2010,16 +2011,21 @@ void cmd_option(void) {
 		else if(checkstring(argv[0], "BE"))	Option.KeyboardConfig = CONFIG_BE;
 		else if(checkstring(argv[0], "UK"))	Option.KeyboardConfig = CONFIG_UK;
 		else if(checkstring(argv[0], "ES"))	Option.KeyboardConfig = CONFIG_ES;
+		else if(checkstring(argv[0], "I2C")) Option.KeyboardConfig = CONFIG_I2C;
         else error("Syntax");
         Option.capslock=0;
         Option.numlock=1;
         int rs=0b00100000;
         int rr=0b00001100;
-        if(argc>=3 && *argv[2])Option.capslock=getint(argv[2],0,1);
-        if(argc>=5 && *argv[4])Option.numlock=getint(argv[4],0,1);
-        if(argc>=7 && *argv[6])rs=getint(argv[6],0,3)<<5;
-        if(argc==9 && *argv[8])rr=getint(argv[8],0,31);
-        Option.repeat = rs | rr;
+        if(!Option.KeyboardConfig==CONFIG_I2C){
+            if(argc>=3 && *argv[2])Option.capslock=getint(argv[2],0,1);
+            if(argc>=5 && *argv[4])Option.numlock=getint(argv[4],0,1);
+            if(argc>=7 && *argv[6])rs=getint(argv[6],0,3)<<5;
+            if(argc==9 && *argv[8])rr=getint(argv[8],0,31);
+            Option.repeat = rs | rr;
+        } else {
+            if(!Option.SYSTEM_I2C_SCL)error("Option System I2C not set");
+        }
         SaveOptions();
         _excep_code = RESET_COMMAND;
         SoftReset();

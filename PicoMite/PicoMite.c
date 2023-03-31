@@ -77,7 +77,7 @@ void ProcessWeb(void);
 					"Copyright " YEAR2 " Peter Mather\r\n\r\n"
 #endif
 
-#define USBKEEPALIVE 30000
+#define KEYCHECKTIME 16
 int ListCnt;
 int MMCharPos;
 int busfault=0;
@@ -103,7 +103,7 @@ volatile unsigned int clocktimer=60*60*1000;
 volatile unsigned int PauseTimer = 0;
 volatile unsigned int IntPauseTimer = 0;
 volatile unsigned int Timer1=0, Timer2=0, Timer4=0;		                       //1000Hz decrement timer
-volatile unsigned int USBKeepalive=USBKEEPALIVE;
+volatile unsigned int KeyCheck=KEYCHECKTIME;
 volatile int ds18b20Timer = -1;
 volatile unsigned int ScrewUpTimer = 0;
 volatile int second = 0;                                            // date/time counters
@@ -309,12 +309,16 @@ void __not_in_flash_func(routinechecks)(void){
 #ifdef PICOMITE
     if(Ctrl)ProcessTouch();
 #endif
-//        if(tud_cdc_connected() && USBKeepalive==0){
+//        if(tud_cdc_connected() && KeyCheck==0){
 //            SSPrintString(alive);
 //        }
     if(clocktimer==0 && Option.RTC){
         RtcGetTime(0);
         clocktimer=(1000*60*60);
+    }
+    if(Option.KeyboardConfig==CONFIG_I2C && KeyCheck==0){
+        CheckI2CKeyboard(0);
+        KeyCheck=KEYCHECKTIME;
     }
 }
 
@@ -344,7 +348,6 @@ char SerialConsolePutC(char c, int flush) {
         if(tud_cdc_connected()){
             putc(c,stdout);
             if(flush){
-                USBKeepalive=USBKEEPALIVE;
                 fflush(stdout);
             }
         }
@@ -808,7 +811,6 @@ void MMPrintString(char* s) {
         s++;
     }
     fflush(stdout);
-    USBKeepalive=USBKEEPALIVE;
 }
 void SSPrintString(char* s) {
     while(*s) {
@@ -816,7 +818,6 @@ void SSPrintString(char* s) {
         s++;
     }
     fflush(stdout);
-    USBKeepalive=USBKEEPALIVE;
 }
 
 /*void myprintf(char *s){
@@ -857,7 +858,7 @@ bool __not_in_flash_func(timer_callback)(repeating_timer_t *rt)
         if(Timer3)Timer3--;
         if(Timer2)Timer2--;
         if(Timer1)Timer1--;
-        if(USBKeepalive)USBKeepalive--;
+        if(KeyCheck)KeyCheck--;
         if(diskchecktimer && Option.SD_CS)diskchecktimer--;
 	    if(++CursorTimer > CURSOR_OFF + CURSOR_ON) CursorTimer = 0;		// used to control cursor blink rate
         if(CFuncmSec) CallCFuncmSec();                                  // the 1mS tick for CFunctions (see CFunction.c)
@@ -1912,6 +1913,12 @@ int main(){
         Option.RTC=0;
         SaveOptions();
         MMPrintString("RTC not found, OPTION RTC AUTO disabled\r\n");
+    }
+    if(noI2C){
+        noI2C=0;
+        Option.KeyboardConfig=NO_KEYBOARD;
+        SaveOptions();
+        MMPrintString("I2C Keyboard not found, OPTION KEYBOARD disabled\r\n");
     }
     updatebootcount();
     *tknbuf = 0;
