@@ -423,7 +423,6 @@ i2c_error_exit:
 	}
 }
 
-
 void RtcGetTime(int noerror) {
     char *buff=GetTempMemory(STRINGSIZE);                                                   // Received data is stored here
     int DS1307;

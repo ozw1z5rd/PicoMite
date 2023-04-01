@@ -1561,10 +1561,10 @@ void cmd_library(void) {
 
         Option.LIBRARY_FLASH_SIZE= 0;
         SaveOptions();
-  
+        return;
         // Clear Program Memory and also the Library at the end.
-        cmdline = ""; CurrentLinePtr = NULL;    // keep the NEW command happy
-        cmd_new();                              //  delete any program,and the library code and return to the command prompt
+//        cmdline = ""; CurrentLinePtr = NULL;    // keep the NEW command happy
+//        cmd_new();                              //  delete any program,and the library code and return to the command prompt
         
      }
 

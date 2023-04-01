@@ -1259,9 +1259,9 @@ void cmd_play(void) {
 
     if((tp = checkstring(cmdline, "TONE"))) {//
         float f_left, f_right;
-        float hw;
+        float hw, duration;
         uint64_t PlayDuration = 0xffffffffffffffff;                     // default is to play forever
-        int x;
+        uint64_t  x;
         // get the command line arguments
         getargs(&tp, 7,",");                                       // this MUST be the first executable line in the function
         if(!(argc == 3 || argc == 5 || argc == 7)) error("Argument count");
@@ -1273,17 +1273,21 @@ void cmd_play(void) {
         f_right = getnumber(argv[2]);
         if(f_left<0.0 || f_left>22050.0)error("Valid is 0Hz to 20KHz");
         if(f_right<0.0 || f_right>22050.0)error("Valid is 0Hz to 20KHz");
-        if(argc > 4) PlayDuration = PWM_FREQ*getint(argv[4], 0, INT_MAX)/1000;
+        if(argc > 4) {
+			duration = ((float)getint(argv[4], 0, INT_MAX)/1000.0); //tone duration in seconds
+			PlayDuration=(uint64_t)duration;
+		}
         if(argc == 7) {
             WAVInterrupt = GetIntAddress(argv[6]);					// get the interrupt location
 			WAVcomplete=false;
             InterruptUsed = true;
         }
-        if(PlayDuration == 0) return;
+        if(duration == 0) return;
         if(PlayDuration != 0xffffffffffffffff && f_left >=10.0){
-        	hw=((float)PWM_FREQ/f_left);
-        	x=(int)((float)(PlayDuration)/hw)+1;
-        	PlayDuration=(uint64_t)((float)x*hw);
+        	hw=((float)PWM_FREQ/(float)f_left); //number of interrupts per cycle
+        	duration = duration * (float)PWM_FREQ; // number of interrupts for the requested waveform
+// This should now be an exact multiple of the number per waveform
+        	PlayDuration=(((uint64_t)(duration/hw))*hw)+1;
         }
         PhaseM_left =  f_left  / (float)PWM_FREQ * 4096.0;
         PhaseM_right = f_right  / (float)PWM_FREQ * 4096.0;
@@ -1479,6 +1483,18 @@ Stop playing the music or tone
 void StopAudio(void) {
 
 	if(CurrentlyPlaying != P_NOTHING ) {
+		CurrentlyPlaying = P_STOP;
+		int ll,l=pwm_hw->slice[AUDIO_SLICE].cc >>16;
+		int rr,r=pwm_hw->slice[AUDIO_SLICE].cc & 0xFFFF;
+		int m=(AUDIO_WRAP>>1);
+		l=m-l;
+		r=m-r;
+		for(int i=50;i>=0;i--){
+			ll=m-l*i/50;
+			rr=m-r*i/50;
+			pwm_set_both_levels(AUDIO_SLICE,ll,rr);
+			uSec(48);
+		}
 		setrate(PWM_FREQ);
 		pwm_set_irq_enabled(AUDIO_SLICE, false);
         ppos=0;

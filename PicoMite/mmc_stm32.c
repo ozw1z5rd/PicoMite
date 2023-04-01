@@ -248,6 +248,8 @@ void __not_in_flash_func(on_pwm_wrap)(void) {
 		left=leftv;
 		right=rightv;
 //		pwm_set_both_levels(AUDIO_SLICE,leftv,rightv);
+    } else if(CurrentlyPlaying == P_STOP) {
+		return;
     } else {
 		left=right=AUDIO_WRAP>>1;
         // play must be paused
@@ -758,6 +760,7 @@ DSTATUS disk_initialize (
 	deselect();
 	if (ty) {		/* Function succeded */
 		SDCardStat &= ~STA_NOINIT;	/* Clear STA_NOINIT */
+		SD_SPI_SPEED=Option.SDspeed*1000000;
 		SPISpeedSet(SDFAST);
 //		SET_SPI_CLK(SD_SPI_SPEED, false, false);
 	}

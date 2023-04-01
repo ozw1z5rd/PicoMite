@@ -660,6 +660,16 @@ void FullScreenEditor(int xx, int yy) {
                             ClearRuntime();
 //                            WatchdogSet = false;
                             PrepareProgram(true);
+                            if(Option.LIBRARY_FLASH_SIZE == MAX_PROG_SIZE) ExecuteProgram(LibMemory );       // run anything that might be in the library
+                            if(*ProgMemory != T_NEWLINE) return;                             // no program to run
+                        #ifdef PICOMITEWEB
+                            void *v;
+                            v = findvar("MM.TOPIC$", T_STR | V_NOFIND_NULL);    // create the variable
+                            if(v==NULL)findvar("MM.TOPIC$", V_FIND | V_DIM_VAR | T_CONST);
+                            v = findvar("MM.MESSAGE$", T_STR | V_NOFIND_NULL);    // create the variable
+                            if(v==NULL)findvar("MM.MESSAGE$", V_FIND | V_DIM_VAR | T_CONST);
+                            cleanserver();
+                        #endif
                             nextstmt = ProgMemory;
                             return;
 
