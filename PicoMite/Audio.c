@@ -82,7 +82,7 @@ volatile int tickspersample;
 char *WAVInterrupt = NULL;
 int WAVcomplete;
 int WAV_fnbr=0;
-int PWM_FREQ=44100;
+int PWM_FREQ;
 volatile int swingbuf = 0,nextbuf = 0, playreadcomplete = 1;
 char *sbuff1=NULL, *sbuff2=NULL;
 uint16_t *ibuff1, *ibuff2;
@@ -1096,15 +1096,17 @@ void CloseAudio(int all){
 void setrate(int rate){
 	AUDIO_WRAP=(Option.CPU_Speed*1000)/rate  - 1 ;
 	pwm_set_wrap(AUDIO_SLICE, AUDIO_WRAP);
-	pwm_set_chan_level(AUDIO_SLICE, PWM_CHAN_A, AUDIO_WRAP>>1);
-	pwm_set_chan_level(AUDIO_SLICE, PWM_CHAN_B, AUDIO_WRAP>>1);
+	if(Option.AUDIO_L){
+		pwm_set_chan_level(AUDIO_SLICE, PWM_CHAN_A, AUDIO_WRAP>>1);
+		pwm_set_chan_level(AUDIO_SLICE, PWM_CHAN_B, AUDIO_WRAP>>1);
+	}
 	pwm_clear_irq(AUDIO_SLICE);
 }
 void iconvert(uint16_t *ibuff, int16_t *sbuff, int count){
 	int i;
 	for(i=0;i<(count);i+=2){
-		ibuff[i]=(uint16_t)((((((int)sbuff[i]*mapping[vol_left]/2000+32768))>>4)*AUDIO_WRAP)>>12);
-		ibuff[i+1]=(uint16_t)((((((int)sbuff[i+1]*mapping[vol_right]/2000+32768))>>4)*AUDIO_WRAP)>>12);
+		ibuff[i]=(uint16_t)((((((int)sbuff[i]*mapping[vol_left]/2000+32768))>>4)));
+		ibuff[i+1]=(uint16_t)((((((int)sbuff[i+1]*mapping[vol_right]/2000+32768))>>4)));
 	}
 }
 void wavcallback(char *p){
@@ -1122,13 +1124,13 @@ void wavcallback(char *p){
     allocationCallbacks.onRealloc = my_realloc;
     allocationCallbacks.onFree    = my_free;
     drwav_init(&mywav,(drwav_read_proc)onRead, (drwav_seek_proc)onSeek, NULL, &allocationCallbacks);
-    if(mywav.sampleRate>48000)error("Max 48000KHz sample rate");
+    if(mywav.sampleRate>48000*(PWM_FREQ/44100))error("Max %KHz sample rate",48000*(PWM_FREQ/44100));
 //        PInt(mywav.channels);MMPrintString(" Channels\r\n");
 //        PInt(mywav.bitsPerSample);MMPrintString(" Bits per sample\r\n");
 //        PInt(mywav.sampleRate);MMPrintString(" Sample rate\r\n");
 	audiorepeat=1;
 	actualrate=mywav.sampleRate;
-	while(actualrate<44100){
+	while(actualrate<PWM_FREQ){
 		actualrate +=mywav.sampleRate;
 		audiorepeat++;
 	}
@@ -1196,7 +1198,7 @@ void setnoise(void){
 // The MMBasic command:  PLAY
 void cmd_play(void) {
     unsigned char *tp;
-	if(!Option.AUDIO_L)error((char *)"Audio not enabled");
+	if(!(Option.AUDIO_L || Option.AUDIO_CLK_PIN))error((char *)"Audio not enabled");
     if(checkstring(cmdline, "STOP")) {
         CloseAudio(1);
         return;
@@ -1276,7 +1278,7 @@ void cmd_play(void) {
         if(argc > 4) {
 			duration = ((float)getint(argv[4], 0, INT_MAX)/1000.0); //tone duration in seconds
 			PlayDuration=(uint64_t)duration;
-		}
+		} else duration=1;
         if(argc == 7) {
             WAVInterrupt = GetIntAddress(argv[6]);					// get the interrupt location
 			WAVcomplete=false;

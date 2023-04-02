@@ -147,7 +147,11 @@ struct option_s {
     unsigned char numlock; 
     unsigned char capslock; //4=136
     unsigned int LIBRARY_FLASH_SIZE; // 4=140
-    unsigned char x[116]; //116=256
+    unsigned char AUDIO_CLK_PIN;
+    unsigned char AUDIO_MOSI_PIN;
+    unsigned char AUDIO_LDAC_PIN;
+    unsigned char AUDIO_CS_PIN;
+    unsigned char x[112]; //116=256
     unsigned char F1key[MAXKEYLEN]; //204
     unsigned char F5key[MAXKEYLEN]; //268
     unsigned char F6key[MAXKEYLEN]; //332

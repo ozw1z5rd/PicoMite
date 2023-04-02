@@ -33,7 +33,6 @@ long long int *GetReceiveDataBuffer(unsigned char *p, unsigned int *nbr);
 
 int spibits=8;
 int spi2bits=8;
-
 void cmd_spi(void) {
 	    int speed;
     unsigned char *p;

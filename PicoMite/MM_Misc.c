@@ -1811,10 +1811,18 @@ void printoptions(void){
         }
         MMPrintString("\r\n");
     }
-    if(Option.AUDIO_L){
+    if(Option.AUDIO_L || Option.AUDIO_CLK_PIN){
         PO("AUDIO");
-        MMPrintString((char *)PinDef[Option.AUDIO_L].pinname);MMputchar(',',1);;
-        MMPrintString((char *)PinDef[Option.AUDIO_R].pinname);MMPrintString(", ON PWM CHANNEL ");
+        if(Option.AUDIO_L){
+            MMPrintString((char *)PinDef[Option.AUDIO_L].pinname);MMputchar(',',1);
+            MMPrintString((char *)PinDef[Option.AUDIO_R].pinname);
+        } else {
+            MMPrintString((char *)PinDef[Option.AUDIO_CS_PIN].pinname);MMputchar(',',1);
+            MMPrintString((char *)PinDef[Option.AUDIO_LDAC_PIN].pinname);MMputchar(',',1);
+            MMPrintString((char *)PinDef[Option.AUDIO_CLK_PIN].pinname);MMputchar(',',1);
+            MMPrintString((char *)PinDef[Option.AUDIO_MOSI_PIN].pinname);
+        }
+        MMPrintString(", ON PWM CHANNEL ");
         PInt(Option.AUDIO_SLICE);MMPrintString("\r\n");
     }
     if(Option.RTC)PO2Str("RTC AUTO", "ENABLE");
@@ -1834,9 +1842,11 @@ void printoptions(void){
     if(Option.DefaultFont!=1)PO3Int("DEFAULT FONT",(Option.DefaultFont>>4)+1, Option.DefaultFont & 0xF);
 
 }
-int checkslice(int pin1,int pin2){
+int checkslice(int pin1,int pin2, int ignore){
     if((PinDef[pin1].slice & 0xf) != (PinDef[pin2].slice &0xf)) error("Pins not on same PWM slice");
-    if(!((PinDef[pin1].slice - PinDef[pin2].slice == 128) || (PinDef[pin2].slice - PinDef[pin1].slice == 128))) error("Pins both same channel");
+    if(!ignore){
+        if(!((PinDef[pin1].slice - PinDef[pin2].slice == 128) || (PinDef[pin2].slice - PinDef[pin1].slice == 128))) error("Pins both same channel");
+    }
     return PinDef[pin1].slice & 0xf;
 }
 void setterminal(void){
@@ -1888,11 +1898,20 @@ void disable_sd(void){
 }
 void disable_audio(void){
     if(!IsInvalidPin(Option.AUDIO_L))ExtCurrentConfig[Option.AUDIO_L] = EXT_DIG_IN ;   
-    if(!IsInvalidPin(Option.AUDIO_R))ExtCurrentConfig[Option.AUDIO_R] = EXT_DIG_IN ;   
     if(!IsInvalidPin(Option.AUDIO_L))ExtCfg(Option.AUDIO_L, EXT_NOT_CONFIG, 0);
+    if(!IsInvalidPin(Option.AUDIO_R))ExtCurrentConfig[Option.AUDIO_R] = EXT_DIG_IN ;   
     if(!IsInvalidPin(Option.AUDIO_R))ExtCfg(Option.AUDIO_R, EXT_NOT_CONFIG, 0);
+    if(!IsInvalidPin(Option.AUDIO_CLK_PIN))ExtCurrentConfig[Option.AUDIO_CLK_PIN] = EXT_DIG_IN ;   
+    if(!IsInvalidPin(Option.AUDIO_CLK_PIN))ExtCfg(Option.AUDIO_CLK_PIN, EXT_NOT_CONFIG, 0);
+    if(!IsInvalidPin(Option.AUDIO_CS_PIN))ExtCurrentConfig[Option.AUDIO_CS_PIN] = EXT_DIG_IN ;   
+    if(!IsInvalidPin(Option.AUDIO_CS_PIN))ExtCfg(Option.AUDIO_CS_PIN, EXT_NOT_CONFIG, 0);
+    if(!IsInvalidPin(Option.AUDIO_MOSI_PIN))ExtCurrentConfig[Option.AUDIO_MOSI_PIN] = EXT_DIG_IN ;   
+    if(!IsInvalidPin(Option.AUDIO_MOSI_PIN))ExtCfg(Option.AUDIO_MOSI_PIN, EXT_NOT_CONFIG, 0);
     Option.AUDIO_L=0;
     Option.AUDIO_R=0;
+    Option.AUDIO_CLK_PIN=0;
+    Option.AUDIO_CS_PIN=0;
+    Option.AUDIO_MOSI_PIN=0;
     Option.AUDIO_SLICE=99;
 }
 void cmd_option(void) {
@@ -2507,6 +2526,7 @@ void cmd_option(void) {
     tp = checkstring(cmdline, "AUDIO");
     if(tp) {
         int pin1,pin2, slice;
+        unsigned char *p;
         if(checkstring(tp, "DISABLE")){
    	        if(CurrentLinePtr) error("Invalid in a program");
              disable_audio();
@@ -2514,6 +2534,52 @@ void cmd_option(void) {
             _excep_code = RESET_COMMAND;
             SoftReset();
             return;                                // this will restart the processor ? only works when not in debug
+        }
+        if((p=checkstring(tp, "SPI"))){
+            int pin1,pin2,pin3,pin4;
+            getargs(&p,7,",");
+            if(CurrentLinePtr) error("Invalid in a program");
+            if(argc!=7)error("Syntax");
+            if(Option.AUDIO_CLK_PIN)error("Audio SPI already configured");
+            unsigned char code;
+//
+            if(!(code=codecheck(argv[0])))argv[0]+=2;
+            pin4 = getinteger(argv[0]);
+            if(!code)pin4=codemap(pin4);
+            if(IsInvalidPin(pin4)) error("Invalid pin");
+            if(ExtCurrentConfig[pin4] != EXT_NOT_CONFIG)  error("Pin %/| is in use",pin4,pin4);
+//
+            if(!(code=codecheck(argv[2])))argv[2]+=2;
+            pin3 = getinteger(argv[2]);
+            if(!code)pin3=codemap(pin3);
+            if(IsInvalidPin(pin3)) error("Invalid pin");
+            if(ExtCurrentConfig[pin3] != EXT_NOT_CONFIG)  error("Pin %/| is in use",pin3,pin3);
+//
+            if(!(code=codecheck(argv[4])))argv[4]+=2;
+            pin1 = getinteger(argv[4]);
+            if(!code)pin1=codemap(pin1);
+            if(IsInvalidPin(pin1)) error("Invalid pin");
+            if(ExtCurrentConfig[pin1] != EXT_NOT_CONFIG)  error("Pin %/| is in use",pin1,pin1);
+//
+            if(!(code=codecheck(argv[6])))argv[6]+=2;
+            pin2 = getinteger(argv[6]);
+            if(!code)pin2=codemap(pin2);
+            if(IsInvalidPin(pin2)) error("Invalid pin");
+            if(ExtCurrentConfig[pin2] != EXT_NOT_CONFIG)  error("Pin %/| is in use",pin2,pin2);
+//
+            if(!(PinDef[pin1].mode & SPI0SCK && PinDef[pin2].mode & SPI0TX) &&
+            !(PinDef[pin1].mode & SPI1SCK && PinDef[pin2].mode & SPI1TX))error("Not valid SPI pins");
+            Option.AUDIO_CLK_PIN=pin1;
+            Option.AUDIO_MOSI_PIN=pin2;
+            Option.AUDIO_LDAC_PIN=pin3;
+            Option.AUDIO_CS_PIN=pin4;
+            slice=checkslice(pin1,pin1, 1);
+            if((PinDef[Option.DISPLAY_BL].slice & 0x7f) == slice) error("Channel in use for backlight");
+            Option.AUDIO_SLICE=slice;
+            SaveOptions();
+            _excep_code = RESET_COMMAND;
+            SoftReset();
+            return;
         }
     	getargs(&tp,3,",");
    	    if(CurrentLinePtr) error("Invalid in a program");
@@ -2530,7 +2596,7 @@ void cmd_option(void) {
         if(!code)pin2=codemap(pin2);
         if(IsInvalidPin(pin2)) error("Invalid pin");
         if(ExtCurrentConfig[pin2] != EXT_NOT_CONFIG)  error("Pin %/| is in use",pin2,pin2);
-        slice=checkslice(pin1,pin2);
+        slice=checkslice(pin1,pin2, 0);
         if((PinDef[Option.DISPLAY_BL].slice & 0x7f) == slice) error("Channel in use for backlight");
         Option.AUDIO_L=pin1;
         Option.AUDIO_R=pin2;
