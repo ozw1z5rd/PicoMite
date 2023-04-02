@@ -14,6 +14,10 @@ Compiled version and documentation is available on https://geoffg.net/picomite.h
 
 Change list from V5.07.00
 **********************************************************************************************************************
+PicoMite V5.07.07b33
+
+Support for MCP4822 DAC for audio output
+
 PicoMite V5.07.07b32
 
 Improved sound handling
