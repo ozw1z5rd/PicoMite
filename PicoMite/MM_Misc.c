@@ -1571,6 +1571,12 @@ void cmd_library(void) {
       /********************************************************************************************************************
       ******* LIBRARY LIST **********************************************************************************************/
 
+     if(checkstring(cmdline, "LIST ALL")) {
+        if(CurrentLinePtr) error("Invalid in a program");
+        if(Option.LIBRARY_FLASH_SIZE != MAX_PROG_SIZE) return;
+        ListProgram(ProgMemory - Option.LIBRARY_FLASH_SIZE, true);
+        return;
+     }
      if(checkstring(cmdline, "LIST")) {
         if(CurrentLinePtr) error("Invalid in a program");
         if(Option.LIBRARY_FLASH_SIZE != MAX_PROG_SIZE) return;

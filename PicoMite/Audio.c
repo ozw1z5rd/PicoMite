@@ -110,6 +110,7 @@ drwav mywav;
 a_flist *alist=NULL;
 int trackplaying=0, trackstoplay=0;
 unsigned short *noisetable=NULL;
+unsigned short *usertable=NULL;
 const unsigned short whitenoise[2]={0};
 
 
@@ -1072,6 +1073,7 @@ void CloseAudio(int all){
 	FreeMemorySafe((void **)&sbuff1);
 	FreeMemorySafe((void **)&sbuff2);
 	FreeMemorySafe((void **)&noisetable);
+	FreeMemorySafe((void **)&usertable);
 //	if(was_playing == P_FLAC || was_playing == P_PAUSE_FLAC )FreeMemorySafe((void **)&myflac);
 //	FreeMemorySafe((void **)&mymp3);
 	if(all){
@@ -1203,6 +1205,20 @@ void cmd_play(void) {
         CloseAudio(1);
         return;
     }
+    if((tp=checkstring(cmdline, "LOAD SOUND"))) {
+        if(usertable!=NULL)error("Already loaded");
+        unsigned int nbr, *d;
+        uint16_t *dd;
+		skipspace(tp);
+       	dd = findvar(tp, V_FIND | V_EMPTY_OK | V_NOFIND_ERR);
+        if(((vartbl[VarIndex].type & T_INT) && vartbl[VarIndex].dims[0] > 0 && vartbl[VarIndex].dims[1] == 0))
+        {		// integer array
+            if(vartbl[VarIndex].dims[0] + 1 - OptionBase !=1024) 
+                error("Array size");
+        }  else error("Invalid variable");
+		usertable=dd;
+        return;
+    }
     if(checkstring(cmdline, "NEXT")) {
 	if(CurrentlyPlaying == P_WAV){
 			if(trackplaying==trackstoplay){
@@ -1306,7 +1322,7 @@ void cmd_play(void) {
     }
     if((tp = checkstring(cmdline, "SOUND"))) {//PLAY SOUND channel, type, position, frequency, volume
         float f_in, PhaseM;
-        int channel, left=0, right=0, lset=0, rset=0, lastleftv, lastrightv,local_sound_v_left,local_sound_v_right;
+        int channel, mono=0, left=0, right=0, lset=0, rset=0, lastleftv, lastrightv,local_sound_v_left,local_sound_v_right;
 		char *p;
         uint16_t *lastleft=NULL, *lastright=NULL, *local_sound_mode_left=NULL, *local_sound_mode_right=NULL;
         // get the command line arguments
@@ -1326,11 +1342,19 @@ void cmd_play(void) {
         } else if(checkstring(argv[2],"B")!=NULL){
         	right=1;
         	left=1;
-        } else {
+        } else if(checkstring(argv[2],"M")!=NULL){
+        	right=1;
+        	left=1;
+			mono=1;
+       } else {
 			p=getCstring(argv[2]);
 			if(strcasecmp(p,"B")==0){
 				right=1;
 				left=1;
+			} else if(strcasecmp(p,"M")==0){
+				right=1;
+				left=1;
+				mono=1;
 			} else if (strcasecmp(p,"L")==0){
 				left=1;
 			} else if (strcasecmp(p,"R")==0){
@@ -1352,6 +1376,8 @@ void cmd_play(void) {
         if(checkstring(argv[4],"P")!=NULL && right){rset=1;local_sound_mode_right=(uint16_t *)noisetable;setnoise();}
         if(checkstring(argv[4],"N")!=NULL && left){lset=1;local_sound_mode_left=(uint16_t *)whitenoise;}
         if(checkstring(argv[4],"N")!=NULL && right){rset=1;local_sound_mode_right=(uint16_t *)whitenoise;}
+        if(checkstring(argv[4],"U")!=NULL && left){lset=1;local_sound_mode_left=(uint16_t *)usertable;}
+        if(checkstring(argv[4],"U")!=NULL && right){rset=1;local_sound_mode_right=(uint16_t *)usertable;}
 		if(left && lset==0){
 			p=getCstring(argv[4]);
 			if(strcasecmp(p,"O")==0)local_sound_mode_left=(uint16_t *)nulltable;
@@ -1361,6 +1387,7 @@ void cmd_play(void) {
 			if(strcasecmp(p,"S")==0)local_sound_mode_left=(uint16_t *)SineTable;
 			if(strcasecmp(p,"P")==0){local_sound_mode_left=(uint16_t *)noisetable;setnoise();}
 			if(strcasecmp(p,"N")==0)local_sound_mode_left=(uint16_t *)whitenoise;
+			if(strcasecmp(p,"U")==0)local_sound_mode_left=(uint16_t *)usertable;
 			if(local_sound_mode_left==NULL)error("Invalid type");
 			else lset=1;
 		}
@@ -1373,9 +1400,11 @@ void cmd_play(void) {
 			if(strcasecmp(p,"S")==0)local_sound_mode_right=(uint16_t *)SineTable;
 			if(strcasecmp(p,"P")==0){local_sound_mode_right=(uint16_t *)noisetable;setnoise();}
 			if(strcasecmp(p,"N")==0)local_sound_mode_right=(uint16_t *)whitenoise;
+			if(strcasecmp(p,"U")==0)local_sound_mode_right=(uint16_t *)usertable;
 			if(local_sound_mode_right==NULL)error("Invalid type");
 			else rset=1;
 		}
+		if((local_sound_mode_left==usertable || local_sound_mode_right==usertable) && usertable==NULL) error("Not loaded");
         f_in=10.0;
         if(argc>=7)f_in = getnumber(argv[6]);
         // get the arguments
@@ -1414,6 +1443,10 @@ void cmd_play(void) {
 		if(right)rampvolume(0,1,channel,local_sound_v_right);
 		if(left)sound_mode_left[channel]=local_sound_mode_left;
 		if(right)sound_mode_right[channel]=local_sound_mode_right;
+		if(mono){
+			sound_PhaseAC_right[channel]=(sound_PhaseAC_left[channel]+2048.0);
+			if(sound_PhaseAC_right[channel]>=4096.0)sound_PhaseAC_right[channel]-=4096.0;
+		}
         if(!(CurrentlyPlaying == P_SOUND)){
 			setrate(PWM_FREQ);
     		pwm_set_irq_enabled(AUDIO_SLICE, true);

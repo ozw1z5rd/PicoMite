@@ -264,7 +264,7 @@ const struct s_PinDef PinDef[NBRPINS + 1]={
 	    { 26, 20, "GP20",  DIGITAL_IN | DIGITAL_OUT | SPI0RX | UART1TX| I2C0SDA | PWM2A	,99, 2},    // pin 26
 	    { 27, 21, "GP21",  DIGITAL_IN | DIGITAL_OUT | UART1RX| I2C0SCL | PWM2B	,99, 130},    		// pin 27
 		{ 28, 99, "GND",  UNUSED  ,99, 99},                                                         // pin 28
-		{ 29, 22, "GP22",  DIGITAL_IN | DIGITAL_OUT | I2C1SDA| PWM3A	,99, 3},    				// pin 29
+		{ 29, 22, "GP22",  DIGITAL_IN | DIGITAL_OUT | SPI0SCK | I2C1SDA| PWM3A	,99, 3},    				// pin 29
 		{ 30, 99, "RUN",  UNUSED  ,99, 99},                                                         // pin 30
 	    { 31, 26, "GP26",  DIGITAL_IN | DIGITAL_OUT	| ANALOG_IN | SPI1SCK| I2C1SDA | PWM5A , 0 , 5},// pin 31
 	    { 32, 27, "GP27",  DIGITAL_IN | DIGITAL_OUT	| ANALOG_IN | SPI1TX| I2C1SCL | PWM5B , 1, 133},// pin 32
