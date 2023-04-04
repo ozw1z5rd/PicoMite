@@ -100,7 +100,6 @@ void __not_in_flash_func(DefaultAudio)(uint16_t left, uint16_t right){
 	pwm_set_both_levels(AUDIO_SLICE,(left*AUDIO_WRAP)>>12,(right*AUDIO_WRAP)>>12);
 }
 void __not_in_flash_func(SPIAudio)(uint16_t left, uint16_t right){
-	gpio_put(AUDIO_LDAC_PIN,GPIO_PIN_SET);
 	uint16_t l=0x7000 | left, r=0xF000 | right;
 	gpio_put(AUDIO_CS_PIN,GPIO_PIN_RESET);
 	spi_write16_blocking((AUDIO_SPI==1 ? spi0 : spi1),&r,1);
@@ -108,7 +107,6 @@ void __not_in_flash_func(SPIAudio)(uint16_t left, uint16_t right){
 	gpio_put(AUDIO_CS_PIN,GPIO_PIN_RESET);
 	spi_write16_blocking((AUDIO_SPI==1 ? spi0 : spi1),&l,1);
 	gpio_put(AUDIO_CS_PIN,GPIO_PIN_SET);
-	gpio_put(AUDIO_LDAC_PIN,GPIO_PIN_RESET);
 
 	
 }
@@ -1324,21 +1322,13 @@ void InitReservedIO(void) {
 		} else {
 			AUDIO_SLICE=Option.AUDIO_SLICE;
 			ExtCfg(Option.AUDIO_CS_PIN, EXT_BOOT_RESERVED, 0);
-			ExtCfg(Option.AUDIO_LDAC_PIN, EXT_BOOT_RESERVED, 0);
 			AUDIO_CS_PIN=PinDef[Option.AUDIO_CS_PIN].GPno;
-			AUDIO_LDAC_PIN=PinDef[Option.AUDIO_LDAC_PIN].GPno;
 //
 			gpio_init(AUDIO_CS_PIN);
 			gpio_set_drive_strength(AUDIO_CS_PIN,GPIO_DRIVE_STRENGTH_12MA);
 			gpio_put(AUDIO_CS_PIN,GPIO_PIN_SET);
 			gpio_set_dir(AUDIO_CS_PIN, GPIO_OUT);
 			gpio_set_slew_rate(AUDIO_CS_PIN, GPIO_SLEW_RATE_SLOW);
-//
-			gpio_init(AUDIO_LDAC_PIN);
-			gpio_set_drive_strength(AUDIO_LDAC_PIN,GPIO_DRIVE_STRENGTH_12MA);
-			gpio_put(AUDIO_LDAC_PIN,GPIO_PIN_SET);
-			gpio_set_dir(AUDIO_LDAC_PIN, GPIO_OUT);
-			gpio_set_slew_rate(AUDIO_LDAC_PIN, GPIO_SLEW_RATE_SLOW);
 //
 			AUDIO_CLK_PIN=PinDef[Option.AUDIO_CLK_PIN].GPno;
 			AUDIO_MOSI_PIN=PinDef[Option.AUDIO_MOSI_PIN].GPno;

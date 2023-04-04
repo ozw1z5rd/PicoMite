@@ -1728,7 +1728,10 @@ void cmd_call(void){
 
 void cmd_restore(void) {
 	if(*cmdline == 0 || *cmdline == '\'') {
-        NextDataLine = ProgMemory;
+       if(CurrentLinePtr >= ProgMemory && CurrentLinePtr < ProgMemory + MAX_PROG_SIZE )
+           NextDataLine = ProgMemory;
+       else
+           NextDataLine = LibMemory;
 		NextData = 0;
 	} else {
 		skipspace(cmdline);
@@ -1762,7 +1765,6 @@ void cmd_restore(void) {
 		}
 	}
 }
-
 
 
 

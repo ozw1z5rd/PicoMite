@@ -1140,9 +1140,9 @@ void wavcallback(char *p){
 //        PInt(mywav.sampleRate);MMPrintString(" Sample rate\r\n");
 	if(Option.AUDIO_L){
 		audiorepeat=1;
-		actualrate=myflac->sampleRate;
-		while(actualrate<PWM_FREQ){
-			actualrate +=myflac->sampleRate;
+		actualrate=mywav.sampleRate;
+		while(actualrate<PWM_FREQ && actualrate<=64000){
+			actualrate +=mywav.sampleRate;
 			audiorepeat++;
 		}
 		setrate(actualrate);
@@ -1190,7 +1190,7 @@ void flaccallback(char *p){
 	if(Option.AUDIO_L){
 		audiorepeat=1;
 		actualrate=myflac->sampleRate;
-		while(actualrate<PWM_FREQ){
+		while(actualrate<PWM_FREQ && actualrate<=64000){
 			actualrate +=myflac->sampleRate;
 			audiorepeat++;
 		}

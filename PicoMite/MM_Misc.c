@@ -1824,7 +1824,6 @@ void printoptions(void){
             MMPrintString((char *)PinDef[Option.AUDIO_R].pinname);
         } else {
             MMPrintString((char *)PinDef[Option.AUDIO_CS_PIN].pinname);MMputchar(',',1);
-            MMPrintString((char *)PinDef[Option.AUDIO_LDAC_PIN].pinname);MMputchar(',',1);
             MMPrintString((char *)PinDef[Option.AUDIO_CLK_PIN].pinname);MMputchar(',',1);
             MMPrintString((char *)PinDef[Option.AUDIO_MOSI_PIN].pinname);
         }
@@ -2542,44 +2541,43 @@ void cmd_option(void) {
             return;                                // this will restart the processor ? only works when not in debug
         }
         if((p=checkstring(tp, "SPI"))){
-            int pin1,pin2,pin3,pin4;
-            getargs(&p,7,",");
+            int pin1,pin2,pin3;
+            getargs(&p,5,",");
             if(CurrentLinePtr) error("Invalid in a program");
-            if(argc!=7)error("Syntax");
+            if(argc!=5)error("Syntax");
             if(Option.AUDIO_CLK_PIN)error("Audio SPI already configured");
             unsigned char code;
 //
             if(!(code=codecheck(argv[0])))argv[0]+=2;
-            pin4 = getinteger(argv[0]);
-            if(!code)pin4=codemap(pin4);
-            if(IsInvalidPin(pin4)) error("Invalid pin");
-            if(ExtCurrentConfig[pin4] != EXT_NOT_CONFIG)  error("Pin %/| is in use",pin4,pin4);
-//
-            if(!(code=codecheck(argv[2])))argv[2]+=2;
-            pin3 = getinteger(argv[2]);
-            if(!code)pin3=codemap(pin3);
-            if(IsInvalidPin(pin3)) error("Invalid pin");
-            if(ExtCurrentConfig[pin3] != EXT_NOT_CONFIG)  error("Pin %/| is in use",pin3,pin3);
-//
-            if(!(code=codecheck(argv[4])))argv[4]+=2;
-            pin1 = getinteger(argv[4]);
+            pin1 = getinteger(argv[0]);
             if(!code)pin1=codemap(pin1);
             if(IsInvalidPin(pin1)) error("Invalid pin");
             if(ExtCurrentConfig[pin1] != EXT_NOT_CONFIG)  error("Pin %/| is in use",pin1,pin1);
 //
-            if(!(code=codecheck(argv[6])))argv[6]+=2;
-            pin2 = getinteger(argv[6]);
+            if(!(code=codecheck(argv[2])))argv[2]+=2;
+            pin2 = getinteger(argv[2]);
             if(!code)pin2=codemap(pin2);
             if(IsInvalidPin(pin2)) error("Invalid pin");
             if(ExtCurrentConfig[pin2] != EXT_NOT_CONFIG)  error("Pin %/| is in use",pin2,pin2);
 //
-            if(!(PinDef[pin1].mode & SPI0SCK && PinDef[pin2].mode & SPI0TX) &&
-            !(PinDef[pin1].mode & SPI1SCK && PinDef[pin2].mode & SPI1TX))error("Not valid SPI pins");
-            Option.AUDIO_CLK_PIN=pin1;
-            Option.AUDIO_MOSI_PIN=pin2;
-            Option.AUDIO_LDAC_PIN=pin3;
-            Option.AUDIO_CS_PIN=pin4;
-            slice=checkslice(pin1,pin1, 1);
+            if(!(code=codecheck(argv[4])))argv[4]+=2;
+            pin3 = getinteger(argv[4]);
+            if(!code)pin3=codemap(pin3);
+            if(IsInvalidPin(pin3)) error("Invalid pin");
+            if(ExtCurrentConfig[pin3] != EXT_NOT_CONFIG)  error("Pin %/| is in use",pin3,pin3);
+//
+/*            if(!(code=codecheck(argv[6])))argv[6]+=2;
+            pin2 = getinteger(argv[6]);
+            if(!code)pin2=codemap(pin2);
+            if(IsInvalidPin(pin2)) error("Invalid pin");
+            if(ExtCurrentConfig[pin2] != EXT_NOT_CONFIG)  error("Pin %/| is in use",pin2,pin2);*/
+//
+            if(!(PinDef[pin2].mode & SPI0SCK && PinDef[pin3].mode & SPI0TX) &&
+            !(PinDef[pin2].mode & SPI1SCK && PinDef[pin3].mode & SPI1TX))error("Not valid SPI pins");
+            Option.AUDIO_CS_PIN=pin1;
+            Option.AUDIO_CLK_PIN=pin2;
+            Option.AUDIO_MOSI_PIN=pin3;
+            slice=checkslice(pin2,pin2, 1);
             if((PinDef[Option.DISPLAY_BL].slice & 0x7f) == slice) error("Channel in use for backlight");
             Option.AUDIO_SLICE=slice;
             SaveOptions();

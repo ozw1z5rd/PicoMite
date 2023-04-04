@@ -1,6 +1,6 @@
 /*
 WAV audio loader and writer. Choice of public domain or MIT-0. See license statements at the end of this file.
-dr_wav - v0.13.6 - 2022-04-10
+dr_wav - v0.13.8 - 2023-03-25
 
 David Reid - mackron@gmail.com
 
@@ -92,6 +92,9 @@ Build Options
 #define DR_WAV_NO_STDIO
   Disables APIs that initialize a decoder from a file such as `drwav_init_file()`, `drwav_init_file_write()`, etc.
 
+#define DR_WAV_NO_WCHAR
+  Disables all functions ending with `_w`. Use this if your compiler does not provide wchar.h. Not required if DR_WAV_NO_STDIO is also defined.
+
 
 
 Notes
@@ -125,7 +128,7 @@ extern "C" {
 
 #define DRWAV_VERSION_MAJOR     0
 #define DRWAV_VERSION_MINOR     13
-#define DRWAV_VERSION_REVISION  6
+#define DRWAV_VERSION_REVISION  8
 #define DRWAV_VERSION_STRING    DRWAV_XSTRINGIFY(DRWAV_VERSION_MAJOR) "." DRWAV_XSTRINGIFY(DRWAV_VERSION_MINOR) "." DRWAV_XSTRINGIFY(DRWAV_VERSION_REVISION)
 
 #include <stddef.h> /* For size_t. */
@@ -1297,13 +1300,20 @@ DRWAV_API drwav_bool32 drwav_fourcc_equal(const drwav_uint8* a, const char* b);
 #ifndef dr_wav_c
 #define dr_wav_c
 
+#ifdef __MRC__
+/* MrC currently doesn't compile dr_wav correctly with any optimizations enabled. */
+#pragma options opt off
+#endif
+
 #include <stdlib.h>
 #include <string.h>
 #include <limits.h> /* For INT_MAX */
 
 #ifndef DR_WAV_NO_STDIO
 #include <stdio.h>
+#ifndef DR_WAV_NO_WCHAR
 #include <wchar.h>
+#endif
 #endif
 
 /* Standard library stuff. */
@@ -1312,13 +1322,13 @@ DRWAV_API drwav_bool32 drwav_fourcc_equal(const drwav_uint8* a, const char* b);
 #define DRWAV_ASSERT(expression)           assert(expression)
 #endif
 #ifndef DRWAV_MALLOC
-#define DRWAV_MALLOC(sz)                   GetMemory((sz))
+#define DRWAV_MALLOC(sz)                   malloc((sz))
 #endif
 #ifndef DRWAV_REALLOC
-#define DRWAV_REALLOC(p, sz)               ReAllocMemory((p), (sz))
+#define DRWAV_REALLOC(p, sz)               realloc((p), (sz))
 #endif
 #ifndef DRWAV_FREE
-#define DRWAV_FREE(p)                      FreeMemory((p))
+#define DRWAV_FREE(p)                      free((p))
 #endif
 #ifndef DRWAV_COPY_MEMORY
 #define DRWAV_COPY_MEMORY(dst, src, sz)    memcpy((dst), (src), (sz))
@@ -2177,12 +2187,18 @@ DRWAV_PRIVATE drwav_uint64 drwav__read_smpl_to_metadata_obj(drwav__metadata_pars
 {
     drwav_uint8 smplHeaderData[DRWAV_SMPL_BYTES];
     drwav_uint64 totalBytesRead = 0;
-    size_t bytesJustRead = drwav__metadata_parser_read(pParser, smplHeaderData, sizeof(smplHeaderData), &totalBytesRead);
+    size_t bytesJustRead;
+
+    if (pMetadata == NULL) {
+        return 0;
+    }
+
+    bytesJustRead = drwav__metadata_parser_read(pParser, smplHeaderData, sizeof(smplHeaderData), &totalBytesRead);
 
     DRWAV_ASSERT(pParser->stage == drwav__metadata_parser_stage_read);
     DRWAV_ASSERT(pChunkHeader != NULL);
 
-    if (bytesJustRead == sizeof(smplHeaderData)) {
+    if (pMetadata != NULL && bytesJustRead == sizeof(smplHeaderData)) {
         drwav_uint32 iSampleLoop;
 
         pMetadata->type                                     = drwav_metadata_type_smpl;
@@ -2235,7 +2251,13 @@ DRWAV_PRIVATE drwav_uint64 drwav__read_cue_to_metadata_obj(drwav__metadata_parse
 {
     drwav_uint8 cueHeaderSectionData[DRWAV_CUE_BYTES];
     drwav_uint64 totalBytesRead = 0;
-    size_t bytesJustRead = drwav__metadata_parser_read(pParser, cueHeaderSectionData, sizeof(cueHeaderSectionData), &totalBytesRead);
+    size_t bytesJustRead;
+
+    if (pMetadata == NULL) {
+        return 0;
+    }
+
+    bytesJustRead = drwav__metadata_parser_read(pParser, cueHeaderSectionData, sizeof(cueHeaderSectionData), &totalBytesRead);
 
     DRWAV_ASSERT(pParser->stage == drwav__metadata_parser_stage_read);
 
@@ -2282,7 +2304,13 @@ DRWAV_PRIVATE drwav_uint64 drwav__read_cue_to_metadata_obj(drwav__metadata_parse
 DRWAV_PRIVATE drwav_uint64 drwav__read_inst_to_metadata_obj(drwav__metadata_parser* pParser, drwav_metadata* pMetadata)
 {
     drwav_uint8 instData[DRWAV_INST_BYTES];
-    drwav_uint64 bytesRead = drwav__metadata_parser_read(pParser, instData, sizeof(instData), NULL);
+    drwav_uint64 bytesRead;
+
+    if (pMetadata == NULL) {
+        return 0;
+    }
+
+    bytesRead = drwav__metadata_parser_read(pParser, instData, sizeof(instData), NULL);
 
     DRWAV_ASSERT(pParser->stage == drwav__metadata_parser_stage_read);
 
@@ -2303,7 +2331,13 @@ DRWAV_PRIVATE drwav_uint64 drwav__read_inst_to_metadata_obj(drwav__metadata_pars
 DRWAV_PRIVATE drwav_uint64 drwav__read_acid_to_metadata_obj(drwav__metadata_parser* pParser, drwav_metadata* pMetadata)
 {
     drwav_uint8 acidData[DRWAV_ACID_BYTES];
-    drwav_uint64 bytesRead = drwav__metadata_parser_read(pParser, acidData, sizeof(acidData), NULL);
+    drwav_uint64 bytesRead;
+
+    if (pMetadata == NULL) {
+        return 0;
+    }
+
+    bytesRead = drwav__metadata_parser_read(pParser, acidData, sizeof(acidData), NULL);
 
     DRWAV_ASSERT(pParser->stage == drwav__metadata_parser_stage_read);
 
@@ -3679,8 +3713,8 @@ DRWAV_PRIVATE size_t drwav__write_or_count_metadata(drwav* pWav, drwav_metadata*
                 }
 
                 if (pMetadata->data.smpl.samplerSpecificDataSizeInBytes > 0) {
-                    bytesWritten += drwav__write(pWav, pMetadata->data.smpl.pSamplerSpecificData, pMetadata->data.smpl.samplerSpecificDataSizeInBytes);
-                }  
+                    bytesWritten += drwav__write_or_count(pWav, pMetadata->data.smpl.pSamplerSpecificData, pMetadata->data.smpl.samplerSpecificDataSizeInBytes);
+                }
             } break;
 
             case drwav_metadata_type_inst:
@@ -4721,6 +4755,7 @@ fallback, so if you notice your compiler not detecting this properly I'm happy t
     #endif
 #endif
 
+#ifndef DR_WAV_NO_WCHAR
 DRWAV_PRIVATE drwav_result drwav_wfopen(FILE** ppFile, const wchar_t* pFilePath, const wchar_t* pOpenMode, const drwav_allocation_callbacks* pAllocationCallbacks)
 {
     if (ppFile != NULL) {
@@ -4748,11 +4783,24 @@ DRWAV_PRIVATE drwav_result drwav_wfopen(FILE** ppFile, const wchar_t* pFilePath,
         (void)pAllocationCallbacks;
     }
 #else
-    /*
-    Use fopen() on anything other than Windows. Requires a conversion. This is annoying because fopen() is locale specific. The only real way I can
-    think of to do this is with wcsrtombs(). Note that wcstombs() is apparently not thread-safe because it uses a static global mbstate_t object for
-    maintaining state. I've checked this with -std=c89 and it works, but if somebody get's a compiler error I'll look into improving compatibility.
+	/*
+    Use fopen() on anything other than Windows. Requires a conversion. This is annoying because
+	fopen() is locale specific. The only real way I can think of to do this is with wcsrtombs(). Note
+	that wcstombs() is apparently not thread-safe because it uses a static global mbstate_t object for
+    maintaining state. I've checked this with -std=c89 and it works, but if somebody get's a compiler
+	error I'll look into improving compatibility.
     */
+
+	/*
+	Some compilers don't support wchar_t or wcsrtombs() which we're using below. In this case we just
+	need to abort with an error. If you encounter a compiler lacking such support, add it to this list
+	and submit a bug report and it'll be added to the library upstream.
+	*/
+	#if defined(__DJGPP__)
+	{
+		/* Nothing to do here. This will fall through to the error check below. */
+	}
+	#else
     {
         mbstate_t mbs;
         size_t lenMB;
@@ -4794,6 +4842,7 @@ DRWAV_PRIVATE drwav_result drwav_wfopen(FILE** ppFile, const wchar_t* pFilePath,
 
         drwav__free_from_callbacks(pFilePathMB, pAllocationCallbacks);
     }
+	#endif
 
     if (*ppFile == NULL) {
         return DRWAV_ERROR;
@@ -4802,6 +4851,7 @@ DRWAV_PRIVATE drwav_result drwav_wfopen(FILE** ppFile, const wchar_t* pFilePath,
 
     return DRWAV_SUCCESS;
 }
+#endif
 
 
 DRWAV_PRIVATE size_t drwav__on_read_stdio(void* pUserData, void* pBufferOut, size_t bytesToRead)
@@ -4857,6 +4907,7 @@ DRWAV_API drwav_bool32 drwav_init_file_ex(drwav* pWav, const char* filename, drw
     return drwav_init_file__internal_FILE(pWav, pFile, onChunk, pChunkUserData, flags, drwav_metadata_type_none, pAllocationCallbacks);
 }
 
+#ifndef DR_WAV_NO_WCHAR
 DRWAV_API drwav_bool32 drwav_init_file_w(drwav* pWav, const wchar_t* filename, const drwav_allocation_callbacks* pAllocationCallbacks)
 {
     return drwav_init_file_ex_w(pWav, filename, NULL, NULL, 0, pAllocationCallbacks);
@@ -4872,6 +4923,7 @@ DRWAV_API drwav_bool32 drwav_init_file_ex_w(drwav* pWav, const wchar_t* filename
     /* This takes ownership of the FILE* object. */
     return drwav_init_file__internal_FILE(pWav, pFile, onChunk, pChunkUserData, flags, drwav_metadata_type_none, pAllocationCallbacks);
 }
+#endif
 
 DRWAV_API drwav_bool32 drwav_init_file_with_metadata(drwav* pWav, const char* filename, drwav_uint32 flags, const drwav_allocation_callbacks* pAllocationCallbacks)
 {
@@ -4884,6 +4936,7 @@ DRWAV_API drwav_bool32 drwav_init_file_with_metadata(drwav* pWav, const char* fi
     return drwav_init_file__internal_FILE(pWav, pFile, NULL, NULL, flags, drwav_metadata_type_all_including_unknown, pAllocationCallbacks);
 }
 
+#ifndef DR_WAV_NO_WCHAR
 DRWAV_API drwav_bool32 drwav_init_file_with_metadata_w(drwav* pWav, const wchar_t* filename, drwav_uint32 flags, const drwav_allocation_callbacks* pAllocationCallbacks)
 {
     FILE* pFile;
@@ -4894,6 +4947,7 @@ DRWAV_API drwav_bool32 drwav_init_file_with_metadata_w(drwav* pWav, const wchar_
     /* This takes ownership of the FILE* object. */
     return drwav_init_file__internal_FILE(pWav, pFile, NULL, NULL, flags, drwav_metadata_type_all_including_unknown, pAllocationCallbacks);
 }
+#endif
 
 
 DRWAV_PRIVATE drwav_bool32 drwav_init_file_write__internal_FILE(drwav* pWav, FILE* pFile, const drwav_data_format* pFormat, drwav_uint64 totalSampleCount, drwav_bool32 isSequential, const drwav_allocation_callbacks* pAllocationCallbacks)
@@ -4926,6 +4980,7 @@ DRWAV_PRIVATE drwav_bool32 drwav_init_file_write__internal(drwav* pWav, const ch
     return drwav_init_file_write__internal_FILE(pWav, pFile, pFormat, totalSampleCount, isSequential, pAllocationCallbacks);
 }
 
+#ifndef DR_WAV_NO_WCHAR
 DRWAV_PRIVATE drwav_bool32 drwav_init_file_write_w__internal(drwav* pWav, const wchar_t* filename, const drwav_data_format* pFormat, drwav_uint64 totalSampleCount, drwav_bool32 isSequential, const drwav_allocation_callbacks* pAllocationCallbacks)
 {
     FILE* pFile;
@@ -4936,6 +4991,7 @@ DRWAV_PRIVATE drwav_bool32 drwav_init_file_write_w__internal(drwav* pWav, const 
     /* This takes ownership of the FILE* object. */
     return drwav_init_file_write__internal_FILE(pWav, pFile, pFormat, totalSampleCount, isSequential, pAllocationCallbacks);
 }
+#endif
 
 DRWAV_API drwav_bool32 drwav_init_file_write(drwav* pWav, const char* filename, const drwav_data_format* pFormat, const drwav_allocation_callbacks* pAllocationCallbacks)
 {
@@ -4956,6 +5012,7 @@ DRWAV_API drwav_bool32 drwav_init_file_write_sequential_pcm_frames(drwav* pWav, 
     return drwav_init_file_write_sequential(pWav, filename, pFormat, totalPCMFrameCount*pFormat->channels, pAllocationCallbacks);
 }
 
+#ifndef DR_WAV_NO_WCHAR
 DRWAV_API drwav_bool32 drwav_init_file_write_w(drwav* pWav, const wchar_t* filename, const drwav_data_format* pFormat, const drwav_allocation_callbacks* pAllocationCallbacks)
 {
     return drwav_init_file_write_w__internal(pWav, filename, pFormat, 0, DRWAV_FALSE, pAllocationCallbacks);
@@ -4974,6 +5031,7 @@ DRWAV_API drwav_bool32 drwav_init_file_write_sequential_pcm_frames_w(drwav* pWav
 
     return drwav_init_file_write_sequential_w(pWav, filename, pFormat, totalPCMFrameCount*pFormat->channels, pAllocationCallbacks);
 }
+#endif
 #endif  /* DR_WAV_NO_STDIO */
 
 
@@ -7667,6 +7725,7 @@ DRWAV_API drwav_int32* drwav_open_file_and_read_pcm_frames_s32(const char* filen
 }
 
 
+#ifndef DR_WAV_NO_WCHAR
 DRWAV_API drwav_int16* drwav_open_file_and_read_pcm_frames_s16_w(const wchar_t* filename, unsigned int* channelsOut, unsigned int* sampleRateOut, drwav_uint64* totalFrameCountOut, const drwav_allocation_callbacks* pAllocationCallbacks)
 {
     drwav wav;
@@ -7729,7 +7788,8 @@ DRWAV_API drwav_int32* drwav_open_file_and_read_pcm_frames_s32_w(const wchar_t* 
 
     return drwav__read_pcm_frames_and_close_s32(&wav, channelsOut, sampleRateOut, totalFrameCountOut);
 }
-#endif
+#endif /* DR_WAV_NO_WCHAR */
+#endif /* DR_WAV_NO_STDIO */
 
 DRWAV_API drwav_int16* drwav_open_memory_and_read_pcm_frames_s16(const void* data, size_t dataSize, unsigned int* channelsOut, unsigned int* sampleRateOut, drwav_uint64* totalFrameCountOut, const drwav_allocation_callbacks* pAllocationCallbacks)
 {
@@ -7870,12 +7930,25 @@ DRWAV_API drwav_bool32 drwav_fourcc_equal(const drwav_uint8* a, const char* b)
         a[3] == b[3];
 }
 
+#ifdef __MRC__
+/* Undo the pragma at the beginning of this file. */
+#pragma options opt reset
+#endif
+
 #endif  /* dr_wav_c */
 #endif  /* DR_WAV_IMPLEMENTATION */
 
 /*
 REVISION HISTORY
 ================
+v0.13.8 - 2023-03-25
+  - Fix a possible null pointer dereference.
+  - Fix a crash when loading files with badly formed metadata.
+
+v0.13.7 - 2022-09-17
+  - Fix compilation with DJGPP.
+  - Add support for disabling wchar_t with DR_WAV_NO_WCHAR.
+
 v0.13.6 - 2022-04-10
   - Fix compilation error on older versions of GCC.
   - Remove some dependencies on the standard library.
