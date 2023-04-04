@@ -2042,7 +2042,7 @@ void cmd_option(void) {
         Option.numlock=1;
         int rs=0b00100000;
         int rr=0b00001100;
-        if(!Option.KeyboardConfig==CONFIG_I2C){
+        if(Option.KeyboardConfig!=CONFIG_I2C){
             if(argc>=3 && *argv[2])Option.capslock=getint(argv[2],0,1);
             if(argc>=5 && *argv[4])Option.numlock=getint(argv[4],0,1);
             if(argc>=7 && *argv[6])rs=getint(argv[6],0,3)<<5;
@@ -3343,6 +3343,7 @@ void fun_info(void){
             case P_PAUSE_FLAC:strcpy(sret,"PAUSED");break;
             case P_TONE:strcpy(sret,"TONE");break;
             case P_WAV:strcpy(sret,"WAV");break;
+            case P_FLAC:strcpy(sret,"FLAC");break;
             case P_SOUND:strcpy(sret,"SOUND");break;
             }
             CtoM(sret);

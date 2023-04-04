@@ -305,7 +305,7 @@ void __not_in_flash_func(routinechecks)(void){
         }
     }
 	if(GPSchannel)processgps();
-    if(diskchecktimer== 0 || CurrentlyPlaying == P_WAV)CheckSDCard();
+    if(diskchecktimer== 0 || CurrentlyPlaying == P_WAV || CurrentlyPlaying == P_FLAC)CheckSDCard();
 #ifdef PICOMITE
     if(Ctrl)ProcessTouch();
 #endif

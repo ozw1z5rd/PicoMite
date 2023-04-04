@@ -3489,7 +3489,7 @@ void __not_in_flash_func(CheckSDCard)(void)
         }
         diskchecktimer = DISKCHECKRATE;
     }
-    else if (CurrentlyPlaying == P_WAV)
+    else if (CurrentlyPlaying == P_WAV || CurrentlyPlaying == P_FLAC )
         checkWAVinput();
 }
 void LoadOptions(void)
