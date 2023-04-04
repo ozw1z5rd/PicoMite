@@ -64,7 +64,7 @@ extern "C" {
 					"Copyright " YEAR2 " Peter Mather\r\n\r\n"
 #endif
 #ifdef PICOMITEWEB
-#define MES_SIGNON  "\rPicoMiteWeb MMBasic Version " VERSION "\r\n"\
+#define MES_SIGNON  "\rWebMite MMBasic Version " VERSION "\r\n"\
 					"Copyright " YEAR " Geoff Graham\r\n"\
 					"Copyright " YEAR2 " Peter Mather\r\n\r\n"
 volatile int WIFIconnected=0;

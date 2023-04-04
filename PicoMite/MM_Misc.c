@@ -2830,7 +2830,7 @@ void fun_device(void){
     strcpy(sret, "PicoMite");
 #endif
 #ifdef PICOMITEWEB
-    strcpy(sret, "PicoMiteWeb");
+    strcpy(sret, "WebMite");
 #endif
     CtoM(sret);
     targ = T_STR;
