@@ -152,10 +152,10 @@ void DisplayPutS(char *s) {
                                         gui_bcolour = t;
                                     }
                                     break;
-            case CLEAR_TO_EOL:      DrawBox(CurrentX, CurrentY, HRes-1, CurrentY + gui_font_height-1, 0, 0, gui_bcolour);
+            case CLEAR_TO_EOL:      DrawBox(CurrentX, CurrentY, HRes-1, CurrentY + gui_font_height-1, 0, 0, DISPLAY_TYPE==MONOVGA ? 0 : gui_bcolour);
                                     if(DISPLAY_TYPE==MONOVGA && Option.ColourCode && ytilecount==12 && gui_font==1){
                                         for(int x=CurrentX/gui_font_width;x<X_TILE;x++){
-                                                tilefcols[CurrentY/gui_font_height*X_TILE+x]=Option.VGABC;
+                                                tilefcols[CurrentY/gui_font_height*X_TILE+x]=Option.VGAFC;
                                                 tilebcols[CurrentY/gui_font_height*X_TILE+x]=Option.VGABC;
                                         }
                                     }
@@ -228,7 +228,7 @@ void cmd_edit(void) {
     int y, x;
 #ifdef PICOMITEVGA
     editactive=1;
-    int mode =0;
+    int mode = DISPLAY_TYPE;
     if(*cmdline){
         mode = getint(cmdline,1,2);
         if(mode==2){

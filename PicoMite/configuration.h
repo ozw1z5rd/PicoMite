@@ -29,7 +29,7 @@ extern "C" {
 #ifdef PICOMITEVGA
 #define MAXVARS             512                     // 8 + MAXVARLEN + MAXDIM * 2  (ie, 56 bytes) - these do not incl array members
 #define FLASH_TARGET_OFFSET (800 * 1024) 
-#define MagicKey 0x75852342
+#define MagicKey 0x75258342
 #define HEAPTOP 0x2003e200
 #define HEAP_MEMORY_SIZE (100*1024) 
 #define MAX_CPU     378000
@@ -39,7 +39,7 @@ extern "C" {
 #include "lwipopts_examples_common.h"
 #define MAXVARS             480                    // 8 + MAXVARLEN + MAXDIM * 2  (ie, 56 bytes) - these do not incl array members
 #define FLASH_TARGET_OFFSET (1024 * 1024) 
-#define MagicKey 0x21708327
+#define MagicKey 0x21807327
 #define HEAPTOP 0x2003fc00
 #define HEAP_MEMORY_SIZE (80*1024) 
 #define MaxPcb 8
@@ -49,7 +49,7 @@ extern "C" {
 #ifdef PICOMITE
 #define MAXVARS             512                     // 8 + MAXVARLEN + MAXDIM * 2  (ie, 56 bytes) - these do not incl array members
 #define FLASH_TARGET_OFFSET (720 * 1024) 
-#define MagicKey 0x48123427
+#define MagicKey 0x48321427
 #define HEAPTOP 0x2003c600
 #define HEAP_MEMORY_SIZE (128*1024) 
 #define MAX_CPU     378000

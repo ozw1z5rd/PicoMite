@@ -330,7 +330,7 @@ void __not_in_flash_func(ExecuteProgram)(unsigned char *p) {
             CurrentLinePtr = p;                                     // and pointer to the line for error reporting
             TraceBuff[TraceBuffIndex] = p;                          // used by TRACE LIST
             if(++TraceBuffIndex >= TRACE_BUFF_SIZE) TraceBuffIndex = 0;
-            if(TraceOn && p < ProgMemory + MAX_PROG_SIZE) {
+            if(TraceOn && p > ProgMemory && p < ProgMemory + MAX_PROG_SIZE) {
                 inpbuf[0] = '[';
                 IntToStr(inpbuf + 1, CountLines(p), 10);
                 strcat(inpbuf, "]");

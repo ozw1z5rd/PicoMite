@@ -98,6 +98,7 @@ void fun_format(void);
 	{ (unsigned char *)"Interrupt", 	T_CMD,              	0, cmd_csubinterrupt},
 	{ (unsigned char *)"CSub",           T_CMD,              0, cmd_cfunction},
 	{ (unsigned char *)"End CSub",       T_CMD,              0, cmd_null     },
+	{ (unsigned char *)"Library",       T_CMD,              0, cmd_library     },
 //	{ (unsigned char *)"Update Firmware",       T_CMD,              0, cmd_update     },
 
 #endif

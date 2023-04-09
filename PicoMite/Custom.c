@@ -106,7 +106,7 @@ volatile int TCPreceived=0;
 char *TCPreceiveInterrupt=NULL;
 #endif
 #define MAXLABEL 16
-static int sidepins=0,sideopt=0,sidepinsdir=0, PIOlinenumber=0, PIOstart=0;
+static int sidepins=0,sideopt=0,sidepinsdir=0, PIOlinenumber=0, PIOstart=0, p_wrap=31, p_wrap_target=0;
 static int delaypossible=5;
 static int checksideanddelay=0;
 int dirOK=2;
@@ -498,6 +498,7 @@ void cmd_pio(void){
     }
     tp = checkstring(cmdline, "ASSEMBLE");
     if(tp){
+        static int wrap_target_set=0, wrap_set=0;
         getargs(&tp,3,",");
         if(argc!=3)error("Syntax");
 #ifdef PICOMITEVGA
@@ -527,6 +528,10 @@ void cmd_pio(void){
                 labelsfound = GetMemory(32 * MAXLABEL);
                 labelsneeded = GetMemory(32 * MAXLABEL);
                 PIOstart=0;
+                p_wrap=31;
+                p_wrap_target=0;
+                wrap_target_set=0;
+                wrap_set=0;
                 return;
         }
         if(dirOK!=2){
@@ -915,6 +920,19 @@ void cmd_pio(void){
                                 PIOlinenumber=getint(ss,0,31);
                                 PIOstart=PIOlinenumber;
                                 return;
+                        } else if(!strncasecmp(ss,".WRAP TARGET",12)){
+                                if(wrap_target_set)error("Repeat directive");
+                                p_wrap_target=PIOlinenumber;
+                                wrap_target_set=1;
+                                return;
+                                 //sort out the jmps
+                        } else if(!strncasecmp(ss,".WRAP",4)){
+//                                if(!wrap_target_set)error("Wrap target not set");
+                                if(wrap_set)error("Repeat directive");
+                                p_wrap=PIOlinenumber-1;
+                                if(PIOlinenumber==-1)PIOlinenumber=31;
+                                return;
+                                 //sort out the jmps
                         } else if(!strncasecmp(ss,".END PROGRAM",12)){ //sort out the jmps
                                 if(dirOK==2)error("Program not started");
                                 int totallines=0;
@@ -1166,6 +1184,18 @@ void fun_pio(void){
         targ=T_INT;
         return;
     }
+    tp = checkstring(ep, ".WRAP TARGET");
+    if(tp){
+        iret=p_wrap_target;
+        targ=T_INT;
+        return;
+    }
+    tp = checkstring(ep, ".WRAP");
+    if(tp){
+        iret=p_wrap;
+        targ=T_INT;
+        return;
+    }
     tp = checkstring(ep, "SHIFTCTRL");
     if(tp){
         getargs(&tp,15,",");
@@ -1254,16 +1284,37 @@ void fun_pio(void){
 }
 
 #ifdef PICOMITEWEB
- 
+char *scan_dest=NULL;
+volatile char *scan_dups=NULL; 
+volatile int scan_size;
 static int scan_result(void *env, const cyw43_ev_scan_result_t *result) {
     if (result) {
         Timer4=5000;
         char buff[STRINGSIZE]={0};
+        int found=0;
+        if(scan_dups==NULL)return 0;
+        for(int i=0;i<scan_dups[32*100];i++){
+                if(strcmp(result->ssid,(char *)&scan_dups[32*i])==0)return 0;
+        }
+        for(int i=0;i<100;i++){
+                if(scan_dups[32*i]==0){
+                        strcpy((char *)&scan_dups[32*i],result->ssid);
+                        scan_dups[32*100]++;
+                        break;
+                }
+        }
         sprintf(buff,"ssid: %-32s rssi: %4d chan: %3d mac: %02x:%02x:%02x:%02x:%02x:%02x sec: %u\r\n",
             result->ssid, result->rssi, result->channel,
             result->bssid[0], result->bssid[1], result->bssid[2], result->bssid[3], result->bssid[4], result->bssid[5],
             result->auth_mode);
-        MMPrintString(buff);
+        if(scan_dest!=NULL){
+                if(strlen(((char *)&scan_dest[8]) + strlen(buff)) > scan_size){
+                        FreeMemorySafe((void **)&scan_dups);
+                        error("Array too small");
+                }
+                if(scan_dest[8]==0)strcpy(&scan_dest[8],buff);
+                else strcat(&scan_dest[8],buff);
+        } else MMPrintString(buff);
     } 
     return 0;
 }
@@ -1289,18 +1340,39 @@ void cmd_web(void){
         }
         tp=checkstring(cmdline, "SCAN");
         if(tp){
-               cyw43_wifi_scan_options_t scan_options = {0};
+                void *ptr1 = NULL;
+                if(*tp){
+                        ptr1 = findvar(tp, V_FIND | V_EMPTY_OK);
+                        if(vartbl[VarIndex].type & T_INT) {
+                                if(vartbl[VarIndex].dims[1] != 0) error("Invalid variable");
+                                if(vartbl[VarIndex].dims[0] <= 0) {		// Not an array
+                                        error("Argument 1 must be integer array");
+                                }
+                                scan_size=(vartbl[VarIndex].dims[1]-OptionBase)*8;
+                                scan_dest = (char *)ptr1;
+                                scan_dest[8]=0;
+                        } else error("Argument 1 must be integer array");
+
+                }
+                scan_dups=GetMemory(32*100+1);
+                cyw43_wifi_scan_options_t scan_options = {0};
                 int err = cyw43_wifi_scan(&cyw43_state, &scan_options, NULL, scan_result);
                 if (err == 0) {
-                    MMPrintString("\nPerforming wifi scan\n");
+                    MMPrintString("\nPerforming wifi scan\r\n");
                 } else {
                     char buff[STRINGSIZE]={0};
-                    sprintf(buff,"Failed to start scan: %d\n", err);
+                    sprintf(buff,"Failed to start scan: %d\r\n", err);
                     MMPrintString(buff);
                 }
                 Timer4=500;
-            while (Timer4){{if(startupcomplete)cyw43_arch_poll();}}
-            return;   
+                while (Timer4)ProcessWeb();
+                if(scan_dest){
+                        uint64_t *p=(uint64_t *)scan_dest;
+                        *p=strlen(&scan_dest[8]);
+                }
+                scan_dest=NULL;
+                FreeMemorySafe((void **)&scan_dups);
+                return;   
         }
         if(cmd_mqtt())return;
         if(cmd_tcpclient())return;
@@ -1308,6 +1380,7 @@ void cmd_web(void){
         if(cmd_tls())return;
         error("Syntax");
 }
+
 void checkTCPOptions(void){
     unsigned char *tp = checkstring(cmdline, "TCP SERVER");
     if(tp) {

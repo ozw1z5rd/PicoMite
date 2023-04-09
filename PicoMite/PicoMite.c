@@ -2050,7 +2050,6 @@ void executelocal(char *p){
     testlocal(p,"FILES",cmd_files);
     testlocal(p,"UPDATE FIRMWARE",cmd_update);
     testlocal(p,"NEW",cmd_new);
-    testlocal(p,"LIBRARY",cmd_library);
     testlocal(p,"AUTOSAVE",cmd_autosave);
 }
 // takes a pointer to RAM containing a program (in clear text) and writes it to memory in tokenised format
