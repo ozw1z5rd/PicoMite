@@ -14,6 +14,10 @@ Compiled version and documentation is available on https://geoffg.net/picomite.h
 
 Change list from V5.07.00
 **********************************************************************************************************************
+PicoMite V5.07.07RC4
+
+Various small changes
+
 PicoMite V5.07.07RC3
 
 Various small changes
