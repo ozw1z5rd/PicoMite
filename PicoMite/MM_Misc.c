@@ -3240,6 +3240,13 @@ void fun_info(void){
             iret = Option.Width;
             targ = T_INT;
             return;
+#ifdef PICOMITEWEB
+		} else if(checkstring(tp, "SSID")){
+			strcpy(sret,Option.SSID);
+            CtoM(sret);
+            targ=T_STR;
+            return;
+#endif
 		} else error("Syntax");
     } else if(*ep=='p' || *ep=='P'){
         if(tp=checkstring(ep, "PINNO")){
