@@ -1953,7 +1953,8 @@ int CountLines(unsigned char *target) {
     int cnt;
 
     p = ProgMemory;
-    cnt = 0;
+    if(ProgMemory[0]==1 && ProgMemory[1]==39 && ProgMemory[2]==35)cnt=-1;
+    else cnt = 0;
 
     while(1) {
         if(*p == 0xff || (p[0] == 0 && p[1] == 0))                   // end of the program

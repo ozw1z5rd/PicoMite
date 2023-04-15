@@ -283,8 +283,10 @@ void cmd_edit(void) {
             }
             nbrlines++;
             fromp = llist(p, fromp);                                // otherwise expand the line
-            p += strlen(p);
-            *p++ = '\n'; *p = 0;
+            if(!(nbrlines==1 && p[0]=='\'' && p[1]=='#')){
+                p += strlen(p);
+                *p++ = '\n'; *p = 0;
+            }
         }
         // finally, is it the end of the program?
         if(fromp[0] == 0 || fromp[0] == 0xff) break;

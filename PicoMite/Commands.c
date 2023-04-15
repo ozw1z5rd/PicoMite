@@ -408,19 +408,19 @@ void ListProgram(unsigned char *p, int all) {
 	char b[STRINGSIZE];
 	char *pp;
     int ListCnt = 1;
-
-
 	while(!(*p == 0 || *p == 0xff)) {                               // normally a LIST ends at the break so this is a safety precaution
         if(*p == T_NEWLINE) {
 			p = llist(b, p);                                        // otherwise expand the line
-			pp = b;
-			while(*pp) {
-				if(MMCharPos >= Option.Width) ListNewLine(&ListCnt, all);
-				MMputchar(*pp++,0);
+            if(!(ListCnt==1 && b[0]=='\'' && b[1]=='#')){
+				pp = b;
+				while(*pp) {
+					if(MMCharPos >= Option.Width) ListNewLine(&ListCnt, all);
+					MMputchar(*pp++,0);
+				}
+				fflush(stdout);
+				ListNewLine(&ListCnt, all);
+				if(p[0] == 0 && p[1] == 0) break;                       // end of the listing ?
 			}
-    		fflush(stdout);
-            ListNewLine(&ListCnt, all);
-			if(p[0] == 0 && p[1] == 0) break;                       // end of the listing ?
 		}
 	}
 }

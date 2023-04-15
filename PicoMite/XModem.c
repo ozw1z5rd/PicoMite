@@ -62,15 +62,19 @@ void cmd_xmodem(void) {
             ClearSavedVars();                                       // clear any saved variables
             SaveProgramToFlash(buf, true);
         } else {
+            int nbrlines = 0;
             // we must copy program memory into RAM expanding tokens as we go
             fromp  = ProgMemory;
             p = buf;                                                // the RAM buffer
             while(1) {
                 if(*fromp == T_NEWLINE) {
                     fromp = llist(p, fromp);                        // expand the line into the buffer
-                    p += strlen(p);
-                    if(p - buf + 40 > EDIT_BUFFER_SIZE) error("Not enough memory");
-                    *p++ = '\n'; *p = 0;                            // terminate that line
+                    nbrlines++;
+                    if(!(nbrlines==1 && p[0]=='\'' && p[1]=='#')){
+                        p += strlen(p);
+                        if(p - buf + 40 > EDIT_BUFFER_SIZE) error("Not enough memory");
+                        *p++ = '\n'; *p = 0;                            // terminate that line
+                    }
                 }
                 if(fromp[0] == 0 || fromp[0] == 0xff) break;        // finally, is it the end of the program?
             }

@@ -2955,6 +2955,13 @@ void fun_info(void){
             CtoM(sret);
             targ=T_STR;
             return;
+        } else if(checkstring(ep, "CURRENT")){
+            if(ProgMemory[0]==1 && ProgMemory[1]==39 && ProgMemory[2]==35){
+                strcpy(sret,&ProgMemory[3]);
+            } else strcpy(sret,"NONE");
+            CtoM(sret);
+            targ=T_STR;
+            return;
         } else error("Syntax");
     }  else if(*ep=='d' || *ep=='D'){
         if(checkstring(ep, "DEVICE")){
@@ -3315,6 +3322,17 @@ void fun_info(void){
         } else if(checkstring(ep, "PS2")){
             iret = (int64_t)(uint32_t)PS2code;
             targ = T_INT;
+            return;
+        } else if(checkstring(ep, "PATH")){
+            if(ProgMemory[0]==1 && ProgMemory[1]==39 && ProgMemory[2]==35){
+                strcpy(sret,&ProgMemory[3]);
+                for(int i=strlen(sret)-1;i>0;i--){
+                    if(sret[i]!='/')sret[i]=0;
+                    else break;
+                }
+            } else strcpy(sret,"NONE");
+            CtoM(sret);
+            targ=T_STR;
             return;
         } else error("Syntax");
     } else if(*ep=='s' || *ep=='S'){
