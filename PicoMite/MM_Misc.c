@@ -1677,8 +1677,10 @@ void printoptions(void){
     }
     if(Option.SYSTEM_I2C_SDA){
         PO("SYSTEM I2C");
-        MMPrintString((char *)PinDef[Option.SYSTEM_I2C_SDA].pinname);MMputchar(',',1);;
-        MMPrintString((char *)PinDef[Option.SYSTEM_I2C_SCL].pinname);MMPrintString("\r\n");
+        MMPrintString((char *)PinDef[Option.SYSTEM_I2C_SDA].pinname);MMputchar(',',1);
+        MMPrintString((char *)PinDef[Option.SYSTEM_I2C_SCL].pinname);
+        if(Option.SYSTEM_I2C_SLOW)MMPrintString(", SLOW\r\n");
+        else PRet();
     }
     if(Option.Autorun>0 && Option.Autorun<=MAXFLASHSLOTS) PO2Int("AUTORUN", Option.Autorun);
     if(Option.Autorun==MAXFLASHSLOTS+1)PO2Str("AUTORUN", "ON");
@@ -2627,7 +2629,7 @@ void cmd_option(void) {
             SoftReset();
             return;                                // this will restart the processor ? only works when not in debug
         }
-    	getargs(&tp,3,",");
+    	getargs(&tp,5,",");
    	    if(CurrentLinePtr) error("Invalid in a program");
          if(argc!=3)error("Syntax");
         if(Option.SYSTEM_I2C_SCL)error("I2C already configured");
@@ -2645,6 +2647,11 @@ void cmd_option(void) {
         if(PinDef[pin1].mode & I2C0SDA && PinDef[pin2].mode & I2C0SCL)channel=0;
         if(PinDef[pin1].mode & I2C1SDA && PinDef[pin2].mode & I2C1SCL)channel=1;
         if(channel==-1)error("Invalid I2C pins");
+        if(argc==5){
+            if(checkstring(argv[4], "SLOW"))Option.SYSTEM_I2C_SLOW=1;
+            else if(checkstring(argv[4], "FAST"))Option.SYSTEM_I2C_SLOW=0;
+            else error("Syntax");
+        }
         Option.SYSTEM_I2C_SDA=pin1;
         Option.SYSTEM_I2C_SCL=pin2;
         SaveOptions();
@@ -3219,7 +3226,9 @@ void fun_info(void){
 		} else if(checkstring(tp, "FLASH SIZE")){
             uint8_t txbuf[4] = {0x9f};
             uint8_t rxbuf[4] = {0};
+            disable_interrupts();
             flash_do_cmd(txbuf, rxbuf, 4);
+            enable_interrupts();
             iret= 1 << rxbuf[3];
 			targ=T_INT;
 			return;
@@ -3828,7 +3837,11 @@ int checkdetailinterrupts(void) {
             }
         }
 #else
+#ifdef PICOMITEVGA
         PIO pioinuse=pio1;
+#else
+		PIO pioinuse=pio0;
+#endif
         for(int sm=0;sm<4;sm++){
             int TXlevel=((pioinuse->flevel)>>(sm*4)) & 0xf;
             int RXlevel=((pioinuse->flevel)>>(sm*4+4)) & 0xf;
@@ -3848,6 +3861,27 @@ int checkdetailinterrupts(void) {
         }
 #endif
     }
+    if(DMAinterruptRX){
+        if(!dma_channel_is_busy(dma_rx_chan)){
+            PIO pio = (dma_rx_pio ? pio1: pio0);
+            intaddr = (unsigned char *)DMAinterruptRX;
+            DMAinterruptRX=NULL;
+            pio_sm_set_enabled(pio, dma_rx_sm, false);
+            goto GotAnInterrupt;
+        }
+    }
+    if(DMAinterruptTX){
+        if(!dma_channel_is_busy(dma_tx_chan)){
+            PIO pio = (dma_tx_pio ? pio1: pio0);
+            if((pio->flevel>>(dma_tx_sm*8) & 0xf)==0){
+                intaddr = (unsigned char *)DMAinterruptTX;
+                DMAinterruptTX=NULL;
+                pio_sm_set_enabled(pio, dma_tx_sm, false);
+                goto GotAnInterrupt;
+            }
+        }
+    }
+
 #ifdef PICOMITE
     if(Ctrl!=NULL){
         if(gui_int_down && GuiIntDownVector) {                          // interrupt on pen down
@@ -3870,26 +3904,6 @@ int checkdetailinterrupts(void) {
         goto GotAnInterrupt;
     }
 #endif
-    if(DMAinterruptRX){
-        if(!dma_channel_is_busy(dma_rx_chan)){
-            PIO pio = (dma_rx_pio ? pio1: pio0);
-            intaddr = (unsigned char *)DMAinterruptRX;
-            DMAinterruptRX=NULL;
-            pio_sm_set_enabled(pio, dma_rx_sm, false);
-            goto GotAnInterrupt;
-        }
-    }
-    if(DMAinterruptTX){
-        if(!dma_channel_is_busy(dma_tx_chan)){
-            PIO pio = (dma_tx_pio ? pio1: pio0);
-            if((pio->flevel>>(dma_tx_sm*8) & 0xf)==0){
-                intaddr = (unsigned char *)DMAinterruptTX;
-                DMAinterruptTX=NULL;
-                pio_sm_set_enabled(pio, dma_tx_sm, false);
-                goto GotAnInterrupt;
-            }
-        }
-    }
 #ifdef PICOMITEWEB
     if(TCPreceived && TCPreceiveInterrupt){
         intaddr = TCPreceiveInterrupt;                                   // get a pointer to the interrupt routine

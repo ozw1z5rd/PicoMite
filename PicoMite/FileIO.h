@@ -149,7 +149,7 @@ struct option_s {
     unsigned int LIBRARY_FLASH_SIZE; // 4=140
     unsigned char AUDIO_CLK_PIN;
     unsigned char AUDIO_MOSI_PIN;
-    unsigned char blank;
+    unsigned char SYSTEM_I2C_SLOW;
     unsigned char AUDIO_CS_PIN;
     unsigned char x[112]; //116=256
     unsigned char F1key[MAXKEYLEN]; //204

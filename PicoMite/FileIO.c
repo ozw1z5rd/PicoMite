@@ -3547,8 +3547,10 @@ void ResetOptions(void)
     Option.repeat = 0b101100;
     uint8_t txbuf[4] = {0x9f};
     uint8_t rxbuf[4] = {0};
+    disable_interrupts();
     flash_do_cmd(txbuf, rxbuf, 4);
     Option.FlashSize= 1 << rxbuf[3];
+    enable_interrupts();
     SaveOptions();
     uSec(250000);
 }

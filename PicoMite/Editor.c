@@ -220,7 +220,7 @@ void MarkMode(unsigned char *cb, unsigned char *buf);
 void PositionCursor(unsigned char *curp);
 extern void setterminal(void);
 
-#define MAXCLIP 8192
+#define MAXCLIP 512
 // edit command:
 //  EDIT              Will run the full screen editor on the current program memory, if run after an error will place the cursor on the error line
 void cmd_edit(void) {
@@ -307,7 +307,6 @@ void cmd_edit(void) {
     }
     m_alloc(M_VAR);                                                 //clean up clipboard usage
     FullScreenEditor(x,y);
-    m_alloc(M_VAR);                                                 //clean up clipboard usage
     memset(tknbuf, 0, STRINGSIZE);                                  // zero this so that nextstmt is pointing to the end of program
     MMCharPos = 0;
 }
@@ -316,7 +315,7 @@ void cmd_edit(void) {
 
 void FullScreenEditor(int xx, int yy) {
   int c, i;
-  unsigned char *buf, *clipboard;
+  unsigned char buf[MAXCLIP+2], clipboard[MAXCLIP+2];
   unsigned char *p, *tp, BreakKeySave;
 #ifdef PICOMITEVGA
   int OptionY_TILESave;
@@ -334,8 +333,6 @@ void FullScreenEditor(int xx, int yy) {
   drawstatusline = true;
   unsigned char lastkey = 0;
   int y, statuscount;
-  clipboard=(char *)vartbl;
-  buf=clipboard + MAXCLIP;
   clipboard[0] = 0;
   buf[0]=0;
   insert = true;

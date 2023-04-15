@@ -131,7 +131,7 @@ void* my_realloc(void* p, size_t sz, void* pUserData)
 }
 void my_free(void* p, void* pUserData)
 {
-	FreeMemorySafe((void **)p);
+	FreeMemory((void *)p);
 	p=NULL;
 }
 //*************************************************************************************

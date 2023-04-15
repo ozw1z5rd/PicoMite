@@ -126,11 +126,24 @@ int calcsideanddelay(char *p, int sidepins, int maxdelaybits){
         char *pp;
         if((pp=fstrstr(p,"side "))){
                 pp+=5;
-                char *ppp=pp;
-                while(*ppp>='0' && *ppp<='9' && *ppp){ppp++;}
-                if(*ppp)*ppp=',';
-                data=(getint(pp,0,(1<<(sidepins-sideopt)))<<(8+maxdelaybits));
+                skipspace(pp);
+                char *ss=pp;
+                char save;
+                if((*ss>='0' && *ss<='9') || *ss=='&' ){
+                        char *ppp=ss;
+                        if(*ss=='&'){
+                                if(!(toupper(ss[1])=='B' || toupper(ss[1])=='H' || toupper(ss[1])=='O')) error("Syntax");
+                                ppp+=2;
+                        } 
+                        while(*ppp>='0' && *ppp<='9' && *ppp){ppp++;}
+                        if(*ppp){
+                                save=*ppp;
+                                *ppp=',';
+                        }
+                data=(getint(ss,0,(1<<(sidepins-sideopt)))<<(8+maxdelaybits));
                 if(sideopt)data|=0x1000;
+                *ppp=save;
+                } else error("Syntax");
         }
         if((pp=fstrstr(p,"["))){
                 pp++;
@@ -1133,54 +1146,58 @@ void fun_pio(void){
     unsigned char *tp;
     tp = checkstring(ep, "PINCTRL");
     if(tp){
+        int64_t myret=0;
         getargs(&tp,13,",");
         if(argc<3)error("Syntax");
-        iret=(getint(argv[0],0,5)<<29); // no of side set pins
-        if(argc>1 && *argv[2])iret|=(getint(argv[2],0,5)<<26); // no of set pins
-        if(argc>3 && *argv[4])iret|=(getint(argv[4],0,29)<<20); // no of OUT pins
+        myret=(getint(argv[0],0,5)<<29); // no of side set pins
+        if(argc>1 && *argv[2])myret|=(getint(argv[2],0,5)<<26); // no of set pins
+        if(argc>3 && *argv[4])myret|=(getint(argv[4],0,29)<<20); // no of OUT pins
         if(argc>5 && *argv[6]){
             if(!toupper(*argv[6])=='G')error("Syntax");
             argv[6]++;
             if(!toupper(*argv[6])=='P')error("Syntax");
             argv[6]++;
-            iret|=(getint(argv[6],0,29)<<15); // IN base
+            myret|=(getint(argv[6],0,29)<<15); // IN base
         }
         if(argc>7 && *argv[8]){
             if(!toupper(*argv[8])=='G')error("Syntax");
             argv[8]++;
             if(!toupper(*argv[8])=='P')error("Syntax");
             argv[8]++;
-            iret|=(getint(argv[8],0,29)<<10); // SIDE SET base
+            myret|=(getint(argv[8],0,29)<<10); // SIDE SET base
         }
         if(argc>9 && *argv[10]){
             if(!toupper(*argv[10])=='G')error("Syntax");
             argv[10]++;
             if(!toupper(*argv[10])=='P')error("Syntax");
             argv[10]++;
-            iret|=(getint(argv[10],0,29)<<5); // SET base
+            myret|=(getint(argv[10],0,29)<<5); // SET base
         }
         if(argc==13){
             if(!toupper(*argv[12])=='G')error("Syntax");
             argv[12]++;
             if(!toupper(*argv[12])=='P')error("Syntax");
             argv[12]++;
-            iret|=getint(argv[12],0,29); //OUT base
+            myret|=getint(argv[12],0,29); //OUT base
         }
+        iret=myret;
         targ=T_INT;
         return;
     }
     tp = checkstring(ep, "EXECCTRL");
     if(tp){
+        int64_t myret=0;
         getargs(&tp,9,",");
         if(!(argc==5 || argc==7 || argc==9))error("Syntax");
         if(!toupper(*argv[0])=='G')error("Syntax");
         argv[0]++;
         if(!toupper(*argv[0])=='P')error("Syntax");
         argv[0]++;
-        iret=(getint(argv[0],0,29)<<24); // jmp pin
-        iret |= pio_sm_calc_wrap(getint(argv[2],0,31), getint(argv[4],0,31));
-        if(argc>=7 && *argv[6])iret|=(getint(argv[6],0,1)<<29); //SIDE_PINDIR
-        if(argc==9)iret|=(getint(argv[8],0,1)<<30); // SIDE_EN
+        myret=(getint(argv[0],0,29)<<24); // jmp pin
+        myret |= pio_sm_calc_wrap(getint(argv[2],0,31), getint(argv[4],0,31));
+        if(argc>=7 && *argv[6])myret|=(getint(argv[6],0,1)<<29); //SIDE_PINDIR
+        if(argc==9)myret|=(getint(argv[8],0,1)<<30); // SIDE_EN
+        iret=myret;
         targ=T_INT;
         return;
     }
@@ -1200,14 +1217,16 @@ void fun_pio(void){
     if(tp){
         getargs(&tp,15,",");
         if(argc<1)error("Syntax");
-        iret=(getint(argv[0],0,31)<<20); // push threshold
-        iret|=(getint(argv[2],0,31)<<25); // pull threshold
-        if(argc>3 && *argv[4])iret|=(getint(argv[4],0,1)<<16); // autopush
-        if(argc>5 && *argv[6])iret|=(getint(argv[6],0,1)<<17); // autopull
-        if(argc>7 && *argv[8])iret|=(getint(argv[8],0,1)<<18); // IN_SHIFTDIR
-        if(argc>9 && *argv[10])iret|=(getint(argv[10],0,1)<<19); // OUT_SHIFTDIR
-        if(argc>11 && *argv[12])iret|=(getint(argv[12],0,1)<<30); // FJOIN_RX
-        if(argc>13 && *argv[14])iret|=(getint(argv[14],0,1)<<31); // FJOIN_TX
+        int64_t myret=0;
+        myret=(getint(argv[0],0,31)<<20); // push threshold
+        myret|=(getint(argv[2],0,31)<<25); // pull threshold
+        if(argc>3 && *argv[4])myret|=(getint(argv[4],0,1)<<16); // autopush
+        if(argc>5 && *argv[6])myret|=(getint(argv[6],0,1)<<17); // autopull
+        if(argc>7 && *argv[8])myret|=(getint(argv[8],0,1)<<18); // IN_SHIFTDIR
+        if(argc>9 && *argv[10])myret|=(getint(argv[10],0,1)<<19); // OUT_SHIFTDIR
+        if(argc>11 && *argv[12])myret|=(getint(argv[12],0,1)<<30); // FJOIN_RX
+        if(argc>13 && *argv[14])myret|=(getint(argv[14],0,1)<<31); // FJOIN_TX
+        iret=myret;
         targ=T_INT;
         return;
     }
@@ -1310,6 +1329,7 @@ static int scan_result(void *env, const cyw43_ev_scan_result_t *result) {
         if(scan_dest!=NULL){
                 if(strlen(((char *)&scan_dest[8]) + strlen(buff)) > scan_size){
                         FreeMemorySafe((void **)&scan_dups);
+                        scan_dest=NULL;
                         error("Array too small");
                 }
                 if(scan_dest[8]==0)strcpy(&scan_dest[8],buff);
@@ -1348,7 +1368,7 @@ void cmd_web(void){
                                 if(vartbl[VarIndex].dims[0] <= 0) {		// Not an array
                                         error("Argument 1 must be integer array");
                                 }
-                                scan_size=(vartbl[VarIndex].dims[1]-OptionBase)*8;
+                                scan_size=(vartbl[VarIndex].dims[0]-OptionBase)*8;
                                 scan_dest = (char *)ptr1;
                                 scan_dest[8]=0;
                         } else error("Argument 1 must be integer array");

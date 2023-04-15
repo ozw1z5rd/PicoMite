@@ -593,20 +593,19 @@ void __not_in_flash_func(ow_writeBit)(int pin, int bit) {
 
 // note that the uSec() function will not time short delays at low clock speeds
 // so we directly use the core timer for short delays
-int ow_readBit(int pin) {
-	int result;
-
-	PinSetBit(pin, LATCLR);											// drive pin low
+int ow_readBit(int pin) { 
+    int result;
+    PinSetBit(pin, TRISCLR);                                        // set as output *** JH
+    PinSetBit(pin, LATCLR);                                         // drive pin low
     uSec(3);
-	PinSetBit(pin, TRISSET);										// set as input
-    PinSetBit(pin, LATSET);											// release the bus
+    PinSetBit(pin, TRISSET);                                        // set as input
+    PinSetBit(pin, LATSET);                                         // release the bus
     uSec(10);
-    result = PinRead(pin);											// read pin
-	PinSetBit(pin, TRISCLR);										// set as output
-	uSec(53);														// wait 56uSec
-	return result;
+    result = PinRead(pin);                                          // read pin 
+    // PinSetBit(pin, TRISCLR);
+    uSec(53);                                                       // wait 56uSec
+    return result;
 }
-
 
 #ifdef INCLUDE_1WIRE_SEARCH
 
