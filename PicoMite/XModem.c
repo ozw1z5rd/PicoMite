@@ -55,7 +55,14 @@ void cmd_xmodem(void) {
         if(CurrentLinePtr) error("Invalid in a program");
         if(Option.DISPLAY_TYPE>=VIRTUAL && WriteBuf)FreeMemorySafe((void **)&WriteBuf);
         if(rcv)ClearProgram();                                             // we need all the RAM
-        else ClearVars(0);
+        else {
+            if(FrameBuf)FreeMemory(FrameBuf);
+            FrameBuf=NULL;
+            if(LayerBuf)FreeMemory(FrameBuf);
+            LayerBuf=NULL;
+            CloseAudio(1);
+            ClearVars(0);
+        }
         buf = GetTempMemory(EDIT_BUFFER_SIZE);
         if(rcv) {
             xmodemReceive(buf, EDIT_BUFFER_SIZE, 0, crunch);

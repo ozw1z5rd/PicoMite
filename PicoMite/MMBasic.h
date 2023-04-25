@@ -193,7 +193,7 @@ extern int ProgMemSize;
 
 extern int NextData;                            // used to track the next item to read in DATA & READ stmts
 extern unsigned char *NextDataLine;                      // used to track the next line to read in DATA & READ stmts
-extern unsigned char *CurrentLinePtr;                    // pointer to the current line being executed
+extern unsigned char *CurrentLinePtr,*SaveCurrentLinePtr;                    // pointer to the current line being executed
 extern unsigned char *ContinuePoint;                     // Where to continue from if using the continue statement
 extern int ProgramChanged;                                                 // true if the program in memory has been changed and not saved
 

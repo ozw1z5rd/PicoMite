@@ -180,6 +180,6 @@ void fun_format(void);
 	extern int ExistsFile(char *p);
 	extern int ExistsDir(char *p, char *q, int *filesystem);
 	extern MMFLOAT optionangle;
-
+	extern int optionfastaudio;
 #endif
 #endif

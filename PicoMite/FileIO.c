@@ -662,7 +662,7 @@ unsigned char pjpeg_need_bytes_callback(unsigned char *pBuf, unsigned char buf_s
     pCallback_data;
 
     n = min(g_nInFileSize - g_nInFileOfs, buf_size);
-    if(FatFSFileSystem)  f_read(FileTable[jpgfnbr].fptr, pBuf, n, &n_read);
+    if(filesource[jpgfnbr]!=FLASHFILE)  f_read(FileTable[jpgfnbr].fptr, pBuf, n, &n_read);
     else n_read=lfs_file_read(&lfs, FileTable[jpgfnbr].lfsptr, pBuf, n);
     if (n != n_read)
         return PJPG_STREAM_READ_ERROR;
@@ -716,7 +716,7 @@ void LoadJPGImage(unsigned char *p)
     if (!BasicFileOpen(p, jpgfnbr, FA_READ))
         return;
 
-    if(FatFSFileSystem)  g_nInFileSize = f_size(FileTable[jpgfnbr].fptr);
+    if(filesource[jpgfnbr]!=FLASHFILE)  g_nInFileSize = f_size(FileTable[jpgfnbr].fptr);
     else g_nInFileSize = lfs_file_size(&lfs,FileTable[jpgfnbr].lfsptr);
     status = pjpeg_decode_init(&image_info, pjpeg_need_bytes_callback, NULL, 0);
 
@@ -935,7 +935,7 @@ void fun_dir(void)
                 strcpy(fnod.fname,lfs_info_dir.name);
                 if(FSerror==0)                    
                     break;
-                if (lfs_info_dir.type==LFS_TYPE_DIR && pattern_matching(pp, lfs_info_dir.name, 0, 0)){
+                if (lfs_info_dir.type==LFS_TYPE_DIR && pattern_matching(pp, lfs_info_dir.name, 0, 0) && !(strcmp(lfs_info_dir.name,".")==0 || strcmp(lfs_info_dir.name,"..")==0 )){
                     break;
                 }
             }
@@ -977,7 +977,7 @@ void fun_dir(void)
                 strcpy(fnod.fname,lfs_info_dir.name);
                 if(FSerror==0)                    
                     break;
-                if (lfs_info_dir.type & (LFS_TYPE_REG |  LFS_TYPE_DIR) && pattern_matching(pp, lfs_info_dir.name, 0, 0)){
+                if (lfs_info_dir.type & (LFS_TYPE_REG |  LFS_TYPE_DIR) && pattern_matching(pp, lfs_info_dir.name, 0, 0) && !(strcmp(lfs_info_dir.name,".")==0 || strcmp(lfs_info_dir.name,"..")==0 )){
                     break;
                 }
             }
@@ -1863,7 +1863,7 @@ int FileEOF(int fnbr)
     if(filesource[fnbr]==FATFSFILE){
         if (!InitSDCard())
             return 0;
-        if (buffpointer[fnbr] <= bw[fnbr] - 1)
+        if (buffpointer[fnbr] <= bw[fnbr] - 1 && !(fmode[fnbr] & FA_WRITE))
             i = 0;
         else
         {
@@ -2260,22 +2260,20 @@ int drivecheck(char *p, int *waste){
         if(*p=='a' || *p=='A') {
             *waste=2;
             return FLASHFILE;
-        }
-        if(*p=='b' || *p=='B') {
+        } else if(*p=='b' || *p=='B') {
             *waste=2;
              return FATFSFILE;
-        }
+        } else error("Invalid disk");
         return FatFSFileSystem+1;
     } else  {
         if(!(p[1]==':' && (p[2]=='/'))) return FatFSFileSystem+1;
         if(*p=='a' || *p=='A') {
             *waste=2;
             return FLASHFILE;
-        }
-        if(*p=='b' || *p=='B') {
+        } else if(*p=='b' || *p=='B') {
             *waste=2;
              return FATFSFILE;
-        }
+        } else error("Invalid disk");
         return FatFSFileSystem+1;
     }
 }
@@ -3410,8 +3408,13 @@ void fun_lof(void)
             error("File number is not open");
         if (FileTable[fnbr].com > MAXCOMPORTS)
         {
-            if(filesource[fnbr]==FLASHFILE) iret = FileTable[fnbr].lfsptr->ctz.size;
-            else iret = f_size(FileTable[fnbr].fptr);
+            if(filesource[fnbr]==FATFSFILE){
+                f_sync(FileTable[fnbr].fptr);
+                iret = f_size(FileTable[fnbr].fptr);
+            } else {
+                lfs_file_sync(&lfs, FileTable[fnbr].lfsptr);
+                iret = FileTable[fnbr].lfsptr->ctz.size;
+            }
         }
         else
             iret = (TX_BUFFER_SIZE - SerialTxStatus(FileTable[fnbr].com));

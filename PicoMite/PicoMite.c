@@ -1827,7 +1827,7 @@ int main(){
     if(Option.CPU_Speed>200000)vreg_set_voltage(VREG_VOLTAGE_1_25);  // Std default @ boot is 1_10
     uSec(100);
     set_sys_clock_khz(Option.CPU_Speed, true);
-    PWM_FREQ=44100*(Option.CPU_Speed/126000);
+    PWM_FREQ=44100;
     pico_get_unique_board_id_string (id_out,12);
     clock_configure(
         clk_peri,

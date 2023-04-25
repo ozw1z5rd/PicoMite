@@ -99,6 +99,7 @@ extern volatile int mono;
 extern volatile int audiorepeat;
 extern int PWM_FREQ;
 extern void (*AudioOutput)(uint16_t left, uint16_t right);
+extern volatile int monosound[MAXSOUNDS];
 typedef struct sa_flist {
     char fn[FF_MAX_LFN];
 } a_flist;

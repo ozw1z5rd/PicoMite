@@ -106,6 +106,7 @@ volatile float sound_PhaseAC_left[MAXSOUNDS], sound_PhaseAC_right[MAXSOUNDS];
 volatile float sound_PhaseM_left[MAXSOUNDS], sound_PhaseM_right[MAXSOUNDS];
 volatile unsigned short * sound_mode_left[MAXSOUNDS];
 volatile unsigned short * sound_mode_right[MAXSOUNDS];
+volatile int monosound[MAXSOUNDS]={0};
 volatile int audiorepeat=1;
 volatile int mono;
 int myData;
@@ -1134,14 +1135,14 @@ void wavcallback(char *p){
     allocationCallbacks.onRealloc = my_realloc;
     allocationCallbacks.onFree    = my_free;
     drwav_init(&mywav,(drwav_read_proc)onRead, (drwav_seek_proc)onSeek, NULL, &allocationCallbacks);
-    if(mywav.sampleRate>48000*(PWM_FREQ/44100))error("Max %KHz sample rate",48000*(PWM_FREQ/44100));
+    if(mywav.sampleRate>44100*((int)(Option.CPU_Speed/126000)))error("Max %KHz sample rate",44100*((int)(Option.CPU_Speed/126000)));
 //        PInt(mywav.channels);MMPrintString(" Channels\r\n");
 //        PInt(mywav.bitsPerSample);MMPrintString(" Bits per sample\r\n");
 //        PInt(mywav.sampleRate);MMPrintString(" Sample rate\r\n");
 	if(Option.AUDIO_L){
 		audiorepeat=1;
 		actualrate=mywav.sampleRate;
-		while(actualrate<PWM_FREQ && actualrate<=64000){
+		while(actualrate<PWM_FREQ){
 			actualrate +=mywav.sampleRate;
 			audiorepeat++;
 		}
@@ -1183,14 +1184,14 @@ void flaccallback(char *p){
     allocationCallbacks.onRealloc = my_realloc;
     allocationCallbacks.onFree    = my_free;
     myflac=drflac_open((drflac_read_proc)onRead, (drflac_seek_proc)onSeek, NULL, &allocationCallbacks);
-    if(myflac->sampleRate>44100*(PWM_FREQ/44100))error("Max %KHz sample rate",44100*(PWM_FREQ/44100));
+    if(myflac->sampleRate>44100*((int)(Option.CPU_Speed/126000)))error("Max %KHz sample rate",44100*((int)(Option.CPU_Speed/126000)));
 //	PInt(myflac->channels);MMPrintString(" Channels\r\n");
 //	PInt(myflac->bitsPerSample);MMPrintString(" Bits per sample\r\n");
 //	PInt(myflac->sampleRate);MMPrintString(" Sample rate\r\n");
 	if(Option.AUDIO_L){
 		audiorepeat=1;
 		actualrate=myflac->sampleRate;
-		while(actualrate<PWM_FREQ && actualrate<=64000){
+		while(actualrate<PWM_FREQ){
 			actualrate +=myflac->sampleRate;
 			audiorepeat++;
 		}
@@ -1218,33 +1219,53 @@ void flaccallback(char *p){
 	pwm_set_irq_enabled(AUDIO_SLICE, true);
 }
 void rampvolume(int l, int r, int channel, int target){
-	if(l){
-		if(sound_v_left[channel]>target){
-			for(int i=sound_v_left[channel]-1;i>=target;i--){
-				sound_v_left[channel]=i;
-				uSec(48);
+	if(optionfastaudio){
+		if(l)sound_v_left[channel]=target;
+		if(r)sound_v_right[channel]=target;
+	} else {
+		int ramptime=1000000/PWM_FREQ+2;
+		if(l && r){
+			if(sound_v_left[channel]>target){
+				for(int i=sound_v_left[channel]-1;i>=target;i--){
+					sound_v_left[channel]=i;
+					sound_v_right[channel]=i;
+					uSec(ramptime);
+				}
+			} else {
+				for(int i=sound_v_left[channel]+1;i<=target;i++){
+					sound_v_left[channel]=i;
+					sound_v_right[channel]=i;
+					uSec(ramptime);
+				}
 			}
-		} else {
-			for(int i=sound_v_left[channel]+1;i<=target;i++){
-				sound_v_left[channel]=i;
-				uSec(48);
+		} else if(l){
+			if(sound_v_left[channel]>target){
+				for(int i=sound_v_left[channel]-1;i>=target;i--){
+					sound_v_left[channel]=i;
+					uSec(ramptime);
+				}
+			} else {
+				for(int i=sound_v_left[channel]+1;i<=target;i++){
+					sound_v_left[channel]=i;
+					uSec(ramptime);
+				}
 			}
-		}
-	}
-	if(r){
-		if(sound_v_right[channel]>target){
-			for(int i=sound_v_right[channel]-1;i>=target;i--){
-				sound_v_right[channel]=i;
-				uSec(48);
-			}
-		} else {
-			for(int i=sound_v_right[channel]+1;i<=target;i++){
-				sound_v_right[channel]=i;
-				uSec(48);
+		} else if(r){
+			if(sound_v_right[channel]>target){
+				for(int i=sound_v_right[channel]-1;i>=target;i--){
+					sound_v_right[channel]=i;
+					uSec(ramptime);
+				}
+			} else {
+				for(int i=sound_v_right[channel]+1;i<=target;i++){
+					sound_v_right[channel]=i;
+					uSec(ramptime);
+				}
 			}
 		}
 	}
 }
+
 void setnoise(void){
     uint32_t noise;
     int i;
@@ -1360,12 +1381,13 @@ void cmd_play(void) {
         // get the command line arguments
         getargs(&tp, 7,",");                                       // this MUST be the first executable line in the function
         if(!(argc == 3 || argc == 5 || argc == 7)) error("Argument count");
-
+		mono=0;
 //        if(CurrentlyPlaying == P_TONE || CurrentlyPlaying == P_PAUSE_TONE) CurrentlyPlaying = P_PAUSE_TONE;//StopAudio();                 // stop the current tone
         if(!(CurrentlyPlaying == P_NOTHING || CurrentlyPlaying == P_TONE || CurrentlyPlaying == P_PAUSE_TONE)) error("Sound output in use");
         
         f_left = getnumber(argv[0]);                         // get the arguments
         f_right = getnumber(argv[2]);
+		if(f_left==f_right)mono=1;
         if(f_left<0.0 || f_left>22050.0)error("Valid is 0Hz to 20KHz");
         if(f_right<0.0 || f_right>22050.0)error("Valid is 0Hz to 20KHz");
         if(argc > 4) {
@@ -1400,7 +1422,7 @@ void cmd_play(void) {
     }
     if((tp = checkstring(cmdline, "SOUND"))) {//PLAY SOUND channel, type, position, frequency, volume
         float f_in, PhaseM;
-        int channel, mono=0, left=0, right=0, lset=0, rset=0, lastleftv, lastrightv,local_sound_v_left,local_sound_v_right;
+        int channel, left=0, right=0, lset=0, rset=0, lastleftv, lastrightv,local_sound_v_left,local_sound_v_right;
 		char *p;
         uint16_t *lastleft=NULL, *lastright=NULL, *local_sound_mode_left=NULL, *local_sound_mode_right=NULL;
         // get the command line arguments
@@ -1409,6 +1431,7 @@ void cmd_play(void) {
         if(checkstring(argv[4],"O")==NULL && argc == 5) error("Argument count");
 		WAV_fnbr=0;
         channel=getint(argv[0],1,MAXSOUNDS)-1;
+		monosound[channel]=0;
         lastleft=local_sound_mode_left=(uint16_t *)sound_mode_left[channel];
         lastright=local_sound_mode_right=(uint16_t *)sound_mode_right[channel];
 		lastleftv=sound_v_left[channel];
@@ -1420,19 +1443,21 @@ void cmd_play(void) {
         } else if(checkstring(argv[2],"B")!=NULL){
         	right=1;
         	left=1;
+			monosound[channel]=1;
         } else if(checkstring(argv[2],"M")!=NULL){
         	right=1;
         	left=1;
-			mono=1;
+			monosound[channel]=2;
        } else {
 			p=getCstring(argv[2]);
 			if(strcasecmp(p,"B")==0){
 				right=1;
 				left=1;
+				monosound[channel]=1;
 			} else if(strcasecmp(p,"M")==0){
 				right=1;
 				left=1;
-				mono=1;
+				monosound[channel]=2;
 			} else if (strcasecmp(p,"L")==0){
 				left=1;
 			} else if (strcasecmp(p,"R")==0){
@@ -1517,14 +1542,13 @@ void cmd_play(void) {
             else local_sound_v_right=25;
 			local_sound_v_right=local_sound_v_right*41/(100/MAXSOUNDS);
         }
-		if(left)rampvolume(1,0,channel,local_sound_v_left);
-		if(right)rampvolume(0,1,channel,local_sound_v_right);
+		if(left && right && local_sound_v_left==local_sound_v_right && sound_v_left[channel]==sound_v_right[channel])rampvolume(1,1,channel,local_sound_v_left);
+		else {
+			if(left)rampvolume(1,0,channel,local_sound_v_left);
+			if(right)rampvolume(0,1,channel,local_sound_v_right);
+		}
 		if(left)sound_mode_left[channel]=local_sound_mode_left;
 		if(right)sound_mode_right[channel]=local_sound_mode_right;
-		if(mono){
-			sound_PhaseAC_right[channel]=(sound_PhaseAC_left[channel]+2048.0);
-			if(sound_PhaseAC_right[channel]>=4096.0)sound_PhaseAC_right[channel]-=4096.0;
-		}
         if(!(CurrentlyPlaying == P_SOUND)){
 			setrate(PWM_FREQ);
     		pwm_set_irq_enabled(AUDIO_SLICE, true);
@@ -1647,6 +1671,7 @@ Stop playing the music or tone
 void StopAudio(void) {
 
 	if(CurrentlyPlaying != P_NOTHING ) {
+		int ramptime=1000000/PWM_FREQ+2;
 		CurrentlyPlaying = P_STOP;
 		int ll,l=pwm_hw->slice[AUDIO_SLICE].cc >>16;
 		int rr,r=pwm_hw->slice[AUDIO_SLICE].cc & 0xFFFF;
@@ -1657,7 +1682,7 @@ void StopAudio(void) {
 			ll=m-l*i/50;
 			rr=m-r*i/50;
 			pwm_set_both_levels(AUDIO_SLICE,ll,rr);
-			uSec(48);
+			uSec(ramptime);
 		}
 		setrate(PWM_FREQ);
 		pwm_set_irq_enabled(AUDIO_SLICE, false);

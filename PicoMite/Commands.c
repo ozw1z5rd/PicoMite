@@ -79,7 +79,7 @@ void __not_in_flash_func(cmd_null)(void) {
 }
 
 void cmd_inc(void){
-	unsigned char *p;
+	unsigned char *p, *q;
     int vtype;
 	getargs(&cmdline,3,",");
 	if(argc==1){
@@ -96,7 +96,9 @@ void cmd_inc(void){
 		if(vartbl[VarIndex].type & T_CONST) error("Cannot change a constant");
         vtype = TypeMask(vartbl[VarIndex].type);
         if(vtype & T_STR){
-			Mstrcat(p, getstring(argv[2]));
+        	q=getstring(argv[2]);
+    		if(*p + *q > MAXSTRLEN) error("String too long");
+			Mstrcat(p, q);
         } else if(vtype & T_NBR){
         	 (*(MMFLOAT *)p) = (*(MMFLOAT *)p)+getnumber(argv[2]);
         } else if(vtype & T_INT){
@@ -451,26 +453,25 @@ void cmd_run(void) {
             break;
     }
 
-    // The memory allocated by getCstring() is not preserved across
-    // a call to FileLoadProgram() so we need to cache 'filename' and
-    // 'cmd_args' on the stack.
+// The memory allocated by getCstring() is not preserved across
+   // a call to FileLoadProgram() so we need to cache 'filename' and
+   // 'cmd_args' on the stack.
     unsigned char buf[MAXSTRLEN + 1];
     if (snprintf(buf, MAXSTRLEN + 1, "\"%s\",%s", filename, cmd_args) > MAXSTRLEN) {
         error("RUN command line too long");
     }
-    unsigned char *pcmd_args = buf + strlen(filename) + 2;
+    unsigned char *pcmd_args = buf + strlen(filename) + 3; // *** THW 16/4/23
 
     if (*filename && !FileLoadProgram(buf)) return;
 
     ClearRuntime();
-	WatchdogSet = false;
-//	PrepareProgram(true);
+    WatchdogSet = false;
     PrepareProgram(true);
 
     // Create a global constant MM.CMDLINE$ containing 'cmd_args'.
     void *ptr = findvar("MM.CMDLINE$", V_FIND | V_DIM_VAR | T_CONST);
     CtoM(pcmd_args);
-    memcpy(ptr, pcmd_args + 1, *pcmd_args);
+    memcpy(ptr, pcmd_args, *pcmd_args + 1); // *** THW 16/4/23
 
     IgnorePIN = false;
 	if(Option.LIBRARY_FLASH_SIZE == MAX_PROG_SIZE) ExecuteProgram(LibMemory );       // run anything that might be in the library
@@ -1401,8 +1402,15 @@ void cmd_error(void) {
 	unsigned char *s;
 	if(*cmdline && *cmdline != '\'') {
 		s = getCstring(cmdline);
-    	CurrentLinePtr = NULL;                                      // suppress printing the line that caused the issue
-		error(s);
+		char *p=GetTempMemory(STRINGSIZE);
+		strcpy(p,"[");
+		int ln=CountLines(CurrentLinePtr);
+		IntToStr(&p[1],ln,10);
+		SaveCurrentLinePtr=CurrentLinePtr;
+		CurrentLinePtr = NULL;                                      // suppress printing the line that caused the issue
+		strcat(p,"] ");
+		strcat(p,s);
+		error(p);
 	}
 	else
 		error("");

@@ -43,7 +43,7 @@ extern "C" {
 #define HEAPTOP 0x2003fc00
 #define HEAP_MEMORY_SIZE (80*1024) 
 #define MaxPcb 8
-#define MAX_CPU     264000
+#define MAX_CPU     378000
 #define MIN_CPU     64000
 #endif
 #ifdef PICOMITE

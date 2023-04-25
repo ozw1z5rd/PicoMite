@@ -226,7 +226,7 @@ unsigned char *ep;                                                           // 
 int cmdtoken;                                                       // Token number of the command
 unsigned char *cmdline;                                                      // Command line terminated with a zero unsigned char and trimmed of spaces
 unsigned char *nextstmt;                                                     // Pointer to the next statement to be executed.
-unsigned char *CurrentLinePtr;                                               // Pointer to the current line (used in error reporting)
+unsigned char *CurrentLinePtr, *SaveCurrentLinePtr;                                               // Pointer to the current line (used in error reporting)
 unsigned char *ContinuePoint;                                                // Where to continue from if using the continue statement
 
 extern int TraceOn;
@@ -1339,9 +1339,15 @@ unsigned char __not_in_flash_func(*getCstring)(unsigned char *p) {
 unsigned char __not_in_flash_func(*getFstring)(unsigned char *p) {
     unsigned char *tp;
     tp = GetTempMemory(STRINGSIZE);                                        // this will last for the life of the command
-    for(int i=1;i<=*p;i++)if(p[i]=='\\')p[i]='/';
     Mstrcpy(tp, getstring(p));                                      // get the string and save in a temp place
-    MtoC(tp);                                                       // convert to a C style string
+    for(int i=1;i<=*tp;i++)if(tp[i]=='\\')tp[i]='/';
+    if((toupper(tp[1])=='A' || toupper(tp[1])=='B') && tp[2]==':' && !(tp[3]=='/')){
+        memmove(&tp[4],&tp[3],tp[0]-2);
+        tp[3]='/';
+        tp[0]++;
+    }
+    MtoC(tp);
+    MMPrintString(tp);PRet();                                                       // convert to a C style string
     return tp;
 }
 
@@ -2663,8 +2669,24 @@ void error(char *msg, ...) {
         MMPrintString(p);
         MMPrintString("\r\n");
     }
+    char *q=NULL;
+    if(*MMErrMsg=='['){
+        q=MMErrMsg;
+        while((*q)!=' ') {
+            MMputchar(*q,0);
+            q++;
+        }
+        q++;
+        MMputchar(' ',0);
+    }
     MMPrintString("Error");
-    if(*MMErrMsg) {
+    if(q){
+        MMPrintString(" : ");
+        MMPrintString(q);
+        memmove(MMErrMsg,&MMErrMsg[(uint32_t)q-(uint32_t)MMErrMsg],strlen(q)+1);
+        StartEditPoint = SaveCurrentLinePtr;
+        StartEditChar = 0;
+    } else if(*MMErrMsg) {
         MMPrintString(" : ");
         MMPrintString(MMErrMsg);
     }
@@ -2966,6 +2988,7 @@ void ClearRuntime(void) {
     findlabel(NULL);                                                // clear the label cache
     OptionErrorSkip = 0;
 	optionangle=1.0;
+    optionfastaudio=0;
     MMerrno = 0;                                                    // clear the error flags
    *MMErrMsg = 0;
     InitHeap();

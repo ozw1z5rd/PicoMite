@@ -446,7 +446,8 @@ void DoHexOctBin(int base) {
     int j = 1;
 	getargs(&ep, 3, (unsigned char *)",");
 	i = (unsigned long long int )getinteger(argv[0]);                // get the number
-    if(argc == 3) j = getint(argv[2], 1, MAXSTRLEN);                // get the optional number of chars to return
+    if(argc == 3) j = getint(argv[2], 0, MAXSTRLEN);                // get the optional number of chars to return
+	if(j==0)j=1;
 	sret = GetTempMemory(STRINGSIZE);                                    // this will last for the life of the command
     IntToStrPad(sret, (signed long long int )i, '0', j, base);
 	CtoM(sret);
