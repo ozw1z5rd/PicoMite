@@ -343,23 +343,26 @@ int DoRtcI2C(int addr, unsigned char *buff) {
     return !mmI2Cvalue;
 }
 
-void CheckI2CKeyboard(int noerror){
+void CheckI2CKeyboard(int noerror, int read){
 	uint16_t buff;
 	int readover=0; 
 	static int ctrlheld=0;
-	while(readover==0){
+//	while(readover==0){
 		if(I2C0locked){
+			if(read==0){
 			I2C_Sendlen = 1;                                                // send one byte
 			I2C_Rcvlen = 0;
 			I2C_Status = 0;
 			I2C_Send_Buffer[0] = 9;                                           // the first register to read
 			if(!(DoRtcI2C(0x1F, NULL))) goto i2c_error_exit;
+			} else {
 			I2C_Rcvbuf_String = (char *)&buff;                                       // we want a string of bytes
 			I2C_Rcvbuf_Float = NULL;
 			I2C_Rcvbuf_Int = NULL;
 			I2C_Rcvlen = 2;                                                 // get 7 bytes
 			I2C_Sendlen = 0;
 			if(!DoRtcI2C(0x1F, (unsigned char *)&buff)) goto i2c_error_exit;
+			}
 		} else {
 			I2C2_Sendlen = 1;                                                // send one byte
 			I2C2_Rcvlen = 0;
@@ -373,6 +376,7 @@ void CheckI2CKeyboard(int noerror){
 			I2C2_Sendlen = 0;
 			if(!DoRtcI2C(0x1F, (unsigned char *)&buff)) goto i2c_error_exit;
 		}
+		uSec(1000);
 		if(buff){
 			if(buff==0x1203)ctrlheld=0;
 			else if(buff==0x1202) {
@@ -407,7 +411,7 @@ void CheckI2CKeyboard(int noerror){
 					}
 				}
 			}
-		} else readover=1;
+//		} else readover=1;
 	}
 	return;
 

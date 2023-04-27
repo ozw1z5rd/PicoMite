@@ -281,7 +281,7 @@ void cmd_memory(void) {
     	char *from=(char *)GetPeekAddr(argv[0]);
     	char *to=(char *)GetPokeAddr(argv[2]);
     	int n=getinteger(argv[4]);
-    	memcpy(to, from, n);
+    	memmove(to, from, n);
     	return;
     }
     tp = checkstring(cmdline, "SET");

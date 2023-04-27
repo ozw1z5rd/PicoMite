@@ -3059,7 +3059,6 @@ void fun_info(void){
             } else {
                 if(!InitSDCard()) {iret= -1; return;}
                 if(strcmp(q,"/")==0){ iret=-2; targ=T_INT; strcpy(MMErrMsg,FErrorMsg[4]); return;}
-                MMPrintString(q);PRet();
                 FSerror = f_stat(q, &fnod);
                 if((fnod.fattrib & AM_DIR)){ iret=-2; targ=T_INT; strcpy(MMErrMsg,FErrorMsg[4]); return;}
                 if(FSerror != FR_OK){ iret=-1; targ=T_INT; strcpy(MMErrMsg,FErrorMsg[4]); return;}

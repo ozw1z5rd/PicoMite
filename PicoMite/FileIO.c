@@ -342,7 +342,7 @@ int __not_in_flash_func(fs_flash_sync)(const struct lfs_config *c)
     return 0;
 }
 void cmd_disk(void){
-    char *p=getFstring(cmdline);
+    char *p=getCstring(cmdline);
     char *b=GetTempMemory(STRINGSIZE);
     for(int i=0;i<strlen(p);i++)b[i]=toupper(p[i]);
     if(strcmp(b, "A:/FORMAT")==0)  { 
@@ -1738,7 +1738,7 @@ int FileLoadProgram(unsigned char *fname)
     *p++='\n';
     while (!FileEOF(fnbr))
     { // while waiting for the end of file
-        if ((p - buf) >= EDIT_BUFFER_SIZE - 512)
+        if ((p - buf) >= EDIT_BUFFER_SIZE - 2048 - 512)
             error("Not enough memory");
         c = FileGetChar(fnbr) & 0x7f;
         if (isprint(c) || c == '\r' || c == '\n' || c == TAB)
@@ -2118,6 +2118,8 @@ int BasicFileOpen(char *fname, int fnbr, int mode)
             int dt=get_fattime();
             FSerror=lfs_setattr(&lfs, q, 'A', &dt,   4);
             ErrorCheck(0);
+            if(mode != FA_WRITE | FA_CREATE_ALWAYS)lfs_file_seek(&lfs, FileTable[fnbr].lfsptr, lfs_file_size(&lfs,FileTable[fnbr].lfsptr), LFS_SEEK_SET);
+            lfs_file_sync(&lfs, FileTable[fnbr].lfsptr);
         }
 	    ErrorCheck(fnbr);
         filesource[fnbr] = FLASHFILE;

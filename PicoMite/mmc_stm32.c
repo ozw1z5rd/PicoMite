@@ -1243,7 +1243,7 @@ void InitReservedIO(void) {
 			I2C_enabled=1;
 			I2C0SDApin=Option.SYSTEM_I2C_SDA;
 			I2C0SCLpin=Option.SYSTEM_I2C_SCL;
-			I2C_Timeout=100;
+			I2C_Timeout=500;
 		} else {
 			I2C1locked=1;
 			i2c_init(i2c1,(Option.SYSTEM_I2C_SLOW ? 100000:400000));
@@ -1252,10 +1252,15 @@ void InitReservedIO(void) {
 			I2C2_enabled=1;	
 			I2C1SDApin=Option.SYSTEM_I2C_SDA;
 			I2C1SCLpin=Option.SYSTEM_I2C_SCL;
-			I2C2_Timeout=100;
+			I2C2_Timeout=500;
 		}
 		if(Option.RTC)RtcGetTime(1);
-		if(Option.KeyboardConfig==CONFIG_I2C)CheckI2CKeyboard(1);
+		if(Option.KeyboardConfig==CONFIG_I2C){
+			CheckI2CKeyboard(1,0);
+			uSec(2000);
+			CheckI2CKeyboard(1,1);
+			uSec(2000);
+		}
 	}
 	if(Option.SYSTEM_CLK){
 		SPI_CLK_PIN=PinDef[Option.SYSTEM_CLK].GPno;
@@ -1395,17 +1400,19 @@ void InitReservedIO(void) {
 		pwm_set_enabled(AUDIO_SLICE, true);
 	}
 #ifndef PICOMITEWEB
-	if(Option.PWM){
-		if(CheckPin(41, CP_NOABORT | CP_IGNORE_INUSE | CP_IGNORE_RESERVED)){
-			gpio_init(23);
-			gpio_put(23,GPIO_PIN_SET);
-			gpio_set_dir(23, GPIO_OUT);
-		}
-	} else {
-		if(CheckPin(41, CP_NOABORT | CP_IGNORE_INUSE | CP_IGNORE_RESERVED)){
-			gpio_init(23);
-			gpio_put(23,GPIO_PIN_RESET);
-			gpio_set_dir(23, GPIO_OUT);
+	if(!Option.AUDIO_CS_PIN){
+		if(Option.PWM){
+			if(CheckPin(41, CP_NOABORT | CP_IGNORE_INUSE | CP_IGNORE_RESERVED)){
+				gpio_init(23);
+				gpio_put(23,GPIO_PIN_SET);
+				gpio_set_dir(23, GPIO_OUT);
+			}
+		} else {
+			if(CheckPin(41, CP_NOABORT | CP_IGNORE_INUSE | CP_IGNORE_RESERVED)){
+				gpio_init(23);
+				gpio_put(23,GPIO_PIN_RESET);
+				gpio_set_dir(23, GPIO_OUT);
+			}
 		}
 	}
 #endif

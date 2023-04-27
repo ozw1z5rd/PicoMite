@@ -33,6 +33,8 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 #include "Operators.h"
 #include "Custom.h"
 #include "Hardware_Includes.h"
+#include "hardware/flash.h"
+
 // this is the command table that defines the various tokens for commands in the source code
 // most of them are listed in the .h files so you should not add your own here but instead add
 // them to the appropiate .h file
@@ -483,8 +485,19 @@ int  PrepareProgramExt(unsigned char *p, int i, unsigned char **CFunPtr, int Err
         if(*p == 0) break;                                          // end of the program or module
         if(*p == cmdSUB || *p == cmdFUN /*|| *p == cmdCFUN*/ || *p == cmdCSUB) {         // found a SUB, FUN, CFUNCTION or CSUB token
             if(i >= MAXSUBFUN) {
-                if(ErrAbort) error("Too many subroutines and functions");
-                 continue;
+                FlashWriteInit(PROGRAM_FLASH);
+                flash_range_erase(realflashpointer, MAX_PROG_SIZE);
+                int j=MAX_PROG_SIZE/4;
+                int *pp=(int *)(flash_progmemory);
+                    while(j--)if(*pp++ != 0xFFFFFFFF){
+                        enable_interrupts();
+                        error("Flash erase problem");
+                    }
+                enable_interrupts();
+                MMPrintString("Error: Too many subroutines and functions - erasing program\r\n");
+                uSec(100000);
+                ClearProgram();
+                cmd_end();
             }
             subfun[i++] = p++;                                      // save the address and step over the token
             skipspace(p);
@@ -1347,7 +1360,6 @@ unsigned char __not_in_flash_func(*getFstring)(unsigned char *p) {
         tp[0]++;
     }
     MtoC(tp);
-    MMPrintString(tp);PRet();                                                       // convert to a C style string
     return tp;
 }
 

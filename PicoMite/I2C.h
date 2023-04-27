@@ -121,6 +121,6 @@ extern char *I2C_Slave_Receive_IntLine;                             // pointer t
 extern char *I2C2_Slave_Send_IntLine;                                // pointer to the slave send interrupt line number
 extern char *I2C2_Slave_Receive_IntLine;                             // pointer to the slave receive interrupt line number
 extern void I2C_Send_Command(char command);
-extern void CheckI2CKeyboard(int noerror);
+extern void CheckI2CKeyboard(int noerror, int read);
 #endif
 #endif

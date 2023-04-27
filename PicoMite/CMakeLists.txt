@@ -48,7 +48,16 @@ pico_set_boot_stage2(PicoMite slower_boot2)
 Pico_enable_stdio_usb(PicoMite 1)
 pico_enable_stdio_uart(PicoMite 0)
 pico_add_extra_outputs(PicoMite)
-target_compile_options(PicoMite PRIVATE  -DPICOMITE -DNDEBUG -DPICO_FLASH_SIZE_BYTES=16777216 -DPICO_STDIO_USB_ENABLE_RESET_VIA_VENDOR_INTERFACE=0 -DPICO_STACK_SIZE=0x1000 -DPICO_CORE1_STACK_SIZE=0x0 -DPICO_HEAP_SIZE=0x500 -O2)
+target_compile_options(PicoMite PRIVATE 	-DPICOMITE 
+	                                        -DNDEBUG 
+	                                        -DPICO_BOOT_STAGE2_CHOOSE_GENERIC_03H=1 
+	                                        -DPICO_XOSC_STARTUP_DELAY_MULTIPLIER=64 
+	                                        -DPICO_FLASH_SIZE_BYTES=16777216 
+	                                        -DPICO_STDIO_USB_ENABLE_RESET_VIA_VENDOR_INTERFACE=0 
+	                                        -DPICO_STACK_SIZE=0x1000 
+	                                        -DPICO_CORE1_STACK_SIZE=0x0 
+	                                        -DPICO_HEAP_SIZE=0x500 
+                                        	-O2)
 target_link_libraries(PicoMite
     pico_stdlib
     hardware_flash

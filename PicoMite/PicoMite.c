@@ -103,7 +103,7 @@ volatile unsigned int clocktimer=60*60*1000;
 volatile unsigned int PauseTimer = 0;
 volatile unsigned int IntPauseTimer = 0;
 volatile unsigned int Timer1=0, Timer2=0, Timer4=0;		                       //1000Hz decrement timer
-volatile unsigned int KeyCheck=KEYCHECKTIME;
+volatile unsigned int KeyCheck=2000;
 volatile int ds18b20Timer = -1;
 volatile unsigned int ScrewUpTimer = 0;
 volatile int second = 0;                                            // date/time counters
@@ -286,7 +286,7 @@ const struct s_PinDef PinDef[NBRPINS + 1]={
 char alive[]="\033[?25h";
 const char DaysInMonth[] = { 0, 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31 };
 void __not_in_flash_func(routinechecks)(void){
-    static int c,when=0;
+    static int c,when=0, read=0;
     if(++when & 7 && CurrentLinePtr) return;
     if(tud_cdc_connected() && (Option.SerialConsole==0 || Option.SerialConsole>4) && Option.Telnet!=-1){
         while(( c=tud_cdc_read_char())!=-1){
@@ -317,7 +317,13 @@ void __not_in_flash_func(routinechecks)(void){
         clocktimer=(1000*60*60);
     }
     if(Option.KeyboardConfig==CONFIG_I2C && KeyCheck==0){
-        CheckI2CKeyboard(0);
+        if(read==0){
+            CheckI2CKeyboard(0,0);
+            read=1;
+        } else {
+            CheckI2CKeyboard(0,1);
+            read=0;
+        }
         KeyCheck=KEYCHECKTIME;
     }
 }
