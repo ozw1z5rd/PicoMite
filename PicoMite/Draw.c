@@ -2993,7 +2993,8 @@ void contractpixel(char *ii, char *oo, int n, int mode){
 
 void BlitShowBuffer(int bnbr, int x1, int y1, int mode) {
     char* current;
-    int x, xx, y, yy, rotation;
+    int x, xx, y, yy, rotation, fullmode=mode;
+    mode &=7;
     rotation = blitbuff[bnbr].rotation;
     current = blitbuff[bnbr].blitstoreptr;
     int w, h;
@@ -3026,9 +3027,9 @@ void BlitShowBuffer(int bnbr, int x1, int y1, int mode) {
                 }
             }
             contractpixel(d,r,w*h,0);
-            DrawBufferFast(x1, y1, x1 + w - 1, y1 + h - 1, ((mode & 8)==0 ? 0 : -1), r);
+            DrawBufferFast(x1, y1, x1 + w - 1, y1 + h - 1, ((fullmode & 8)==0 ? 0 : -1), r);
         } else {
-            DrawBufferFast(x1, y1, x1 + w - 1, y1 + h - 1,((mode & 8)==0 ? 0 : -1) , blitbuff[bnbr].blitbuffptr);
+            DrawBufferFast(x1, y1, x1 + w - 1, y1 + h - 1,((fullmode & 8)==0 ? 0 : -1) , blitbuff[bnbr].blitbuffptr);
         }
         if (!(mode & 4))blitbuff[bnbr].active = 1;
     }
@@ -3373,7 +3374,7 @@ void cmd_blit(void) {
     int newb = 0;
     if(Option.DISPLAY_TYPE == 0) error("Display not configured");
     if ((p = checkstring(cmdline, (unsigned char *)"SHOW SAFE"))) {
-        int layer;
+        int layer, mode=1;
         getargs(&p, 11, (unsigned char*)",");
         if (!(argc == 7 || argc == 9 || argc == 11)) error((char *)"Syntax");
         if (hideall)error((char *)"Sprites are hidden");
@@ -3384,8 +3385,12 @@ void cmd_blit(void) {
             x1 = (int)getint(argv[2], -blitbuff[bnbr].w + 1, maxW - 1);
             y1 = (int)getint(argv[4], -blitbuff[bnbr].h + 1, maxH - 1);
             layer = (int)getint(argv[6], 0, MAXLAYER);
-            if (argc >= 9 && *argv[8])blitbuff[bnbr].rotation = (char)getint(argv[8], 0, 3);
+            if (argc >= 9 && *argv[8])blitbuff[bnbr].rotation = (char)getint(argv[8], 0, 7);
             else blitbuff[bnbr].rotation = 0;
+            if(blitbuff[bnbr].rotation>3){
+                mode |=8;
+                blitbuff[bnbr].rotation&=3;
+            }
             if (argc == 11 && *argv[10]) {
                 newb = (int)getint(argv[10], 0, 1);
             }
@@ -3412,7 +3417,7 @@ void cmd_blit(void) {
                 if (blitbuff[bnbr].layer == 0) zeroLIFOadd(bnbr);
                 else LIFOadd(bnbr);
                 sprites_in_use++;
-                BlitShowBuffer(bnbr, x1, y1, 1);
+                BlitShowBuffer(bnbr, x1, y1, mode);
             }
             ProcessCollisions(bnbr);
             if (sprites_in_use != LIFOpointer + zeroLIFOpointer || sprites_in_use != sumlayer())error((char *)"sprite internal error");
@@ -3420,7 +3425,7 @@ void cmd_blit(void) {
         else error((char *)"Buffer not in use");
     }
     else if ((p = checkstring(cmdline, (unsigned char*)"SHOW"))) {
-        int layer;
+        int layer, mode=1;
         getargs(&p, 9, (unsigned char*)",");
         if (!(argc == 7 || argc == 9)) error((char *)"Syntax");
         if (hideall)error((char *)"Sprites are hidden");
@@ -3431,8 +3436,12 @@ void cmd_blit(void) {
             x1 = (int)getint(argv[2], -blitbuff[bnbr].w + 1, maxW - 1);
             y1 = (int)getint(argv[4], -blitbuff[bnbr].h + 1, maxH - 1);
             layer = (int)getint(argv[6], 0, MAXLAYER);
-            if (argc == 9)blitbuff[bnbr].rotation = (int)getint(argv[8], 0, 3);
+            if (argc == 9)blitbuff[bnbr].rotation = (int)getint(argv[8], 0, 7);
             else blitbuff[bnbr].rotation = 0;
+            if(blitbuff[bnbr].rotation>3){
+                mode |=8;
+                blitbuff[bnbr].rotation&=3;
+            }
             w = blitbuff[bnbr].w;
             h = blitbuff[bnbr].h;
             if (blitbuff[bnbr].active) {
@@ -3447,7 +3456,7 @@ void cmd_blit(void) {
             else LIFOadd(bnbr);
             sprites_in_use++;
             int cursorhidden = 0;
-            BlitShowBuffer(bnbr, x1, y1, 1);
+            BlitShowBuffer(bnbr, x1, y1, mode);
             ProcessCollisions(bnbr);
             if (sprites_in_use != LIFOpointer + zeroLIFOpointer || sprites_in_use != sumlayer())error((char *)"sprite internal error");
         }
