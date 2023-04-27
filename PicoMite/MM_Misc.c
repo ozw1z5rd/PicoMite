@@ -2892,13 +2892,13 @@ int ExistsDir(char *p, char *q, int *filesystem){
     getfullfilename(p,q);
     FatFSFileSystem=t-1;
     *filesystem=FatFSFileSystem;
+    if(strcmp(q,"/")==0 || strcmp(q,"/.")==0 || strcmp(q,"/..")==0 ){FatFSFileSystem=localfilesystemsave;ireturn= 1; return ireturn;}
     if(FatFSFileSystem==0){
         struct lfs_info lfsinfo;
         memset(&lfsinfo,0,sizeof(DIR));
         FSerror = lfs_stat(&lfs, q, &lfsinfo);
         if(lfsinfo.type==LFS_TYPE_DIR)ireturn= 1;
     } else {
-        if(strcmp(q,"/")==0)return 1;
         DIR djd;
         FILINFO fnod;
         memset(&djd,0,sizeof(DIR));
