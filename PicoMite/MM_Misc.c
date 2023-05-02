@@ -1654,7 +1654,7 @@ void printoptions(void){
     MMPrintString("\rPicoMiteVGA MMBasic Version " VERSION "\r\n");
 #endif    
 #ifdef PICOMITEWEB
-    MMPrintString("\rPicoMiteWEB MMBasic Version " VERSION "\r\n");    
+    MMPrintString("\rWebMite MMBasic Version " VERSION "\r\n");    
 #endif 
 #ifdef PICOMITE
     MMPrintString("\rPicoMite MMBasic Version " VERSION "\r\n");
