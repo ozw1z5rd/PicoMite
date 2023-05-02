@@ -2110,7 +2110,7 @@ int BasicFileOpen(char *fname, int fnbr, int mode)
         if(mode == FA_READ)lfsmode=LFS_O_RDONLY;
         else if(mode==(FA_WRITE | FA_CREATE_ALWAYS))lfsmode=LFS_O_WRONLY | LFS_O_CREAT | LFS_O_TRUNC;
         else if(mode==(FA_WRITE | FA_OPEN_APPEND)) lfsmode = LFS_O_WRONLY | LFS_O_CREAT | LFS_O_APPEND;
-        else if(mode==(FA_WRITE | FA_OPEN_APPEND | FA_READ))lfsmode =LFS_O_RDWR | LFS_O_CREAT | LFS_O_APPEND;
+        else if(mode==(FA_WRITE | FA_OPEN_APPEND | FA_READ))lfsmode =LFS_O_RDWR | LFS_O_CREAT;
         else error("Internal error");
         FileTable[fnbr].lfsptr = GetMemory(sizeof(lfs_file_t)); // allocate the file descriptor
         FSerror=lfs_file_open(&lfs, FileTable[fnbr].lfsptr, q, lfsmode);
@@ -3040,10 +3040,16 @@ void cmd_files(void)
         MMPrintString(ts);
         MMPrintString(" file");
         MMPrintString((fcnt - dirs) == 1 ? "" : "s");
-        MMPrintString("\r\n");
         FreeMemorySafe((void **)&flist);
         if(FatFSFileSystem) f_closedir(&djd);
-        else lfs_dir_close(&lfs, &lfs_dir);
+        else {
+            lfs_dir_close(&lfs, &lfs_dir);
+            IntToStr(ts, Option.FlashSize-RoundUpK4(TOP_OF_SYSTEM_FLASH)-lfs_fs_size(&lfs)*4096,10);
+            MMPrintString(", ");
+            MMPrintString(ts);
+            MMPrintString(" bytes free");
+        }
+        MMPrintString("\r\n");
         memset(inpbuf, 0, STRINGSIZE);
         FatFSFileSystem=FatFSFileSystemSave;
         longjmp(mark, 1);

@@ -79,7 +79,7 @@ void cmd_xmodem(void) {
                     nbrlines++;
                     if(!(nbrlines==1 && p[0]=='\'' && p[1]=='#')){
                         p += strlen(p);
-                        if(p - buf + 40 > EDIT_BUFFER_SIZE) error("Not enough memory");
+                        if((p - buf) > (EDIT_BUFFER_SIZE - STRINGSIZE)) error("Not enough memory");
                         *p++ = '\n'; *p = 0;                            // terminate that line
                     }
                 }
@@ -93,7 +93,7 @@ void cmd_xmodem(void) {
         if(crunch) error("Invalid command");
         if(!InitSDCard()) return;
         fnbr = FindFreeFileNbr();
-        fname = getCstring(cmdline);                                // get the file name
+        fname = getFstring(cmdline);                                // get the file name
 
         if(rcv) {
             if(!BasicFileOpen(fname, fnbr, FA_WRITE | FA_CREATE_ALWAYS)) return;

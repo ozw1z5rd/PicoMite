@@ -1353,11 +1353,6 @@ void cmd_web(void){
             cmd_ntp(tp);
             return;   
         }
-        tp=checkstring(cmdline, "NTP");
-        if(tp){
-            cmd_ntp(tp);
-            return;   
-        }
         tp=checkstring(cmdline, "SCAN");
         if(tp){
                 void *ptr1 = NULL;

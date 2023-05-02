@@ -52,6 +52,7 @@ void fun_distance(void);
 void fun_pulsin(void);
 void cmd_backlight(void);
 void cmd_bitbang(void);
+void cmd_sync(void);
 #endif
 
 
@@ -74,6 +75,7 @@ void cmd_bitbang(void);
 	{ (unsigned char *)"KeyPad",             T_CMD,			0, cmd_keypad       },
 	{ (unsigned char *)"Bitbang",              T_CMD,			0, cmd_bitbang        },
 	{ (unsigned char *)"PWM",		T_CMD,		0, cmd_pwm		},
+	{ (unsigned char *)"SYNC",              T_CMD,			0, cmd_sync        },
 #ifndef PICOMITEVGA
 	{ (unsigned char *)"Backlight",		T_CMD,		0, cmd_backlight		},
 #endif

@@ -140,7 +140,7 @@ void fun_call(void){
 		q++;
 	}
 	if(*q==',')q++;
-	i = FindSubFun(p, false);                   // it could be a defined command
+	i = FindSubFun(p, true);                   // it could be a defined command
 	strcat(p," ");
 	strcat(p,q);
     targ= T_NOTYPE;

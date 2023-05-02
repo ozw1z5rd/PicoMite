@@ -271,6 +271,36 @@ void __not_in_flash_func(ExtSet)(int pin, int val){
         error("Pin %/| is not an output",pin,pin);
 }
 
+void __not_in_flash_func(cmd_sync)(void){
+	uint64_t i;
+    static uint64_t synctime=0,endtime=0;
+	getargs(&cmdline,3,",");
+	if(synctime && argc==0){
+        while(time_us_64()<endtime){
+            if(synctime-time_us_64()> 2000)CheckAbort();
+        }
+        endtime+=synctime;
+	} else {
+		if(argc==0)error("sync not initialised");
+		i=getint(argv[0],0,0x7FFFFFFFFFFFFFFF);
+		if(i){
+			if(argc==3){
+				if(checkstring(argv[2],"U")){
+					i *= 1;
+				} else if(checkstring(argv[2],"M")){
+					i *= 1000;
+				} else if(checkstring(argv[2],"S")){
+					i *= 1000000;
+				}
+            }
+            synctime=i;
+            endtime=time_us_64()+synctime;
+		} else {
+			synctime=endtime=0;
+		}
+	}
+}
+
 
 // this is invoked as a command (ie, pin(3) = 1)
 // first get the argument then step over the closing bracket.  Search through the rest of the command line looking

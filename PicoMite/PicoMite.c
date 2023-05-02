@@ -1041,11 +1041,14 @@ void __not_in_flash_func(CheckAbort)(void) {
     static int lastonoff=0;
     static uint64_t lastmsec=0;
     if(Option.NoHeartbeat){
-        if(lastonoff==1){
-            if(startupcomplete)cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, 0);
-            lastonoff=0;
+        if(lastonoff!=2){
+            if(startupcomplete){
+                if(cyw43_arch_gpio_get(CYW43_WL_GPIO_LED_PIN)) cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, 0);
+                lastonoff=2;
+            }
         }
     } else {
+        if(lastonoff==2)lastonoff=0;
         if(mSecTimer-lastmsec>(WIFIconnected ? 500:1000) && startupcomplete){
             lastmsec=mSecTimer;
             if(lastonoff)cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, 1);

@@ -2860,6 +2860,7 @@ int ExistsFile(char *p){
     char q[FF_MAX_LFN]={0};
     int retval=0;
     int waste=0, t=FatFSFileSystem+1;
+    int localfilesystemsave=FatFSFileSystem;
     t = drivecheck(p,&waste);
     p+=waste;
     getfullfilename(p,q);
@@ -2879,7 +2880,7 @@ int ExistsFile(char *p){
         if(FSerror != FR_OK)iret=0;
         else if(!(fnod.fattrib & AM_DIR))retval=1;
     }
-    FatFSFileSystem=FatFSFileSystemSave;
+    FatFSFileSystem=localfilesystemsave;
     return retval;
 }
 int ExistsDir(char *p, char *q, int *filesystem){
@@ -2903,6 +2904,7 @@ int ExistsDir(char *p, char *q, int *filesystem){
         FILINFO fnod;
         memset(&djd,0,sizeof(DIR));
         memset(&fnod,0,sizeof(FILINFO));
+        if(q[strlen(q)-1]=='/')strcat(q,".");
         if(!InitSDCard()) {FatFSFileSystem=localfilesystemsave;ireturn= -1; return ireturn;}
         FSerror = f_stat(q, &fnod);
         if(FSerror != FR_OK)ireturn=0;
@@ -3035,13 +3037,14 @@ void fun_info(void){
             memset(&djd,0,sizeof(DIR));
             memset(&fnod,0,sizeof(FILINFO));
             int waste=0, t=FatFSFileSystem+1;
-            char *p = getCstring(tp);
+            char *p = getFstring(tp);
             targ=T_INT;
             t = drivecheck(p,&waste);
             p+=waste;
             getfullfilename(p,q);
             FatFSFileSystem=t-1;
             iret=-1;
+            if(strcmp(q,"/")==0 || strcmp(q,"/.")==0 || strcmp(q,"/..")==0 ){iret= -2; strcpy(MMErrMsg,FErrorMsg[4]); return;}
             if(FatFSFileSystem==0){
                 struct lfs_info lfsinfo;
                 FSerror = lfs_stat(&lfs, q, &lfsinfo);
@@ -3058,6 +3061,7 @@ void fun_info(void){
                 FileClose(fnbr);
             } else {
                 if(!InitSDCard()) {iret= -1; return;}
+                if(q[strlen(q)-1]=='/')strcat(q,".");
                 if(strcmp(q,"/")==0){ iret=-2; targ=T_INT; strcpy(MMErrMsg,FErrorMsg[4]); return;}
                 FSerror = f_stat(q, &fnod);
                 if((fnod.fattrib & AM_DIR)){ iret=-2; targ=T_INT; strcpy(MMErrMsg,FErrorMsg[4]); return;}
