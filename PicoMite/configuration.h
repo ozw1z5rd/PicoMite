@@ -34,6 +34,7 @@ extern "C" {
 #define HEAP_MEMORY_SIZE (100*1024) 
 #define MAX_CPU     378000
 #define MIN_CPU     126000
+#define MAXSUBFUN           256                     // each entry takes up 4 bytes
 #endif
 #ifdef PICOMITEWEB
 #include "lwipopts_examples_common.h"
@@ -45,16 +46,17 @@ extern "C" {
 #define MaxPcb 8
 #define MAX_CPU     378000
 #define MIN_CPU     64000
+#define MAXSUBFUN           256                     // each entry takes up 4 bytes
 #endif
 #ifdef PICOMITE
 #define MAXVARS             512                     // 8 + MAXVARLEN + MAXDIM * 2  (ie, 56 bytes) - these do not incl array members
 #define FLASH_TARGET_OFFSET (704 * 1024) 
 #define MagicKey 0x47421427
-#define HEAPTOP 0x2003c600
+#define HEAPTOP 0x2003c700
 #define HEAP_MEMORY_SIZE (124*1024) 
 #define MAX_CPU     378000
 #define MIN_CPU     48000
-
+#define MAXSUBFUN           256                     // each entry takes up 4 bytes
 #endif
 
 
@@ -75,7 +77,6 @@ extern "C" {
 #define MAXGOSUB            50                     // each entry uses 4 bytes
 #define MAX_MULTILINE_IF    20                      // each entry uses 8 bytes
 #define MAXTEMPSTRINGS      64                      // each entry takes up 4 bytes
-#define MAXSUBFUN           224                     // each entry takes up 4 bytes
 #define MAXSUBHASH          MAXSUBFUN
 // operating characteristics
 #define MAXVARLEN           32                      // maximum length of a variable name

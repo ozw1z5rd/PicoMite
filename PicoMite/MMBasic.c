@@ -1823,8 +1823,10 @@ void hashlabels(unsigned char *p,int ErrAbort){
      			hash %= MAXSUBFUN;
     		}
             if(hash==originalhash){
-                if(ErrAbort)error("Too many labels");
-                break;
+                MMPrintString("Error: Too many labels - erasing program\r\n");
+                uSec(100000);
+                ClearProgram();
+                cmd_end();
             }
     		funtbl[hash].index=(uint32_t)lastp;
             for(j=0;j<p[0];j++)funtbl[hash].name[j]=mytoupper(p[j+1]);
