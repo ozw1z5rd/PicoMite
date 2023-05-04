@@ -2637,7 +2637,7 @@ void cmd_option(void) {
         }
     	getargs(&tp,5,",");
    	    if(CurrentLinePtr) error("Invalid in a program");
-         if(argc!=3)error("Syntax");
+        if(argc<3)error("Syntax");
         if(Option.SYSTEM_I2C_SCL)error("I2C already configured");
         unsigned char code;
         if(!(code=codecheck(argv[0])))argv[0]+=2;
@@ -3158,7 +3158,19 @@ void fun_info(void){
         return;
     } 
 #endif
-	else if(tp=checkstring(ep, "MODIFIED")){
+    else if (checkstring(ep, "LINE")) {
+        if (!CurrentLinePtr) {
+            strcpy(sret, "UNKNOWN");
+        } else if (CurrentLinePtr >= ProgMemory + MAX_PROG_SIZE) {
+            strcpy(sret, "LIBRARY");
+        } else {
+            sprintf(sret, "%d", CountLines(CurrentLinePtr));
+        }
+        CtoM(sret);
+        targ=T_STR;
+        return;
+    }	
+    else if(tp=checkstring(ep, "MODIFIED")){
 		int i,j;
 	    DIR djd;
 	    FILINFO fnod;
