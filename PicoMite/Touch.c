@@ -204,7 +204,7 @@ int GetTouchValue(int cmd) {
     val |= (lb >> 3) & 0b11111;          // the bottom 5 bits
     ClearCS(Option.TOUCH_CS);
     #ifdef PICOMITEWEB
-            {if(startupcomplete)cyw43_arch_poll();}
+            ProcessWeb();
     #endif
    return val;
 }

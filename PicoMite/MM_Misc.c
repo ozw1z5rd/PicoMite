@@ -75,6 +75,8 @@ extern const char *FErrorMsg[];
 #ifdef PICOMITEWEB
 	char *MQTTInterrupt=NULL;
 	volatile int MQTTComplete=0;
+    char *UDPinterrupt=NULL;
+    volatile int UDPreceive=0;
 #endif
 extern const uint8_t *flash_target_contents;
 int TickPeriod[NBRSETTICKS]={0};
@@ -1791,6 +1793,8 @@ void printoptions(void){
     }
     if(Option.TCP_PORT && Option.ServerResponceTime!=5000)PO3Int("TCP SERVER PORT", Option.TCP_PORT, Option.ServerResponceTime);
     if(Option.TCP_PORT && Option.ServerResponceTime==5000)PO2Int("TCP SERVER PORT", Option.TCP_PORT);
+    if(Option.UDP_PORT && Option.UDPServerResponceTime!=5000)PO3Int("UDP SERVER PORT", Option.UDP_PORT, Option.UDPServerResponceTime);
+    if(Option.UDP_PORT && Option.UDPServerResponceTime==5000)PO2Int("UDP SERVER PORT", Option.UDP_PORT);
     if(Option.Telnet==1)PO2Str("TELNET", "CONSOLE ON");
     if(Option.Telnet==-1)PO2Str("TELNET", "CONSOLE ONLY");
     if(Option.disabletftp==1)PO2Str("TFTP", "OFF");
@@ -2259,6 +2263,18 @@ void cmd_option(void) {
         Option.TCP_PORT=getint(argv[0],0,65535);
         Option.ServerResponceTime=5000;
         if(argc==3)Option.ServerResponceTime=getint(argv[2],1000,20000);
+        SaveOptions();
+         _excep_code = RESET_COMMAND;
+        SoftReset();
+        return;
+    }
+    tp = checkstring(cmdline, "UDP SERVER PORT");
+    if(tp) {
+        getargs(&tp,3,",");
+   	    if(CurrentLinePtr) error("Invalid in a program");
+        Option.UDP_PORT=getint(argv[0],0,65535);
+        Option.UDPServerResponceTime=5000;
+        if(argc==3)Option.UDPServerResponceTime=getint(argv[2],1000,20000);
         SaveOptions();
          _excep_code = RESET_COMMAND;
         SoftReset();
@@ -3232,8 +3248,11 @@ void fun_info(void){
 			targ=T_INT;
 			return;
 		} else if(checkstring(tp, "ANGLE")){
-			if(optionangle==1.0)strcpy(sret,"DEGREES");
-			else strcpy(sret,"RADIANS");
+			if(optionangle==1.0)strcpy(sret,"RADIANS");
+			else strcpy(sret,"DEGREES");
+            CtoM(sret);
+            targ=T_STR;
+            return;
  		} else if(checkstring(tp, "DEFAULT")){
 			if(DefaultType == T_INT)strcpy(sret,"Integer");
 			else if(DefaultType == T_NBR)strcpy(sret,"Float");
@@ -3961,6 +3980,11 @@ int checkdetailinterrupts(void) {
     if(MQTTComplete && MQTTInterrupt != NULL) {
         MQTTComplete = false;
         intaddr = MQTTInterrupt;                                      // set the next stmt to the interrupt location
+        goto GotAnInterrupt;
+    }
+    if(UDPreceive && UDPinterrupt != NULL) {
+        UDPreceive = false;
+        intaddr = UDPinterrupt;                                     // set the next stmt to the interrupt location
         goto GotAnInterrupt;
     }
 #endif

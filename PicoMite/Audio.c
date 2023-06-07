@@ -1188,6 +1188,7 @@ void flaccallback(char *p){
 //	PInt(myflac->channels);MMPrintString(" Channels\r\n");
 //	PInt(myflac->bitsPerSample);MMPrintString(" Bits per sample\r\n");
 //	PInt(myflac->sampleRate);MMPrintString(" Sample rate\r\n");
+	mono=(myflac->channels == 1 ? 1 : 0);
 	if(Option.AUDIO_L){
 		audiorepeat=1;
 		actualrate=myflac->sampleRate;

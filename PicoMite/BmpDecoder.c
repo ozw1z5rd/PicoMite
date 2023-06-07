@@ -484,6 +484,7 @@ BYTE BMP_bDecode_memory(int x, int y, int xlen, int ylen, int fnbr, char *p)
                 bPadding = (4 - ((BmpDec.lWidth*3) % 4))%4;
                 for(wY = 0; wY < BmpDec.lHeight; wY++)
                 {
+                         routinechecks();
                          IMG_vLoopCallback();
                          IMG_vCheckAndAbort();
                          FSerror = IMG_FREAD(IMG_FILE, linebuff, BmpDec.lWidth*3, &nbr); /* B */

@@ -317,9 +317,6 @@ void cmd_guiMX170(void) {
                 x = GetTouch(GET_X_AXIS);
                 y = GetTouch(GET_Y_AXIS);
                 if(x != TOUCH_ERROR && y != TOUCH_ERROR) DrawBox(x - 1, y - 1, x + 1, y + 1, 0, WHITE, WHITE);
-        #ifdef PICOMITEWEB
-                {if(startupcomplete)cyw43_arch_poll();}
-        #endif
             }
             ClearScreen(gui_bcolour);
             return;
@@ -3405,7 +3402,7 @@ void cmd_blit(void) {
                     if (blitbuff[bnbr].layer == 0) zeroLIFOadd(bnbr);
                     else LIFOadd(bnbr);
                     sprites_in_use++;
-                    BlitShowBuffer(bnbr, x1, y1, 1);
+                    BlitShowBuffer(bnbr, x1, y1, mode);
                 }
                 else {
                     showsafe(bnbr, x1, y1);
@@ -3540,7 +3537,9 @@ void cmd_blit(void) {
         //
     }
    else if ((p = checkstring(cmdline, (unsigned char*)"SWAP"))) {
-        int rbnbr=0;
+        int rbnbr=0, mode=2;
+        int64_t master;
+        signed char mymaster;
         getargs(&p, 5, (unsigned char*)",");
         if (argc < 3) error((char *)"Syntax");
         if (hideall)error((char *)"Sprites are hidden");
@@ -3550,9 +3549,15 @@ void cmd_blit(void) {
         rbnbr = (int)getint(argv[2], 1, MAXBLITBUF);									// get the number
         if (blitbuff[bnbr].blitbuffptr == NULL || blitbuff[bnbr].active == false) error((char *)"Original buffer not displayed");
         if (!blitbuff[bnbr].active)error((char *)"Original buffer not displayed");
+//        if (blitbuff[bnbr].master == -1)error((char *)"Can't swap a copy");
         if (blitbuff[rbnbr].active) error((char *)"New buffer already displayed");
+//        if (blitbuff[rbnbr].master == -1)error((char *)"Can't swap a copy");
         if (!(blitbuff[rbnbr].w == blitbuff[bnbr].w && blitbuff[rbnbr].h == blitbuff[bnbr].h)) error((char *)"Size mismatch");
         // copy the relevant data
+        master=blitbuff[rbnbr].master;
+        mymaster=blitbuff[rbnbr].mymaster;
+        blitbuff[rbnbr].master=blitbuff[bnbr].master;
+        blitbuff[rbnbr].mymaster=blitbuff[bnbr].mymaster;
         blitbuff[rbnbr].blitstoreptr = blitbuff[bnbr].blitstoreptr;
         blitbuff[rbnbr].x = blitbuff[bnbr].x;
         blitbuff[rbnbr].y = blitbuff[bnbr].y;
@@ -3561,6 +3566,8 @@ void cmd_blit(void) {
         if (blitbuff[rbnbr].layer == 0)zeroLIFOswap(bnbr, rbnbr);
         else LIFOswap(bnbr, rbnbr);
         // "Hide" the old sprite
+        blitbuff[bnbr].master=master;
+        blitbuff[bnbr].mymaster=mymaster;
         blitbuff[bnbr].x = 10000;
         blitbuff[bnbr].y = 10000;
         blitbuff[bnbr].layer = -1;
@@ -3568,11 +3575,14 @@ void cmd_blit(void) {
         blitbuff[bnbr].next_y = 10000;
         blitbuff[bnbr].active = 0;
         blitbuff[bnbr].lastcollisions = 0;
-        if (argc == 5)blitbuff[rbnbr].rotation = (char)getint(argv[4], 0, 3);
-        else blitbuff[rbnbr].rotation = 0;
-        BlitShowBuffer(rbnbr, blitbuff[rbnbr].x, blitbuff[rbnbr].y, 2);
+        if (argc == 5)blitbuff[rbnbr].rotation = (int)getint(argv[4], 0, 7);
+        else blitbuff[bnbr].rotation = 0;
+        if(blitbuff[rbnbr].rotation>3){
+            mode |=8;
+            blitbuff[rbnbr].rotation&=3;
+        }
+        BlitShowBuffer(rbnbr, blitbuff[rbnbr].x, blitbuff[rbnbr].y, mode);
         if (sprites_in_use != LIFOpointer + zeroLIFOpointer || sprites_in_use != sumlayer())error((char *)"sprite internal error");
-
     }
     else if ((p = checkstring(cmdline, (unsigned char*)"READ"))) {
         getargs(&p, 11, (unsigned char*)",");
@@ -3775,6 +3785,7 @@ void cmd_blit(void) {
         getargs(&p, 11, ",");                                            // this MUST be the first executable line in the function
         if(*argv[0] == '#') argv[0]++;                              // check if the first arg is prefixed with a #
         bnbr = getint(argv[0], 1, MAXBLITBUF);                  // get the buffer number
+        if(blitbuff[bnbr].blitbuffptr)error("Buffer % in use",bnbr);
         if(argc == 0) error("Argument count");
         if(!InitSDCard()) return;
         p = getCstring(argv[2]);                                        // get the file name
@@ -4253,8 +4264,8 @@ void cmd_framebuffer(void){
         if(y1 + h > VRes) h = VRes - y1;
         if(y2 + h > VRes) h = VRes - y2;
         if(w < 1 || h < 1 || x1 < 0 || x1 + w > HRes || x2 < 0 || x2 + w > HRes || y1 < 0 || y1 + h > VRes || y2 < 0 || y2 + h > VRes) return;
-        char *LCDBuffer=GetTempMemory(1440);
-        int step=sizeof(LCDBuffer)/3/w;
+        unsigned char *LCDBuffer=GetTempMemory(1440);
+        int step=sizeof(1440)/3/w;
         int y_top=(h/step)*step;
         for(int y=0;y<y_top;y+=step){
             if(s==NULL)restoreSPIpanel();
@@ -4262,13 +4273,13 @@ void cmd_framebuffer(void){
                 setframebuffer();
                 WriteBuf=s;
             }
-            ReadBuffer(x1, y1+y, x1+w-1, y1+y+step-1, (char *)&LCDBuffer);
+            ReadBuffer(x1, y1+y, x1+w-1, y1+y+step-1, LCDBuffer);
             if(d==NULL)restoreSPIpanel();
             else {
                 setframebuffer();
                 WriteBuf=d;
             }
-            DrawBuffer(x2, y2+y, x2+w-1, y2+y+step-1, (char *)&LCDBuffer);
+            DrawBuffer(x2, y2+y, x2+w-1, y2+y+step-1, LCDBuffer);
         }
         for(int y=y_top;y<h;y++){
             if(s==NULL)restoreSPIpanel();
@@ -4276,13 +4287,13 @@ void cmd_framebuffer(void){
                 setframebuffer();
                 WriteBuf=s;
             }
-            ReadBuffer(x1, y1+y, x1+w-1, y1+y, (char *)&LCDBuffer);
+            ReadBuffer(x1, y1+y, x1+w-1, y1+y, LCDBuffer);
             if(d==NULL)restoreSPIpanel();
             else {
                 setframebuffer();
                 WriteBuf=d;
             }
-            DrawBuffer(x2, y2+y, x2+w-1, y2+y, (char *)&LCDBuffer);
+            DrawBuffer(x2, y2+y, x2+w-1, y2+y, LCDBuffer);
         }
         if(SPImode) restoreSPIpanel();  
         else {
@@ -4389,6 +4400,7 @@ void cmd_blit(void) {
         getargs(&p, 11, ",");                                            // this MUST be the first executable line in the function
         if(*argv[0] == '#') argv[0]++;                              // check if the first arg is prefixed with a #
         bnbr = getint(argv[0], 1, MAXBLITBUF) - 1;                  // get the buffer number
+        if(blitbuff[bnbr].blitbuffptr)error("Buffer % in use",bnbr);
         if(argc == 0) error("Argument count");
         if(!InitSDCard()) return;
         p = getCstring(argv[2]);                                        // get the file name

@@ -482,6 +482,8 @@ void cmd_run(void) {
     if(v==NULL)findvar("MM.TOPIC$", V_FIND | V_DIM_VAR | T_CONST);
     v = findvar("MM.MESSAGE$", T_STR | V_NOFIND_NULL);    // create the variable
     if(v==NULL)findvar("MM.MESSAGE$", V_FIND | V_DIM_VAR | T_CONST);
+    v = findvar("MM.ADDRESS$", T_STR | V_NOFIND_NULL);    // create the variable
+    if(v==NULL)findvar("MM.ADDRESS$", V_FIND | V_DIM_VAR | T_CONST);
 	cleanserver();
 #endif
 	nextstmt = ProgMemory;
@@ -1713,18 +1715,8 @@ search_again:
 
 void cmd_call(void){
 	int i;
-	unsigned char *q;
 	unsigned char *p=getCstring(cmdline); //get the command we want to call
-/*	q=p;
-	while(*q){ //convert to upper case for the match
-		*q=mytoupper(*q);
-		q++;
-	}*/
-	q=cmdline;
-	while(*q){
-		if(*q==',' || *q=='\'')break;
-		q++;
-	}
+    unsigned char *q = skipexpression(cmdline);
 	if(*q==',')q++;
 	i = FindSubFun(p, false);                   // it could be a defined command
 	strcat(p," ");

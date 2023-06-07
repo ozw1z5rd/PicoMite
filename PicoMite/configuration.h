@@ -40,12 +40,12 @@ extern "C" {
 #include "lwipopts_examples_common.h"
 #define MAXVARS             480                    // 8 + MAXVARLEN + MAXDIM * 2  (ie, 56 bytes) - these do not incl array members
 #define FLASH_TARGET_OFFSET (1024 * 1024) 
-#define MagicKey 0x28137327
+#define MagicKey 0x12337327
 #define HEAPTOP 0x2003fc00
 #define HEAP_MEMORY_SIZE (80*1024) 
 #define MaxPcb 8
 #define MAX_CPU     378000
-#define MIN_CPU     64000
+#define MIN_CPU     126000
 #define MAXSUBFUN           256                     // each entry takes up 4 bytes
 #endif
 #ifdef PICOMITE

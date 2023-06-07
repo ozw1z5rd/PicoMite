@@ -1353,6 +1353,11 @@ void cmd_web(void){
             cmd_ntp(tp);
             return;   
         }
+        tp=checkstring(cmdline, "UDP");
+        if(tp){
+            cmd_udp(tp);
+            return;   
+        }
         tp=checkstring(cmdline, "SCAN");
         if(tp){
                 void *ptr1 = NULL;

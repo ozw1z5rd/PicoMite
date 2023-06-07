@@ -151,7 +151,13 @@ struct option_s {
     unsigned char AUDIO_MOSI_PIN;
     unsigned char SYSTEM_I2C_SLOW;
     unsigned char AUDIO_CS_PIN;
-    unsigned char x[112]; //116=256
+    #ifdef PICOMITEWEB
+        uint16_t UDP_PORT;                // maximum number of controls allowed //48
+        uint16_t UDPServerResponceTime;
+        unsigned char x[108]; //108=256
+    #else
+        unsigned char x[112]; //112=256
+    #endif
     unsigned char F1key[MAXKEYLEN]; //204
     unsigned char F5key[MAXKEYLEN]; //268
     unsigned char F6key[MAXKEYLEN]; //332

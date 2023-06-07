@@ -579,6 +579,8 @@ void cmd_flash(void)
         ClearRuntime();
         FlashLoad = i;
         PrepareProgram(true);
+        // Create a global constant MM.CMDLINE$ containing the empty string.
+        (void) findvar("MM.CMDLINE$", V_FIND | V_DIM_VAR | T_CONST);
         if(Option.LIBRARY_FLASH_SIZE == MAX_PROG_SIZE) ExecuteProgram(LibMemory);  // run anything that might be in the library
         nextstmt = (unsigned char *)ProgMemory;
     }
