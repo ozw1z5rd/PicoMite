@@ -511,6 +511,14 @@ void  cmd_continue(void) {
 }
 
 void cmd_new(void) {
+#ifdef PICOMITEVGA
+	WriteBuf=FRAMEBUFFER;
+	DisplayBuf=FRAMEBUFFER;
+	LayerBuf=FRAMEBUFFER;
+	FrameBuf=FRAMEBUFFER;
+#else
+	closeframebuffer();
+#endif	
 	checkend(cmdline);
 	ClearProgram();
 	FlashLoad=0;
@@ -2297,12 +2305,12 @@ void execute(char* mycmd) {
 		memset(inpbuf, 0, STRINGSIZE);
 		tknbuf[strlen((char *)tknbuf)] = 0;
 		tknbuf[strlen((char*)tknbuf) + 1] = 0;
-		ttp = nextstmt;                                                 // save the globals used by commands
+		if(CurrentLinePtr)ttp = nextstmt;                                                 // save the globals used by commands
 		ScrewUpTimer = 1000;
 		ExecuteProgram(tknbuf);                                              // execute the function's code
 		ScrewUpTimer = 0;
 		// TempMemoryIsChanged = true;                                     // signal that temporary memory should be checked
-		nextstmt = ttp;
+		if(CurrentLinePtr)nextstmt = ttp;
 		return;
 	}
 	else {

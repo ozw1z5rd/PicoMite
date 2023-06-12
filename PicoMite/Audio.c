@@ -1370,6 +1370,7 @@ void cmd_play(void) {
         if(argc < 1) error("Argument count");
         if(*argv[0]) vol_left = getint(argv[0], 0, 100);
         if(argc == 3) vol_right = getint(argv[2], 0, 100);
+		if(CurrentlyPlaying==P_TONE && vol_left!=vol_right && mono)mono=0;
         return;
     }
 
@@ -1388,7 +1389,7 @@ void cmd_play(void) {
         
         f_left = getnumber(argv[0]);                         // get the arguments
         f_right = getnumber(argv[2]);
-		if(f_left==f_right)mono=1;
+		if(f_left==f_right && vol_left==vol_right)mono=1;
         if(f_left<0.0 || f_left>22050.0)error("Valid is 0Hz to 20KHz");
         if(f_right<0.0 || f_right>22050.0)error("Valid is 0Hz to 20KHz");
         if(argc > 4) {
@@ -1750,7 +1751,7 @@ void audio_checks(void){
             StopAudio();
             FileClose(WAV_fnbr);
             WAVcomplete = true;
-            playreadcomplete = 0;
+//            playreadcomplete = 0;
             memset(&mywav,0,sizeof(drwav));
         }
     }
