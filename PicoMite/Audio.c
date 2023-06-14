@@ -1285,6 +1285,7 @@ void cmd_play(void) {
     unsigned char *tp;
 	if(!(Option.AUDIO_L || Option.AUDIO_CLK_PIN))error((char *)"Audio not enabled");
     if(checkstring(cmdline, "STOP")) {
+		if(CurrentlyPlaying == P_NOTHING)return;
         CloseAudio(1);
         return;
     }

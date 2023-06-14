@@ -3125,7 +3125,7 @@ void showsafe(int bnbr, int x, int y) {
 void loadsprite(unsigned char* p) {
     int fnbr, width, number, height = 0, newsprite = 1, startsprite = 1, bnbr, lc, i, toggle=0;;
     char *q, *fname;
-    char buff[256];
+    unsigned char buff[256], *z;
     uint32_t data;
     getargs(&p, 3, (unsigned char *)",");
     fnbr = FindFreeFileNbr();
@@ -3136,70 +3136,77 @@ void loadsprite(unsigned char* p) {
     if (!BasicFileOpen(fname, fnbr, FA_READ)) error((char *)"File not found");
     MMgetline(fnbr, (char*)buff);							    // get the input line
     while (buff[0] == 39)MMgetline(fnbr, (char*)buff);
-    sscanf((char*)buff, "%d,%d, %d", &width, &number, &height);
-    if (height == 0)height = width;
-    bnbr = startsprite;
-    if (number + startsprite > MAXBLITBUF) {
-        FileClose(fnbr);
-        error((char *)"Maximum of % sprites",MAXBLITBUF);
-    }
-    while (!MMfeof(fnbr) && bnbr <= number + startsprite) {                                     // while waiting for the end of file
-        if (newsprite) {
-            newsprite = 0;
-            if (blitbuff[bnbr].blitbuffptr == NULL)blitbuff[bnbr].blitbuffptr = (char *)GetMemory((width * height + 1)>>1);
-            if (blitbuff[bnbr].blitstoreptr == NULL)blitbuff[bnbr].blitstoreptr = (char*)GetMemory((width * height + 1)>>1);
-            blitbuff[bnbr].bc = 0;
-            blitbuff[bnbr].w = width;
-            blitbuff[bnbr].h = height;
-            blitbuff[bnbr].master = 0;
-            blitbuff[bnbr].mymaster = -1;
-            blitbuff[bnbr].x = 10000;
-            blitbuff[bnbr].y = 10000;
-            blitbuff[bnbr].layer = -1;
-            blitbuff[bnbr].next_x = 10000;
-            blitbuff[bnbr].next_y = 10000;
-            blitbuff[bnbr].active = false;
-            blitbuff[bnbr].lastcollisions = 0;
-            blitbuff[bnbr].edges = 0;
-            q = blitbuff[bnbr].blitbuffptr;
-            lc = height;
+    z=buff;
+    { 
+        getargs(&z,5,", ");
+        width=getinteger(argv[0]);
+        number=getinteger(argv[2]);
+        if(argc==5)height=getinteger(argv[4]);
+        if (height == 0)height = width;
+        bnbr = startsprite;
+        if (number + startsprite > MAXBLITBUF) {
+            FileClose(fnbr);
+            error((char *)"Maximum of % sprites",MAXBLITBUF);
         }
-        while (lc--) {
-            MMgetline(fnbr, (char*)buff);									    // get the input line
-            while (buff[0] == 39)MMgetline(fnbr, (char*)buff);
-            if ((int)strlen(buff) < width)memset(&buff[strlen(buff)], 32, width - strlen(buff));
-                 for (i = 0; i < width; i++) {
-                    if (buff[i] == ' ')data = 0;
-                    else if (buff[i] == '0')data = BLACK;
-                    else if (buff[i] == '1')data = BLUE;
-                    else if (buff[i] == '2')data = GREEN;
-                    else if (buff[i] == '3')data = CYAN;
-                    else if (buff[i] == '4')data = RED;
-                    else if (buff[i] == '5')data = MAGENTA;
-                    else if (buff[i] == '6')data = YELLOW;
-                    else if (buff[i] == '7')data = WHITE;
-                    else if (buff[i] == '8')data = MYRTLE;
-                    else if (buff[i] == '9')data = COBALT;
-                    else if (buff[i] == 'A' || buff[i] == 'a')data = MIDGREEN;
-                    else if (buff[i] == 'B' || buff[i] == 'b')data = CERULEAN;
-                    else if (buff[i] == 'C' || buff[i] == 'c')data = RUST;
-                    else if (buff[i] == 'D' || buff[i] == 'd')data = FUCHSIA;
-                    else if (buff[i] == 'E' || buff[i] == 'e')data = BROWN;
-                    else if (buff[i] == 'F' || buff[i] == 'f')data = LILAC;
-                    else data = 0;
-                    if(toggle){
-                        *q++ |= ((data & 0x800000)>> 16) | ((data & 0xC000)>>9) | ((data & 0x80)>>3);
-                    } else {
-                        *q=((data & 0x800000)>> 20) | ((data & 0xC000)>>13) | ((data & 0x80)>>7);
-                    }
-                    toggle=!toggle;
-                }
+        while (!MMfeof(fnbr) && bnbr <= number + startsprite) {                                     // while waiting for the end of file
+            if (newsprite) {
+                newsprite = 0;
+                if (blitbuff[bnbr].blitbuffptr == NULL)blitbuff[bnbr].blitbuffptr = (char *)GetMemory((width * height + 1)>>1);
+                if (blitbuff[bnbr].blitstoreptr == NULL)blitbuff[bnbr].blitstoreptr = (char*)GetMemory((width * height + 1)>>1);
+                blitbuff[bnbr].bc = 0;
+                blitbuff[bnbr].w = width;
+                blitbuff[bnbr].h = height;
+                blitbuff[bnbr].master = 0;
+                blitbuff[bnbr].mymaster = -1;
+                blitbuff[bnbr].x = 10000;
+                blitbuff[bnbr].y = 10000;
+                blitbuff[bnbr].layer = -1;
+                blitbuff[bnbr].next_x = 10000;
+                blitbuff[bnbr].next_y = 10000;
+                blitbuff[bnbr].active = false;
+                blitbuff[bnbr].lastcollisions = 0;
+                blitbuff[bnbr].edges = 0;
+                q = blitbuff[bnbr].blitbuffptr;
+                lc = height;
             }
-        bnbr++;
-        newsprite = 1;
+            while (lc--) {
+                MMgetline(fnbr, (char*)buff);									    // get the input line
+                while (buff[0] == 39)MMgetline(fnbr, (char*)buff);
+                if ((int)strlen(buff) < width)memset(&buff[strlen(buff)], 32, width - strlen(buff));
+                    for (i = 0; i < width; i++) {
+                        if (buff[i] == ' ')data = 0;
+                        else if (buff[i] == '0')data = BLACK;
+                        else if (buff[i] == '1')data = BLUE;
+                        else if (buff[i] == '2')data = GREEN;
+                        else if (buff[i] == '3')data = CYAN;
+                        else if (buff[i] == '4')data = RED;
+                        else if (buff[i] == '5')data = MAGENTA;
+                        else if (buff[i] == '6')data = YELLOW;
+                        else if (buff[i] == '7')data = WHITE;
+                        else if (buff[i] == '8')data = MYRTLE;
+                        else if (buff[i] == '9')data = COBALT;
+                        else if (buff[i] == 'A' || buff[i] == 'a')data = MIDGREEN;
+                        else if (buff[i] == 'B' || buff[i] == 'b')data = CERULEAN;
+                        else if (buff[i] == 'C' || buff[i] == 'c')data = RUST;
+                        else if (buff[i] == 'D' || buff[i] == 'd')data = FUCHSIA;
+                        else if (buff[i] == 'E' || buff[i] == 'e')data = BROWN;
+                        else if (buff[i] == 'F' || buff[i] == 'f')data = LILAC;
+                        else data = 0;
+                        if(toggle){
+                            *q++ |= ((data & 0x800000)>> 16) | ((data & 0xC000)>>9) | ((data & 0x80)>>3);
+                        } else {
+                            *q=((data & 0x800000)>> 20) | ((data & 0xC000)>>13) | ((data & 0x80)>>7);
+                        }
+                        toggle=!toggle;
+                    }
+                }
+            bnbr++;
+            newsprite = 1;
+        }
+        FileClose(fnbr);
     }
-    FileClose(fnbr);
 }
+
 void loadarray(unsigned char* p) {
     int bnbr, w, h, size, i, toggle=0;
     int maxH = VRes;

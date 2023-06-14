@@ -1796,8 +1796,21 @@ static void transform_star_command(char *input) {
 #ifdef PICOMITEWEB
 void WebConnect(void){
     if(*Option.SSID){
-        cyw43_arch_enable_sta_mode();
-        MMPrintString("Connecting to WiFi...\r\n");
+        if(*Option.ipaddress){
+            cyw43_arch_enable_sta_mode();
+            dhcp_stop(cyw43_state.netif);
+            ip4_addr_t ipaddr, gateway, mask;
+            ip4addr_aton(Option.ipaddress, &ipaddr);
+            ip4addr_aton(Option.gateway, &gateway);
+            ip4addr_aton(Option.mask, &mask);
+            netif_set_addr( cyw43_state.netif,&ipaddr,&mask,&gateway);
+        } else cyw43_arch_enable_sta_mode();
+        if(*Option.hostname){
+            MMPrintString(Option.hostname);
+            netif_set_hostname(cyw43_state.netif, Option.hostname);
+        }
+        cyw43_wifi_pm(&cyw43_state, CYW43_NO_POWERSAVE_MODE);        
+        MMPrintString(" connecting to WiFi...\r\n");
         if (cyw43_arch_wifi_connect_timeout_ms(Option.SSID, (*Option.PASSWORD ? Option.PASSWORD : NULL), (*Option.PASSWORD ? CYW43_AUTH_WPA2_AES_PSK : CYW43_AUTH_OPEN), 30000)) {
             MMPrintString("failed to connect.\r\n");
             WIFIconnected=0;

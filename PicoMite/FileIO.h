@@ -154,7 +154,11 @@ struct option_s {
     #ifdef PICOMITEWEB
         uint16_t UDP_PORT;                // maximum number of controls allowed //48
         uint16_t UDPServerResponceTime;
-        unsigned char x[108]; //108=256
+        char hostname[32];
+        char ipaddress[16];
+        char mask[16];
+        char gateway[16];
+        unsigned char x[28]; //108=256
     #else
         unsigned char x[112]; //112=256
     #endif
