@@ -42,6 +42,7 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 #include "hardware/pio.h"
 #include "hardware/pio_instructions.h"
 #include <malloc.h>
+#include "xregex.h"
 
 uint32_t getTotalHeap(void) {
    extern char __StackLimit, __bss_end__;
@@ -972,10 +973,10 @@ void fun_LInstr(void){
         char *srch;
         char *str=NULL;
         int slen,found=0,i,j,n;
-        getargs(&ep, 5, ",");
-        if(argc <3  || argc > 5)error("Argument count");
+        getargs(&ep, 7, ",");
+        if(argc <3  || argc > 7)error("Argument count");
         int64_t start;
-        if(argc==5)start=getinteger(argv[4])-1;
+        if(argc>=5 && *argv[4])start=getinteger(argv[4])-1;
         else start=0;
         ptr1 = findvar(argv[0], V_FIND | V_EMPTY_OK | V_NOFIND_ERR);
         if(vartbl[VarIndex].type & T_INT) {
@@ -988,19 +989,43 @@ void fun_LInstr(void){
         } else error("Argument 1 must be integer array");
         j=(vartbl[VarIndex].dims[0] - OptionBase);
         srch=getstring(argv[2]);
-        slen=*srch;
-        iret=0;
-        if(start>dest[0] || start<0 || slen==0 || dest[0]==0 || slen>dest[0]-start)found=1;
-        if(!found){
-            n=dest[0]- slen - start;
+        if(argc<7){
+            slen=*srch;
+            iret=0;
+            if(start>dest[0] || start<0 || slen==0 || dest[0]==0 || slen>dest[0]-start)found=1;
+            if(!found){
+                n=dest[0]- slen - start;
 
-            for(i = start; i <= n + start; i++) {
-                if(str[i + 8] == srch[1]) {
-                    for(j = 0; j < slen; j++)
-                        if(str[j + i + 8] != srch[j + 1])
-                            break;
-                    if(j == slen) {iret= i + 1; break;}
+                for(i = start; i <= n + start; i++) {
+                    if(str[i + 8] == srch[1]) {
+                        for(j = 0; j < slen; j++)
+                            if(str[j + i + 8] != srch[j + 1])
+                                break;
+                        if(j == slen) {iret= i + 1; break;}
+                    }
                 }
+            }
+        } else { //search string is a regular expression
+            regex_t regex;
+            int reti;
+            regmatch_t pmatch;
+            MMFLOAT *temp=NULL;
+            MtoC(srch);
+            temp = findvar(argv[6], V_FIND);
+            if(!(vartbl[VarIndex].type & T_NBR)) error("Invalid variable");
+            reti = regcomp(&regex, srch, 0);
+            if( reti ) error("Could not compile regex");
+	        reti = regexec(&regex, &str[start+8], 1, &pmatch, 0);
+            if( !reti ){
+                iret=pmatch.rm_so+1+start;
+                if(temp)*temp=(MMFLOAT)(pmatch.rm_eo-pmatch.rm_so);
+            }
+            else if( reti == REG_NOMATCH ){
+                iret=0;
+                if(temp)*temp=0.0;
+            }
+            else{
+                error("Regex execution error");
             }
         }
         targ = T_INT;

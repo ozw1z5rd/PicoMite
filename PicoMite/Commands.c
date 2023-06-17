@@ -1496,10 +1496,15 @@ void cmd_mid(void){
 	if(!*cmdline) error("Syntax");
 	char *value = getstring(cmdline);
 	if(num==0)num=value[0];
-	if(num>value[0])error("Supplied string too short");
 	p=&value[1];
-	memcpy(&sourcestring[start],p,num);
-//	SCB_CleanDCache();
+	if(num==value[0]) memcpy(&sourcestring[start],p,num);
+	else {
+		int change=value[0]-num;
+		if(sourcestring[0]+change>255)error("String too long");
+		memmove(&sourcestring[start+value[0]],&sourcestring[start+num],sourcestring[0]-(start+num-1));
+		sourcestring[0]+=change;
+		memcpy(&sourcestring[start],p,value[0]);
+	}
 }
 
 void __not_in_flash_func(cmd_return)(void) {

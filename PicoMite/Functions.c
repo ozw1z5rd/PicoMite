@@ -28,6 +28,7 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 #include "MMBasic_Includes.h"
 #include "Hardware_Includes.h"
 #include <float.h>
+#include "xregex.h"
 extern long long int  llabs (long long int  n);
 
 
@@ -476,36 +477,72 @@ void fun_bin(void) {
 // returns an integer
 void fun_instr(void) {
 	unsigned char *s1 = NULL, *s2 = NULL;
-	int start = 0;
-	getargs(&ep, 5, (unsigned char *)",");
+	int start = 0, n = 0 ;
+    unsigned char *ss;
+    MMFLOAT f;
+    long long int  i64;
+	getargs(&ep, 7, (unsigned char *)",");
+	if(!(argc==3 || argc==5 || argc==7))error("Syntax");
+    targ = T_NOTYPE;
+    evaluate(argv[0], &f, &i64, &ss, &targ, false);                   // get the value and type of the argument
+    if(targ & T_NBR){
+        n=2;
+		start=getint(argv[0],0,255)-1;
+    } else if(targ & T_INT){
+		n=2;
+		start=getint(argv[0],0,255)-1;
+    } else if(targ & T_STR){
 
-	if(argc == 5) {
-		start = getint(argv[0], 1, MAXSTRLEN + 1) - 1;
-		s1 = getstring(argv[2]);
-		s2 = getstring(argv[4]);
-	}
-	else if(argc == 3) {
-		start = 0;
-		s1 = getstring(argv[0]);
-		s2 = getstring(argv[2]);
-	}
-	else
-		error("Argument count");
-
-    targ = T_INT;
-	if(start > *s1 - *s2 + 1 || *s2 == 0)
-		iret = 0;
-	else {
-		// find s2 in s1 using MMBasic strings
-		int i;
-		for(i = start; i < *s1 - *s2 + 1; i++) {
-			if(memcmp(s1 + i + 1, s2 + 1, *s2) == 0) {
-				iret = i + 1;
-				return;
+	} else error("Syntax");
+	if(argc < (n==2 ? 7 : 5)){
+		s1 = getstring(argv[0+n]);
+		s2 = getstring(argv[2+n]);
+		targ = T_INT;
+		if(start > *s1 - *s2 + 1 || *s2 == 0)
+			iret = 0;
+		else {
+			// find s2 in s1 using MMBasic strings
+			int i;
+			for(i = start; i < *s1 - *s2 + 1; i++) {
+				if(memcmp(s1 + i + 1, s2 + 1, *s2) == 0) {
+					iret = i + 1;
+					return;
+				}
 			}
 		}
+		iret = 0;
+	} else {
+		regex_t regex;
+		int reti;
+		regmatch_t pmatch;
+		MMFLOAT *temp=NULL;
+		temp = findvar(argv[6], V_FIND);
+		if(!(vartbl[VarIndex].type & T_NBR)) error("Invalid variable");
+		char *s=GetTempMemory(STRINGSIZE), *p=GetTempMemory(STRINGSIZE);
+		strcpy(s,getCstring(argv[0+n]));
+		strcpy(p,getCstring(argv[2+n]));
+		if(argc==5+n){
+			temp = findvar(argv[4+n], V_FIND);
+			if(!(vartbl[VarIndex].type & T_NBR)) error("Invalid variable");
+		}
+		reti = regcomp(&regex, p, 0);
+		if( reti ) error("Could not compile regex");
+		reti = regexec(&regex, &s[start], 1, &pmatch, 0);
+		targ=T_INT;
+		if( !reti ){
+			iret=pmatch.rm_so+1+start;
+			if(temp)*temp=(MMFLOAT)(pmatch.rm_eo-pmatch.rm_so);
+		}
+		else if( reti == REG_NOMATCH ){
+			iret=0;
+			if(temp)*temp=0.0;
+		}
+		else{
+			error("Regex execution error");
+		}
+
 	}
-	iret = 0;
+	targ=T_INT;
 }
 
 

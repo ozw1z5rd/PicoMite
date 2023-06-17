@@ -39,7 +39,7 @@ extern "C" {
 #ifdef PICOMITEWEB
 #include "lwipopts_examples_common.h"
 #define MAXVARS             480                    // 8 + MAXVARLEN + MAXDIM * 2  (ie, 56 bytes) - these do not incl array members
-#define FLASH_TARGET_OFFSET (1024 * 1024) 
+#define FLASH_TARGET_OFFSET (1096 * 1024) 
 #define MagicKey 0x45637327
 #define HEAPTOP 0x2003fc00
 #define HEAP_MEMORY_SIZE (80*1024) 
