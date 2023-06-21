@@ -1014,7 +1014,10 @@ void fun_LInstr(void){
             temp = findvar(argv[6], V_FIND);
             if(!(vartbl[VarIndex].type & T_NBR)) error("Invalid variable");
             reti = regcomp(&regex, srch, 0);
-            if( reti ) error("Could not compile regex");
+            if( reti ) {
+                regfree(&regex);
+                error("Could not compile regex");
+            }
 	        reti = regexec(&regex, &str[start+8], 1, &pmatch, 0);
             if( !reti ){
                 iret=pmatch.rm_so+1+start;
@@ -1025,8 +1028,10 @@ void fun_LInstr(void){
                 if(temp)*temp=0.0;
             }
             else{
+		        regfree(&regex);
                 error("Regex execution error");
             }
+		    regfree(&regex);
         }
         targ = T_INT;
 }

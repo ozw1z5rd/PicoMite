@@ -516,8 +516,6 @@ void fun_instr(void) {
 		int reti;
 		regmatch_t pmatch;
 		MMFLOAT *temp=NULL;
-		temp = findvar(argv[6], V_FIND);
-		if(!(vartbl[VarIndex].type & T_NBR)) error("Invalid variable");
 		char *s=GetTempMemory(STRINGSIZE), *p=GetTempMemory(STRINGSIZE);
 		strcpy(s,getCstring(argv[0+n]));
 		strcpy(p,getCstring(argv[2+n]));
@@ -526,7 +524,10 @@ void fun_instr(void) {
 			if(!(vartbl[VarIndex].type & T_NBR)) error("Invalid variable");
 		}
 		reti = regcomp(&regex, p, 0);
-		if( reti ) error("Could not compile regex");
+		if( reti ){
+			regfree(&regex);
+			error("Could not compile regex");
+		} 
 		reti = regexec(&regex, &s[start], 1, &pmatch, 0);
 		targ=T_INT;
 		if( !reti ){
@@ -538,9 +539,10 @@ void fun_instr(void) {
 			if(temp)*temp=0.0;
 		}
 		else{
+			regfree(&regex);
 			error("Regex execution error");
 		}
-
+		regfree(&regex);
 	}
 	targ=T_INT;
 }
