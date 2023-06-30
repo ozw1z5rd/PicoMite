@@ -159,8 +159,6 @@ static int64_t PinReadFunc(int a){return gpio_get(PinDef[a].GPno);}
 extern void CallExecuteProgram(char *p);
 extern void CallCFuncmSec(void);
 void executelocal(char *p);
-static uint64_t timer_target;
-unsigned int CFuncFastTimer = (unsigned int)NULL;
 #define CFUNCRAM_SIZE   256
 int CFuncRam[CFUNCRAM_SIZE/sizeof(int)];
 MMFLOAT IntToFloat(long long int a){ return a; }

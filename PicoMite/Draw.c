@@ -4229,12 +4229,12 @@ void cmd_framebuffer(void){
         } else error("Layer already exists");
     } else if((p=checkstring(cmdline, "CLOSE"))) {
         if(checkstring(p, "F")){
-            restoreSPIpanel();            
+            if(WriteBuf!=LayerBuf)restoreSPIpanel();            
             if(FrameBuf)FreeMemory(FrameBuf);
             FrameBuf=NULL;
         } else if(checkstring(p, "L")){
-            restoreSPIpanel();            
-            if(LayerBuf)FreeMemory(FrameBuf);
+            if(WriteBuf!=FrameBuf)restoreSPIpanel();            
+            if(LayerBuf)FreeMemory(LayerBuf);
             LayerBuf=NULL;
         } else  closeframebuffer();
     } else if((p=checkstring(cmdline, "BLIT"))) {
@@ -4310,9 +4310,10 @@ void cmd_framebuffer(void){
         return;
     } else if((p=checkstring(cmdline, "COPY"))) {
         int complex=0;
+        unsigned char *buff = WriteBuf;
         getargs(&p,3,",");
         if(!(argc==3))error("Syntax");
-        uint8_t *s,*d;
+        uint8_t *s=NULL,*d=NULL;
         if(checkstring(argv[0],"N")){
             complex=1;
             if((void *)ReadBuffer == (void *)DisplayNotSet) error("Invalid on this display");
@@ -4339,9 +4340,10 @@ void cmd_framebuffer(void){
                     WriteBuf=d;
                     for(int y=0;y<VRes;y++){
                         restoreSPIpanel();   
-                        ReadBuffer(0,y,HRes-1,y,(char *)&LCDBuffer);
+                        ReadBuffer(0,y,HRes-1,y,(char *)LCDBuffer);
+                        WriteBuf=d;
                         setframebuffer();
-                        DrawBuffer(0,y,HRes-1,y,(char *)&LCDBuffer);
+                        DrawBuffer(0,y,HRes-1,y,(char *)LCDBuffer);
                     }
                     if(SPImode) restoreSPIpanel();  
                 } else { //copying to the real display
@@ -4389,6 +4391,7 @@ void cmd_framebuffer(void){
                 }
             }
         }
+        WriteBuf=buff;
     } else error("Syntax");
 }
 

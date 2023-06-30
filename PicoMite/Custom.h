@@ -131,6 +131,8 @@ extern char *DMAinterruptRX;
 extern char *DMAinterruptTX;
 extern uint32_t dma_rx_chan;
 extern uint32_t dma_tx_chan;
+extern uint32_t dma_rx_chan2;
+extern uint32_t dma_tx_chan2;
 extern int dma_tx_pio;
 extern int dma_tx_sm;
 extern int dma_rx_pio;

@@ -2685,13 +2685,16 @@ void ClearExternalIO(void) {
     DMAinterruptRX=NULL;
     DMAinterruptTX=NULL;
     WAVInterrupt=NULL;
-	if(dma_channel_is_busy(dma_rx_chan))
-	{
-		dma_channel_abort(dma_rx_chan);
-	}
-    if(dma_channel_is_busy(dma_tx_chan)){
-		dma_channel_abort(dma_tx_chan);
-	}
+    dma_hw->abort = ((1u << dma_rx_chan2) | (1u << dma_rx_chan));
+    dma_channel_abort(dma_rx_chan);
+    if(dma_channel_is_busy(dma_rx_chan2))dma_channel_abort(dma_rx_chan2);
+    if(dma_channel_is_busy(dma_rx_chan))dma_channel_cleanup(dma_rx_chan);
+    dma_channel_cleanup(dma_rx_chan2);
+    dma_hw->abort = ((1u << dma_tx_chan2) | (1u << dma_tx_chan));
+    if(dma_channel_is_busy(dma_tx_chan))dma_channel_abort(dma_tx_chan);
+    if(dma_channel_is_busy(dma_tx_chan2))dma_channel_abort(dma_tx_chan2);
+    dma_channel_cleanup(dma_tx_chan);
+    dma_channel_cleanup(dma_tx_chan2);
 }
 
 

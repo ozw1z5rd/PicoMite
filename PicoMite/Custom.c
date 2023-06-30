@@ -95,8 +95,10 @@ uint8_t pioTXlast[4]={0};
 #endif
 char *DMAinterruptRX=NULL;
 char *DMAinterruptTX=NULL;
-uint32_t dma_rx_chan;
-uint32_t dma_tx_chan;
+uint32_t dma_rx_chan = PIO_RX_DMA;
+uint32_t dma_tx_chan = PIO_TX_DMA;
+uint32_t dma_rx_chan2 = PIO_RX_DMA2;
+uint32_t dma_tx_chan2 = PIO_TX_DMA2;
 int dma_tx_pio;
 int dma_tx_sm;
 int dma_rx_pio;
@@ -239,12 +241,16 @@ void cmd_pio(void){
     if(tp){
         getargs(&tp, 13, (unsigned char *)",");
         if(checkstring(argv[0],"OFF")){
-                if(dma_channel_is_busy(dma_rx_chan)){
-                        dma_channel_abort(dma_rx_chan);
-                } else error("Not active");
+                dma_hw->abort = ((1u << dma_rx_chan2) | (1u << dma_rx_chan));
+                if(dma_channel_is_busy(dma_rx_chan))dma_channel_abort(dma_rx_chan);
+                if(dma_channel_is_busy(dma_rx_chan2))dma_channel_abort(dma_rx_chan2);
                 return;
         }
-        if(DMAinterruptRX || dma_channel_is_busy(dma_rx_chan)) error("DMA active");
+        if(DMAinterruptRX || dma_channel_is_busy(dma_rx_chan)|| dma_channel_is_busy(dma_rx_chan2)) {
+                dma_hw->abort = ((1u << dma_rx_chan2) | (1u << dma_rx_chan));
+                if(dma_channel_is_busy(dma_rx_chan))dma_channel_abort(dma_rx_chan);
+                if(dma_channel_is_busy(dma_rx_chan2))dma_channel_abort(dma_rx_chan2);
+        }
         if(argc<7)error("Syntax");
 #ifdef PICOMITEVGA
         int i=  getint(argv[0],1,1);
@@ -260,89 +266,8 @@ void cmd_pio(void){
         dma_rx_pio=i;
         dma_rx_sm=sm;
         int nbr=getint(argv[4],0,0xFFFFFFFF);
-        uint32_t *a1int=NULL;
-	void *ptr1 = NULL;
-        int toarraysize;
-        ptr1 = findvar(argv[6], V_FIND | V_EMPTY_OK | V_NOFIND_ERR);
-        if(vartbl[VarIndex].type &  T_INT) {
-                if(vartbl[VarIndex].dims[1] != 0) error("Target must be an 1D integer array");
-                if(vartbl[VarIndex].dims[0] <= 0) {		// Not an array
-                        error("Target must be an 1D integer array");
-                }
-                toarraysize=vartbl[VarIndex].dims[0]-OptionBase+1;
-                a1int = (uint32_t *)ptr1;
-                if((uint32_t)ptr1!=(uint32_t)vartbl[VarIndex].val.s)error("Syntax");
-        } else error("Target must be an 1D integer array");
-        if(argc>=9 && *argv[10]){
-                DMAinterruptRX=GetIntAddress(argv[8]);
-                InterruptUsed=true;
-        }
-        int dmasize=DMA_SIZE_32;
-        if(argc==11){
-                dmasize=getinteger(argv[10]);
-                if(!(dmasize==8 || dmasize==16 || dmasize==32))error("Invalid transfer size");
-                if(dmasize==8)dmasize=DMA_SIZE_8;
-                else if(dmasize==16)dmasize=DMA_SIZE_16;
-                else if(dmasize==32)dmasize=DMA_SIZE_32;
-        }
-        dma_rx_chan = PIO_RX_DMA;
-
-        dma_channel_config c = dma_channel_get_default_config(dma_rx_chan);
-        channel_config_set_read_increment(&c, false);
-        channel_config_set_transfer_data_size(&c, dmasize);
-        channel_config_set_dreq(&c, pio_get_dreq(pio, sm, false));
-        if(argc==13){
-                int size=getinteger(argv[12]);
-                if(!(size==1 || size==2 || size==4 || size==8 || size==16 || size==32 || size==64 || size==128 || size==256 || size==512 || size==1024 || size== 2048 || size==4096 || size==8192 || size==16384 || size==32768))error("Not power of 2");
-                if(size!=1){
-                        int i=0,j=size;
-                        if((uint32_t)a1int & (j-1))error("Data alignment error");
-                        while(j>>=1)i++;
-                        i+=dmasize;
-                        if((1<<i)>(toarraysize*8))error("Array size");
-                        channel_config_set_ring(&c,true,i);
-                        channel_config_set_write_increment(&c, true);
-                } else channel_config_set_write_increment(&c, false);
-        } else {
-                if((nbr<<dmasize)>(toarraysize*8))error("Array size");
-                channel_config_set_write_increment(&c, true);
-        } 
-        dma_channel_configure(dma_rx_chan, &c,
-                a1int,        // Destination pointer
-                &pio->rxf[sm],      // Source pointer
-                nbr, // Number of transfers
-                true                // Start immediately
-        );
-        pio_sm_restart(pio, sm);
-        pio_sm_set_enabled(pio, sm, true);
-        return;
-    }
-    tp = checkstring(cmdline, "DMA TX");
-    if(tp){
-        getargs(&tp, 13, (unsigned char *)",");
-        if(checkstring(argv[0],"OFF")){
-                if(dma_channel_is_busy(dma_tx_chan)){
-                        dma_channel_abort(dma_tx_chan);
-                } else error("Not active");
-                return;
-        }
-        if(DMAinterruptTX || dma_channel_is_busy(dma_tx_chan)) error("DMA active");
-        if(argc<7)error("Syntax");
-#ifdef PICOMITEVGA
-        int i=  getint(argv[0],1,1);
-#endif
-#ifdef PICOMITE
-        int i=  getint(argv[0],0,1);
-#endif
-#ifdef PICOMITEWEB
-        int i=  getint(argv[0],0,0);
-#endif
-        PIO pio = (i ? pio1: pio0);
-        int sm=getint(argv[2],0,3);
-        dma_tx_pio=i;
-        dma_tx_sm=sm;
-        int nbr=getint(argv[4],0,0xFFFFFFFF);
-        uint32_t *a1int=NULL;
+        uint32_t s_nbr=nbr;
+        static uint32_t *a1int=NULL;
 	void *ptr1 = NULL;
         int toarraysize;
         ptr1 = findvar(argv[6], V_FIND | V_EMPTY_OK | V_NOFIND_ERR);
@@ -356,6 +281,110 @@ void cmd_pio(void){
                 if((uint32_t)ptr1!=(uint32_t)vartbl[VarIndex].val.s)error("Syntax");
         } else error("Target must be an 1D integer array");
         if(argc>=9 && *argv[8]){
+                if(nbr==0)error("Interrupt incopmpatible with continuous running");
+                DMAinterruptRX=GetIntAddress(argv[8]);
+                InterruptUsed=true;
+        }
+        int dmasize=DMA_SIZE_32;
+        if(argc>=11 && *argv[10]){
+                dmasize=getinteger(argv[10]);
+                if(!(dmasize==8 || dmasize==16 || dmasize==32))error("Invalid transfer size");
+                if(dmasize==8)dmasize=DMA_SIZE_8;
+                else if(dmasize==16)dmasize=DMA_SIZE_16;
+                else if(dmasize==32)dmasize=DMA_SIZE_32;
+        }
+        dma_channel_config c = dma_channel_get_default_config(dma_rx_chan);
+        channel_config_set_read_increment(&c, false);
+        channel_config_set_transfer_data_size(&c, dmasize);
+        channel_config_set_dreq(&c, pio_get_dreq(pio, sm, false));
+        if(argc==13){
+                int size=getinteger(argv[12]);
+                if(!(size==1 || size==2 || size==4 || size==8 || size==16 || size==32 || size==64 || size==128 || size==256 || size==512 || size==1024 || size== 2048 || size==4096 || size==8192 || size==16384 || size==32768))error("Not power of 2");
+                if(size!=1){
+                        int i=0,j=size;
+                        if((uint32_t)a1int & (j-1))error("Data alignment error");
+                        while(j>>=1)i++;
+                        i+=dmasize;
+                        if((1<<i)>(toarraysize*8))error("Array size");
+                         if(nbr==0){
+                                nbr=size;
+                                dma_channel_config c2 = dma_channel_get_default_config(dma_rx_chan2); //Get configurations for control channel
+                                channel_config_set_transfer_data_size(&c2, DMA_SIZE_32); //Set control channel data transfer size to 32 bits
+                                channel_config_set_read_increment(&c2, false); //Set control channel read increment to false
+                                channel_config_set_write_increment(&c2, false); //Set control channel write increment to false
+                                channel_config_set_dreq(&c2, 0x3F);
+                                dma_channel_configure(dma_rx_chan2,
+                                        &c2,
+                                        &dma_hw->ch[dma_rx_chan].al2_write_addr_trig,
+                                        &a1int,
+                                        1,
+                                        false); //Configure control channel  
+                        }
+                       if(s_nbr!=0)channel_config_set_ring(&c,true,i);
+                        channel_config_set_write_increment(&c, true);
+                } else channel_config_set_write_increment(&c, false);
+        } else {
+                if((nbr<<dmasize)>(toarraysize*8))error("Array size");
+                channel_config_set_write_increment(&c, true);
+        } 
+        if(s_nbr==0) channel_config_set_chain_to(&c, dma_rx_chan2); //When this channel completes, it will trigger the channel indicated by chain_to
+        dma_channel_configure(dma_rx_chan,
+                &c,
+                a1int,        // Destination pointer
+                &pio->rxf[sm],      // Source pointer
+                nbr, // Number of transfers
+                (s_nbr==0 ? false :true)                // Start immediately
+        );
+        if(s_nbr==0) dma_start_channel_mask(1u << dma_rx_chan2);
+        pio_sm_restart(pio, sm);
+        pio_sm_set_enabled(pio, sm, true);
+        return;
+    }
+    tp = checkstring(cmdline, "DMA TX");
+    if(tp){
+        getargs(&tp, 13, (unsigned char *)",");
+        if(checkstring(argv[0],"OFF")){
+                dma_hw->abort = ((1u << dma_tx_chan2) | (1u << dma_tx_chan));
+                if(dma_channel_is_busy(dma_tx_chan))dma_channel_abort(dma_tx_chan);
+                if(dma_channel_is_busy(dma_tx_chan2))dma_channel_abort(dma_tx_chan2);
+                return;
+        }
+        if(DMAinterruptTX || dma_channel_is_busy(dma_tx_chan) || dma_channel_is_busy(dma_tx_chan2)){
+                dma_hw->abort = ((1u << dma_tx_chan2) | (1u << dma_tx_chan));
+                if(dma_channel_is_busy(dma_tx_chan))dma_channel_abort(dma_tx_chan);
+                if(dma_channel_is_busy(dma_tx_chan2))dma_channel_abort(dma_tx_chan2);
+        }
+        if(argc<7)error("Syntax");
+        #ifdef PICOMITEVGA
+                int i=  getint(argv[0],1,1);
+        #endif
+        #ifdef PICOMITE
+                int i=  getint(argv[0],0,1);
+        #endif
+        #ifdef PICOMITEWEB
+                int i=  getint(argv[0],0,0);
+#endif
+        PIO pio = (i ? pio1: pio0);
+        int sm=getint(argv[2],0,3);
+        dma_tx_pio=i;
+        dma_tx_sm=sm;
+        uint32_t nbr=getint(argv[4],0,0xFFFFFFFF);
+        uint32_t s_nbr=nbr;
+        static uint32_t *a1int=NULL;
+	void *ptr1 = NULL;
+        int toarraysize;
+        ptr1 = findvar(argv[6], V_FIND | V_EMPTY_OK | V_NOFIND_ERR);
+        if(vartbl[VarIndex].type &  T_INT) {
+                if(vartbl[VarIndex].dims[1] != 0) error("Target must be an 1D integer array");
+                if(vartbl[VarIndex].dims[0] <= 0) {		// Not an array
+                        error("Target must be an 1D integer array");
+                }
+                toarraysize=vartbl[VarIndex].dims[0]-OptionBase+1;
+                a1int = (uint32_t *)ptr1;
+                if((uint32_t)ptr1!=(uint32_t)vartbl[VarIndex].val.s)error("Syntax");
+        } else error("Target must be an 1D integer array");
+        if(argc>=9 && *argv[8]){
+                if(nbr==0)error("Interrupt incopmpatible with continuous running");
                 DMAinterruptTX=GetIntAddress(argv[8]);
                 InterruptUsed=true;
         }
@@ -367,7 +396,6 @@ void cmd_pio(void){
                 else if(dmasize==16)dmasize=DMA_SIZE_16;
                 else if(dmasize==32)dmasize=DMA_SIZE_32;
         }
-        dma_tx_chan = PIO_TX_DMA;
         dma_channel_config c = dma_channel_get_default_config(dma_tx_chan);
         channel_config_set_write_increment(&c, false);
         channel_config_set_dreq(&c, pio_get_dreq(pio, sm, true));
@@ -381,20 +409,39 @@ void cmd_pio(void){
                         while(j>>=1)i++;
                         i+=dmasize;
                         if((1<<i)>(toarraysize*8))error("Array size");
+                        if(nbr==0){
+                                nbr=size;
+                                dma_channel_config c2 = dma_channel_get_default_config(dma_tx_chan2); //Get configurations for control channel
+                                channel_config_set_transfer_data_size(&c2, DMA_SIZE_32); //Set control channel data transfer size to 32 bits
+                                channel_config_set_read_increment(&c2, false); //Set control channel read increment to false
+                                channel_config_set_write_increment(&c2, false); //Set control channel write increment to false
+                                channel_config_set_dreq(&c2, 0x3F);
+//                                channel_config_set_chain_to(&c2, dma_tx_chan); 
+                                dma_channel_configure(dma_tx_chan2,
+                                        &c2,
+                                        &dma_hw->ch[dma_tx_chan].al3_read_addr_trig,
+                                        &a1int,
+                                        1,
+                                        false); //Configure control channel  
+                        }
                         channel_config_set_read_increment(&c, true);
-                        channel_config_set_ring(&c,false,i);
+                        if(s_nbr!=0)channel_config_set_ring(&c,false,i);
                 } else channel_config_set_read_increment(&c, false);
         } else {
                 if((nbr<<dmasize)>(toarraysize*8))error("Array size");
                 channel_config_set_read_increment(&c, true);
         } 
+        if(s_nbr==0) channel_config_set_chain_to(&c, dma_tx_chan2); //When this channel completes, it will trigger the channel indicated by chain_to
+
+                
         dma_channel_configure(dma_tx_chan,
                 &c,
                 &pio->txf[sm],      // Destination pointer
                 a1int,        // Source pointer
                 nbr, // Number of transfers
-                true                // Start immediately
+                (s_nbr==0 ? false :true)                // Start immediately
         );
+        if(s_nbr==0) dma_start_channel_mask(1u << dma_tx_chan2);
         pio_sm_restart(pio, sm);
         pio_sm_set_enabled(pio, sm, true);
         return;

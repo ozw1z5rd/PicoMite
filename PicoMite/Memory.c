@@ -44,6 +44,7 @@ extern const uint8_t *flash_progmemory;
 //unsigned char __attribute__ ((aligned (256))) AllMemory[ALL_MEMORY_SIZE];
 #ifdef PICOMITEVGA
 char __attribute__ ((aligned (256))) FRAMEBUFFER[640*480/8];
+unsigned char __attribute__ ((aligned (256))) MMHeap[HEAP_MEMORY_SIZE+256]={0};
 uint32_t M_Foreground[16] ={
 0x0000,0x000F,0x00f0,0x00ff,0x0f00,0x0f0F,0x0ff0,0x0fff,0xf000,0xf00F,0xf0f0,0xf0ff,0xff00,0xff0F,0xfff0,0xffff
 };
@@ -59,6 +60,7 @@ unsigned char *LayerBuf=FRAMEBUFFER;
 unsigned char *FrameBuf=FRAMEBUFFER;
 #endif
 #ifdef PICOMITE
+unsigned char __attribute__ ((aligned (256))) MMHeap[HEAP_MEMORY_SIZE+256]={0};
 struct s_ctrl CTRLS[MAXCONTROLS];
 struct s_ctrl *Ctrl=NULL;
 unsigned char *WriteBuf=NULL;
@@ -66,12 +68,12 @@ unsigned char *LayerBuf=NULL;
 unsigned char *FrameBuf=NULL;
 #endif
 #ifdef PICOMITEWEB
+unsigned char __attribute__ ((aligned (256))) MMHeap[HEAP_MEMORY_SIZE+256]={0};
 unsigned char *WriteBuf=NULL;
 unsigned char *LayerBuf=NULL;
 unsigned char *FrameBuf=NULL;
 #endif
 
-unsigned char __attribute__ ((aligned (256))) MMHeap[HEAP_MEMORY_SIZE+256]={0};
 unsigned int mmap[HEAP_MEMORY_SIZE/ PAGESIZE / PAGESPERWORD]={0};
 
 unsigned int MBitsGet(unsigned char *addr);
