@@ -302,7 +302,7 @@ void cmd_pio(void){
                 if(!(size==1 || size==2 || size==4 || size==8 || size==16 || size==32 || size==64 || size==128 || size==256 || size==512 || size==1024 || size== 2048 || size==4096 || size==8192 || size==16384 || size==32768))error("Not power of 2");
                 if(size!=1){
                         int i=0,j=size;
-                        if((uint32_t)a1int & (j-1))error("Data alignment error");
+                        if(((uint32_t)a1int & (j-1)) && nbr==0)error("Data alignment error");
                         while(j>>=1)i++;
                         i+=dmasize;
                         if((1<<i)>(toarraysize*8))error("Array size");
@@ -405,7 +405,7 @@ void cmd_pio(void){
                 if(!(size==1 || size==2 || size==4 || size==8 || size==16 || size==32 || size==64 || size==128 || size==256 || size==512 || size==1024 || size== 2048 || size==4096 || size==8192 || size==16384 || size==32768))error("Not power of 2");
                 if(size!=1){
                         int i=0,j=size;
-                        if((uint32_t)a1int & (j-1))error("Data alignment error");
+                        if(((uint32_t)a1int & (j-1)) && nbr==0)error("Data alignment error");
                         while(j>>=1)i++;
                         i+=dmasize;
                         if((1<<i)>(toarraysize*8))error("Array size");

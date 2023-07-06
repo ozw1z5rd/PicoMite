@@ -76,6 +76,20 @@ commands and functions
 
 
 // define the PWM output frequency for making a tone
+const char* const PlayingStr[] = {"OFF",
+                                "PAUSED",
+                                "PAUSED",
+                                "PAUSED",
+                                "SOUND",
+                                "WAV",
+                                "PAUSED",
+                                "FLAC",
+                                "MP3",
+                                "PAUSED",
+                                "PAUSED",
+                                "STOP",
+                                "SYNC"
+}  ;                              
 volatile unsigned char PWM_count = 0;
 volatile float PhaseM_left, PhaseM_right;
 volatile uint64_t SoundPlay;
@@ -1377,51 +1391,52 @@ void cmd_play(void) {
 
 
     if((tp = checkstring(cmdline, "TONE"))) {//
+		SoundPlay=1000;                                   // this MUST be the first executable line in the function
         float f_left, f_right;
         float hw, duration;
         uint64_t PlayDuration = 0xffffffffffffffff;                     // default is to play forever
         uint64_t  x;
-        // get the command line arguments
-        getargs(&tp, 7,",");                                       // this MUST be the first executable line in the function
-        if(!(argc == 3 || argc == 5 || argc == 7)) error("Argument count");
-		mono=0;
-//        if(CurrentlyPlaying == P_TONE || CurrentlyPlaying == P_PAUSE_TONE) CurrentlyPlaying = P_PAUSE_TONE;//StopAudio();                 // stop the current tone
-        if(!(CurrentlyPlaying == P_NOTHING || CurrentlyPlaying == P_TONE || CurrentlyPlaying == P_PAUSE_TONE)) error("Sound output in use");
-        
-        f_left = getnumber(argv[0]);                         // get the arguments
-        f_right = getnumber(argv[2]);
-		if(f_left==f_right && vol_left==vol_right)mono=1;
-        if(f_left<0.0 || f_left>22050.0)error("Valid is 0Hz to 20KHz");
-        if(f_right<0.0 || f_right>22050.0)error("Valid is 0Hz to 20KHz");
-        if(argc > 4) {
-			duration = ((float)getint(argv[4], 0, INT_MAX)/1000.0); //tone duration in seconds
-			PlayDuration=(uint64_t)duration;
-		} else duration=1;
-        if(argc == 7) {
-            WAVInterrupt = GetIntAddress(argv[6]);					// get the interrupt location
-			WAVcomplete=false;
-            InterruptUsed = true;
-        }
-        if(duration == 0) return;
-        if(PlayDuration != 0xffffffffffffffff && f_left >=10.0){
-        	hw=((float)PWM_FREQ/(float)f_left); //number of interrupts per cycle
-        	duration = duration * (float)PWM_FREQ; // number of interrupts for the requested waveform
-// This should now be an exact multiple of the number per waveform
-        	PlayDuration=(((uint64_t)(duration/hw))*hw)+1;
-        }
-        PhaseM_left =  f_left  / (float)PWM_FREQ * 4096.0;
-        PhaseM_right = f_right  / (float)PWM_FREQ * 4096.0;
-		WAV_fnbr=0;
+        {// get the command line arguments
+			getargs(&tp, 7,","); 
+			if(!(argc == 3 || argc == 5 || argc == 7)) error("Argument count");
+			mono=0;
+			if(!(CurrentlyPlaying == P_NOTHING || CurrentlyPlaying == P_TONE || CurrentlyPlaying == P_PAUSE_TONE || CurrentlyPlaying == P_STOP)) error("Sound output in use for $",PlayingStr[CurrentlyPlaying]);
+			f_left = getnumber(argv[0]);                         // get the arguments
+			f_right = getnumber(argv[2]);
+			if(f_left==f_right && vol_left==vol_right)mono=1;
+			if(f_left<0.0 || f_left>22050.0)error("Valid is 0Hz to 20KHz");
+			if(f_right<0.0 || f_right>22050.0)error("Valid is 0Hz to 20KHz");
+			if(argc > 4) {
+				duration = ((float)getint(argv[4], 0, INT_MAX)/1000.0); //tone duration in seconds
+				PlayDuration=(uint64_t)duration;
+			} else duration=1;
+			if(argc == 7) {
+				WAVInterrupt = GetIntAddress(argv[6]);					// get the interrupt location
+				WAVcomplete=false;
+				InterruptUsed = true;
+			}
+			if(duration == 0) return;
+			if(PlayDuration != 0xffffffffffffffff && f_left >=10.0){
+				hw=((float)PWM_FREQ/(float)f_left); //number of interrupts per cycle
+				duration = duration * (float)PWM_FREQ; // number of interrupts for the requested waveform
+	// This should now be an exact multiple of the number per waveform
+				PlayDuration=(((uint64_t)(duration/hw))*hw)+1;
+			}
+			pwm_set_irq_enabled(AUDIO_SLICE, false);
+			PhaseM_left =  f_left  / (float)PWM_FREQ * 4096.0;
+			PhaseM_right = f_right  / (float)PWM_FREQ * 4096.0;
+			WAV_fnbr=0;
 
-        SoundPlay = PlayDuration;
-    	if (!(CurrentlyPlaying == P_PAUSE_TONE || CurrentlyPlaying == P_TONE )){
-			setrate(PWM_FREQ);
-            PhaseAC_right=0.0;
-			PhaseAC_left=0.0;
+			SoundPlay = PlayDuration;
+			if (!(CurrentlyPlaying == P_PAUSE_TONE || CurrentlyPlaying == P_TONE )){
+				setrate(PWM_FREQ);
+				PhaseAC_right=0.0;
+				PhaseAC_left=0.0;
+			}
+			CurrentlyPlaying = P_TONE;
 			pwm_set_irq_enabled(AUDIO_SLICE, true);
-    	}
-        CurrentlyPlaying = P_TONE;
-        return;
+			return;
+		}
     }
     if((tp = checkstring(cmdline, "SOUND"))) {//PLAY SOUND channel, type, position, frequency, volume
         float f_in, PhaseM;
@@ -1467,7 +1482,7 @@ void cmd_play(void) {
 				right=1;
 			} else error("Position must be L, R, or B");
 		}
-        if(!(CurrentlyPlaying == P_NOTHING || CurrentlyPlaying == P_SOUND || CurrentlyPlaying == P_PAUSE_SOUND)) error("Sound output in use");
+        if(!(CurrentlyPlaying == P_NOTHING || CurrentlyPlaying == P_SOUND || CurrentlyPlaying == P_PAUSE_SOUND)) error("Sound output in use for $",PlayingStr[CurrentlyPlaying]);
         if(checkstring(argv[4],"O")!=NULL && left){lset=1;local_sound_mode_left=(uint16_t *)nulltable;}
         if(checkstring(argv[4],"O")!=NULL && right){rset=1;local_sound_mode_right=(uint16_t *)nulltable;}
         if(checkstring(argv[4],"Q")!=NULL && left){lset=1;local_sound_mode_left=(uint16_t *)squaretable;}
@@ -1565,7 +1580,7 @@ void cmd_play(void) {
         getargs(&tp, 3,",");                                  // this MUST be the first executable line in the function
         if(!(argc == 1 || argc == 3)) error("Argument count");
 
-        if(CurrentlyPlaying != P_NOTHING) error("Sound output in use");
+        if(CurrentlyPlaying != P_NOTHING) error("Sound output in use for $",PlayingStr[CurrentlyPlaying]);
 
         if(!InitSDCard()) return;
         p = getCstring(argv[0]);                                    // get the file name
@@ -1615,7 +1630,7 @@ void cmd_play(void) {
         getargs(&tp, 3,",");                                  // this MUST be the first executable line in the function
         if(!(argc == 1 || argc == 3)) error("Argument count");
 
-        if(CurrentlyPlaying != P_NOTHING) error("Sound output in use");
+        if(CurrentlyPlaying != P_NOTHING) error("Sound output in use for $",PlayingStr[CurrentlyPlaying]);
 
         if(!InitSDCard()) return;
         p = getCstring(argv[0]);                                    // get the file name

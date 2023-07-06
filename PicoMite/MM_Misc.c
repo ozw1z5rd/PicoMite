@@ -3029,6 +3029,10 @@ void fun_info(void){
         targ=T_INT;
         return;
 #endif
+    } else if((tp=checkstring(ep, "ADC"))){
+        targ=T_INT;
+        iret=((adcint==adcint1 && adcint) ? 1 : ((adcint==adcint2 && adcint) ? 2 : 0));
+        return;
     } else if(checkstring(ep, "BCOLOUR") || checkstring(ep, "BCOLOR")){
             iret=gui_bcolour;
             targ=T_INT;
@@ -3458,11 +3462,14 @@ void fun_info(void){
         if(checkstring(ep, "SDCARD")){
             int i=OptionFileErrorAbort;
             OptionFileErrorAbort=0;
+            FatFSFileSystemSave = FatFSFileSystem;
+            FatFSFileSystem=1;
             if(!InitSDCard())strcpy(sret,"Not present");
             else  strcpy(sret,"Ready");
             CtoM(sret);
             targ=T_STR;
             OptionFileErrorAbort=i;
+            FatFSFileSystem = FatFSFileSystemSave;
             return;
         } else if(checkstring(ep, "SPI SPEED")){
             SPISpeedSet(Option.DISPLAY_TYPE);
@@ -3486,17 +3493,7 @@ void fun_info(void){
             targ=T_INT;
             return;
         } else if(checkstring(ep, "SOUND")){
-            switch(CurrentlyPlaying){
-            case P_NOTHING:strcpy(sret,"OFF");break;
-            case P_PAUSE_TONE:
-            case P_PAUSE_WAV:
-            case P_PAUSE_SOUND:
-            case P_PAUSE_FLAC:strcpy(sret,"PAUSED");break;
-            case P_TONE:strcpy(sret,"TONE");break;
-            case P_WAV:strcpy(sret,"WAV");break;
-            case P_FLAC:strcpy(sret,"FLAC");break;
-            case P_SOUND:strcpy(sret,"SOUND");break;
-            }
+            strcpy(sret,PlayingStr[CurrentlyPlaying]);
             CtoM(sret);
             targ=T_STR;
             return;
@@ -4067,7 +4064,7 @@ int checkdetailinterrupts(void) {
 #endif
 
     if(ADCInterrupt && dmarunning){
-        if(!dma_channel_is_busy(dma_chan)){
+        if(!dma_channel_is_busy(ADC_dma_chan)){
             __compiler_memory_barrier();
             adc_run(false);
             adc_fifo_drain();
@@ -4086,6 +4083,12 @@ int checkdetailinterrupts(void) {
         goto GotAnInterrupt;
         }
     }
+    if(ADCInterrupt && ADCrunning){
+        ADCrunning=0;
+        intaddr = ADCInterrupt;
+        goto GotAnInterrupt;
+    }
+
 
 //#ifdef INCLUDE_I2C_SLAVE
 

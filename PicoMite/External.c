@@ -142,9 +142,15 @@ int ADCmax=0;
 volatile int ADCpos=0;
 float frequency;
 int dmarunning=0;
-uint dma_chan;
+int ADCrunning=0;
+uint32_t ADC_dma_chan=ADC_DMA;
+uint32_t ADC_dma_chan2=ADC_DMA2;
 short *ADCbuffer=NULL;
 void PWMoff(int slice);
+volatile uint8_t *adcint=NULL; 
+uint8_t *adcint1=NULL; 
+uint8_t *adcint2=NULL; 
+
 //Vector to CFunction routine called every command (ie, from the BASIC interrupt checker)
 
 uint64_t readusclock(void){
@@ -585,6 +591,7 @@ void ExtCfg(int pin, int cfg, int option) {
         case EXT_PIO1_OUT:       
         case EXT_DIG_OUT:       if(!(PinDef[pin].mode & DIGITAL_OUT)) error("Invalid configuration");
                                 tris = 0; ana = 1; oc = 0;
+                                gpio_set_drive_strength(PinDef[pin].GPno,GPIO_DRIVE_STRENGTH_12MA);
                                 break;
         case EXT_HEARTBEAT:     if(!(pin==43)) error("Invalid configuration");
                                 tris = 0; ana = 1; oc = 0;
@@ -2348,6 +2355,15 @@ void cmd_bitbang(void){
 	}
     error("Syntax");
 }
+void __not_in_flash_func(ADCint)()
+{
+	// Clear the interrupt request for DMA control channel
+	dma_hw->ints1 = (1u << ADC_dma_chan);
+    if(adcint==adcint2)adcint=adcint1;
+    else adcint=adcint2;
+    ADCrunning=1;
+}
+
 void cmd_adc(void){
 	unsigned char *tp;
 	tp = checkstring(cmdline, "OPEN");
@@ -2383,6 +2399,87 @@ void cmd_adc(void){
         ADCopen=nbr;
 		return;
 	}
+	tp = checkstring(cmdline, "RUN");
+    if(tp){
+        void *ptr1=NULL, *ptr2=NULL;
+        getargs(&tp, 3, ",");
+		if(!ADCopen)error("ADC not open");
+        if(!(argc == 3))error("Argument count");
+        ADCmax=0;
+        ADCpos=0;
+        adcint2=NULL;
+        ptr1 = findvar(argv[0], V_FIND | V_EMPTY_OK | V_NOFIND_ERR);
+        if(vartbl[VarIndex].type & T_INT) {
+            if(vartbl[VarIndex].dims[1] != 0) error("Invalid variable");
+            if(vartbl[VarIndex].dims[0] <= 0) {		// Not an array
+                error("Argument 1 must be integer array");
+            }
+            adcint1 = (uint8_t *)ptr1;
+        } else error("Argument 1 must be integer array");
+        ADCmax=(vartbl[VarIndex].dims[0] - OptionBase + 1);
+        ptr2 = findvar(argv[2], V_FIND | V_EMPTY_OK | V_NOFIND_ERR);
+        if(vartbl[VarIndex].type & T_INT) {
+            if(vartbl[VarIndex].dims[1] != 0) error("Invalid variable");
+            if(vartbl[VarIndex].dims[0] <= 0) {		// Not an array
+                error("Argument 2 must be integer array");
+            }
+            if((vartbl[VarIndex].dims[0] - OptionBase + 1) != ADCmax)error("Array size mismatch");
+            adcint2 = (uint8_t *)ptr2;
+        } else error("Argument 2 must be integer array");
+        ADCmax *=8;
+        adc_init();
+        adc_set_round_robin(ADCopen==1 ? 1 : ADCopen==2 ? 3 : ADCopen==3 ? 7 : 15);
+        adc_fifo_setup(
+            true,    // Write each completed conversion to the sample FIFO
+            true,    // Enable DMA data request (DREQ)
+            1,       // DREQ (and IRQ) asserted when at least 1 sample present
+            false,   // We won't see the ERR bit because of 8 bit reads; disable.
+            true     // Shift each sample to 8 bits when pushing to FIFO
+        );
+        float div=(500000.0/frequency*96.000);
+        if(div==96.0)div=0;
+        adcint=adcint1;
+        adc_set_clkdiv(div);
+        // Set up the DMA to start transferring data as soon as it appears in FIFO
+        dma_channel_config cfg = dma_channel_get_default_config(ADC_dma_chan);
+
+        // Reading from constant address, writing to incrementing byte addresses
+        channel_config_set_transfer_data_size(&cfg, DMA_SIZE_8);
+        channel_config_set_read_increment(&cfg, false);
+        channel_config_set_write_increment(&cfg, true);
+        channel_config_set_irq_quiet(&cfg, false);
+        channel_config_set_dreq(&cfg, DREQ_ADC);
+        channel_config_set_chain_to(&cfg, ADC_dma_chan2);
+        dma_channel_configure(ADC_dma_chan, &cfg,
+            adcint,    // dst
+            &adc_hw->fifo,  // src
+            ADCmax,  // transfer count
+            false            // start immediately
+        );
+        dma_channel_config c2 = dma_channel_get_default_config(ADC_dma_chan2); //Get configurations for control channel
+        channel_config_set_transfer_data_size(&c2, DMA_SIZE_32); //Set control channel data transfer size to 32 bits
+        channel_config_set_read_increment(&c2, false); //Set control channel read increment to false
+        channel_config_set_write_increment(&c2, false); //Set control channel write increment to false
+        channel_config_set_dreq(&c2, 0x3F);
+//                                channel_config_set_chain_to(&c2, dma_tx_chan); 
+        dma_channel_configure(ADC_dma_chan2,
+                &c2,
+                &dma_hw->ch[ADC_dma_chan].al2_write_addr_trig,
+                &adcint,
+                1,
+                false); //Configure control channel  
+	    dma_channel_set_irq1_enabled(ADC_dma_chan, true);
+
+	// set DMA IRQ handler
+        irq_set_exclusive_handler(DMA_IRQ_1, ADCint);
+	// set highest IRQ priority
+        irq_set_enabled(DMA_IRQ_1, true);
+        dma_start_channel_mask(1u << ADC_dma_chan2);
+        adc_run(true);
+        adcint=adcint2;
+		return;
+	}
+
 	tp = checkstring(cmdline, "FREQUENCY");
 	if(tp) {
         getargs(&tp,1,",");
@@ -2464,8 +2561,7 @@ void cmd_adc(void){
         if(div==96.0)div=0;
         adc_set_clkdiv(div);
         // Set up the DMA to start transferring data as soon as it appears in FIFO
-        dma_chan = ADC_DMA;
-        dma_channel_config cfg = dma_channel_get_default_config(dma_chan);
+        dma_channel_config cfg = dma_channel_get_default_config(ADC_dma_chan);
 
         // Reading from constant address, writing to incrementing byte addresses
         channel_config_set_transfer_data_size(&cfg, DMA_SIZE_16);
@@ -2476,7 +2572,7 @@ void cmd_adc(void){
         // Pace transfers based on availability of ADC samples
         channel_config_set_dreq(&cfg, DREQ_ADC);
 
-        dma_channel_configure(dma_chan, &cfg,
+        dma_channel_configure(ADC_dma_chan, &cfg,
             (uint8_t *)ADCbuffer,    // dst
             &adc_hw->fifo,  // src
             ADCmax*ADCopen,  // transfer count
@@ -2487,7 +2583,7 @@ void cmd_adc(void){
         // Once DMA finishes, stop any new conversions from starting, and clean up
         // the FIFO in case the ADC was still mid-conversion.
         if(!ADCInterrupt){
-            while(dma_channel_is_busy(dma_chan))tight_loop_contents();
+            while(dma_channel_is_busy(ADC_dma_chan))tight_loop_contents();
             __compiler_memory_barrier();
             adc_run(false);
             adc_fifo_drain();
@@ -2507,6 +2603,10 @@ void cmd_adc(void){
 	tp = checkstring(cmdline, "CLOSE");
 	if(tp) {
         if(!ADCopen)error("Not open");
+        irq_set_enabled(DMA_IRQ_1, false);
+        dma_hw->abort = ((1u << ADC_dma_chan2) | (1u << ADC_dma_chan));
+        dma_channel_abort(ADC_dma_chan);
+        dma_channel_abort(ADC_dma_chan2);
         adc_set_round_robin(0);
         adc_set_clkdiv(0);
         ExtCfg(31, EXT_NOT_CONFIG, 0);
@@ -2514,6 +2614,7 @@ void cmd_adc(void){
         if(ADCopen>=3)ExtCfg(34, EXT_NOT_CONFIG, 0);
         if(ADCopen>=4)ExtCfg(44, EXT_NOT_CONFIG, 0);
         ADCopen=0;
+        adcint=adcint1=adcint2=NULL;
 		return;
 	}
     error("Syntax");
@@ -2523,6 +2624,7 @@ void ClearExternalIO(void) {
   	CloseAudio(1);
     InterruptUsed = false;
 	InterruptReturn = NULL;
+    irq_set_enabled(DMA_IRQ_1, false);
  
     if(CallBackEnabled==1) gpio_set_irq_enabled_with_callback(PinDef[IRpin].GPno, GPIO_IRQ_EDGE_RISE | GPIO_IRQ_EDGE_FALL, false, &gpio_callback);
     else if(CallBackEnabled & 1){
@@ -2671,6 +2773,7 @@ void ClearExternalIO(void) {
 #endif
 #endif
     dmarunning=0;
+    ADCrunning=0;
     ADCInterrupt=NULL;
     CSubInterrupt=NULL;
     CSubComplete=0;
@@ -2686,15 +2789,21 @@ void ClearExternalIO(void) {
     DMAinterruptTX=NULL;
     WAVInterrupt=NULL;
     dma_hw->abort = ((1u << dma_rx_chan2) | (1u << dma_rx_chan));
-    dma_channel_abort(dma_rx_chan);
+    if(dma_channel_is_busy(dma_rx_chan))dma_channel_abort(dma_rx_chan);
     if(dma_channel_is_busy(dma_rx_chan2))dma_channel_abort(dma_rx_chan2);
-    if(dma_channel_is_busy(dma_rx_chan))dma_channel_cleanup(dma_rx_chan);
+    dma_channel_cleanup(dma_rx_chan);
     dma_channel_cleanup(dma_rx_chan2);
     dma_hw->abort = ((1u << dma_tx_chan2) | (1u << dma_tx_chan));
     if(dma_channel_is_busy(dma_tx_chan))dma_channel_abort(dma_tx_chan);
     if(dma_channel_is_busy(dma_tx_chan2))dma_channel_abort(dma_tx_chan2);
     dma_channel_cleanup(dma_tx_chan);
     dma_channel_cleanup(dma_tx_chan2);
+    dma_hw->abort = ((1u << ADC_dma_chan2) | (1u << ADC_dma_chan));
+    if(dma_channel_is_busy(ADC_dma_chan))dma_channel_abort(ADC_dma_chan);
+    if(dma_channel_is_busy(ADC_dma_chan2))dma_channel_abort(ADC_dma_chan2);
+    dma_channel_cleanup(ADC_dma_chan);
+    dma_channel_cleanup(ADC_dma_chan2);
+    adcint=adcint1=adcint2=NULL;
 }
 
 

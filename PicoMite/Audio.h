@@ -67,6 +67,7 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 #ifndef AUDIO_HEADER
 #define AUDIO_HEADER
 typedef enum { P_NOTHING, P_PAUSE_TONE, P_TONE, P_PAUSE_SOUND, P_SOUND, P_WAV, P_PAUSE_WAV, P_FLAC, P_MP3, P_PAUSE_FLAC, P_PAUSE_MP3, P_STOP, P_SYNC} e_CurrentlyPlaying;
+extern const char* const PlayingStr[];
 extern volatile e_CurrentlyPlaying CurrentlyPlaying; 
 extern char *WAVInterrupt;
 extern int WAVcomplete;
