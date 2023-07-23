@@ -1719,14 +1719,11 @@ void cmd_play(void) {
 			enable_interrupts();
 			j+=256;
         }
-		for(i=0;i<RoundUpK4(fsize+4096);i++){ // prime the cache after writing to flash
-			playreadcomplete+=modbuff[i];
-		}
         FileClose(WAV_fnbr);
 		mcontext=GetMemory(sizeof(modcontext));
         hxcmod_init( mcontext );
         hxcmod_setcfg(mcontext, modfilesamplerate,1,1 );
-		hxcmod_load( mcontext, (void*)modbuff, i );
+		hxcmod_load( mcontext, (void*)modbuff, fsize );
 		if(!mcontext->mod_loaded)error("Load failed");
 		if(!CurrentLinePtr){
 			MMPrintString("Playing ");MMPrintString(mcontext->song.title);PRet();
