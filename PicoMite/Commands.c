@@ -781,18 +781,18 @@ void cmd_end(void) {
     dma_hw->abort = ((1u << dma_rx_chan2) | (1u << dma_rx_chan));
     if(dma_channel_is_busy(dma_rx_chan))dma_channel_abort(dma_rx_chan);
     if(dma_channel_is_busy(dma_rx_chan2))dma_channel_abort(dma_rx_chan2);
-    dma_channel_cleanup(dma_rx_chan);
-    dma_channel_cleanup(dma_rx_chan2);
+//    dma_channel_cleanup(dma_rx_chan);
+//    dma_channel_cleanup(dma_rx_chan2);
     dma_hw->abort = ((1u << dma_tx_chan2) | (1u << dma_tx_chan));
     if(dma_channel_is_busy(dma_tx_chan))dma_channel_abort(dma_tx_chan);
     if(dma_channel_is_busy(dma_tx_chan2))dma_channel_abort(dma_tx_chan2);
-    dma_channel_cleanup(dma_tx_chan);
-    dma_channel_cleanup(dma_tx_chan2);
+//    dma_channel_cleanup(dma_tx_chan);
+//    dma_channel_cleanup(dma_tx_chan2);
     dma_hw->abort = ((1u << ADC_dma_chan2) | (1u << ADC_dma_chan));
     if(dma_channel_is_busy(ADC_dma_chan))dma_channel_abort(ADC_dma_chan);
     if(dma_channel_is_busy(ADC_dma_chan2))dma_channel_abort(ADC_dma_chan2);
-    dma_channel_cleanup(ADC_dma_chan);
-    dma_channel_cleanup(ADC_dma_chan2);
+//    dma_channel_cleanup(ADC_dma_chan);
+//    dma_channel_cleanup(ADC_dma_chan2);
  	for(int i=0; i< NBRSETTICKS;i++){
 		TickPeriod[i]=0;
 		TickTimer[i]=0;

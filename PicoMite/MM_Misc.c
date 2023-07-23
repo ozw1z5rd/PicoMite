@@ -1891,6 +1891,9 @@ void printoptions(void){
         MMputchar(',',1);;MMPrintString((char *)PinDef[Option.INT3pin].pinname);
         MMputchar(',',1);;MMPrintString((char *)PinDef[Option.INT4pin].pinname);PRet();
     }
+
+    if(Option.modbuff)PO2Int("MODBUFF",Option.modbuffsize);
+
     if(*Option.F1key)PO2Str("F1", Option.F1key);
     if(*Option.F5key)PO2Str("F5", Option.F5key);
     if(*Option.F6key)PO2Str("F6", Option.F6key);
@@ -2624,6 +2627,32 @@ void cmd_option(void) {
         if(checkstring(tp, "DISABLE"))      { Option.RTC = false; SaveOptions(); return;  }
     }
 
+    tp = checkstring(cmdline, "MODBUFF");
+    if(tp) {
+        unsigned char *p=NULL;
+        if((p=checkstring(tp, "ENABLE")))
+            if(!Option.modbuff)       { 
+                getargs(&p,1,",");
+                if(argc)Option.modbuffsize=getint(argv[0],16,Option.FlashSize-RoundUpK4(TOP_OF_SYSTEM_FLASH)-1024*128);
+                else Option.modbuffsize=128*1024;
+                Option.modbuff = true; 
+                SaveOptions(); 
+                ResetFlashStorage(1); 
+                modbuff=(char *)(XIP_BASE + RoundUpK4(TOP_OF_SYSTEM_FLASH));
+                return; 
+                }
+            else error("Already enabled");
+        if(checkstring(tp, "DISABLE"))
+            if(Option.modbuff)      { 
+                Option.modbuff = false; 
+                Option.modbuffsize=0;
+                SaveOptions(); 
+                ResetFlashStorage(1); 
+                modbuff=NULL;
+                return; }
+            else error("Not enabled");
+    }
+
 	tp = checkstring(cmdline, "LIST");
     if(tp) {
     	printoptions();
@@ -3087,7 +3116,7 @@ void fun_info(void){
                 /* Get total sectors and free sectors */
                 iret= (uint64_t)(fs->n_fatent - 2) * (uint64_t)fs->csize *(uint64_t)FF_MAX_SS;
             } else {
-                iret=(Option.FlashSize-RoundUpK4(TOP_OF_SYSTEM_FLASH));
+                iret=(Option.FlashSize-(Option.modbuff ? 1024*Option.modbuffsize : 0)-RoundUpK4(TOP_OF_SYSTEM_FLASH));
             }
             targ=T_INT;
             return;
@@ -3178,7 +3207,7 @@ void fun_info(void){
                 /* Get total sectors and free sectors */
                 iret = (uint64_t)fre_clust * (uint64_t)fs->csize  *(uint64_t)FF_MAX_SS;
             } else {
-                iret=Option.FlashSize-RoundUpK4(TOP_OF_SYSTEM_FLASH)-lfs_fs_size(&lfs)*4096;
+                iret=Option.FlashSize-(Option.modbuff ? 1024*Option.modbuffsize : 0)-RoundUpK4(TOP_OF_SYSTEM_FLASH)-lfs_fs_size(&lfs)*4096;
             }
             targ=T_INT;
             return;

@@ -311,7 +311,7 @@ int __not_in_flash_func(fs_flash_read)(const struct lfs_config *cfg, lfs_block_t
     assert(off  % cfg->read_size == 0);
     assert(size % cfg->read_size == 0);
     assert(block < cfg->block_count);
-    uint32_t addr = XIP_BASE + RoundUpK4(TOP_OF_SYSTEM_FLASH) + block*4096 + off;
+    uint32_t addr = XIP_BASE + RoundUpK4(TOP_OF_SYSTEM_FLASH) + (Option.modbuff ? 1024*Option.modbuffsize : 0) + block*4096 + off;
     memcpy(buffer,(char *)addr,size);
     return 0;
 }
@@ -322,7 +322,7 @@ int __not_in_flash_func(fs_flash_prog)(const struct lfs_config *cfg, lfs_block_t
     assert(size % cfg->prog_size == 0);
     assert(block < cfg->block_count);
 
-    uint32_t addr = RoundUpK4(TOP_OF_SYSTEM_FLASH) + block*4096 + off;
+    uint32_t addr = RoundUpK4(TOP_OF_SYSTEM_FLASH) + (Option.modbuff ? 1024*Option.modbuffsize : 0) + block*4096 + off;
     disable_interrupts();
     flash_range_program(addr, buffer, size);
     enable_interrupts();
@@ -331,7 +331,7 @@ int __not_in_flash_func(fs_flash_prog)(const struct lfs_config *cfg, lfs_block_t
 int __not_in_flash_func(fs_flash_erase)(const struct lfs_config *cfg, lfs_block_t block){
     assert(block < cfg->block_count);
 
-    uint32_t block_addr = RoundUpK4(TOP_OF_SYSTEM_FLASH) + block*4096;
+    uint32_t block_addr = RoundUpK4(TOP_OF_SYSTEM_FLASH) + (Option.modbuff ? 1024*Option.modbuffsize : 0) + block*4096;
         disable_interrupts();
         flash_range_erase(block_addr, BLOCK_SIZE);
         enable_interrupts();
@@ -3046,7 +3046,7 @@ void cmd_files(void)
         if(FatFSFileSystem) f_closedir(&djd);
         else {
             lfs_dir_close(&lfs, &lfs_dir);
-            IntToStr(ts, Option.FlashSize-RoundUpK4(TOP_OF_SYSTEM_FLASH)-lfs_fs_size(&lfs)*4096,10);
+            IntToStr(ts, Option.FlashSize-(Option.modbuff ? 1024*Option.modbuffsize : 0)-RoundUpK4(TOP_OF_SYSTEM_FLASH)-lfs_fs_size(&lfs)*4096,10);
             MMPrintString(", ");
             MMPrintString(ts);
             MMPrintString(" bytes free");
@@ -3519,7 +3519,7 @@ void __not_in_flash_func(CheckSDCard)(void)
         }
         diskchecktimer = DISKCHECKRATE;
     }
-    else if (CurrentlyPlaying == P_WAV || CurrentlyPlaying == P_FLAC )
+    else if (CurrentlyPlaying == P_WAV || CurrentlyPlaying == P_FLAC || CurrentlyPlaying == P_MOD )
         checkWAVinput();
 }
 void LoadOptions(void)

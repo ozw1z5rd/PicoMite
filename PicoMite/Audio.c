@@ -28,7 +28,7 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 #include "ffconf.h"
 #include "hardware/pwm.h"
 #include "hardware/irq.h"
-
+#include "hardware/flash.h"
 #include "MMBasic_Includes.h"
 #include "Hardware_Includes.h"
 #define DRWAV_COPY_MEMORY(dst, src, sz) memcpy((dst), (src), (sz))
@@ -42,6 +42,7 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 #define DR_FLAC_NO_SIMD
 #define DR_FLAC_NO_OGG
 #include "dr_flac.h"
+#include "hxcmod.h"
 extern BYTE MDD_SDSPI_CardDetectState(void);
 #define MAXALBUM 20
 extern int InitSDCard(void);
@@ -88,7 +89,8 @@ const char* const PlayingStr[] = {"OFF",
                                 "PAUSED",
                                 "PAUSED",
                                 "STOP",
-                                "SYNC"
+                                "SYNC",
+								"MOD"
 }  ;                              
 volatile unsigned char PWM_count = 0;
 volatile float PhaseM_left, PhaseM_right;
@@ -107,6 +109,8 @@ volatile int swingbuf = 0,nextbuf = 0, playreadcomplete = 1;
 char *sbuff1=NULL, *sbuff2=NULL;
 uint16_t *ibuff1, *ibuff2;
 char *modbuff=NULL;
+modcontext *mcontext=NULL;
+int modfilesamplerate=16000;
 char *pbuffp;
 void audio_checks(void);
 uint16_t *playbuff;
@@ -1085,6 +1089,7 @@ drwav_bool32 onSeek(void  *userdata,  int offset,  drwav_seek_origin origin){
     return 1;
 }
 void CloseAudio(int all){
+	modbuff =  (Option.modbuff ?  (char *)(XIP_BASE + RoundUpK4(TOP_OF_SYSTEM_FLASH)) : NULL);
 	int was_playing=CurrentlyPlaying;
 	bcount[1] = bcount[2] = wav_filesize = 0;
 	swingbuf = nextbuf = playreadcomplete = 0;
@@ -1096,6 +1101,7 @@ void CloseAudio(int all){
 	FreeMemorySafe((void **)&sbuff2);
 	FreeMemorySafe((void **)&noisetable);
 	FreeMemorySafe((void **)&usertable);
+	FreeMemorySafe((void **)&mcontext);
 //	if(was_playing == P_FLAC || was_playing == P_PAUSE_FLAC )FreeMemorySafe((void **)&myflac);
 //	FreeMemorySafe((void **)&mymp3);
 	if(all){
@@ -1674,6 +1680,99 @@ void cmd_play(void) {
         flaccallback(p);
         return;
 	}
+    if((tp = checkstring(cmdline, "MODFILE"))) {
+        getargs(&tp, 1,",");                                  // this MUST be the first executable line in the function
+        char *p, *r;
+        int i __attribute((unused))=0,fsize;
+        modfilesamplerate=16000;
+        if(CurrentlyPlaying != P_NOTHING) error("Sound output in use");
+		if(!modbuff)error("Mod playback not enabled");
+        if(!InitSDCard()) return;
+        sbuff1 = GetMemory(WAV_BUFFER_SIZE);
+        sbuff2 = GetMemory(WAV_BUFFER_SIZE);
+        ibuff1 = (uint16_t *)sbuff1;
+        ibuff2 = (uint16_t *)sbuff2;
+        p = getCstring(argv[0]);                                    // get the file name
+        WAVInterrupt = NULL;
+        WAVcomplete = 0;
+        // open the file
+        if(strchr(p, '.') == NULL) strcat(p, ".MOD");
+        WAV_fnbr = FindFreeFileNbr();
+        if(!BasicFileOpen(p, WAV_fnbr, FA_READ)) return;
+        i=0;
+		if(filesource[WAV_fnbr]!=FLASHFILE)  fsize = f_size(FileTable[WAV_fnbr].fptr);
+		else fsize = lfs_file_size(&lfs,FileTable[WAV_fnbr].lfsptr);
+		if(fsize>=RoundUpK4(TOP_OF_SYSTEM_FLASH)+1024*Option.modbuffsize)error("File too large for modbuffer");
+        r = GetTempMemory(256);
+        uint32_t j = RoundUpK4(TOP_OF_SYSTEM_FLASH);
+        disable_interrupts();
+        flash_range_erase(j, /*1024*Option.modbuffsize*/RoundUpK4(fsize));
+        enable_interrupts();
+        while(!FileEOF(WAV_fnbr)) { 
+			memset(r,0,256) ;
+			for(i=0;i<256;i++) {
+				if(FileEOF(WAV_fnbr))break;
+				r[i] = FileGetChar(WAV_fnbr);
+			}  
+			disable_interrupts();
+			flash_range_program(j, r, 256);
+			enable_interrupts();
+			j+=256;
+        }
+		for(i=0;i<fsize;i++){ // prime the cache after writing to flash
+			playreadcomplete+=modbuff[i];
+		}
+        FileClose(WAV_fnbr);
+		mcontext=GetMemory(sizeof(modcontext));
+        hxcmod_init( mcontext );
+        hxcmod_setcfg(mcontext, modfilesamplerate,1,1 );
+		hxcmod_load( mcontext, (void*)modbuff, i );
+		if(!mcontext->mod_loaded)error("Load failed");
+		if(!CurrentLinePtr){
+			MMPrintString("Playing ");MMPrintString(mcontext->song.title);PRet();
+		}
+        hxcmod_fillbuffer( mcontext, (msample*)sbuff1, WAV_BUFFER_SIZE/4, NULL );
+        wav_filesize=WAV_BUFFER_SIZE/2;
+        bcount[1]=WAV_BUFFER_SIZE/2;
+        bcount[2]=0;
+        iconvert((int16_t *)ibuff1, (int16_t *)sbuff1, bcount[1]);
+        nchannels=2;
+        CurrentlyPlaying = P_MOD;
+        swingbuf=1;
+        nextbuf=2;
+        ppos=0;
+        playreadcomplete=0;
+        setrate(32000);
+		audiorepeat=2;
+    	pwm_set_irq_enabled(AUDIO_SLICE, true);
+        return;
+    }
+    if((tp = checkstring(cmdline, "MODSAMPLE"))) {
+        unsigned short sampnum, seffectnum;
+        unsigned char volume;
+        unsigned int samprate, period;
+        getargs(&tp, 7,",");                                  // this MUST be the first executable line in the function
+        if(!(argc == 7 || argc == 5 || argc == 3)) error("Argument count");
+
+        if(!(CurrentlyPlaying == P_MOD)) error("Samples play over MOD file");
+
+        sampnum = getint(argv[0],1,32) - 1;
+
+        seffectnum = getint(argv[2],1,NUMMAXSEFFECTS) - 1;
+
+        volume=63;
+        if(argc >= 5 && *argv[4]) {
+        	volume = getint(argv[4],0,64) - 1;
+        	if (volume <0 ) volume = 0;
+        }
+    	samprate = 16000;
+		if(argc == 7) samprate = getint(argv[6], 150,500000);
+
+        period = 3579545 / samprate;
+
+        hxcmod_playsoundeffect( mcontext, sampnum, seffectnum, volume, period );
+        return;
+    }
 
     error("Unknown command");
 }
@@ -1729,6 +1828,19 @@ void checkWAVinput(void){
                 wav_filesize = bcount[2];
             }
             nextbuf=swingbuf;
+	} else if(CurrentlyPlaying == P_MOD){
+			if(swingbuf==2){
+				hxcmod_fillbuffer( mcontext, (msample*)sbuff1, WAV_BUFFER_SIZE/4, NULL );
+				wav_filesize=WAV_BUFFER_SIZE/2;
+				bcount[1]=WAV_BUFFER_SIZE/2;
+				iconvert((int16_t *)ibuff1, (int16_t *)sbuff1, bcount[1]);
+			} else {
+				hxcmod_fillbuffer( mcontext, (msample*)sbuff2, WAV_BUFFER_SIZE/4, NULL );
+				wav_filesize=WAV_BUFFER_SIZE/2;
+				bcount[2]=WAV_BUFFER_SIZE/2;
+				iconvert((int16_t *)ibuff2, (int16_t *)sbuff2, bcount[2]);
+			}
+        	nextbuf=swingbuf;
 	} else if(CurrentlyPlaying == P_WAV){
 			if(swingbuf==2){
 				bcount[1]=(volatile unsigned int)drwav_read_pcm_frames_s16(&mywav, WAV_BUFFER_SIZE/4, (drwav_int16*)sbuff1) * mywav.channels;

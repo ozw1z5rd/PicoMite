@@ -66,14 +66,14 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 
 #ifndef AUDIO_HEADER
 #define AUDIO_HEADER
-typedef enum { P_NOTHING, P_PAUSE_TONE, P_TONE, P_PAUSE_SOUND, P_SOUND, P_WAV, P_PAUSE_WAV, P_FLAC, P_MP3, P_PAUSE_FLAC, P_PAUSE_MP3, P_STOP, P_SYNC} e_CurrentlyPlaying;
+typedef enum { P_NOTHING, P_PAUSE_TONE, P_TONE, P_PAUSE_SOUND, P_SOUND, P_WAV, P_PAUSE_WAV, P_FLAC, P_MP3, P_PAUSE_FLAC, P_PAUSE_MP3, P_STOP, P_SYNC, P_MOD} e_CurrentlyPlaying;
 extern const char* const PlayingStr[];
 extern volatile e_CurrentlyPlaying CurrentlyPlaying; 
 extern char *WAVInterrupt;
 extern int WAVcomplete;
 extern int WAV_fnbr;
 extern int PWM_FREQ;
-extern char *sbuff1, *sbuff2;
+extern char *sbuff1, *sbuff2, *modbuff;
 extern volatile uint64_t bcount[3];
 extern volatile int wav_filesize;                                    // head and tail of the ring buffer for com1
 extern int trackplaying, trackstoplay;

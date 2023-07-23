@@ -158,10 +158,12 @@ struct option_s {
         char ipaddress[16];
         char mask[16];
         char gateway[16];
-        unsigned char x[28]; //108=256
+        unsigned char x[23]; //108=256
     #else
-        unsigned char x[112]; //112=256
+        unsigned char x[107]; //112=256
     #endif
+    unsigned char modbuff;
+    int modbuffsize;
     unsigned char F1key[MAXKEYLEN]; //204
     unsigned char F5key[MAXKEYLEN]; //268
     unsigned char F6key[MAXKEYLEN]; //332

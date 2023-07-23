@@ -1677,7 +1677,7 @@ lfs_dir_t lfs_dir;
 struct lfs_info lfs_info;
 void updatebootcount(void){
     lfs_file_t lfs_file;
-    pico_lfs_cfg.block_count = (Option.FlashSize-RoundUpK4(TOP_OF_SYSTEM_FLASH))/4096;
+    pico_lfs_cfg.block_count = (Option.FlashSize-RoundUpK4(TOP_OF_SYSTEM_FLASH)-(Option.modbuff ? 1024*Option.modbuffsize : 0))/4096;
     int err,boot_count=0;
  	    err= lfs_mount(&lfs, &pico_lfs_cfg);
     // reformat if we can't mount the filesystem

@@ -184,7 +184,7 @@ void __not_in_flash_func(on_pwm_wrap)(void) {
 				if(PhaseAC_right>=4096.0)PhaseAC_right-=4096.0;
 			}
         }
-    } else if(CurrentlyPlaying == P_WAV  || CurrentlyPlaying == P_FLAC) {
+    } else if(CurrentlyPlaying == P_WAV  || CurrentlyPlaying == P_FLAC  || CurrentlyPlaying == P_MOD) {
 		if(--repeatcount)return;
 		repeatcount=audiorepeat;
         if(bcount[1]==0 && bcount[2]==0 && playreadcomplete==1){
