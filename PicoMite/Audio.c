@@ -1702,7 +1702,7 @@ void cmd_play(void) {
         i=0;
 		if(filesource[WAV_fnbr]!=FLASHFILE)  fsize = f_size(FileTable[WAV_fnbr].fptr);
 		else fsize = lfs_file_size(&lfs,FileTable[WAV_fnbr].lfsptr);
-		if(fsize>=RoundUpK4(TOP_OF_SYSTEM_FLASH)+1024*Option.modbuffsize)error("File too large for modbuffer");
+		if(RoundUpK4(fsize+4096)>=RoundUpK4(TOP_OF_SYSTEM_FLASH)+1024*Option.modbuffsize)error("File too large for modbuffer");
         r = GetTempMemory(256);
         uint32_t j = RoundUpK4(TOP_OF_SYSTEM_FLASH);
         disable_interrupts();
