@@ -14,7 +14,7 @@ Compiled version and documentation is available on https://geoffg.net/picomite.h
 
 Change list from V5.07.00
 **********************************************************************************************************************
-PicoMite V5.07.08b8
+PicoMite V5.07.08b9
 
 SDK update to 1.5.1. 
 Various bug fixes and addition of support for regular expressions, continous operation of PIO DMA and ADC DMA
