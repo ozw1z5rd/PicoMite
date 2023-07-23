@@ -1706,7 +1706,7 @@ void cmd_play(void) {
         r = GetTempMemory(256);
         uint32_t j = RoundUpK4(TOP_OF_SYSTEM_FLASH);
         disable_interrupts();
-        flash_range_erase(j, /*1024*Option.modbuffsize*/RoundUpK4(fsize));
+        flash_range_erase(j, /*1024*Option.modbuffsize*/RoundUpK4(fsize+4096));
         enable_interrupts();
         while(!FileEOF(WAV_fnbr)) { 
 			memset(r,0,256) ;
@@ -1719,7 +1719,7 @@ void cmd_play(void) {
 			enable_interrupts();
 			j+=256;
         }
-		for(i=0;i<fsize;i++){ // prime the cache after writing to flash
+		for(i=0;i<RoundUpK4(fsize+4096);i++){ // prime the cache after writing to flash
 			playreadcomplete+=modbuff[i];
 		}
         FileClose(WAV_fnbr);
