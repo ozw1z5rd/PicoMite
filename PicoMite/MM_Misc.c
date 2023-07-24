@@ -2633,7 +2633,11 @@ void cmd_option(void) {
         if((p=checkstring(tp, "ENABLE")))
             if(!Option.modbuff)       { 
                 getargs(&p,1,",");
-                if(argc)Option.modbuffsize=getint(argv[0],16,Option.FlashSize-RoundUpK4(TOP_OF_SYSTEM_FLASH)-1024*128);
+                if(argc){
+                    int size=getint(argv[0],16,(Option.FlashSize-RoundUpK4(TOP_OF_SYSTEM_FLASH))/1024-132);
+                    if(size & 3)error("Must be a multiple of 4");
+                    Option.modbuffsize=size;
+                }
                 else Option.modbuffsize=128*1024;
                 Option.modbuff = true; 
                 SaveOptions(); 
@@ -2664,7 +2668,7 @@ void cmd_option(void) {
         unsigned char *p;
         if(checkstring(tp, "DISABLE")){
    	        if(CurrentLinePtr) error("Invalid in a program");
-             disable_audio();
+            disable_audio();
             SaveOptions();
             _excep_code = RESET_COMMAND;
             SoftReset();
@@ -2759,7 +2763,7 @@ void cmd_option(void) {
         }
     	getargs(&tp,5,",");
    	    if(CurrentLinePtr) error("Invalid in a program");
-        if(argc<3)error("Syntax");
+         if(argc<3)error("Syntax");
         if(Option.SYSTEM_I2C_SCL)error("I2C already configured");
         unsigned char code;
         if(!(code=codecheck(argv[0])))argv[0]+=2;

@@ -1702,11 +1702,11 @@ void cmd_play(void) {
         i=0;
 		if(filesource[WAV_fnbr]!=FLASHFILE)  fsize = f_size(FileTable[WAV_fnbr].fptr);
 		else fsize = lfs_file_size(&lfs,FileTable[WAV_fnbr].lfsptr);
-		if(RoundUpK4(fsize+4096)>=RoundUpK4(TOP_OF_SYSTEM_FLASH)+1024*Option.modbuffsize)error("File too large for modbuffer");
+		if(RoundUpK4(fsize)>RoundUpK4(TOP_OF_SYSTEM_FLASH)+1024*Option.modbuffsize)error("File too large for modbuffer");
         r = GetTempMemory(256);
         uint32_t j = RoundUpK4(TOP_OF_SYSTEM_FLASH);
         disable_interrupts();
-        flash_range_erase(j, /*1024*Option.modbuffsize*/RoundUpK4(fsize+4096));
+        flash_range_erase(j, RoundUpK4(fsize));
         enable_interrupts();
         while(!FileEOF(WAV_fnbr)) { 
 			memset(r,0,256) ;
@@ -1748,8 +1748,8 @@ void cmd_play(void) {
         unsigned short sampnum, seffectnum;
         unsigned char volume;
         unsigned int samprate, period;
-        getargs(&tp, 7,",");                                  // this MUST be the first executable line in the function
-        if(!(argc == 7 || argc == 5 || argc == 3)) error("Argument count");
+        getargs(&tp, 5,",");                                  // this MUST be the first executable line in the function
+        if(!(argc == 5 || argc == 3)) error("Argument count");
 
         if(!(CurrentlyPlaying == P_MOD)) error("Samples play over MOD file");
 
@@ -1763,7 +1763,6 @@ void cmd_play(void) {
         	if (volume <0 ) volume = 0;
         }
     	samprate = 16000;
-		if(argc == 7) samprate = getint(argv[6], 150,500000);
 
         period = 3579545 / samprate;
 
