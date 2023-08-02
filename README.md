@@ -16,7 +16,7 @@ Change list from V5.07.00
 **********************************************************************************************************************
 PicoMite V5.07.08b10
 
-SDK update to 1.5.1. 
+SDK reverted to 1.5 as 1.5.1 giving errors
 Various bug fixes and addition of support for regular expressions, continous operation of PIO DMA and ADC DMA. Play MODFILE. Support for hardware watchdog.
 
 PicoMite V5.07.07
