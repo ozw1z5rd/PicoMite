@@ -741,10 +741,10 @@ void InitHeap(void) {
     for(i = 0; i < (HEAP_MEMORY_SIZE/PAGESIZE) / PAGESPERWORD; i++) mmap[i] = 0;
     for(i = 0; i < MAXTEMPSTRINGS; i++) StrTmp[i] = NULL;
 #ifdef PICOMITEVGA
-WriteBuf=FRAMEBUFFER;
-DisplayBuf=FRAMEBUFFER;
-LayerBuf=FRAMEBUFFER;
-FrameBuf=FRAMEBUFFER;
+    WriteBuf=FRAMEBUFFER;
+    DisplayBuf=FRAMEBUFFER;
+    LayerBuf=FRAMEBUFFER;
+    FrameBuf=FRAMEBUFFER;
 #else
     FrameBuf=NULL;
     WriteBuf=NULL;

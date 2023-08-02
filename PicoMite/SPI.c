@@ -137,11 +137,11 @@ void SPIClose(void){
 }
 
 void cmd_spi2(void) {
-	    int speed;
+	int speed;
     unsigned char *p;
     unsigned int nbr, *d;
     long long int *dd;
-	if(SPI1TXpin==99 || SPI1RXpin==99|| SPI1SCKpin==99)error("Not all pins set for SPI2");
+	if(SPI1TXpin==99 || SPI1RXpin==99 || SPI1SCKpin==99)error("Not all pins set for SPI2");
 
     if(checkstring(cmdline, "CLOSE")) {
         if(!SPI1locked)	SPI2Close();

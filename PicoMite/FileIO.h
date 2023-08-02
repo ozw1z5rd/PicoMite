@@ -146,7 +146,7 @@ struct option_s {
     unsigned char SerialRX;
     unsigned char numlock; 
     unsigned char capslock; //4=136
-    unsigned int LIBRARY_FLASH_SIZE; // 4=140
+    unsigned int  LIBRARY_FLASH_SIZE; // 4=140
     unsigned char AUDIO_CLK_PIN;
     unsigned char AUDIO_MOSI_PIN;
     unsigned char SYSTEM_I2C_SLOW;

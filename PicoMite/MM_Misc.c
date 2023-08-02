@@ -33,6 +33,7 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 #include <complex.h>
 #include "pico/bootrom.h"
 #include "hardware/structs/systick.h"
+#include "hardware/structs/watchdog.h"
 #include "hardware/structs/pwm.h"
 #include "hardware/dma.h"
 #include "hardware/adc.h"
@@ -2638,12 +2639,13 @@ void cmd_option(void) {
                     if(size & 3)error("Must be a multiple of 4");
                     Option.modbuffsize=size;
                 }
-                else Option.modbuffsize=128*1024;
+                else Option.modbuffsize=128;
                 Option.modbuff = true; 
                 SaveOptions(); 
                 ResetFlashStorage(1); 
                 modbuff=(char *)(XIP_BASE + RoundUpK4(TOP_OF_SYSTEM_FLASH));
-                return; 
+                _excep_code = RESET_COMMAND;
+                SoftReset();
                 }
             else error("Already enabled");
         if(checkstring(tp, "DISABLE"))
@@ -2653,7 +2655,9 @@ void cmd_option(void) {
                 SaveOptions(); 
                 ResetFlashStorage(1); 
                 modbuff=NULL;
-                return; }
+                _excep_code = RESET_COMMAND;
+                SoftReset();
+            }
             else error("Not enabled");
     }
 
@@ -3577,8 +3581,17 @@ void fun_info(void){
 
 void cmd_watchdog(void) {
     int i;
+    unsigned char *p;
 
-    if(checkstring(cmdline, "OFF") != NULL) {
+    if((p=checkstring(cmdline, "HW"))){
+        if(checkstring(p, "OFF") != NULL) {
+            hw_clear_bits(&watchdog_hw->ctrl, WATCHDOG_CTRL_ENABLE_BITS);
+        } else {
+            i = getint(p,1,8331);
+            watchdog_enable(i,1);
+        }
+    
+    } else if(checkstring(cmdline, "OFF") != NULL) {
         WDTimer = 0;
     } else {
         i = getinteger(cmdline);

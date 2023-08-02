@@ -189,6 +189,7 @@ int __not_in_flash_func(codecheck)(unsigned char *line){
 	return 0;
 }
 void SoftReset(void){
+    _excep_code = SOFT_RESET;
 	watchdog_enable(1, 1);
 	while(1);
 }
@@ -2053,7 +2054,7 @@ void DHT22(unsigned char *p) {
     uSec(1000+dht22*18000);
     // we have all 40 bits
     // first validate against the checksum
-     if((r=DHmem(pin))==-1) goto error_exit;
+    if((r=DHmem(pin))==-1) goto error_exit;
     if( ( ( ((r >> 8) & 0xff) + ((r >> 16) & 0xff) + ((r >> 24) & 0xff) + ((r >> 32) & 0xff) ) & 0xff) != (r & 0xff)) goto error_exit;                                           // returning temperature
     if(dht22==0){
 		*temp = (MMFLOAT)((r >> 8) &0x7fff) / 10.0;                       // get the temperature

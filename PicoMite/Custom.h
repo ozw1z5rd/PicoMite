@@ -62,8 +62,8 @@ extern char *pioRXinterrupts[4];
 extern char *pioTXinterrupts[4];
 #endif
 #ifdef PICOMITEWEB
-extern void GetNTPTime(void);
-extern void checkTCPOptions(void);
+	extern void GetNTPTime(void);
+	extern void checkTCPOptions(void);
     extern void open_tcp_server(void);
     extern void open_udp_server(void);
     extern volatile int TCPreceived;

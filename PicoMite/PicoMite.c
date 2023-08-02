@@ -1922,8 +1922,9 @@ int main(){
     }
     if(_excep_code == WATCHDOG_TIMEOUT) {
         WatchdogSet = true;                                 // remember if it was a watchdog timeout
-        MMPrintString("\r\n\nWatchdog timeout\r\n");
+        MMPrintString("\r\n\nMMBasic Watchdog timeout\r\n");
     }
+    if(!(_excep_code==SOFT_RESET) && watchdog_caused_reboot())MMPrintString("\r\n\nHW Watchdog timeout\r\n");
     if(noRTC){
         noRTC=0;
         Option.RTC=0;

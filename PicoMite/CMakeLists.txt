@@ -59,7 +59,7 @@ target_compile_options(PicoMite PRIVATE 	-DPICOMITE
 	                                        -DPICO_STACK_SIZE=0x1000 
 	                                        -DPICO_CORE1_STACK_SIZE=0x0 
 	                                        -DPICO_HEAP_SIZE=0x500 
-                                        	-O2)
+                                        	-O2 )
 target_link_libraries(PicoMite
     pico_stdlib
     hardware_flash
