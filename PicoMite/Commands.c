@@ -29,6 +29,7 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 #include "Hardware_Includes.h"
 #include "hardware/flash.h"
 #include "hardware/dma.h"
+#include "hardware/structs/watchdog.h"
 
 #include <math.h>
 void flist(int, int, int);
@@ -777,6 +778,7 @@ void __not_in_flash_func(cmd_else)(void) {
 
 
 void cmd_end(void) {
+    hw_clear_bits(&watchdog_hw->ctrl, WATCHDOG_CTRL_ENABLE_BITS);
     irq_set_enabled(DMA_IRQ_1, false);
     dma_hw->abort = ((1u << dma_rx_chan2) | (1u << dma_rx_chan));
     if(dma_channel_is_busy(dma_rx_chan))dma_channel_abort(dma_rx_chan);

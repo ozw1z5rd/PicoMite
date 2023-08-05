@@ -2075,7 +2075,7 @@ normal_exit:
 }
 void __not_in_flash_func(WS2812e)(int gppin, int T1H, int T1L, int T0H, int T0L, int nbr, char *p){
     uSec(100);
-    for(int i=0;i<nbr*3;i++){
+    for(int i=0;i<nbr;i++){
         for(int j=0;j<8;j++){
             if(*p & 1){
                 gpio_put(gppin,true);
@@ -2096,10 +2096,10 @@ void __not_in_flash_func(WS2812e)(int gppin, int T1H, int T1L, int T0H, int T0L,
 void WS2812(unsigned char *q){
        void *ptr1 = NULL;
         int64_t *dest=NULL;
-        uint32_t pin, red , green, blue, colour;
+        uint32_t pin, red , green, blue, white, colour;
         int T0H=0,T0L=0,T1H=0,T1L=0;
         char *p;
-        int i, j, bit, nbr=0;
+        int i, j, bit, nbr=0, colours=3;
         int ticks_per_millisecond=ticks_per_second/1000; 
     	getargs(&q, 7, ",");
         if(argc != 7)error("Argument count");
@@ -2119,6 +2119,12 @@ void WS2812(unsigned char *q){
     		T0L=16777215 + setuptime-((11*ticks_per_millisecond)/20000) ;
     		T1H=16777215 + setuptime-((17*ticks_per_millisecond)/20000) ;
     		T1L=16777215 + setuptime-((6*ticks_per_millisecond)/20000) ;
+    	} else if(toupper(*p)=='W' ){
+            colours=4;
+    		T0H=16777215 + setuptime-((6*ticks_per_millisecond)/20000) ;
+    		T0L=16777215 + setuptime-((18*ticks_per_millisecond)/20000) ;
+    		T1H=16777215 + setuptime-((12*ticks_per_millisecond)/20000) ;
+    		T1L=16777215 + setuptime-((12*ticks_per_millisecond)/20000) ;
     	} else error("Syntax");
         nbr=getint(argv[4],1,256);
         if(nbr>1){
@@ -2133,7 +2139,7 @@ void WS2812(unsigned char *q){
                 dest = (long long int *)ptr1;
             } else error("Argument 1 must be integer array");
         } else {
-            colour=getint(argv[6],0,0xFFFFFF);
+            colour=getinteger(argv[6]);
             dest = (long long int *)&colour;
         }
         unsigned char code;
@@ -2144,24 +2150,29 @@ void WS2812(unsigned char *q){
         int gppin=PinDef[pin].GPno;
         if(!(ExtCurrentConfig[pin] == EXT_DIG_OUT || ExtCurrentConfig[pin] == EXT_NOT_CONFIG)) error("Pin %/| is not off or an output",pin,pin);
         if(ExtCurrentConfig[pin] == EXT_NOT_CONFIG)ExtCfg(pin, EXT_DIG_OUT, 0);
-		p=GetTempMemory((nbr+1)*3);
-		uSec(60);
+		p=GetTempMemory((nbr+1)*colours);
+		uSec(80);
     	for(i=0;i<nbr;i++){
     		green=(dest[i]>>8) & 0xFF;
     		red=(dest[i]>>16) & 0xFF;
     		blue=dest[i] & 0xFF;
+            if(colours==4)white=(dest[i]>>24) & 0xFF;
 			p[0]=0;p[1]=0;p[2]=0;
+            if(colours==4){p[3]=0;}
     		for(j=0;j<8;j++){
     			bit=1<<j;
     			if( green &  (1<<(7-j)) )p[0] |= bit;
     			if(red   & (1<<(7-j)))p[1] |= bit;
     			if(blue  & (1<<(7-j)))p[2] |= bit;
+                if(colours==4){
+    			    if(white  & (1<<(7-j)))p[3] |= bit;
+                }
     		}
-    		p+=3;
+    		p+=colours;
     	}
-    	p-=(nbr*3);
+    	p-=(nbr*colours);
         disable_interrupts();
-        WS2812e(gppin, T1H, T1L, T0H, T0L, nbr, p);
+        WS2812e(gppin, T1H, T1L, T0H, T0L, nbr*colours, p);
         enable_interrupts();
 }
 void __not_in_flash_func(bitstream)(int gppin, unsigned int *data, int num){
