@@ -14,10 +14,11 @@ Compiled version and documentation is available on https://geoffg.net/picomite.h
 
 Change list from V5.07.00
 **********************************************************************************************************************
-PicoMite V5.07.08b10
+PicoMite V5.07.08b11
 
 SDK reverted to 1.5 as 1.5.1 giving errors
 Various bug fixes and addition of support for regular expressions, continous operation of PIO DMA and ADC DMA. Play MODFILE. Support for hardware watchdog.
+ Support for SK6812 RGBW leds
 
 PicoMite V5.07.07
 
