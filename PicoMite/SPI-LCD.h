@@ -293,9 +293,10 @@ extern void __not_in_flash_func(spi_finish)(spi_inst_t *spi);
 #define SSD1963_7       31
 #define SSD1963_7A      32
 #define SSD1963_8       33
-#define VIRTUAL_C       34
+#define ILI9341_8       34
+#define VIRTUAL_C       35
 #define VIRTUAL         VIRTUAL_C
-#define VIRTUAL_M       35
+#define VIRTUAL_M       36
 #define TFT_NOP 0x00
 #define TFT_SWRST 0x01
 

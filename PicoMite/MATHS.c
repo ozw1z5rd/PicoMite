@@ -2948,11 +2948,12 @@ void MahonyQuaternionUpdate(MMFLOAT ax, MMFLOAT ay, MMFLOAT az, MMFLOAT gx, MMFL
         }
 
 /*Finding transpose of cofactor of matrix*/
-void transpose(MMFLOAT **matrix,MMFLOAT **matrix_cofactor,MMFLOAT **m_inverse, int size)
+void transpose(MMFLOAT **matrix,MMFLOAT **matrix_cofactor,MMFLOAT **newmatrix, int size)
 {
     int i,j;
     MMFLOAT d;
 	MMFLOAT **m_transpose=alloc2df(size,size);
+	MMFLOAT **m_inverse=alloc2df(size,size);
 
     for (i=0;i<size;i++)
     {
@@ -2970,7 +2971,15 @@ void transpose(MMFLOAT **matrix,MMFLOAT **matrix_cofactor,MMFLOAT **m_inverse, i
         }
     }
 
+    for (i=0;i<size;i++)
+    {
+        for (j=0;j<size;j++)
+        {
+            newmatrix[i][j]=m_inverse[i][j];
+        }
+    }
 	dealloc2df(m_transpose,size,size);
+	dealloc2df(m_inverse,size,size);
 }
 /*calculate cofactor of matrix*/
 void cofactor(MMFLOAT **matrix,MMFLOAT **newmatrix,int size)

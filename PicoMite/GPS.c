@@ -647,10 +647,6 @@ void GPS_parse(char *nmea) {
       day = fulldate / 10000;
       month = (fulldate % 10000) / 100;
       year = (fulldate % 100);
-//    PFlt(fulldate);PRet();
-//p[6]=0;
-//PRet();MMPrintString("D: ");MMPrintString(p);PRet();
-//p[6]=',';
     GPStime[0]=8;
     tm->tm_year = year + 100;
     tm->tm_mon = month - 1;

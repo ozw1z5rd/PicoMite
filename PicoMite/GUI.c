@@ -449,24 +449,7 @@ void cmd_gui(void) {
             if(!Option.MaxCtrls)error("No memory allocated for GUI controls");
             if(!InvokingCtrl) return;
             DrawKeyboard(KEY_KEY_CANCEL);
-/*        } else if((pp = checkstring(p, "ACTIVATE"))) {
-            if(*pp == '#') pp++;
-            r = getint(pp, 1, Option.MaxCtrls - 1);
-            if(Ctrl[r].type != CTRL_TEXTBOX) error("Not a TextBox");
-            strcpy(CancelValue, Ctrl[r].s);                                     // save the current value in case the user cancels
-            *Ctrl[r].s = 0;                                                     // set it to an empty string
-            Ctrl[r].state |= CTRL_SELECTED;                                     // select the number text/box
-            PopUpRedrawAll(r, true);
-            CurrentRef = InvokingCtrl = r;                                      // tell the keypad what text/number box it is servicing
-            GUIKeyDown = -1;
-            KeyAltShift = 0;
-            DrawControl(r);
-//            ClickTimer += CLICK_DURATION;
-            if(GuiIntDownVector == NULL)
-                DrawKeyboard(KEY_OPEN);                                         // initial draw of the keypad
-            else
-                DelayedDrawKeyboard = true;                                     // leave it until after the keyboard interrupt
-            return; */       
+
         } else
             r = GetCtrlParams(CTRL_TEXTBOX, p);
         return;
@@ -1509,11 +1492,13 @@ void DrawSingleKey(int is_alpha, int x1, int y1, int x2, int y2, char *s, int fc
     if(is_alpha) {
         if(HRes > 400)
             SetFont(0x31);                                          // set a readable font
+        else if(HRes > 400)
+            SetFont(0x11);
         else
              SetFont(0x01);
     } else {
         if(VRes > 240)
-            SetFont(0x21);                                          // set a readable font
+            SetFont(0x31);                                          // set a readable font
         else if(VRes > 160)
             SetFont(0x11);
         else

@@ -1924,7 +1924,10 @@ int main(){
         WatchdogSet = true;                                 // remember if it was a watchdog timeout
         MMPrintString("\r\n\nMMBasic Watchdog timeout\r\n");
     }
-    if(!(_excep_code==SOFT_RESET) && watchdog_caused_reboot())MMPrintString("\r\n\nHW Watchdog timeout\r\n");
+    if(!(_excep_code==SOFT_RESET) && watchdog_caused_reboot()){
+        MMPrintString("\r\n\nHW Watchdog timeout\r\n");
+        WatchdogSet = true;                                 // remember if it was a watchdog timeout
+    }
     if(noRTC){
         noRTC=0;
         Option.RTC=0;
@@ -2028,7 +2031,8 @@ int main(){
         if(*p=='*'){ //shortform RUN command so convert to a normal version
                 transform_star_command(inpbuf);
                 p = inpbuf;
-        }        tokenise(true);                                             // turn into executable code
+        }
+        tokenise(true);                                             // turn into executable code
 autorun:
         i=0;
         if(*tknbuf==GetCommandValue((char *)"RUN"))i=1;

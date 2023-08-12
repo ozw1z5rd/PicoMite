@@ -292,8 +292,6 @@ void sortStrings(char **arr, int n)
 }
 void ListFile(char *pp, int all) {
 	char buff[STRINGSIZE];
-    FRESULT fr;
-    FILINFO fno;
     int fnbr;
     int i,ListCnt = 1;
 	fnbr = FindFreeFileNbr();
@@ -2229,29 +2227,6 @@ void execute_one_command(unsigned char *p) {
             error("Unknown command");
 	}
 	ClearTempMemory();											    // at the end of each command we need to clear any temporary string vars
-}
-// get the file name for the RUN, LOAD, SAVE, KILL, COPY, DRIVE, FILES, FONT LOAD, LOADBMP, SAVEBMP, SPRITE LOAD and EDIT commands
-// this function allows the user to omit the quote marks around a string constant when in immediate mode
-// the first argument is a pointer to the file name (normally on the command line of the command)
-// the second argument is a pointer to the LastFile buffer.  If this pointer is NULL the LastFile buffer feature will not be used
-// This returns a temporary string to the filename
-unsigned char *GetFileName(unsigned char* CmdLinePtr, unsigned char *LastFilePtr) {
-    unsigned char *tp, *t;
-
-	if(CurrentLinePtr) return getCstring(CmdLinePtr);               // if running a program get the filename as an expression
-
-    // if we reach here we are in immediate mode
-    if(*CmdLinePtr == 0 && LastFilePtr != NULL) return LastFilePtr; // if the command line is empty and we have a pointer to the last file, return that
-
-   	if(strchr((char *)CmdLinePtr, '"') == NULL && strchr((char *)CmdLinePtr, '$') == NULL) {// quotes or a $ symbol indicate that it is an expression
-        tp = GetTempMemory(STRINGSIZE);                                  // this will last for the life of the command
-    	strcpy((char *)tp, (char *)CmdLinePtr);	                                    // save the string
-    	t = (unsigned char *)strchr((char *)tp, ' '); if(t) *t = 0;                          // trim any trailing spaces
-    	for(t = tp; *t; t++) if(*t <= ' ' || *t > 'z') error("Filename must be quoted");
-    	return tp;
-    }
-    else
-		return getCstring(CmdLinePtr);	                            // treat the command line as a string expression and get its value
 }
 // lists the program to a specified file handle
 // this decodes line numbers and tokens and outputs them in plain english

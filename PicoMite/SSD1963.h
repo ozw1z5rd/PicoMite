@@ -42,7 +42,10 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
     extern void DisplayPutS(char *);
     extern void DrawBufferSSD1963(int x1, int y1, int x2, int y2, unsigned char* p);
     extern void ReadBufferSSD1963(int x1, int y1, int x2, int y2, unsigned char* p);
-
+    extern void DrawRectangleSSD1963(int x1, int y1, int x2, int y2, int c);
+    extern void InitDisplaySSD(void) ;
+    extern void ConfigDisplaySSD(unsigned char *p);
+    extern int display_backlight;
     // cursor definition
     extern void ShowCursor(int show);
     extern volatile int CursorTimer;                                // used to time the flashing cursor

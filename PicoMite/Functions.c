@@ -861,7 +861,6 @@ void fun_str(void) {
 
 // Returns a string 'nbr' bytes long
 // s$ = STRING$( nbr,  string$ )
-// s$ = STRING$( nbr,  number )
 void fun_string(void) {
     int i, j, t = T_NOTYPE;
     void *p;

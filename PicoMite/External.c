@@ -1255,7 +1255,7 @@ void fun_port(void) {
         while(nbr) {
         	if(!code)pin=codemap(pincode);
         	else pin=pincode;
-            if(IsInvalidPin(pin) || !(ExtCurrentConfig[pin] == EXT_DIG_IN || ExtCurrentConfig[pin] == EXT_INT_HI || ExtCurrentConfig[pin] == EXT_INT_LO || ExtCurrentConfig[pin] == EXT_INT_BOTH)) error("Invalid input pin");
+            if(IsInvalidPin(pin) || !(ExtCurrentConfig[pin] == EXT_DIG_IN || ExtCurrentConfig[pin] == EXT_DIG_OUT || ExtCurrentConfig[pin] == EXT_INT_HI || ExtCurrentConfig[pin] == EXT_INT_LO || ExtCurrentConfig[pin] == EXT_INT_BOTH)) error("Invalid input pin");
             value <<= 1;
             value |= (pinstate & (1<<PinDef[pin].GPno)? 1:0);
             nbr--;
@@ -2025,7 +2025,7 @@ int64_t __not_in_flash_func(DHmem)(int pin){
 void DHT22(unsigned char *p) {
      int pin;
     long long int r;
-    int i, timeout, dht22=0;;
+    int dht22=0;
     MMFLOAT *temp, *humid;
 
     getargs(&p, 7, ",");
