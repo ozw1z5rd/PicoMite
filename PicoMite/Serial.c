@@ -203,7 +203,7 @@ void invert_serial(int uart){
 	gpio_set_outover(txpin, GPIO_OVERRIDE_INVERT);
 	gpio_set_inover(rxpin, GPIO_OVERRIDE_INVERT);
 }
-void setupuart(int uart, int s2,int parity, int b7, int baud, int inv){
+void MIPS16 setupuart(int uart, int s2,int parity, int b7, int baud, int inv){
 	uart_init(UART_ID,baud);
     uart_set_hw_flow(UART_ID, false, false);
     uart_set_format(UART_ID, b7, s2, parity);
@@ -223,7 +223,7 @@ void setupuart(int uart, int s2,int parity, int b7, int baud, int inv){
 /***************************************************************************************************
 Initialise the serial function including the timer and interrupts.
 ****************************************************************************************************/
-void SerialOpen(unsigned char *spec) {
+void MIPS16 SerialOpen(unsigned char *spec) {
 	int baud, i, s2, parity, b7, bufsize, inv=0, ilevel=1;
 	char *interrupt, *TXinterrupt;
 
@@ -343,7 +343,7 @@ void SerialOpen(unsigned char *spec) {
 /***************************************************************************************************
 Close a serial port.
 ****************************************************************************************************/
-void SerialClose(int comnbr) {
+void MIPS16 SerialClose(int comnbr) {
 
 	if(comnbr == 1 && com1) {
 		uart_deinit(uart0);

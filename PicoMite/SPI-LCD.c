@@ -106,7 +106,7 @@ void SetAndReserve(int pin, int inp, int init, int type) {
 }
 
 
-void ConfigDisplaySPI(unsigned char *p) {
+void MIPS16 ConfigDisplaySPI(unsigned char *p) {
 	char code,CD,RESET,CS,BACKLIGHT=0;
 	int DISPLAY_TYPE=0;
     getargs(&p, 13, ",");
@@ -197,7 +197,7 @@ void ConfigDisplaySPI(unsigned char *p) {
 
 // initialise the display controller
 // this is used in the initial boot sequence of the Micromite
-void InitDisplaySPI(int InitOnly) {
+void MIPS16 InitDisplaySPI(int InitOnly) {
 
     if(Option.DISPLAY_TYPE==0 || Option.DISPLAY_TYPE >= DISP_USER || Option.DISPLAY_TYPE <= I2C_PANEL) return;
     DisplayHRes = display_details[Option.DISPLAY_TYPE].horizontal;
@@ -870,7 +870,7 @@ void spi_write_CommandData(const uint8_t* pCommandData, uint8_t datalen){
     }
 }
 
-void ResetController(void){
+void MIPS16 ResetController(void){
     PinSetBit(Option.LCD_Reset, LATSET);
     uSec(10000);
     PinSetBit(Option.LCD_Reset, LATCLR);

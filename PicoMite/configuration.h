@@ -173,6 +173,7 @@ extern "C" {
 // QVGA PIO and state machines
 #define QVGA_PIO	pio0	// QVGA PIO
 #define QVGA_SM		0	// QVGA state machine
+#define MIPS16 __attribute__ ((optimize("-Os")))
 
 // QVGA DMA channel
 #define QVGA_DMA_CB	0	// DMA control block of base layer

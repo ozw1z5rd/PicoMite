@@ -533,7 +533,7 @@ void MMgetline(int filenbr, char *p) {
 // insert a string into the start of the lastcmd buffer.
 // the buffer is a sequence of strings separated by a zero byte.
 // using the up arrow usere can call up the last few commands executed.
-void InsertLastcmd(unsigned char *s) {
+void MIPS16 InsertLastcmd(unsigned char *s) {
 int i, slen;
     if(strcmp(lastcmd, s) == 0) return;                             // don't duplicate
     slen = strlen(s);
@@ -545,7 +545,7 @@ int i, slen;
     for(i = sizeof(lastcmd) - 1; lastcmd[i]; i--) lastcmd[i] = 0;             // zero the end of the buffer
 }
 
-void EditInputLine(void) {
+void MIPS16 EditInputLine(void) {
     char *p = NULL;
     char buf[MAXKEYLEN + 3];
     int lastcmd_idx, lastcmd_edit;
@@ -1675,7 +1675,7 @@ void __no_inline_not_in_flash_func(modclock)(uint16_t speed){
 lfs_t lfs;
 lfs_dir_t lfs_dir;
 struct lfs_info lfs_info;
-void updatebootcount(void){
+void MIPS16 updatebootcount(void){
     lfs_file_t lfs_file;
     pico_lfs_cfg.block_count = (Option.FlashSize-RoundUpK4(TOP_OF_SYSTEM_FLASH)-(Option.modbuff ? 1024*Option.modbuffsize : 0))/4096;
     int err,boot_count=0;
@@ -1708,7 +1708,7 @@ void updatebootcount(void){
  *   *foo "wom" "bat"  =>  RUN "foo", Chr$(34) + "wom" + Chr$(34) + " " + Chr$(34) + "bat" + Chr$(34)
  *   *foo --wom="bat"  =>  RUN "foo", "--wom=" + Chr$(34) + "bat" + Chr$(34)
  */
-static void transform_star_command(char *input) {
+static void MIPS16 transform_star_command(char *input) {
     char *src = input;
     while (isspace(*src)) src++; // Skip leading whitespace.
     if (*src != '*') error("Internal fault");
@@ -2060,7 +2060,7 @@ void stripcomment(char *p){
         q++;
     }
 }
-void testlocal(char *p, char *command, void (*func)()){
+void MIPS16 testlocal(char *p, char *command, void (*func)()){
     int len=strlen(command);
     if((strncasecmp(p,command,len)==0) && (strlen(p)==len || p[len]==' ' || p[len]=='\'')){
         p+=len;
@@ -2081,7 +2081,7 @@ void executelocal(char *p){
     testlocal(p,"AUTOSAVE",cmd_autosave);
 }
 // takes a pointer to RAM containing a program (in clear text) and writes it to memory in tokenised format
-void SaveProgramToFlash(unsigned char *pm, int msg) {
+void MIPS16 SaveProgramToFlash(unsigned char *pm, int msg) {
     unsigned char *p, endtoken, fontnbr, prevchar = 0, buf[STRINGSIZE];
     int nbr, i, j, n, SaveSizeAddr;
     uint32_t storedupdates[MAXCFUNCTION], updatecount=0, realflashsave, retvalue;

@@ -44,7 +44,7 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 #include "hardware/pio_instructions.h"
 #include <malloc.h>
 #include "xregex.h"
-
+extern int last_adc;
 uint32_t getTotalHeap(void) {
    extern char __StackLimit, __bss_end__;
    
@@ -2289,6 +2289,11 @@ void cmd_option(void) {
         error("Syntax");
     }
 #ifdef PICOMITEWEB
+	tp = checkstring(cmdline, "WEB MESSAGES");
+	if(tp) {
+		if(checkstring(tp, "OFF"))	{ optionsuppressstatus=0; return; }
+		if(checkstring(tp, "ON"))	{ optionsuppressstatus=1; return; }
+	}
     tp = checkstring(cmdline, "WIFI");
     if(tp) {
         getargs(&tp,11,",");
@@ -4125,6 +4130,8 @@ int checkdetailinterrupts(void) {
             }
         intaddr = ADCInterrupt;                                   // get a pointer to the interrupt routine
         dmarunning=0;
+        adc_init();
+        last_adc=99;
         FreeMemory((void *)ADCbuffer);
         goto GotAnInterrupt;
         }

@@ -31,7 +31,7 @@ void xmodemReceive(char *sp, int maxbytes, int fnbr, int crunch);
 int FindFreeFileNbr(void);
 
 
-void cmd_xmodem(void) {
+void MIPS16 cmd_xmodem(void) {
     char *buf, BreakKeySave, *p, *fromp;
     int rcv = 0, fnbr, crunch = false;
     char *fname;

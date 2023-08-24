@@ -661,7 +661,7 @@ static int jpgfnbr;
 unsigned char pjpeg_need_bytes_callback(unsigned char *pBuf, unsigned char buf_size, unsigned char *pBytes_actually_read, void *pCallback_data)
 {
     uint n, n_read;
-    pCallback_data;
+//    pCallback_data;
 
     n = min(g_nInFileSize - g_nInFileOfs, buf_size);
     if(filesource[jpgfnbr]!=FLASHFILE)  f_read(FileTable[jpgfnbr].fptr, pBuf, n, &n_read);
@@ -676,10 +676,9 @@ unsigned char pjpeg_need_bytes_callback(unsigned char *pBuf, unsigned char buf_s
 void LoadJPGImage(unsigned char *p)
 {
     pjpeg_image_info_t image_info;
-    int x, mcu_x = 0;
-    int y, mcu_y = 0;
+    int mcu_x = 0;
+    int mcu_y = 0;
     uint row_pitch;
-    uint8_t *pImage;
     uint8_t status;
     gCoeffBuf = (int16_t *)GetTempMemory(8 * 8 * sizeof(int16_t));
     gMCUBufR = (uint8_t *)GetTempMemory(256);
@@ -692,8 +691,7 @@ void LoadJPGImage(unsigned char *p)
     gInBuf = (uint8_t *)GetTempMemory(PJPG_MAX_IN_BUF_SIZE);
     g_nInFileSize = g_nInFileOfs = 0;
 
-    uint decoded_width, decoded_height;
-    uint row_blocks_per_mcu, col_blocks_per_mcu;
+//    uint decoded_width, decoded_height;
     int xOrigin, yOrigin;
 
     // get the command line arguments
@@ -732,8 +730,8 @@ void LoadJPGImage(unsigned char *p)
         FileClose(jpgfnbr);
         error("pjpeg_decode_init() failed with status %", status);
     }
-    decoded_width = image_info.m_width;
-    decoded_height = image_info.m_height;
+//    decoded_width = image_info.m_width;
+//    decoded_height = image_info.m_height;
 
     row_pitch = image_info.m_MCUWidth * image_info.m_comps;
 
@@ -2115,6 +2113,7 @@ int BasicFileOpen(char *fname, int fnbr, int mode)
         else if(mode==(FA_WRITE | FA_OPEN_APPEND | FA_READ))lfsmode =LFS_O_RDWR | LFS_O_CREAT;
         else error("Internal error");
         FileTable[fnbr].lfsptr = GetMemory(sizeof(lfs_file_t)); // allocate the file descriptor
+        if(mode!=LFS_O_RDONLY && ExistsFile(q))lfs_removeattr(&lfs, q, 'A');
         FSerror=lfs_file_open(&lfs, FileTable[fnbr].lfsptr, q, lfsmode);
         if(mode!=LFS_O_RDONLY){
             int dt=get_fattime();
@@ -2875,7 +2874,11 @@ void cmd_files(void)
                     // and concatenate the filename found
                     strcpy(&ts[1], lfs_info.name);
                     int dt;
-                    FSerror=lfs_getattr(&lfs, lfs_info.name, 'A', &dt,    4);
+                    char fullfilename[STRINGSIZE];
+                    strcpy(fullfilename,fullpathname[FatFSFileSystem]);
+                    strcat(fullfilename,"/");
+                    strcat(fullfilename,lfs_info.name);
+                    FSerror=lfs_getattr(&lfs, fullfilename, 'A', &dt,    4);
                     if(FSerror!=4){
                         fnod.fdate=0;
                         fnod.ftime=0;

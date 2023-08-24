@@ -181,5 +181,6 @@ void fun_format(void);
 	extern int ExistsDir(char *p, char *q, int *filesystem);
 	extern MMFLOAT optionangle;
 	extern int optionfastaudio;
+	extern int optionsuppressstatus;
 #endif
 #endif

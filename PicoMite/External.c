@@ -142,6 +142,7 @@ int ADCmax=0;
 volatile int ADCpos=0;
 float frequency;
 int dmarunning=0;
+int adcrunning=0;
 int ADCrunning=0;
 uint32_t ADC_dma_chan=ADC_DMA;
 uint32_t ADC_dma_chan2=ADC_DMA2;
@@ -1062,6 +1063,9 @@ void fun_pin(void) {
     int pin, i, j, b[ANA_AVERAGE];
     MMFLOAT t;
 	if(checkstring(ep, "TEMP")){
+        if(adcrunning || dmarunning)error("ADC in use");
+        adc_init();
+        adc_set_temp_sensor_enabled(true);
         adc_select_input(4);
         last_adc=4;
         t=(MMFLOAT)adc_read()/4095.0*VCC;
@@ -1100,6 +1104,7 @@ void fun_pin(void) {
                             targ = T_NBR;
                             return;
         case EXT_ANA_IN:    
+                            if(adcrunning || dmarunning)error("ADC in use");
                             for(i = 0; i < ANA_AVERAGE; i++) {
                                 b[i] = ExtInp(pin);                 // get the value
                                 for(j = i; j > 0; j--) {            // and sort into position
@@ -2074,7 +2079,6 @@ normal_exit:
     PinSetBit(pin, LATCLR);
 }
 void __not_in_flash_func(WS2812e)(int gppin, int T1H, int T1L, int T0H, int T0L, int nbr, char *p){
-    uSec(100);
     for(int i=0;i<nbr;i++){
         for(int j=0;j<8;j++){
             if(*p & 1){
@@ -2097,7 +2101,7 @@ void WS2812(unsigned char *q){
        void *ptr1 = NULL;
         int64_t *dest=NULL;
         uint32_t pin, red , green, blue, white, colour;
-        int T0H=0,T0L=0,T1H=0,T1L=0;
+        int T0H=0,T0L=0,T1H=0,T1L=0,TRST=0;
         char *p;
         int i, j, bit, nbr=0, colours=3;
         int ticks_per_millisecond=ticks_per_second/1000; 
@@ -2108,23 +2112,21 @@ void WS2812(unsigned char *q){
     		T0H=16777215 + setuptime-((7*ticks_per_millisecond)/20000) ;
     		T1H=16777215 + setuptime-((14*ticks_per_millisecond)/20000) ;
     		T0L=16777215 + setuptime-((13*ticks_per_millisecond)/20000) ;
-    		T1L=16777215 + setuptime-((9*ticks_per_millisecond)/20000) ;
+    		T1L=16777215 + setuptime-((9.5*ticks_per_millisecond)/20000) ;
+            TRST=50;
     	} else if(toupper(*p)=='B'){
     		T0H=16777215 + setuptime-((8*ticks_per_millisecond)/20000) ;
     		T1H=16777215 + setuptime-((16*ticks_per_millisecond)/20000) ;
-    		T0L=16777215 + setuptime-((15*ticks_per_millisecond)/20000) ;
-    		T1L=16777215 + setuptime-((6*ticks_per_millisecond)/20000) ;
-    	} else if(toupper(*p)=='S'){
-    		T0H=16777215 + setuptime-((8*ticks_per_millisecond)/20000) ;
-    		T0L=16777215 + setuptime-((11*ticks_per_millisecond)/20000) ;
-    		T1H=16777215 + setuptime-((17*ticks_per_millisecond)/20000) ;
-    		T1L=16777215 + setuptime-((6*ticks_per_millisecond)/20000) ;
-    	} else if(toupper(*p)=='W' ){
-            colours=4;
+    		T0L=16777215 + setuptime-((14*ticks_per_millisecond)/20000) ;
+    		T1L=16777215 + setuptime-((6.5*ticks_per_millisecond)/20000) ;
+            TRST=280;
+    	} else if(toupper(*p)=='S' || toupper(*p)=='W' ){
+            if(toupper(*p)=='W')colours=4;
     		T0H=16777215 + setuptime-((6*ticks_per_millisecond)/20000) ;
-    		T0L=16777215 + setuptime-((18*ticks_per_millisecond)/20000) ;
+    		T0L=16777215 + setuptime-((15*ticks_per_millisecond)/20000) ;
     		T1H=16777215 + setuptime-((12*ticks_per_millisecond)/20000) ;
-    		T1L=16777215 + setuptime-((12*ticks_per_millisecond)/20000) ;
+    		T1L=16777215 + setuptime-((9*ticks_per_millisecond)/20000) ;
+            TRST=80;
     	} else error("Syntax");
         nbr=getint(argv[4],1,256);
         if(nbr>1){
@@ -2151,7 +2153,7 @@ void WS2812(unsigned char *q){
         if(!(ExtCurrentConfig[pin] == EXT_DIG_OUT || ExtCurrentConfig[pin] == EXT_NOT_CONFIG)) error("Pin %/| is not off or an output",pin,pin);
         if(ExtCurrentConfig[pin] == EXT_NOT_CONFIG)ExtCfg(pin, EXT_DIG_OUT, 0);
 		p=GetTempMemory((nbr+1)*colours);
-		uSec(80);
+		int endreset=time_us_64()+TRST;
     	for(i=0;i<nbr;i++){
     		green=(dest[i]>>8) & 0xFF;
     		red=(dest[i]>>16) & 0xFF;
@@ -2171,6 +2173,7 @@ void WS2812(unsigned char *q){
     		p+=colours;
     	}
     	p-=(nbr*colours);
+        while(time_us_64()<endreset){}
         disable_interrupts();
         WS2812e(gppin, T1H, T1L, T0H, T0L, nbr*colours, p);
         enable_interrupts();
@@ -2489,6 +2492,7 @@ void cmd_adc(void){
         dma_start_channel_mask(1u << ADC_dma_chan2);
         adc_run(true);
         adcint=adcint2;
+        adcrunning=1;
 		return;
 	}
 
@@ -2609,6 +2613,8 @@ void cmd_adc(void){
                 }
             }
             FreeMemory((void *)ADCbuffer);
+            adc_init();
+            last_adc=99;
         } else dmarunning=1;
 		return;
 	}
@@ -2627,6 +2633,9 @@ void cmd_adc(void){
         if(ADCopen>=4)ExtCfg(44, EXT_NOT_CONFIG, 0);
         ADCopen=0;
         adcint=adcint1=adcint2=NULL;
+        adcrunning=0;
+        last_adc=99;
+        adc_init();
 		return;
 	}
     error("Syntax");
@@ -2762,6 +2771,7 @@ void ClearExternalIO(void) {
     adc_set_round_robin(0);
     adc_set_clkdiv(0);
     dmarunning=0;
+    adcrunning=0;
     ADCInterrupt=NULL;
     KeyInterrupt=NULL;
     OnKeyGOSUB=NULL;

@@ -45,7 +45,7 @@ void ScrollSSD1963(int lines);
 //
 ////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void ConfigDisplaySSD(unsigned char *p) {
+void MIPS16 ConfigDisplaySSD(unsigned char *p) {
     getargs(&p, 9, ",");
     if((argc & 1) != 1 || argc < 3) error("Argument count");
 
@@ -109,7 +109,7 @@ void ConfigDisplaySSD(unsigned char *p) {
 
 // initialise the display controller
 // this is used in the initial boot sequence of the Micromite
-void InitDisplaySSD(void) {
+void MIPS16 InitDisplaySSD(void) {
     if(Option.DISPLAY_TYPE<SSDPANEL || Option.DISPLAY_ORIENTATION>=VIRTUAL)return;
 
     // the parameters for the display panel are set here (refer to the data sheet for the glass)

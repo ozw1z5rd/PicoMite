@@ -46,7 +46,7 @@ int TOUCH_GETIRQTRIS=0;
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // configure the touch parameters (chip select pin and the IRQ pin)
 // this is called by the OPTION TOUCH command
-void ConfigTouch(unsigned char *p) {
+void MIPS16 ConfigTouch(unsigned char *p) {
     int pin1, pin2, pin3=0;
     getargs(&p, 5, ",");
     if(!(argc == 3 || argc == 5)) error("Argument count");
@@ -79,7 +79,7 @@ void ConfigTouch(unsigned char *p) {
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // setup touch based on the settings saved in flash
-void InitTouch(void) {
+void MIPS16 InitTouch(void) {
     if(!Option.TOUCH_CS) return;
     GetTouchValue(CMD_PENIRQ_ON);                                   // send the controller the command to turn on PenIRQ
     TOUCH_GETIRQTRIS = 1;
@@ -92,7 +92,7 @@ void InitTouch(void) {
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // this function is only used in calibration
 // it draws the target, waits for the touch to stabilise and returns the x and y in raw touch controller numbers (ie, not scaled)
-void GetCalibration(int x, int y, int *xval, int *yval) {
+void MIPS16 GetCalibration(int x, int y, int *xval, int *yval) {
     int i, j;
     #define TCAL_FONT    0x02
 
