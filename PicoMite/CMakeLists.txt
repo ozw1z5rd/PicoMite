@@ -44,6 +44,12 @@ add_executable(PicoMite
 	hxcmod.c
 )
 set_source_files_properties(mmc_stm32.c PROPERTIES COMPILE_FLAGS -O3)
+set_source_files_properties(ff.c PROPERTIES COMPILE_FLAGS -Os)
+set_source_files_properties(GUI.c PROPERTIES COMPILE_FLAGS -Os)
+set_source_files_properties(BmpDecoder.c PROPERTIES COMPILE_FLAGS -Os)
+set_source_files_properties(picojpeg.c PROPERTIES COMPILE_FLAGS -Os)
+set_source_files_properties(regex.c PROPERTIES COMPILE_FLAGS -Os)
+set_source_files_properties(hxcmod.c PROPERTIES COMPILE_FLAGS -Os)
 pico_define_boot_stage2(slower_boot2 ${PICO_DEFAULT_BOOT_STAGE2_FILE})
 target_compile_definitions(slower_boot2 PRIVATE PICO_FLASH_SPI_CLKDIV=4)
 pico_set_boot_stage2(PicoMite slower_boot2)

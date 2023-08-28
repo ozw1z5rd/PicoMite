@@ -4394,7 +4394,6 @@ void cmd_framebuffer(void){
         WriteBuf=buff;
     } else error("Syntax");
 }
-
 void cmd_blit(void) {
     int x1, y1, x2, y2, w, h, bnbr;
     unsigned char *buff = NULL;
@@ -4462,28 +4461,106 @@ void cmd_blit(void) {
             blitbuff[bnbr].w=w;
             blitbuff[bnbr].h=h;
         } else error("Buffer in use");
-    } else if((p = checkstring(cmdline, "WRITE"))) {
-        getargs(&p, 9, ",");
-        if(!(argc == 9 || argc==5)) error("Syntax");
-        if(*argv[0] == '#') argv[0]++;                              // check if the first arg is prefixed with a #
-        bnbr = getint(argv[0], 1, MAXBLITBUF) - 1;                  // get the buffer number
-        if(blitbuff[bnbr].h==9999)error("Invalid buffer for write");
-        x1 = getinteger(argv[2]);
-        y1 = getinteger(argv[4]);
-        w=blitbuff[bnbr].w;
-        h=blitbuff[bnbr].h;
-        if(argc >= 7 && *argv[6])w = getinteger(argv[6]);
-        if(argc >= 9 && *argv[8])h = getinteger(argv[8]);
-        if(w < 1 || h < 1) return;
-        if(x1 < 0) { x2 -= x1; w += x1; x1 = 0; }
-        if(y1 < 0) { y2 -= y1; h += y1; y1 = 0; }
-        if(x1 + w > HRes) w = HRes - x1;
-        if(y1 + h > VRes) h = VRes - y1;
-        if(w < 1 || h < 1 || x1 < 0 || x1 + w > HRes || y1 < 0 || y1 + h > VRes ) return;
-        if(blitbuff[bnbr].blitbuffptr != NULL){
-            DrawBuffer(x1, y1, x1 + w - 1, y1 + h - 1, blitbuff[bnbr].blitbuffptr);
-            if(Option.Refresh)Display_Refresh();
-        } else error("Buffer not in use");
+    } else if ((p = checkstring(cmdline, (unsigned char*)"WRITE"))) {
+        int mode = 0;
+        getargs(&p, 7, (unsigned char*)",");
+        if (!(argc == 5 || argc == 7)) error((char *)"Syntax");
+        if (*argv[0] == '#') argv[0]++;
+        bnbr = (int)getint(argv[0], 1, MAXBLITBUF)-1;									// get the number
+        if(blitbuff[bnbr].h==9999)error("Invalid buffer");
+        if (blitbuff[bnbr].blitbuffptr != NULL) {
+            x1 = (int)getint(argv[2], -blitbuff[bnbr].w + 1, HRes);
+            y1 = (int)getint(argv[4], -blitbuff[bnbr].h + 1, VRes);
+            if (argc == 7)mode = (char)getint(argv[6], 0, 7);
+            w = blitbuff[bnbr].w;
+            h = blitbuff[bnbr].h;
+            int cursorhidden = 0;
+            int rotation = mode & 3;
+            if(x1>=HRes || x1+w<0 || y1>=VRes || y1+h<0)return;
+            if(x1>=0 && mode==0 && x1+w<=HRes)buff=blitbuff[bnbr].blitbuffptr;
+            else {
+                buff=GetTempMemory(w*h*4);
+                for(int j=w*h*4-1,i=w*h*3-1;j>=0;j-=4){
+                    buff[j]=0;
+                    buff[j-1]=blitbuff[bnbr].blitbuffptr[i--];
+                    buff[j-2]=blitbuff[bnbr].blitbuffptr[i--];
+                    buff[j-3]=blitbuff[bnbr].blitbuffptr[i--];
+                }
+                int *d=(int *)buff;
+                if(rotation & 1){ //swap left/write
+                    for (int y = 0; y < h; y++) {
+                        for (int x = 0,xx=w-1; x < (w>>1); x++,xx--) {
+                            swap(d[y*w+x],d[y*w+xx]);
+                        }
+                    }
+                }
+                if(rotation & 2){
+                    for(int x=0;x<w;x++){
+                        for(int y=0,yy=h-1;y<(h>>1);y++,yy--){
+                            swap(d[x+y*w],d[x+yy*w]);
+                        }
+                    }
+                }
+                if(x1<0){ //now deal with situation where you are blitting part off the left of the screen
+                    int *s=(int *)buff;
+                    d=(int *)buff;
+                    int start=-x1;
+                    for(int y=0;y<h;y++){
+                        for(int x=0;x<w;x++){
+                            if(x>=start)*d++=*s++;
+                            else s++;
+                        }
+                    }
+                    w-=start;
+                    x1=0;
+                }
+                if(x1+w>=HRes){ //now deal with situation where you are blitting part off the right of the screen
+                    int *s=(int *)buff;
+                    d=(int *)buff;
+                    int over=((x1+w)-HRes);
+                    int end=w-over;
+                    for(int y=0;y<h;y++){
+                        for(int x=0;x<w;x++){
+                            if(x>=end)s++;
+                            else *d++=*s++;
+                        }
+                    }
+                    w-=over;
+                }
+                for(int i=0,j=0;i<w*h*3;i+=3){
+                    buff[i]=buff[j++];
+                    buff[i+1]=buff[j++];
+                    buff[i+2]=buff[j++];
+                    j++;
+                }
+            }
+            if(!(mode & 4)){
+                if(y1<0){
+                    buff-=(y1*3*w);
+                    h+=y1;
+                    y1=0;
+                }
+                DrawBuffer(x1, y1, x1 + w - 1, y1 + h - 1, buff);
+            } else {
+                if((void *)ReadBuffer == (void *)DisplayNotSet) error("Invalid on this display");
+                unsigned char *current=GetTempMemory(w*h*3);
+                if(y1<0){
+                    buff-=(y1*3*w);
+                    h+=y1;
+                    y1=0;
+                }
+                ReadBuffer(x1, y1, x1 + w - 1, y1 + h - 1, current);
+                for(int i=0;i<w*h*3;i+=3){
+                    if(buff[i] || buff[i+1] || buff[i+2]){
+                        current[i]=buff[i];
+                        current[i+1]=buff[i+1];
+                        current[i+2]=buff[i+2];
+                    }
+                }
+                DrawBuffer(x1, y1, x1 + w - 1, y1 + h - 1, current);
+            }
+        }
+        else error((char *)"Buffer not in use");
     } else if((p = checkstring(cmdline, "CLOSE"))) {
         getargs(&p, 1, ",");
         if(*argv[0] == '#') argv[0]++;                              // check if the first arg is prefixed with a #

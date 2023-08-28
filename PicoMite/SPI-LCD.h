@@ -382,6 +382,7 @@ extern void __not_in_flash_func(spi_finish)(spi_inst_t *spi);
 #define RESTART_NOAUTORUN   9996                                // reset required after changing the LCD or touch config
 #define SCREWUP_TIMEOUT    	9994                                // reset caused by the execute timer
 #define SOFT_RESET          9993
+#define POSSIBLE_WATCHDOG   9992
 
 #define FLASH_SPI_SPEED 20000000
 #define LCD_SPI_SPEED   25000000                                   // the speed of the SPI bus when talking to an SPI LCD display controller

@@ -860,10 +860,10 @@ void cmd_pio(void){
                                         ss+=2;
                                         ins|=0b10100000;
                                 } else if(strncasecmp(ss,"ISR",3)==0 && (ss[3]==' ' || ss[3]==',') ){
-                                        ss+=4;
+                                        ss+=3;
                                         ins|=0b11000000;
                                 } else if(strncasecmp(ss,"OSR",3)==0 && (ss[3]==' ' || ss[3]==',') ){
-                                        ss+=4;
+                                        ss+=3;
                                         ins|=0b11100000;
                                  } else error("Syntax");
                                 skipspace(ss);

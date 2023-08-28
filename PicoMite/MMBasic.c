@@ -1095,6 +1095,10 @@ void  MIPS16 tokenise(int console) {
             } else if((tp2 = checkstring(p, "BLIT")) != NULL) {
                     match_i = GetCommandValue("SPRITE") - C_BASETOKEN;
                     match_p = p = tp2;
+#else
+            } else if((tp2 = checkstring(p, "SPRITE")) != NULL) {
+                    match_i = GetCommandValue("Blit") - C_BASETOKEN;
+                    match_p = p = tp2;
 #endif
             } else if((tp2 = checkstring(p, "CAT")) != NULL) {
                     match_i = GetCommandValue("Inc") - C_BASETOKEN;

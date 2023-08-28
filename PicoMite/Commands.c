@@ -465,7 +465,6 @@ void MIPS16 cmd_run(void) {
     if (*filename && !FileLoadProgram(buf)) return;
 
     ClearRuntime();
-    WatchdogSet = false;
     PrepareProgram(true);
 
     // Create a global constant MM.CMDLINE$ containing 'cmd_args'.
@@ -811,6 +810,7 @@ void cmd_end(void) {
 	FrameBuf=FRAMEBUFFER;
 #endif
     adcrunning=0;
+	WatchdogSet = false;
 
 	if(g_myrand)FreeMemory((void *)g_myrand);
 	g_myrand=NULL;

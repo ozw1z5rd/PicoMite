@@ -873,13 +873,15 @@ bool __not_in_flash_func(timer_callback)(repeating_timer_t *rt)
         if(WDTimer) {
             if(--WDTimer == 0) {
                 _excep_code = WATCHDOG_TIMEOUT;
-                SoftReset();                                            // crude way of implementing a watchdog timer.
+                watchdog_enable(1, 1);
+                while(1);
             }
         }
         if (ScrewUpTimer) {
             if (--ScrewUpTimer == 0) {
                 _excep_code = SCREWUP_TIMEOUT;
-                SoftReset();                                            // crude way of implementing a watchdog timer.
+                watchdog_enable(1, 1);
+                while(1);
             }
         }
         if(PulseActive) {
@@ -1830,6 +1832,7 @@ int main(){
    static int ErrorInPrompt;
     repeating_timer_t timer;
     int i;
+    char savewatchdog=false;
     LoadOptions();
     if(  Option.Baudrate == 0 ||
         !(Option.Tab==2 || Option.Tab==3 || Option.Tab==4 ||Option.Tab==8) ||
@@ -1910,7 +1913,7 @@ int main(){
 	memset(WriteBuf, 0, 38400);
 #endif
     ResetDisplay();
-    if(!(_excep_code == RESTART_NOAUTORUN || _excep_code == WATCHDOG_TIMEOUT)){
+    if(!(_excep_code == RESTART_NOAUTORUN || _excep_code == WATCHDOG_TIMEOUT || (_excep_code==POSSIBLE_WATCHDOG && watchdog_caused_reboot()))){
         if(Option.Autorun==0 ){
             if(!(_excep_code == RESET_COMMAND))MMPrintString(MES_SIGNON); //MMPrintString(b);                                 // print sign on message
         } else {
@@ -1920,14 +1923,18 @@ int main(){
             if(*ProgMemory != 0x01 ) MMPrintString(MES_SIGNON); 
         }
     }
+    WatchdogSet = false;
+
     if(_excep_code == WATCHDOG_TIMEOUT) {
         WatchdogSet = true;                                 // remember if it was a watchdog timeout
         MMPrintString("\r\n\nMMBasic Watchdog timeout\r\n");
     }
-    if(!(_excep_code==SOFT_RESET) && watchdog_caused_reboot()){
+    if(_excep_code==POSSIBLE_WATCHDOG && watchdog_caused_reboot()){
         MMPrintString("\r\n\nHW Watchdog timeout\r\n");
         WatchdogSet = true;                                 // remember if it was a watchdog timeout
+        _excep_code=0;
     }
+    savewatchdog=WatchdogSet;
     if(noRTC){
         noRTC=0;
         Option.RTC=0;
@@ -1952,6 +1959,7 @@ int main(){
         ContinuePoint = nextstmt;                               // in case the user wants to use the continue command
 		*tknbuf = 0;											// we do not want to run whatever is in the token buffer
 		optionangle=1.0;
+        savewatchdog = WatchdogSet = false;
     } else {
         if(*ProgMemory == 0x01 ) ClearVars(0);
         else {
@@ -2010,7 +2018,7 @@ int main(){
                 }
             }
         }
-        _excep_code = 0;
+        if(_excep_code!=POSSIBLE_WATCHDOG)_excep_code = 0;
         PrepareProgram(false);
         if(!ErrorInPrompt && FindSubFun("MM.PROMPT", 0) >= 0) {
             ErrorInPrompt = true;
@@ -2035,6 +2043,7 @@ int main(){
         tokenise(true);                                             // turn into executable code
 autorun:
         i=0;
+        WatchdogSet=savewatchdog;
         if(*tknbuf==GetCommandValue((char *)"RUN"))i=1;
         if (setjmp(jmprun) != 0) {
             PrepareProgram(false);
