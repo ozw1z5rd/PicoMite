@@ -204,11 +204,11 @@ int TextChanged;                  // true if the program has been modified and t
 #define MARK  2
 
 void FullScreenEditor(int x, int y);
-char *findLine(int ln);
+char *findLine(int ln, int *inmulti);
 void printLine(int ln); 
 void printScreen(void);
 void SCursor(int x, int y);
-int editInsertChar(unsigned char c);
+int editInsertChar(unsigned char c, char *multi);
 void PrintFunctKeys(int);
 void PrintStatus(void);
 void SaveToProgMemory(void);
@@ -322,6 +322,7 @@ void FullScreenEditor(int xx, int yy) {
   int c, i;
   unsigned char buf[MAXCLIP+2], clipboard[MAXCLIP+2];
   unsigned char *p, *tp, BreakKeySave;
+  static char currdel=0, nextdel=0, lastdel=0, multi=false;
 #ifdef PICOMITEVGA
   int OptionY_TILESave;
   int ytilecountsave;
@@ -381,7 +382,7 @@ void FullScreenEditor(int xx, int yy) {
                                   buf[i + 1] = 0;                                 // make sure that the end of the buffer is zeroed
                               while(i) buf[i--] = ' ';                            // now, place our spaces in the typeahead buffer
                           }
-                          if(!editInsertChar('\n')) break;                        // insert the newline
+                          if(!editInsertChar('\n',&multi)) break;                        // insert the newline
                           TextChanged = true;
                           nbrlines++;
                           if(!(cury < VHeight - 1))                               // if we are NOT at the bottom
@@ -494,6 +495,13 @@ void FullScreenEditor(int xx, int yy) {
               case DEL: if(*txtp == 0) break;
                           p = txtp;
                           c = *p;
+                          currdel=*p;
+                          if(p!=EdBuff+EDIT_BUFFER_SIZE-1)nextdel=p[1];
+                          else nextdel=0;
+                          if(p!=EdBuff){
+                          lastdel=*(--p);
+                          p++;
+                          } else lastdel=0;
                           while(*p) {
                               p[0] = p[1];
                               p++;
@@ -506,6 +514,10 @@ void FullScreenEditor(int xx, int yy) {
                               printLine(edy + cury);
                           TextChanged = true;
                           PositionCursor(txtp);
+                          if(currdel=='/' && nextdel=='*' && Option.ColourCode)printScreen();
+                          if(currdel=='*' && nextdel=='/' && Option.ColourCode)printScreen();
+                          if(currdel=='/' && lastdel=='*' && Option.ColourCode)printScreen();
+                          if(currdel=='*' && lastdel=='/' && Option.ColourCode)printScreen();
                           break;
 
               case CTRLKEY('N'):
@@ -646,6 +658,8 @@ void FullScreenEditor(int xx, int yy) {
                             c=buf[0];
                             MMPrintString("\033[?1000l");                         // Tera Term turn off mouse click report in vt200 mode
                             MMPrintString("\0338\033[2J\033[H");                  // vt100 clear screen and home cursor
+                            gui_fcolour = GUI_C_NORMAL;
+                            MMPrintString(VT100_C_NORMAL);
                             gui_fcolour = PromptFC;
                             gui_bcolour = PromptBC;
                             MX470Cursor(0, 0);                                // home the cursor
@@ -726,7 +740,11 @@ void FullScreenEditor(int xx, int yy) {
                           break;
 
               // F6 to F12 - Normal function keys
+              case CTRLKEY('B'):
               case F6:
+                          printScreen();
+                          break;
+
               case F7:
               case F8:
               case F9:
@@ -744,13 +762,15 @@ void FullScreenEditor(int xx, int yy) {
                           }
                           TextChanged = true;
                           if(insert || *txtp == '\n' || *txtp == 0) {
-                              if(!editInsertChar(c)) break;                       // insert it
+                              if(!editInsertChar(c, &multi)) break;                       // insert it
                           } else
                               *txtp++ = c;                                        // or just overtype
                                 printLine(edy + cury);                            // redraw the whole line so that colour coding will occur
                           PositionCursor(txtp);
                           // SCursor(x, cury);
                           tempx = cury;                                           // used to track the preferred cursor position
+                          if(multi && Option.ColourCode)printScreen();
+//                          lastchar=c;
                           break;
 
             }
@@ -976,11 +996,22 @@ void MarkMode(unsigned char *cb, unsigned char *buf) {
 // search through the text in the editing buffer looking for a specific line
 // enters with ln = the line required
 // exits pointing to the start of the line or pointing to a zero char if not that many lines in the buffer
-char *findLine(int ln) {
-    unsigned char *p;
-    p = EdBuff;
+char *findLine(int ln, int *inmulti) {
+    unsigned char *p, *q;
+    *inmulti=false;
+    p = q = EdBuff;
+    skipspace(q);
+    if(q[0]=='/' && q[1]=='*') *inmulti=true;
+    if(q[0]=='*' && q[1]=='/') *inmulti=false;
     while(ln && *p) {
-        if(*p == '\n') ln--;
+        if(*p == '\n') { 
+            if(*inmulti==2)*inmulti=false;
+            ln--;
+            q=&p[1];
+            skipspace(q);
+            if(q[0]=='/' && q[1]=='*') *inmulti=true;
+            if(q[0]=='*' && q[1]=='/') *inmulti=2;
+        }
         p++;
     }
     return p;
@@ -1010,6 +1041,7 @@ void SetColour(unsigned char *p, int DoVT100) {
     unsigned char **pp;
     static int intext = false;
     static int incomment = false;
+    static int multilinecomment = false;
     static int inkeyword = false;
     static unsigned char *twokeyword = NULL;
     static int inquote = false;
@@ -1021,7 +1053,7 @@ void SetColour(unsigned char *p, int DoVT100) {
     // the list must be terminated with a NULL
     unsigned char *twokeywordtbl[] = {
         "BASE", "EXPLICIT", "DEFAULT", "BREAK", "AUTORUN", "BAUDRATE", "DISPLAY",
-#if defined(MX470)
+#if defined(PICOMITE)
         "BUTTON", "SWITCH", "CHECKBOX", "RADIO", "LED", "FRAME", "NUMBERBOX", "SPINBOX", "TEXTBOX", "DISPLAYBOX", "CAPTION", "DELETE",
         "DISABLE", "HIDE", "ENABLE", "SHOW", "FCOLOUR", "BCOLOUR", "REDRAW", "BEEP", "INTERRUPT",
 #endif
@@ -1040,8 +1072,20 @@ void SetColour(unsigned char *p, int DoVT100) {
     if(p == NULL) {
         innumber = inquote = inkeyword = incomment = intext = false;
         twokeyword = NULL;
-        gui_fcolour = GUI_C_NORMAL;
-        if(DoVT100) MMPrintString(VT100_C_NORMAL);
+        if(!multilinecomment){
+            gui_fcolour = GUI_C_NORMAL;
+            if(DoVT100) MMPrintString(VT100_C_NORMAL);
+        }
+        return;
+    }
+    
+    if(*p == '*' && p[1]=='/' && !inquote) {
+        multilinecomment = 2;
+        return;
+    }
+
+    if(*p == '/' && !inquote && multilinecomment==2) {
+        multilinecomment = false;
         return;
     }
 
@@ -1052,9 +1096,15 @@ void SetColour(unsigned char *p, int DoVT100) {
         incomment = true;
         return;
     }
+    if(*p == '/' && p[1]=='*' && !inquote) {
+        gui_fcolour = GUI_C_COMMENT;
+        if(DoVT100) MMPrintString(VT100_C_COMMENT);
+        multilinecomment = true;
+        return;
+    }
 
     // once in a comment all following chars must be comments also
-    if(incomment) return;
+    if(incomment || multilinecomment) return;
 
     // check for a quoted string
     if(*p == '\"') {
@@ -1182,14 +1232,15 @@ void SetColour(unsigned char *p, int DoVT100) {
 void printLine(int ln) {
     char *p;
     int i;
-
+    int inmulti=false;
     // we always colour code the output to the LCD panel on the MX470 (when used as the console)
     if(Option.DISPLAY_CONSOLE) {
         MX470PutC('\r');                                            // print on the MX470 display
-        p = findLine(ln);
+        p = findLine(ln, &inmulti);
         i = VWidth - 1;
         while(i && *p && *p != '\n') {
-            SetColour(p, false);                                    // set the colour for the LCD display only
+            if(!inmulti)SetColour(p, false);                                    // set the colour for the LCD display only
+            else gui_fcolour = GUI_C_COMMENT;
             MX470PutC(*p++);                                        // print on the MX470 display
             i--;
         }
@@ -1197,7 +1248,7 @@ void printLine(int ln) {
     }
     SetColour(NULL, false);
 
-    p = findLine(ln);
+    p = findLine(ln, &inmulti);
     if(Option.ColourCode) {
         // if we are colour coding we need to redraw the whole line
         MMputchar('\r',0);                                            // display the chars after the editing point
@@ -1210,7 +1261,13 @@ void printLine(int ln) {
     }
 
     while(i && *p && *p != '\n') {
-        if(Option.ColourCode) SetColour(p, true);                   // if colour coding is used set the colour for the VT100 emulator
+        if(Option.ColourCode) {
+            if(!inmulti)SetColour(p, true);                   // if colour coding is used set the colour for the VT100 emulator
+            else {
+                gui_fcolour = GUI_C_COMMENT;
+                MMPrintString(VT100_C_COMMENT);
+            }
+        }
         MMputchar(*p++,0);                                            // display the chars after the editing point
         i--;
     }
@@ -1256,7 +1313,7 @@ void SCursor(int x, int y) {
 
 // move the text down by one char starting at the current position in the text
 // and insert a character
-int editInsertChar(unsigned char c) {
+int editInsertChar(unsigned char c, char *multi) {
     unsigned char *p;
 
     for(p = EdBuff; *p; p++);                                         // find the end of the text in memory
@@ -1265,6 +1322,11 @@ int editInsertChar(unsigned char c) {
         return false;
     }
     for(; p >= txtp; p--) *(p + 1) = *p;                              // shift everything down
+    *multi=0;
+    p=txtp-1;
+    if((c=='/' && *p=='*') || (c=='*' && *p=='/') )*multi=1;
+    p+=2;
+    if((c=='/' && *p=='*') || (c=='*' && *p=='/') )*multi=1;
     *txtp++ = c;                                                      // and insert our char
     return true;
 }

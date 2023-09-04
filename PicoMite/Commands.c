@@ -325,9 +325,10 @@ void MIPS16 cmd_list(void) {
    } else if((p = checkstring(cmdline, "COMMANDS"))) {
     	step=5;
     	m=0;
-		char** c=GetTempMemory((CommandTableSize+9)*sizeof(*c)+(CommandTableSize+9)*18);
-		for(i=0;i<CommandTableSize+9;i++){
-				c[m]= (char *)((int)c + sizeof(char *) * (CommandTableSize+9) + m*18);
+		int x=11;
+		char** c=GetTempMemory((CommandTableSize+x)*sizeof(*c)+(CommandTableSize+x)*18);
+		for(i=0;i<CommandTableSize+x;i++){
+				c[m]= (char *)((int)c + sizeof(char *) * (CommandTableSize+x) + m*18);
     			if(m<CommandTableSize)strcpy(c[m],commandtbl[i].name);
     			else if(m==CommandTableSize)strcpy(c[m],"Color");
     			else if(m==CommandTableSize+1)strcpy(c[m],"Else If");
@@ -337,6 +338,8 @@ void MIPS16 cmd_list(void) {
 				else if(m==CommandTableSize+5)strcpy(c[m],"Autosave");
 				else if(m==CommandTableSize+6)strcpy(c[m],"Files");
 				else if(m==CommandTableSize+7)strcpy(c[m],"Update Firmware");
+				else if(m==CommandTableSize+7)strcpy(c[m],"/*");
+				else if(m==CommandTableSize+7)strcpy(c[m],"*/");
     			else strcpy(c[m],"Cat");
     			m++;
 		}
@@ -354,9 +357,10 @@ void MIPS16 cmd_list(void) {
     } else if((p = checkstring(cmdline, "FUNCTIONS"))) {
     	m=0;
     	step=5;
-		char** c=GetTempMemory((TokenTableSize+5)*sizeof(*c)+(TokenTableSize+5)*18);
-		for(i=0;i<TokenTableSize+5;i++){
-				c[m]= (char *)((int)c + sizeof(char *) * (TokenTableSize+5) + m*18);
+		int x=5;
+		char** c=GetTempMemory((TokenTableSize+x)*sizeof(*c)+(TokenTableSize+x)*18);
+		for(i=0;i<TokenTableSize+x;i++){
+				c[m]= (char *)((int)c + sizeof(char *) * (TokenTableSize+x) + m*18);
 				if(m<TokenTableSize)strcpy(c[m],tokentbl[i].name);
 	   			else if(m==TokenTableSize)strcpy(c[m],"=>");
     			else if(m==TokenTableSize+1)strcpy(c[m],"=<");
@@ -1457,6 +1461,9 @@ void cmd_subfun(void) {
 	if(cmdtoken == cmdSUB) {
 	    returntoken = cmdENDSUB;
 	    errtoken = cmdENDFUNCTION;
+	} else if(cmdtoken == cmdComment) {
+	    returntoken = cmdEndComment;
+	    errtoken = cmdENDFUNCTION;
 	} else {
 	    returntoken = cmdENDFUNCTION;
 	    errtoken = cmdENDSUB;
@@ -1464,7 +1471,7 @@ void cmd_subfun(void) {
 	p = nextstmt;
 	while(1) {
         p = GetNextCommand(p, NULL, "No matching END declaration");
-        if(*p == cmdSUB || *p == cmdFUN || *p == errtoken) error("No matching END declaration");
+        if(*p == cmdSUB || *p == cmdFUN || *p == cmdComment || *p == errtoken) error("No matching END declaration");
 		if(*p == returntoken) {                                     // found the next return
     		skipelement(p);
     		nextstmt = p;                                           // point to the next command

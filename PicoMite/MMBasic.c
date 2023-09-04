@@ -244,7 +244,7 @@ extern long long int CallCFunction(unsigned char *CmdPtr, unsigned char *ArgList
 unsigned char __not_in_flash_func(*getvalue)(unsigned char *p, MMFLOAT *fa, long long int  *ia, unsigned char **sa, int *oo, int *ta);
 unsigned char tokenTHEN, tokenELSE, tokenGOTO, tokenEQUAL, tokenTO, tokenSTEP, tokenWHILE, tokenUNTIL, tokenGOSUB, tokenAS, tokenFOR;
 unsigned char cmdIF, cmdENDIF, cmdELSEIF, cmdELSE, cmdSELECT_CASE, cmdFOR, cmdNEXT, cmdWHILE, cmdENDSUB, cmdENDFUNCTION, cmdLOCAL, cmdSTATIC, cmdCASE, cmdDO, cmdLOOP, cmdCASE_ELSE, cmdEND_SELECT;
-unsigned char cmdSUB, cmdFUN, cmdCFUN, cmdCSUB, cmdIRET;
+unsigned char cmdSUB, cmdFUN, cmdCFUN, cmdCSUB, cmdIRET, cmdComment, cmdEndComment;
 
 /********************************************************************************************************************************************
  Program management
@@ -295,6 +295,8 @@ void   MIPS16 InitBasic(void) {
     cmdNEXT= GetCommandValue( (unsigned char *)"Next");
 	cmdIRET = GetCommandValue( (unsigned char *)"IReturn");
     cmdCSUB = GetCommandValue( (unsigned char *)"CSub");
+    cmdComment = GetCommandValue( (unsigned char *)"/*");
+    cmdEndComment = GetCommandValue( (unsigned char *)"*/");
 //    SInt(CommandTableSize);
 //    SIntComma(TokenTableSize);
 //    SSPrintString("\r\n");

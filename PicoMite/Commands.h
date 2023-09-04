@@ -154,7 +154,8 @@ void cmd_mid(void);
 	{ (unsigned char *)"Const",		T_CMD,				0, cmd_const	},
 	{ (unsigned char *)"Execute",	T_CMD,				0, cmd_execute	},
 	{ (unsigned char *)"MID$(",		T_CMD | T_FUN,		0, cmd_mid      },
-
+	{ (unsigned char *)"/*",		T_CMD,				0, cmd_subfun   },
+	{ (unsigned char *)"*/",		T_CMD,				0, cmd_null   },
 #endif
 
 

@@ -231,7 +231,7 @@ extern const struct s_tokentbl commandtbl[];
 
 extern unsigned char tokenTHEN, tokenELSE, tokenGOTO, tokenEQUAL, tokenTO, tokenSTEP, tokenWHILE, tokenUNTIL, tokenGOSUB, tokenAS, tokenFOR;
 extern unsigned char cmdIF, cmdENDIF, cmdEND_IF, cmdELSEIF, cmdELSE_IF, cmdELSE, cmdSELECT_CASE, cmdFOR, cmdNEXT, cmdWHILE, cmdENDSUB, cmdENDFUNCTION, cmdLOCAL, cmdSTATIC, cmdCASE, cmdDO, cmdLOOP, cmdCASE_ELSE, cmdEND_SELECT;
-extern unsigned char cmdSUB, cmdFUN, cmdCFUN, cmdCSUB, cmdIRET;
+extern unsigned char cmdSUB, cmdFUN, cmdCFUN, cmdCSUB, cmdIRET, cmdComment, cmdEndComment;
 
 extern unsigned char *GetIntAddress(unsigned char *p);
 extern void MMPrintString(char *s);

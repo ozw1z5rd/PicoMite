@@ -571,7 +571,6 @@ void cmd_math(void){
 			}
 			return;
 		}
-
 		tp = checkstring(cmdline, "SLICE");
 		if(tp) {
 			int i, j, start, increment, dim[MAXDIM], pos[MAXDIM],off[MAXDIM], dimcount=0, target=-1, toarray=0;
@@ -1411,6 +1410,87 @@ void cmd_math(void){
 			}
 			return;
 		}
+
+		tp = checkstring(cmdline, "WINDOW");
+		if(tp) {
+			void *ptr1 = NULL;
+			void *ptr2 = NULL;
+			int i,j,card1=1, card2=1;
+			MMFLOAT *a1float=NULL,*a2float=NULL, outmin,outmax, inmin=1.5e+308 , inmax=-1.5e308;
+			int64_t *a1int=NULL, *a2int=NULL;
+			getargs(&tp, 11,",");
+			if(!(argc == 7 || argc==11)) error("Argument count");
+			ptr1 = findvar(argv[0], V_FIND | V_EMPTY_OK | V_NOFIND_ERR);
+			if(vartbl[VarIndex].type & T_NBR) {
+				card1=1;
+				for(i=0;i<MAXDIM;i++){
+					j=(vartbl[VarIndex].dims[i] - OptionBase+1);
+					if(j)card1 *= j;
+				}
+				a1float = (MMFLOAT *)ptr1;
+				if((uint32_t)ptr1!=(uint32_t)vartbl[VarIndex].val.s)error("Syntax");
+			} else if(vartbl[VarIndex].type & T_INT) {
+				card1=1;
+				for(i=0;i<MAXDIM;i++){
+					j=(vartbl[VarIndex].dims[i] - OptionBase+1);
+					if(j)card1 *= j;
+				}
+				a1int = (int64_t *)ptr1;
+				if((uint32_t)ptr1!=(uint32_t)vartbl[VarIndex].val.s)error("Syntax");
+			} else error("Argument 1 must be numerical");
+		    outmin=getnumber(argv[2]);
+			outmax=getnumber(argv[4]);
+			ptr2 = findvar(argv[6], V_FIND | V_EMPTY_OK | V_NOFIND_ERR);
+			if(vartbl[VarIndex].type & T_NBR) {
+				card2=1;
+				for(i=0;i<MAXDIM;i++){
+					j=(vartbl[VarIndex].dims[i] - OptionBase+1);
+					if(j)card2 *= j;
+				}
+				a2float = (MMFLOAT *)ptr2;
+				if((uint32_t)a2float!=(uint32_t)vartbl[VarIndex].val.s)error("Syntax");
+			} else if(vartbl[VarIndex].type & T_INT) {
+				card2=1;
+				for(i=0;i<MAXDIM;i++){
+					j=(vartbl[VarIndex].dims[i] - OptionBase+1);
+					if(j)card2 *= j;
+				}
+				a2int = (int64_t *)ptr2;
+				if((uint32_t)a2int!=(uint32_t)vartbl[VarIndex].val.s)error("Syntax");
+			} else error("Argument 4 must be numerical");
+			if(card1 != card2)error("Size mismatch");
+			if(a1float!=NULL){ //find min and max if in is a float
+				for(i=0; i< card1;i++){
+					if(a1float[i]<inmin)inmin=a1float[i];
+					if(a1float[i]>inmax)inmax=a1float[i];
+				}
+			} else { //find min and max if in is an integer
+				if(a1int[i]<inmin)inmin=(MMFLOAT)a1int[i];
+				if(a1int[i]>inmax)inmax=(MMFLOAT)a1int[i];
+			}
+			if(argc==11){
+				ptr1 = findvar(argv[8], V_FIND);
+				if(!(vartbl[VarIndex].type & T_NBR | T_INT)) error("Invalid variable");
+				if(vartbl[VarIndex].type==T_INT)*(long long int *)ptr1=(long long int)inmin;
+				else *(MMFLOAT *)ptr1=inmin;
+				ptr2 = findvar(argv[10], V_FIND);
+				if(!(vartbl[VarIndex].type & T_NBR | T_INT)) error("Invalid variable");
+				if(vartbl[VarIndex].type==T_INT)*(long long int *)ptr2=(long long int)inmax;
+				else *(MMFLOAT *)ptr2=inmax;
+			}
+			if(a2float!=NULL && a1float!=NULL){ //in and out are floats
+				for(i=0; i< card1;i++)a2float[i] = ((a1float[i]-inmin)/(inmax-inmin))*(outmax-outmin)+outmin;
+			} else if(a2float!=NULL && a1float==NULL){ //in is a float and out is an integer
+				for(i=0; i< card1;i++)a2int[i] =(long long int)(((a1float[i]-inmin)/(inmax-inmin))*(outmax-outmin)+outmin);
+			} else if(a2float==NULL && a1float!=NULL){ //in is an integer and out is a float
+				for(i=0; i< card1;i++)a2float[i] =((((MMFLOAT)a1int[i]-inmin)/(inmax-inmin))*(outmax-outmin)+outmin);
+			} else {  // in and out are integers
+				for(i=0; i< card1;i++)a2int[i] =(long long int)((((MMFLOAT)a1int[i]-inmin)/(inmax-inmin))*(outmax-outmin)+outmin);
+			}
+			return;
+		}
+
+
 		tp = checkstring(cmdline, "RANDOMIZE");
 		if(tp) {
 			int i;
