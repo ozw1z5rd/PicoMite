@@ -14,11 +14,11 @@ Compiled version and documentation is available on https://geoffg.net/picomite.h
 
 Change list from V5.07.00
 **********************************************************************************************************************
-PicoMite V5.07.08b15
+PicoMite V5.07.08RC3
 
-SDK reverted to 1.5 as 1.5.1 giving errors
+SDK reverted to 1.5 as 1.5.1 giving errors. -Wall enabled and all warnings fixed
 Various bug fixes and addition of support for regular expressions, continous operation of PIO DMA and ADC DMA. Play MODFILE. Support for hardware watchdog.
- Support for SK6812 RGBW leds. OPTION WEB MESSAGES ON/OFF. MATH WINDOW. Multiline comments.
+ Support for SK6812 RGBW leds. OPTION WEB MESSAGES ON/OFF. MATH WINDOW. Multiline comments. BLIT FRAMEBUFFER, BLIT MEMORY, BLIT COMPRESSED
 
 PicoMite V5.07.07
 
