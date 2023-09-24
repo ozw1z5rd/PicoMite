@@ -46,34 +46,34 @@ void ScrollSSD1963(int lines);
 ////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 void MIPS16 ConfigDisplaySSD(unsigned char *p) {
-    getargs(&p, 9, ",");
+    getargs(&p, 9, (unsigned char *)",");
     if((argc & 1) != 1 || argc < 3) error("Argument count");
 
 
-    if(checkstring(argv[0], "SSD1963_4")) {                         // this is the 4" glass
+    if(checkstring(argv[0], (unsigned char *)"SSD1963_4")) {                         // this is the 4" glass
         Option.DISPLAY_TYPE = SSD1963_4;
-    } else if(checkstring(argv[0], "SSD1963_5")) {                  // this is the 5" glass
+    } else if(checkstring(argv[0], (unsigned char *)"SSD1963_5")) {                  // this is the 5" glass
         Option.DISPLAY_TYPE = SSD1963_5;
-    } else if(checkstring(argv[0], "SSD1963_5A")) {                 // this is the 5" glass alternative version
+    } else if(checkstring(argv[0], (unsigned char *)"SSD1963_5A")) {                 // this is the 5" glass alternative version
         Option.DISPLAY_TYPE = SSD1963_5A;
-    } else if(checkstring(argv[0], "SSD1963_7")) {                  // there appears to be two versions of the 7" glass in circulation, this is type 1
+    } else if(checkstring(argv[0], (unsigned char *)"SSD1963_7")) {                  // there appears to be two versions of the 7" glass in circulation, this is type 1
         Option.DISPLAY_TYPE = SSD1963_7;
-    } else if(checkstring(argv[0], "SSD1963_7A")) {                 // this is type 2 of the 7" glass (high luminosity version)
+    } else if(checkstring(argv[0], (unsigned char *)"SSD1963_7A")) {                 // this is type 2 of the 7" glass (high luminosity version)
         Option.DISPLAY_TYPE = SSD1963_7A;
-    } else if(checkstring(argv[0], "SSD1963_8")) {                  // this is the 8" glass (EastRising)
+    } else if(checkstring(argv[0], (unsigned char *)"SSD1963_8")) {                  // this is the 8" glass (EastRising)
         Option.DISPLAY_TYPE = SSD1963_8;
     } else
         return;
 
     if(!(argc == 3 || argc == 5 || argc == 7)) error("Argument count");
 
-    if(checkstring(argv[2], "L") || checkstring(argv[2], "LANDSCAPE"))
+    if(checkstring(argv[2], (unsigned char *)"L") || checkstring(argv[2], (unsigned char *)"LANDSCAPE"))
         Option.DISPLAY_ORIENTATION = LANDSCAPE;
-    else if(checkstring(argv[2], "P") || checkstring(argv[2], "PORTRAIT"))
+    else if(checkstring(argv[2], (unsigned char *)"P") || checkstring(argv[2], (unsigned char *)"PORTRAIT"))
         Option.DISPLAY_ORIENTATION = PORTRAIT;
-    else if(checkstring(argv[2], "RL") || checkstring(argv[2], "RLANDSCAPE"))
+    else if(checkstring(argv[2], (unsigned char *)"RL") || checkstring(argv[2], (unsigned char *)"RLANDSCAPE"))
         Option.DISPLAY_ORIENTATION = RLANDSCAPE;
-    else if(checkstring(argv[2], "RP") || checkstring(argv[2], "RPORTRAIT"))
+    else if(checkstring(argv[2], (unsigned char *)"RP") || checkstring(argv[2], (unsigned char *)"RPORTRAIT"))
         Option.DISPLAY_ORIENTATION = RPORTRAIT;
     else
         error("Orientation");
@@ -577,10 +577,14 @@ void DrawRectangleSSD1963(int x1, int y1, int x2, int y2, int c) {
     // make sure the coordinates are kept within the display area
     if(x2 <= x1) { t = x1; x1 = x2; x2 = t; }
     if(y2 <= y1) { t = y1; y1 = y2; y2 = t; }
-    if(x1 < 0) x1 = 0; if(x1 >= HRes) x1 = HRes - 1;
-    if(x2 < 0) x2 = 0; if(x2 >= HRes) x2 = HRes - 1;
-    if(y1 < 0) y1 = 0; if(y1 >= VRes) y1 = VRes - 1;
-    if(y2 < 0) y2 = 0; if(y2 >= VRes) y2 = VRes - 1;
+    if(x1 < 0) x1 = 0; 
+    if(x1 >= HRes) x1 = HRes - 1;
+    if(x2 < 0) x2 = 0; 
+    if(x2 >= HRes) x2 = HRes - 1;
+    if(y1 < 0) y1 = 0; 
+    if(y1 >= VRes) y1 = VRes - 1;
+    if(y2 < 0) y2 = 0; 
+    if(y2 >= VRes) y2 = VRes - 1;
 
     t = y2 - y1;                                                    // get the distance between the top and bottom
 
@@ -609,10 +613,14 @@ void DrawBufferSSD1963(int x1, int y1, int x2, int y2, unsigned char* p) {
     // make sure the coordinates are kept within the display area
     if(x2 <= x1) { t = x1; x1 = x2; x2 = t; }
     if(y2 <= y1) { t = y1; y1 = y2; y2 = t; }
-    if(x1 < 0) x1 = 0; if(x1 >= HRes) x1 = HRes - 1;
-    if(x2 < 0) x2 = 0; if(x2 >= HRes) x2 = HRes - 1;
-    if(y1 < 0) y1 = 0; if(y1 >= VRes) y1 = VRes - 1;
-    if(y2 < 0) y2 = 0; if(y2 >= VRes) y2 = VRes - 1;
+    if(x1 < 0) x1 = 0; 
+    if(x1 >= HRes) x1 = HRes - 1;
+    if(x2 < 0) x2 = 0; 
+    if(x2 >= HRes) x2 = HRes - 1;
+    if(y1 < 0) y1 = 0; 
+    if(y1 >= VRes) y1 = VRes - 1;
+    if(y2 < 0) y2 = 0; 
+    if(y2 >= VRes) y2 = VRes - 1;
 
     t = y2 - y1;                                                    // get the distance between the top and bottom
 
@@ -676,10 +684,14 @@ void ReadBufferSSD1963(int x1, int y1, int x2, int y2, unsigned char* p) {
     // make sure the coordinates are kept within the display area
     if(x2 <= x1) { t = x1; x1 = x2; x2 = t; }
     if(y2 <= y1) { t = y1; y1 = y2; y2 = t; }
-    if(x1 < 0) x1 = 0; if(x1 >= HRes) x1 = HRes - 1;
-    if(x2 < 0) x2 = 0; if(x2 >= HRes) x2 = HRes - 1;
-    if(y1 < 0) y1 = 0; if(y1 >= VRes) y1 = VRes - 1;
-    if(y2 < 0) y2 = 0; if(y2 >= VRes) y2 = VRes - 1;
+    if(x1 < 0) x1 = 0; 
+    if(x1 >= HRes) x1 = HRes - 1;
+    if(x2 < 0) x2 = 0; 
+    if(x2 >= HRes) x2 = HRes - 1;
+    if(y1 < 0) y1 = 0; 
+    if(y1 >= VRes) y1 = VRes - 1;
+    if(y2 < 0) y2 = 0; 
+    if(y2 >= VRes) y2 = VRes - 1;
 
     t = y2 - y1;                                                    // get the distance between the top and bottom
     if(Option.DISPLAY_ORIENTATION == RLANDSCAPE)
@@ -767,7 +779,7 @@ void DrawBitmapSSD1963(int x1, int y1, int width, int height, int scale, int fg,
     XEnd = x1 + (width * scale) - 1; if(XEnd >= HRes) XEnd = HRes - 1; // the width of the bitmap will extend beyond the right margin
     if(bg == -1) {
         buff = GetMemory(width * height * scale * scale * 3 );
-        ReadBuffer(XStart, y1, XEnd, (y1 + (height * scale) - 1) , buff);
+        ReadBuffer(XStart, y1, XEnd, (y1 + (height * scale) - 1) , (unsigned char *)buff);
         n = 0;
     }
 
@@ -784,7 +796,7 @@ void DrawBitmapSSD1963(int x1, int y1, int width, int height, int scale, int fg,
         for(j = 0; j < scale; j++) {                                // repeat lines to scale the font
             if(vertCoord++ < 0) continue;                           // we are above the top of the screen
             if(vertCoord > VRes) {                                  // we have extended beyond the bottom of the screen
-              if(buff != NULL) FreeMemory(buff);
+              if(buff != NULL) FreeMemory((unsigned char *)buff);
               return;
             }
             // if we have scrolling in action we could run over the end of the frame buffer
@@ -817,7 +829,7 @@ void DrawBitmapSSD1963(int x1, int y1, int width, int height, int scale, int fg,
                 }
         }
     }
-    if(buff != NULL) FreeMemory(buff);
+    if(buff != NULL) FreeMemory((unsigned char *)buff);
 }
 
 

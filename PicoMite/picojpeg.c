@@ -11,7 +11,7 @@
 // When 1, arithmetic right shifts will be emulated by using a logical shift
 // with special case code to ensure the sign bit is replicated.
 #define PJPG_RIGHT_SHIFT_IS_ALWAYS_UNSIGNED 0
-
+ 
 // Define PJPG_INLINE to "inline" if your C compiler supports explicit inlining
 #define PJPG_INLINE
 //------------------------------------------------------------------------------
@@ -681,7 +681,7 @@ static uint8 readSOSMarker(void)
 {
    uint8 i;
    uint16 left = getBits1(16);
-   uint8 spectral_start, spectral_end, successive_high, successive_low;
+//   uint8 spectral_start, spectral_end, successive_high, successive_low;
 
    gCompsInScan = (uint8)getBits1(8);
 
@@ -710,10 +710,10 @@ static uint8 readSOSMarker(void)
       gCompACTab[ci] = (c & 15);
    }
 
-   spectral_start  = (uint8)getBits1(8);
-   spectral_end    = (uint8)getBits1(8);
-   successive_high = (uint8)getBits1(4);
-   successive_low  = (uint8)getBits1(4);
+//   spectral_start  = (uint8)getBits1(8);
+//   spectral_end    = (uint8)getBits1(8);
+//   successive_high = (uint8)getBits1(4);
+//   successive_low  = (uint8)getBits1(4);
 
    left -= 3;
 
@@ -1024,7 +1024,7 @@ static uint8 processRestart(void)
 //------------------------------------------------------------------------------
 // FIXME: findEOI() is not actually called at the end of the image 
 // (it's optional, and probably not needed on embedded devices)
-static uint8 findEOI(void)
+/*static uint8 findEOI(void)
 {
    uint8 c;
    uint8 status;
@@ -1046,7 +1046,7 @@ static uint8 findEOI(void)
       return PJPG_UNEXPECTED_MARKER;
    
    return 0;
-}
+}*/
 //------------------------------------------------------------------------------
 static uint8 checkHuffTables(void)
 {
@@ -1727,10 +1727,13 @@ static void convertCb(uint8 dstOfs)
       int16 cbG, cbB;
 
       cbG = ((cb * 88U) >> 8U) - 44U;
-      *pDstG++ = subAndClamp(pDstG[0], cbG);
-
+//      *pDstG++ = subAndClamp(pDstG[0], cbG);
+      *pDstG = subAndClamp(pDstG[0], cbG);
+      pDstG++;
       cbB = (cb + ((cb * 198U) >> 8U)) - 227U;
-      *pDstB++ = addAndClamp(pDstB[0], cbB);
+//      *pDstB++ = addAndClamp(pDstB[0], cbB);
+      *pDstB = addAndClamp(pDstB[0], cbB);
+      pDstB++;
    }
 }
 /*----------------------------------------------------------------------------*/
@@ -1748,10 +1751,14 @@ static void convertCr(uint8 dstOfs)
       int16 crR, crG;
 
       crR = (cr + ((cr * 103U) >> 8U)) - 179;
-      *pDstR++ = addAndClamp(pDstR[0], crR);
+//      *pDstR++ = addAndClamp(pDstR[0], crR);
+      *pDstR = addAndClamp(pDstR[0], crR);
+      pDstR++;
 
       crG = ((cr * 183U) >> 8U) - 91;
-      *pDstG++ = subAndClamp(pDstG[0], crG);
+//      *pDstG++ = subAndClamp(pDstG[0], crG);
+      *pDstG = subAndClamp(pDstG[0], crG);
+      pDstG++;
    }
 }
 /*----------------------------------------------------------------------------*/
@@ -2309,7 +2316,7 @@ unsigned char pjpeg_decode_init(pjpeg_image_info_t *pInfo, pjpeg_need_bytes_call
    memset(gMCUOrg,0,sizeof(gMCUOrg));
    g_pCallback_data=NULL;
    gValidHuffTables =gValidQuantTables=gTemFlag=gInBufOfs=gInBufLeft=gBitBuf=gBitsLeft=gImageXSize=0;
-   gImageYSize= gCompsInFrame= gRestartInterval= gRestartInterval =gNextRestartNum =gRestartsLeft=0;
+   gImageYSize= gCompsInFrame= gRestartInterval= /*gRestartInterval =*/gNextRestartNum =gRestartsLeft=0;
    gCompsInScan= gMaxBlocksPerMCU= gMaxMCUXSize= gMaxMCUYSize=gMaxMCUSPerRow= gMaxMCUSPerCol=0;
    gNumMCUSRemainingX= gNumMCUSRemainingY =gCallbackStatus=gReduce=0;
    pInfo->m_width = 0; pInfo->m_height = 0; pInfo->m_comps = 0;
@@ -2317,8 +2324,8 @@ unsigned char pjpeg_decode_init(pjpeg_image_info_t *pInfo, pjpeg_need_bytes_call
    pInfo->m_scanType = PJPG_GRAYSCALE;
    pInfo->m_MCUWidth = 0; pInfo->m_MCUHeight = 0;
    pInfo->m_pMCUBufR = (unsigned char*)0; pInfo->m_pMCUBufG = (unsigned char*)0; pInfo->m_pMCUBufB = (unsigned char*)0;
-   uint16 mMaxCode[16];
-   uint8 mValPtr[16];
+//   uint16 mMaxCode[16];
+//   uint8 mValPtr[16];
 
    g_pNeedBytesCallback = pNeed_bytes_callback;
    g_pCallback_data = pCallback_data;

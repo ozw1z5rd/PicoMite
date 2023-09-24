@@ -45,7 +45,7 @@ void cmd_xmodem(void);
 **********************************************************************************/
 #ifdef INCLUDE_COMMAND_TABLE
 
-  { "XModem",     T_CMD,              0, cmd_xmodem   },
+  { (unsigned char *)"XModem",     T_CMD,              0, cmd_xmodem   },
 
 #endif
 

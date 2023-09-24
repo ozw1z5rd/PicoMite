@@ -130,7 +130,7 @@ int calcsideanddelay(char *p, int sidepins, int maxdelaybits){
                 pp+=5;
                 skipspace(pp);
                 char *ss=pp;
-                char save;
+                char save=0;
                 if((*ss>='0' && *ss<='9') || *ss=='&' ){
                         char *ppp=ss;
                         if(*ss=='&'){
@@ -142,7 +142,7 @@ int calcsideanddelay(char *p, int sidepins, int maxdelaybits){
                                 save=*ppp;
                                 *ppp=',';
                         }
-                data=(getint(ss,0,(1<<(sidepins-sideopt)))<<(8+maxdelaybits));
+                data=(int)(getint((unsigned char *)ss,0,(1<<(sidepins-sideopt)))<<(8+maxdelaybits));
                 if(sideopt)data|=0x1000;
                 *ppp=save;
                 } else error("Syntax");
@@ -151,7 +151,7 @@ int calcsideanddelay(char *p, int sidepins, int maxdelaybits){
                 pp++;
                 char *s=strstr(pp,"]");
                 *s=' ';
-                data|=(getint(pp,0,(1<<maxdelaybits)-1))<<8;
+                data|=(getint((unsigned char *)pp,0,(1<<maxdelaybits)-1))<<8;
         }
         return data;
 }
@@ -161,13 +161,13 @@ int getirqnum(char *p){
         int rel=0;
         skipspace(pp);
         char *ppp=pp;
-        char save;
+        char save=0;
         while(*ppp>='0' && *ppp<='9' && *ppp){ppp++;}
         if(*ppp){
                 save=*ppp;
                 *ppp=',';
         }
-        data=getint(pp,0,7);
+        data=(int)getint((unsigned char *)pp,0,7);
         if(*ppp==',')*ppp=save;
         if((pp=fstrstr(p," rel")) && (pp[4]==0 || pp[4]==' ' || pp[4]==';'))rel=1;
         if(rel){
@@ -193,7 +193,7 @@ int checkblock(char *p){
 }
 void cmd_pio(void){
     unsigned char *tp;
-    tp = checkstring(cmdline, "EXECUTE");
+    tp = checkstring(cmdline, (unsigned char *)"EXECUTE");
     if(tp){
         int i;
         getargs(&tp, (MAX_ARG_COUNT * 2) - 1, (unsigned char *)",");
@@ -214,7 +214,7 @@ void cmd_pio(void){
         }
         return;
     }
-    tp = checkstring(cmdline, "WRITE");
+    tp = checkstring(cmdline, (unsigned char *)"WRITE");
     if(tp){
         int i=6;
         getargs(&tp, (MAX_ARG_COUNT * 2) - 1, (unsigned char *)",");
@@ -237,10 +237,10 @@ void cmd_pio(void){
         }
         return;
     }
-    tp = checkstring(cmdline, "DMA RX");
+    tp = checkstring(cmdline, (unsigned char *)"DMA RX");
     if(tp){
         getargs(&tp, 13, (unsigned char *)",");
-        if(checkstring(argv[0],"OFF")){
+        if(checkstring(argv[0],(unsigned char *)"OFF")){
                 dma_hw->abort = ((1u << dma_rx_chan2) | (1u << dma_rx_chan));
                 if(dma_channel_is_busy(dma_rx_chan))dma_channel_abort(dma_rx_chan);
                 if(dma_channel_is_busy(dma_rx_chan2))dma_channel_abort(dma_rx_chan2);
@@ -269,7 +269,7 @@ void cmd_pio(void){
         uint32_t s_nbr=nbr;
         static uint32_t *a1int=NULL;
 	void *ptr1 = NULL;
-        int toarraysize;
+        int toarraysize=0;
         ptr1 = findvar(argv[6], V_FIND | V_EMPTY_OK | V_NOFIND_ERR);
         if(vartbl[VarIndex].type &  T_INT) {
                 if(vartbl[VarIndex].dims[1] != 0) error("Target must be an 1D integer array");
@@ -282,7 +282,7 @@ void cmd_pio(void){
         } else error("Target must be an 1D integer array");
         if(argc>=9 && *argv[8]){
                 if(nbr==0)error("Interrupt incopmpatible with continuous running");
-                DMAinterruptRX=GetIntAddress(argv[8]);
+                DMAinterruptRX=(char *)GetIntAddress(argv[8]);
                 InterruptUsed=true;
         }
         int dmasize=DMA_SIZE_32;
@@ -340,10 +340,10 @@ void cmd_pio(void){
         pio_sm_set_enabled(pio, sm, true);
         return;
     }
-    tp = checkstring(cmdline, "DMA TX");
+    tp = checkstring(cmdline, (unsigned char *)"DMA TX");
     if(tp){
         getargs(&tp, 13, (unsigned char *)",");
-        if(checkstring(argv[0],"OFF")){
+        if(checkstring(argv[0],(unsigned char *)"OFF")){
                 dma_hw->abort = ((1u << dma_tx_chan2) | (1u << dma_tx_chan));
                 if(dma_channel_is_busy(dma_tx_chan))dma_channel_abort(dma_tx_chan);
                 if(dma_channel_is_busy(dma_tx_chan2))dma_channel_abort(dma_tx_chan2);
@@ -372,7 +372,7 @@ void cmd_pio(void){
         uint32_t s_nbr=nbr;
         static uint32_t *a1int=NULL;
 	void *ptr1 = NULL;
-        int toarraysize;
+        int toarraysize=0;
         ptr1 = findvar(argv[6], V_FIND | V_EMPTY_OK | V_NOFIND_ERR);
         if(vartbl[VarIndex].type &  T_INT) {
                 if(vartbl[VarIndex].dims[1] != 0) error("Target must be an 1D integer array");
@@ -385,7 +385,7 @@ void cmd_pio(void){
         } else error("Target must be an 1D integer array");
         if(argc>=9 && *argv[8]){
                 if(nbr==0)error("Interrupt incopmpatible with continuous running");
-                DMAinterruptTX=GetIntAddress(argv[8]);
+                DMAinterruptTX=(char *)GetIntAddress(argv[8]);
                 InterruptUsed=true;
         }
         int dmasize=DMA_SIZE_32;
@@ -446,30 +446,20 @@ void cmd_pio(void){
         pio_sm_set_enabled(pio, sm, true);
         return;
     }
-    tp = checkstring(cmdline, "INTERRUPT");
+    tp = checkstring(cmdline, (unsigned char *)"INTERRUPT");
     if(tp){
-        unsigned char *p;
-        unsigned int nbr, *d;
-        long long int *dd;
-        int i;
         getargs(&tp, 7, (unsigned char *)",");
         if((argc & 0x01) == 0) error("Syntax");
         if(argc<5)error("Syntax");
 #ifndef PICOMITE
-#ifdef PICOMITEWEB
-        i=getint(argv[0],0,0);
-#else
-        i=getint(argv[0],1,1);
-#endif
-        PIO pio = (i ? pio1: pio0);
         int sm=getint(argv[2],0,3);
         if(*argv[4]){
-                if(checkstring(argv[4],"0"))pioRXinterrupts[sm]=NULL;
-                else pioRXinterrupts[sm]=GetIntAddress(argv[4]);
+                if(checkstring(argv[4],(unsigned char *)"0"))pioRXinterrupts[sm]=NULL;
+                else pioRXinterrupts[sm]=(char *)GetIntAddress(argv[4]);
         }
         if(argc==7){
-                if(checkstring(argv[6],"0"))pioTXinterrupts[sm]=NULL;
-                else pioTXinterrupts[sm]=GetIntAddress(argv[6]);
+                if(checkstring(argv[6],(unsigned char *)"0"))pioTXinterrupts[sm]=NULL;
+                else pioTXinterrupts[sm]=( char *)GetIntAddress(argv[6]);
         }
         piointerrupt=0;
         for(int i=0;i<4;i++){
@@ -479,16 +469,15 @@ void cmd_pio(void){
                 }
         }
 #else
-        i=getint(argv[0],0,1);
-        PIO pio = (i ? pio1: pio0);
+        int i=getint(argv[0],0,1);
         int sm=getint(argv[2],0,3);
         if(*argv[4]){
-                if(checkstring(argv[4],"0"))pioRXinterrupts[sm][i]=NULL;
-                else pioRXinterrupts[sm][i]=GetIntAddress(argv[4]);
+                if(checkstring(argv[4],(unsigned char *)"0"))pioRXinterrupts[sm][i]=NULL;
+                else pioRXinterrupts[sm][i]=(char *)GetIntAddress(argv[4]);
         }
         if(argc==7){
-                if(checkstring(argv[6],"0"))pioTXinterrupts[sm][i]=NULL;
-                else pioTXinterrupts[sm][i]=GetIntAddress(argv[6]);
+                if(checkstring(argv[6],(unsigned char *)"0"))pioTXinterrupts[sm][i]=NULL;
+                else pioTXinterrupts[sm][i]=(char *)GetIntAddress(argv[6]);
         }
         piointerrupt=0;
         for(int i=0;i<4;i++){
@@ -502,12 +491,11 @@ void cmd_pio(void){
 #endif
         return;
     }
-    tp = checkstring(cmdline, "READ");
+    tp = checkstring(cmdline, (unsigned char *)"READ");
     if(tp){
-        unsigned char *p;
-        unsigned int nbr, *d;
+//        unsigned char *p;
+        unsigned int nbr;
         long long int *dd;
-        int i;
         getargs(&tp, (MAX_ARG_COUNT * 2) - 1, (unsigned char *)",");
         if((argc & 0x01) == 0) error("Syntax");
         if(argc<5)error("Syntax");
@@ -538,9 +526,9 @@ void cmd_pio(void){
         }
         return;
     }
-    tp = checkstring(cmdline, "PROGRAM LINE");
+    tp = checkstring(cmdline, (unsigned char *)"PROGRAM LINE");
     if(tp){
-        getargs(&tp,5,",");
+        getargs(&tp,5,(unsigned char *)",");
         if(argc!=5)error("Syntax");
 #ifdef PICOMITEVGA
         PIO pio = (getint(argv[0],1,1) ? pio1: pio0);
@@ -556,10 +544,10 @@ void cmd_pio(void){
         pio->instr_mem[slot]=instruction;
         return;
     }
-    tp = checkstring(cmdline, "ASSEMBLE");
+    tp = checkstring(cmdline, (unsigned char *)"ASSEMBLE");
     if(tp){
         static int wrap_target_set=0, wrap_set=0;
-        getargs(&tp,3,",");
+        getargs(&tp,3,(unsigned char *)",");
         if(argc!=3)error("Syntax");
 #ifdef PICOMITEVGA
         PIO pio = (getint(argv[0],1,1) ? pio1: pio0);
@@ -571,7 +559,7 @@ void cmd_pio(void){
         PIO pio = (getint(argv[0],0,0) ? pio1: pio0);
 #endif
         unsigned int ins=0;
-        char *ss=getCstring(argv[2]);
+        char *ss=(char *)getCstring(argv[2]);
         char *comment=strchr(ss,';');
         if(comment)*comment=0;
         skipspace(ss);
@@ -656,7 +644,7 @@ void cmd_pio(void){
                                         dup=1;
                                         ss+=5;
                                 }
-                                char save;
+                                char save=0;
                                 skipspace(ss);
                                 if(*ss==','){
                                         ss++;
@@ -674,7 +662,7 @@ void cmd_pio(void){
                                                 *ppp=',';
                                         }
 
-                                        ins|=getint(ss,0,31);
+                                        ins|=getint((unsigned char *)ss,0,31);
                                         ins|=0x10000;
                                         if(*ppp==',')*ppp=save;
                                 } else {
@@ -719,7 +707,7 @@ void cmd_pio(void){
                                         ss++;
                                         skipspace(ss);
                                 }
-                                char save;
+                                char save=0;
                                 char *ppp=ss;
                                 if((*ss>='0' && *ss<='9') || *ss=='&' ){
                                         char *ppp=ss;
@@ -733,7 +721,7 @@ void cmd_pio(void){
                                                 *ppp=',';
                                         }
                                 } else error("Syntax");
-                                int bits=getint(ss,0,rel==2? 31 : 7);
+                                int bits=getint((unsigned char *)ss,0,rel==2? 31 : 7);
                                 if(*ppp==',')*ppp=save;
                                 if(rel==1) bits |=0x10;
                                 ins |=bits;
@@ -763,7 +751,7 @@ void cmd_pio(void){
                                 skipspace(ss);
                                 if(*ss!=',')error("Syntax");
                                 ss++;
-                                char save;
+                                char save=0;
                                 skipspace(ss);
                                 char *ppp=ss;
                                 if((*ss>='0' && *ss<='9') || *ss=='&' ){
@@ -778,7 +766,7 @@ void cmd_pio(void){
                                                 *ppp=',';
                                         }
                                 } else error("Syntax");
-                                int bits=getint(ss,1,32);
+                                int bits=getint((unsigned char *)ss,1,32);
                                 if(bits==32)bits=0;
                                 ins|=bits;
                                 if(*ppp==',')*ppp=save;
@@ -811,7 +799,7 @@ void cmd_pio(void){
                                 skipspace(ss);
                                 if(*ss!=',')error("Syntax");
                                 ss++;
-                                char save;
+                                char save=0;
                                 skipspace(ss);
                                 char *ppp=ss;
                                 if((*ss>='0' && *ss<='9') || *ss=='&' ){
@@ -826,7 +814,7 @@ void cmd_pio(void){
                                                 *ppp=',';
                                         }
                                 } else error("Syntax");
-                                int bits=getint(ss,1,32);
+                                int bits=getint((unsigned char *)ss,1,32);
                                 if(bits==32)bits=0;
                                 ins|=bits;
                                 if(*ppp==',')*ppp=save;
@@ -951,7 +939,7 @@ void cmd_pio(void){
                                 skipspace(ss);
                                 if(*ss!=',')error("Syntax");
                                 ss++;
-                                char save;
+                                char save=0;
                                 skipspace(ss);
                                 char *ppp=ss;
                                 if((*ss>='0' && *ss<='9') || *ss=='&' ){
@@ -966,7 +954,7 @@ void cmd_pio(void){
                                                 *ppp=',';
                                         }
                                 } else error("Syntax");
-                                ins|=getint(ss,0,31);
+                                ins|=getint((unsigned char *)ss,0,31);
                                 if(*ppp==',')*ppp=save;
                         } else error("PIO instruction not found");
                         if(checksideanddelay==1)ins|=calcsideanddelay(ss, sidepins, delaypossible);
@@ -977,7 +965,7 @@ void cmd_pio(void){
                         if(!strncasecmp(ss,".LINE ",5)){
                                 if(!dirOK)error("Directive must appear before instructions");
                                 ss+=5;
-                                PIOlinenumber=getint(ss,0,31);
+                                PIOlinenumber=getint((unsigned char *)ss,0,31);
                                 PIOstart=PIOlinenumber;
                                 return;
                         } else if(!strncasecmp(ss,".WRAP TARGET",12)){
@@ -1027,9 +1015,9 @@ void cmd_pio(void){
                                         MMPrintString(&c[1]);
                                         PRet();
                                 }
-                                FreeMemory((char *)instructions);
-                                FreeMemory(labelsneeded);
-                                FreeMemory(labelsfound);
+                                FreeMemory((void *)instructions);
+                                FreeMemory((void *)labelsneeded);
+                                FreeMemory((void *)labelsfound);
                                 return;
                         } else if(!strncasecmp(ss,".SIDE_SET ",10)){
                                 if(!dirOK)error("Directive must appear before instructions");
@@ -1054,9 +1042,9 @@ void cmd_pio(void){
         } else error(".program must be first statement");
     }
     
-    tp = checkstring(cmdline, "CLEAR");
+    tp = checkstring(cmdline, (unsigned char *)"CLEAR");
     if(tp){
-        getargs(&tp,1,",");
+        getargs(&tp,1,(unsigned char *)",");
 #ifdef PICOMITEVGA
         PIO pio = (getint(argv[0],1,1) ? pio1: pio0);
 #endif
@@ -1076,27 +1064,27 @@ void cmd_pio(void){
         pio_clear_instruction_memory(pio);
         return;
     }
-    tp = checkstring(cmdline, "MAKE RING BUFFER");
+    tp = checkstring(cmdline, (unsigned char *)"MAKE RING BUFFER");
     if(tp){
-        getargs(&tp,3,",");
+        getargs(&tp,3,(unsigned char *)",");
         if(argc<3)error("Syntax");
         int size=getinteger(argv[2]);
         if(!(size==256 || size==512 || size==1024 || size== 2048 || size==4096 || size==8192 || size==16384 || size==32768))error("Not power of 2");
         findvar(argv[0], V_FIND | V_NOFIND_ERR);
         if ((vartbl[VarIndex].type & T_INT) && vartbl[VarIndex].dims[0] == 0 && vartbl[VarIndex].level==0){
-                vartbl[VarIndex].val.s =(char *)GetAlignedMemory(size);
+                vartbl[VarIndex].val.s =(unsigned char *)GetAlignedMemory(size);
                 vartbl[VarIndex].size=255;
                 vartbl[VarIndex].dims[0] = size/8-1+OptionBase;
         }  else error("Invalid variable");
         return;
     }
 
-    tp = checkstring(cmdline, "PROGRAM");
+    tp = checkstring(cmdline, (unsigned char *)"PROGRAM");
     if(tp){
         struct pio_program program;
-        getargs(&tp,3,",");
+        getargs(&tp,3,(unsigned char *)",");
         if(argc!=3)error("Syntax");
-        void *prt1;
+//        void *prt1;
         program.length=32;
         program.origin=0;
 #ifdef PICOMITEVGA
@@ -1119,12 +1107,12 @@ void cmd_pio(void){
         } else error("Argument 2 must be integer array");
         for(int sm=0;sm<4;sm++)hw_clear_bits(&pio->ctrl, 1 << (PIO_CTRL_SM_ENABLE_LSB + sm));
         pio_clear_instruction_memory(pio);
-        int offset=pio_add_program(pio, &program);
+        pio_add_program(pio, &program);
         return;
     }
-    tp = checkstring(cmdline, "START");
+    tp = checkstring(cmdline, (unsigned char *)"START");
     if(tp){
-        getargs(&tp,3,",");
+        getargs(&tp,3,(unsigned char *)",");
         if(argc!=3)error("Syntax");
 #ifdef PICOMITEVGA
         PIO pio = (getint(argv[0],1,1) ? pio1: pio0);
@@ -1141,9 +1129,9 @@ void cmd_pio(void){
         pio_sm_set_enabled(pio, sm, true);
         return;
     }
-    tp = checkstring(cmdline, "STOP");
+    tp = checkstring(cmdline, (unsigned char *)"STOP");
     if(tp){
-        getargs(&tp,3,",");
+        getargs(&tp,3,(unsigned char *)",");
         if(argc!=3)error("Syntax");
 #ifdef PICOMITEVGA
         PIO pio = (getint(argv[0],1,1) ? pio1: pio0);
@@ -1158,10 +1146,10 @@ void cmd_pio(void){
         pio_sm_set_enabled(pio, sm, false);
         return;
     }
-    tp = checkstring(cmdline, "INIT MACHINE");
+    tp = checkstring(cmdline, (unsigned char *)"INIT MACHINE");
     if(tp){
         int start=0;
-        getargs(&tp,13,",");
+        getargs(&tp,13,(unsigned char *)",");
         if(argc<5)error("Syntax");
         pio_sm_config mypio=pio_get_default_sm_config();
 #ifdef PICOMITEVGA
@@ -1191,39 +1179,39 @@ void cmd_pio(void){
 }
 void fun_pio(void){
     unsigned char *tp;
-    tp = checkstring(ep, "PINCTRL");
+    tp = checkstring(ep, (unsigned char *)"PINCTRL");
     if(tp){
         int64_t myret=0;
-        getargs(&tp,13,",");
+        getargs(&tp,13,(unsigned char *)",");
         if(argc<3)error("Syntax");
         myret=(getint(argv[0],0,5)<<29); // no of side set pins
         if(argc>1 && *argv[2])myret|=(getint(argv[2],0,5)<<26); // no of set pins
         if(argc>3 && *argv[4])myret|=(getint(argv[4],0,29)<<20); // no of OUT pins
         if(argc>5 && *argv[6]){
-            if(!toupper(*argv[6])=='G')error("Syntax");
+            if(!(toupper((char)*argv[6])=='G'))error("Syntax");
             argv[6]++;
-            if(!toupper(*argv[6])=='P')error("Syntax");
+            if(!(toupper((char)*argv[6])=='P'))error("Syntax");
             argv[6]++;
             myret|=(getint(argv[6],0,29)<<15); // IN base
         }
         if(argc>7 && *argv[8]){
-            if(!toupper(*argv[8])=='G')error("Syntax");
+            if(!(toupper((char)*argv[8])=='G'))error("Syntax");
             argv[8]++;
-            if(!toupper(*argv[8])=='P')error("Syntax");
+            if(!(toupper((char)*argv[8])=='P'))error("Syntax");
             argv[8]++;
             myret|=(getint(argv[8],0,29)<<10); // SIDE SET base
         }
         if(argc>9 && *argv[10]){
-            if(!toupper(*argv[10])=='G')error("Syntax");
+            if(!(toupper((char)*argv[10])=='G'))error("Syntax");
             argv[10]++;
-            if(!toupper(*argv[10])=='P')error("Syntax");
+            if(!(toupper((char)*argv[10])=='P'))error("Syntax");
             argv[10]++;
             myret|=(getint(argv[10],0,29)<<5); // SET base
         }
         if(argc==13){
-            if(!toupper(*argv[12])=='G')error("Syntax");
+            if(!(toupper((char)*argv[12])=='G'))error("Syntax");
             argv[12]++;
-            if(!toupper(*argv[12])=='P')error("Syntax");
+            if(!(toupper((char)*argv[12])=='P'))error("Syntax");
             argv[12]++;
             myret|=getint(argv[12],0,29); //OUT base
         }
@@ -1231,14 +1219,14 @@ void fun_pio(void){
         targ=T_INT;
         return;
     }
-    tp = checkstring(ep, "EXECCTRL");
+    tp = checkstring(ep, (unsigned char *)"EXECCTRL");
     if(tp){
         int64_t myret=0;
-        getargs(&tp,9,",");
+        getargs(&tp,9,(unsigned char *)",");
         if(!(argc==5 || argc==7 || argc==9))error("Syntax");
-        if(!toupper(*argv[0])=='G')error("Syntax");
+        if(!(toupper((char)*argv[0])=='G'))error("Syntax");
         argv[0]++;
-        if(!toupper(*argv[0])=='P')error("Syntax");
+        if(!(toupper((char)*argv[0])=='P'))error("Syntax");
         argv[0]++;
         myret=(getint(argv[0],0,29)<<24); // jmp pin
         myret |= pio_sm_calc_wrap(getint(argv[2],0,31), getint(argv[4],0,31));
@@ -1248,21 +1236,21 @@ void fun_pio(void){
         targ=T_INT;
         return;
     }
-    tp = checkstring(ep, ".WRAP TARGET");
+    tp = checkstring(ep, (unsigned char *)".WRAP TARGET");
     if(tp){
         iret=p_wrap_target;
         targ=T_INT;
         return;
     }
-    tp = checkstring(ep, ".WRAP");
+    tp = checkstring(ep, (unsigned char *)".WRAP");
     if(tp){
         iret=p_wrap;
         targ=T_INT;
         return;
     }
-    tp = checkstring(ep, "SHIFTCTRL");
+    tp = checkstring(ep, (unsigned char *)"SHIFTCTRL");
     if(tp){
-        getargs(&tp,15,",");
+        getargs(&tp,15,(unsigned char *)",");
         if(argc<1)error("Syntax");
         int64_t myret=0;
         myret=(getint(argv[0],0,31)<<20); // push threshold
@@ -1277,9 +1265,9 @@ void fun_pio(void){
         targ=T_INT;
         return;
     }
-    tp = checkstring(ep, "FSTAT");
+    tp = checkstring(ep, (unsigned char *)"FSTAT");
     if(tp){
-        getargs(&tp,1,",");
+        getargs(&tp,1,(unsigned char *)",");
 #ifdef PICOMITEVGA
         PIO pio = (getint(argv[0],1,1) ? pio1: pio0);
 #endif
@@ -1293,9 +1281,9 @@ void fun_pio(void){
         targ=T_INT;
         return;
     }
-    tp = checkstring(ep, "FDEBUG");
+    tp = checkstring(ep, (unsigned char *)"FDEBUG");
     if(tp){
-        getargs(&tp,1,",");
+        getargs(&tp,1,(unsigned char *)",");
 #ifdef PICOMITEVGA
         PIO pio = (getint(argv[0],1,1) ? pio1: pio0);
 #endif
@@ -1309,9 +1297,9 @@ void fun_pio(void){
         targ=T_INT;
         return;
     }
-    tp = checkstring(ep, "FLEVEL");
+    tp = checkstring(ep, (unsigned char *)"FLEVEL");
     if(tp){
-        getargs(&tp,5,",");
+        getargs(&tp,5,(unsigned char *)",");
 #ifdef PICOMITEVGA
         PIO pio = (getint(argv[0],1,1) ? pio1: pio0);
 #endif
@@ -1325,20 +1313,20 @@ void fun_pio(void){
         else {
                 if(argc!=5)error("Syntax");
                 int sm=getint(argv[2],0,3)*8;
-                if(checkstring(argv[4],"TX"))iret=((pio->flevel)>>sm) & 0xf;
-                else if(checkstring(argv[4],"RX"))iret=((pio->flevel)>>(sm+4)) & 0xf;
+                if(checkstring(argv[4],(unsigned char *)"TX"))iret=((pio->flevel)>>sm) & 0xf;
+                else if(checkstring(argv[4],(unsigned char *)"RX"))iret=((pio->flevel)>>(sm+4)) & 0xf;
                 else error("Syntax");
         }
         targ=T_INT;
         return;
     }
-    tp = checkstring(ep, "DMA RX POINTER");
+    tp = checkstring(ep, (unsigned char *)"DMA RX POINTER");
     if(tp){
         iret=dma_hw->ch[dma_rx_chan].write_addr;
         targ=T_INT;
         return;
     }
-    tp = checkstring(ep, "DMA TX POINTER");
+    tp = checkstring(ep, (unsigned char *)"DMA TX POINTER");
     if(tp){
         iret=dma_hw->ch[dma_tx_chan].read_addr;
         targ=T_INT;
@@ -1357,14 +1345,14 @@ static int scan_result(void *env, const cyw43_ev_scan_result_t *result) {
     if (result) {
         Timer4=5000;
         char buff[STRINGSIZE]={0};
-        int found=0;
+//        int found=0;
         if(scan_dups==NULL)return 0;
         for(int i=0;i<scan_dups[32*100];i++){
-                if(strcmp(result->ssid,(char *)&scan_dups[32*i])==0)return 0;
+                if(strcmp((char *)result->ssid,(char *)&scan_dups[32*i])==0)return 0;
         }
         for(int i=0;i<100;i++){
                 if(scan_dups[32*i]==0){
-                        strcpy((char *)&scan_dups[32*i],result->ssid);
+                        strcpy((char *)&scan_dups[32*i],(char *)result->ssid);
                         scan_dups[32*100]++;
                         break;
                 }
@@ -1387,7 +1375,7 @@ static int scan_result(void *env, const cyw43_ev_scan_result_t *result) {
 }
 void cmd_web(void){
         unsigned char *tp;
-        tp=checkstring(cmdline, "CONNECT");
+        tp=checkstring(cmdline, (unsigned char *)"CONNECT");
         if(tp){
             if(cyw43_wifi_link_status(&cyw43_state,CYW43_ITF_STA)<0){
                 WebConnect();
@@ -1395,17 +1383,17 @@ void cmd_web(void){
             return;   
         }
         if(!(WIFIconnected &&  cyw43_tcpip_link_status(&cyw43_state,CYW43_ITF_STA)==CYW43_LINK_UP))error("WIFI not connected");
-        tp=checkstring(cmdline, "NTP");
+        tp=checkstring(cmdline, (unsigned char *)"NTP");
         if(tp){
             cmd_ntp(tp);
             return;   
         }
-        tp=checkstring(cmdline, "UDP");
+        tp=checkstring(cmdline, (unsigned char *)"UDP");
         if(tp){
             cmd_udp(tp);
             return;   
         }
-        tp=checkstring(cmdline, "SCAN");
+        tp=checkstring(cmdline, (unsigned char *)"SCAN");
         if(tp){
                 void *ptr1 = NULL;
                 if(*tp){
@@ -1449,10 +1437,10 @@ void cmd_web(void){
 }
 
 void checkTCPOptions(void){
-    unsigned char *tp = checkstring(cmdline, "TCP SERVER");
+    unsigned char *tp = checkstring(cmdline, (unsigned char *)"TCP SERVER");
     if(tp) {
    	if(CurrentLinePtr) error("Invalid in a program");
-        getargs(&cmdline, 1, ",");
+        getargs(&cmdline, 1, (unsigned char *)",");
         if(argc!=1)error("Syntax");
         Option.TCP_PORT=getint(argv[0],1,65535);
         return;
@@ -1470,7 +1458,7 @@ void fun_json(void){
     MMFLOAT tempd;
     int i,j,k,mode,index;
     char field[32],num[6];
-    getargs(&ep, 3, ",");
+    getargs(&ep, 3, (unsigned char *)",");
     char *a=GetTempMemory(STRINGSIZE);
     ptr1 = findvar(argv[0], V_FIND | V_EMPTY_OK);
     if(vartbl[VarIndex].type & T_INT) {
@@ -1485,7 +1473,7 @@ void fun_json(void){
     cJSON * parse = cJSON_Parse(json_string);
     if(parse==NULL)error("Invalid JSON data");
     root=parse;
-    p=getCstring(argv[2]);
+    p=(char *)getCstring((unsigned char *)argv[2]);
     int len = strlen(p);
     memset(field,0,32);
     memset(num,0,6);
@@ -1539,7 +1527,7 @@ void fun_json(void){
         if((MMFLOAT)((int64_t)tempd)==tempd) IntToStr(a,(int64_t)tempd,10);
         else FloatToStr(a, tempd, 0, STR_AUTO_PRECISION, ' ');   // set the string value to be saved
         cJSON_Delete(parse);
-        sret=a;
+        sret=(unsigned char *)a;
         sret=CtoM(sret);
         targ=T_STR;
         return;
@@ -1548,8 +1536,8 @@ void fun_json(void){
         int64_t tempint;
         tempint=root->valueint;
         cJSON_Delete(parse);
-        if(tempint)strcpy(sret,"true");
-        else strcpy(sret,"false");
+        if(tempint)strcpy((char *)sret,"true");
+        else strcpy((char *)sret,"false");
         sret=CtoM(sret);
         targ=T_STR;
         return;
@@ -1557,14 +1545,13 @@ void fun_json(void){
     if (cJSON_IsString(root)){
         strcpy(a,root->valuestring);
         cJSON_Delete(parse);
-        sret=a;
+        sret=(unsigned char *)a;
         sret=CtoM(sret);
         targ=T_STR;
         return;
     }
     cJSON_Delete(parse);
     targ=T_STR;
-    sret=a;
+    sret=(unsigned char *)a;
 }
-
 #endif

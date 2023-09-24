@@ -1142,7 +1142,7 @@ void iconvert(uint16_t *ibuff, int16_t *sbuff, int count){
 }
 void wavcallback(char *p){
 	int actualrate;
-    if(strchr(p, '.') == NULL) strcat(p, ".wav");
+    if(strchr((char *)p, '.') == NULL) strcat((char *)p, ".wav");
     if(CurrentlyPlaying == P_WAV){
     	CloseAudio(0);
     }
@@ -1191,7 +1191,7 @@ void wavcallback(char *p){
 }
 void flaccallback(char *p){
 	int actualrate;
-    if(strchr(p, '.') == NULL) strcat(p, ".flac");
+    if(strchr((char *)p, '.') == NULL) strcat((char *)p, ".flac");
     if(CurrentlyPlaying == P_FLAC){
     	CloseAudio(0);
     }
@@ -1304,26 +1304,26 @@ void setnoise(void){
 void cmd_play(void) {
     unsigned char *tp;
 	if(!(Option.AUDIO_L || Option.AUDIO_CLK_PIN))error((char *)"Audio not enabled");
-    if(checkstring(cmdline, "STOP")) {
+    if(checkstring(cmdline, (unsigned char *)"STOP")) {
 		if(CurrentlyPlaying == P_NOTHING)return;
         CloseAudio(1);
         return;
     }
-    if((tp=checkstring(cmdline, "LOAD SOUND"))) {
+    if((tp=checkstring(cmdline, (unsigned char *)"LOAD SOUND"))) {
         if(usertable!=NULL)error("Already loaded");
-        unsigned int nbr, *d;
+//        unsigned int nbr;
         uint16_t *dd;
 		skipspace(tp);
        	dd = findvar(tp, V_FIND | V_EMPTY_OK | V_NOFIND_ERR);
-        if(((vartbl[VarIndex].type & T_INT) && vartbl[VarIndex].dims[0] > 0 && vartbl[VarIndex].dims[1] == 0))
-        {		// integer array
-            if(vartbl[VarIndex].dims[0] + 1 - OptionBase !=1024) 
-                error("Array size");
-        }  else error("Invalid variable");
+        if(((vartbl[VarIndex].type & T_INT) && vartbl[VarIndex].dims[0] > 0 && vartbl[VarIndex].dims[1] == 0)){
+            if(vartbl[VarIndex].dims[0] + 1 - OptionBase !=1024) error("Array size");
+        }  else {
+			error("Invalid variable");
+		}
 		usertable=dd;
         return;
     }
-    if(checkstring(cmdline, "NEXT")) {
+    if(checkstring(cmdline, (unsigned char *)"NEXT")) {
 		if(CurrentlyPlaying == P_FLAC){
 			if(trackplaying==trackstoplay){
 				if(!CurrentLinePtr)MMPrintString("Last track is playing\r\n");
@@ -1342,7 +1342,7 @@ void cmd_play(void) {
 
     	return;
     }
-    if(checkstring(cmdline, "PREVIOUS")) {
+    if(checkstring(cmdline, (unsigned char *)"PREVIOUS")) {
 		if(CurrentlyPlaying == P_FLAC){
 			if(trackplaying==0){
 				if(!CurrentLinePtr)MMPrintString("First track is playing\r\n");
@@ -1361,7 +1361,7 @@ void cmd_play(void) {
 
     	return;
     }
-    if(checkstring(cmdline, "PAUSE")) {
+    if(checkstring(cmdline, (unsigned char *)"PAUSE")) {
         if(CurrentlyPlaying == P_TONE) CurrentlyPlaying = P_PAUSE_TONE;
         else if(CurrentlyPlaying == P_SOUND) CurrentlyPlaying = P_PAUSE_SOUND;
         else if(CurrentlyPlaying == P_WAV)  CurrentlyPlaying = P_PAUSE_WAV;
@@ -1371,7 +1371,7 @@ void cmd_play(void) {
         return;
     }
 
-    if(checkstring(cmdline, "RESUME")) {
+    if(checkstring(cmdline, (unsigned char *)"RESUME")) {
         if(CurrentlyPlaying == P_PAUSE_TONE) CurrentlyPlaying = P_TONE;
         else if(CurrentlyPlaying == P_PAUSE_SOUND) CurrentlyPlaying = P_SOUND;
         else if(CurrentlyPlaying == P_PAUSE_WAV) CurrentlyPlaying = P_WAV;
@@ -1381,13 +1381,13 @@ void cmd_play(void) {
         return;
     }
 
-    if(checkstring(cmdline, "CLOSE")) {
+    if(checkstring(cmdline, (unsigned char *)"CLOSE")) {
         CloseAudio(1);
         return;
     }
 
-    if((tp = checkstring(cmdline, "VOLUME"))) {
-        getargs(&tp, 3,",");
+    if((tp = checkstring(cmdline, (unsigned char *)"VOLUME"))) {
+        getargs(&tp, 3,(unsigned char *)",");
         if(argc < 1) error("Argument count");
         if(*argv[0]) vol_left = getint(argv[0], 0, 100);
         if(argc == 3) vol_right = getint(argv[2], 0, 100);
@@ -1396,14 +1396,14 @@ void cmd_play(void) {
     }
 
 
-    if((tp = checkstring(cmdline, "TONE"))) {//
+    if((tp = checkstring(cmdline, (unsigned char *)"TONE"))) {//
 		SoundPlay=1000;                                   // this MUST be the first executable line in the function
         float f_left, f_right;
         float hw, duration;
         uint64_t PlayDuration = 0xffffffffffffffff;                     // default is to play forever
-        uint64_t  x;
+//        uint64_t  x;
         {// get the command line arguments
-			getargs(&tp, 7,","); 
+			getargs(&tp, 7,(unsigned char *)","); 
 			if(!(argc == 3 || argc == 5 || argc == 7)) error("Argument count");
 			mono=0;
 			if(!(CurrentlyPlaying == P_NOTHING || CurrentlyPlaying == P_TONE || CurrentlyPlaying == P_PAUSE_TONE || CurrentlyPlaying == P_STOP)) error("Sound output in use for $",PlayingStr[CurrentlyPlaying]);
@@ -1417,7 +1417,7 @@ void cmd_play(void) {
 				PlayDuration=(uint64_t)duration;
 			} else duration=1;
 			if(argc == 7) {
-				WAVInterrupt = GetIntAddress(argv[6]);					// get the interrupt location
+				WAVInterrupt = (char *)GetIntAddress(argv[6]);					// get the interrupt location
 				WAVcomplete=false;
 				InterruptUsed = true;
 			}
@@ -1444,36 +1444,34 @@ void cmd_play(void) {
 			return;
 		}
     }
-    if((tp = checkstring(cmdline, "SOUND"))) {//PLAY SOUND channel, type, position, frequency, volume
+    if((tp = checkstring(cmdline, (unsigned char *)"SOUND"))) {//PLAY SOUND channel, type, position, frequency, volume
         float f_in, PhaseM;
-        int channel, left=0, right=0, lset=0, rset=0, lastleftv, lastrightv,local_sound_v_left,local_sound_v_right;
+        int channel, left=0, right=0, lset=0, rset=0, local_sound_v_left=0,local_sound_v_right=0;
 		char *p;
         uint16_t *lastleft=NULL, *lastright=NULL, *local_sound_mode_left=NULL, *local_sound_mode_right=NULL;
         // get the command line arguments
-        getargs(&tp, 9,",");                                       // this MUST be the first executable line in the function
+        getargs(&tp, 9,(unsigned char *)",");                                       // this MUST be the first executable line in the function
         if(!(argc == 9 || argc == 7 || argc == 5)) error("Argument count");
-        if(checkstring(argv[4],"O")==NULL && argc == 5) error("Argument count");
+        if(checkstring(argv[4],(unsigned char *)"O")==NULL && argc == 5) error("Argument count");
 		WAV_fnbr=0;
         channel=getint(argv[0],1,MAXSOUNDS)-1;
 		monosound[channel]=0;
         lastleft=local_sound_mode_left=(uint16_t *)sound_mode_left[channel];
         lastright=local_sound_mode_right=(uint16_t *)sound_mode_right[channel];
-		lastleftv=sound_v_left[channel];
-		lastrightv=sound_v_right[channel];
-        if(checkstring(argv[2],"L")!=NULL){
+        if(checkstring(argv[2],(unsigned char *)"L")!=NULL){
         	left=1;
-        } else if(checkstring(argv[2],"R")!=NULL){
+        } else if(checkstring(argv[2],(unsigned char *)"R")!=NULL){
         	right=1;
-        } else if(checkstring(argv[2],"B")!=NULL){
+        } else if(checkstring(argv[2],(unsigned char *)"B")!=NULL){
         	right=1;
         	left=1;
 			monosound[channel]=1;
-        } else if(checkstring(argv[2],"M")!=NULL){
+        } else if(checkstring(argv[2],(unsigned char *)"M")!=NULL){
         	right=1;
         	left=1;
 			monosound[channel]=2;
        } else {
-			p=getCstring(argv[2]);
+			p=(char *)getCstring(argv[2]);
 			if(strcasecmp(p,"B")==0){
 				right=1;
 				left=1;
@@ -1489,24 +1487,24 @@ void cmd_play(void) {
 			} else error("Position must be L, R, or B");
 		}
         if(!(CurrentlyPlaying == P_NOTHING || CurrentlyPlaying == P_SOUND || CurrentlyPlaying == P_PAUSE_SOUND)) error("Sound output in use for $",PlayingStr[CurrentlyPlaying]);
-        if(checkstring(argv[4],"O")!=NULL && left){lset=1;local_sound_mode_left=(uint16_t *)nulltable;}
-        if(checkstring(argv[4],"O")!=NULL && right){rset=1;local_sound_mode_right=(uint16_t *)nulltable;}
-        if(checkstring(argv[4],"Q")!=NULL && left){lset=1;local_sound_mode_left=(uint16_t *)squaretable;}
-        if(checkstring(argv[4],"Q")!=NULL && right){rset=1;local_sound_mode_right=(uint16_t *)squaretable;}
-        if(checkstring(argv[4],"T")!=NULL && left){lset=1;local_sound_mode_left=(uint16_t *)triangletable;}
-        if(checkstring(argv[4],"T")!=NULL && right){rset=1;local_sound_mode_right=(uint16_t *)triangletable;}
-        if(checkstring(argv[4],"W")!=NULL && left){lset=1;local_sound_mode_left=(uint16_t *)sawtable;}
-        if(checkstring(argv[4],"W")!=NULL && right){rset=1;local_sound_mode_right=(uint16_t *)sawtable;}
-        if(checkstring(argv[4],"S")!=NULL && left){lset=1;local_sound_mode_left=(uint16_t *)SineTable;}
-        if(checkstring(argv[4],"S")!=NULL && right){rset=1;local_sound_mode_right=(uint16_t *)SineTable;}
-        if(checkstring(argv[4],"P")!=NULL && left){lset=1;local_sound_mode_left=(uint16_t *)noisetable;setnoise();}
-        if(checkstring(argv[4],"P")!=NULL && right){rset=1;local_sound_mode_right=(uint16_t *)noisetable;setnoise();}
-        if(checkstring(argv[4],"N")!=NULL && left){lset=1;local_sound_mode_left=(uint16_t *)whitenoise;}
-        if(checkstring(argv[4],"N")!=NULL && right){rset=1;local_sound_mode_right=(uint16_t *)whitenoise;}
-        if(checkstring(argv[4],"U")!=NULL && left){lset=1;local_sound_mode_left=(uint16_t *)usertable;}
-        if(checkstring(argv[4],"U")!=NULL && right){rset=1;local_sound_mode_right=(uint16_t *)usertable;}
+        if(checkstring(argv[4],(unsigned char *)"O")!=NULL && left){lset=1;local_sound_mode_left=(uint16_t *)nulltable;}
+        if(checkstring(argv[4],(unsigned char *)"O")!=NULL && right){rset=1;local_sound_mode_right=(uint16_t *)nulltable;}
+        if(checkstring(argv[4],(unsigned char *)"Q")!=NULL && left){lset=1;local_sound_mode_left=(uint16_t *)squaretable;}
+        if(checkstring(argv[4],(unsigned char *)"Q")!=NULL && right){rset=1;local_sound_mode_right=(uint16_t *)squaretable;}
+        if(checkstring(argv[4],(unsigned char *)"T")!=NULL && left){lset=1;local_sound_mode_left=(uint16_t *)triangletable;}
+        if(checkstring(argv[4],(unsigned char *)"T")!=NULL && right){rset=1;local_sound_mode_right=(uint16_t *)triangletable;}
+        if(checkstring(argv[4],(unsigned char *)"W")!=NULL && left){lset=1;local_sound_mode_left=(uint16_t *)sawtable;}
+        if(checkstring(argv[4],(unsigned char *)"W")!=NULL && right){rset=1;local_sound_mode_right=(uint16_t *)sawtable;}
+        if(checkstring(argv[4],(unsigned char *)"S")!=NULL && left){lset=1;local_sound_mode_left=(uint16_t *)SineTable;}
+        if(checkstring(argv[4],(unsigned char *)"S")!=NULL && right){rset=1;local_sound_mode_right=(uint16_t *)SineTable;}
+        if(checkstring(argv[4],(unsigned char *)"P")!=NULL && left){lset=1;local_sound_mode_left=(uint16_t *)noisetable;setnoise();}
+        if(checkstring(argv[4],(unsigned char *)"P")!=NULL && right){rset=1;local_sound_mode_right=(uint16_t *)noisetable;setnoise();}
+        if(checkstring(argv[4],(unsigned char *)"N")!=NULL && left){lset=1;local_sound_mode_left=(uint16_t *)whitenoise;}
+        if(checkstring(argv[4],(unsigned char *)"N")!=NULL && right){rset=1;local_sound_mode_right=(uint16_t *)whitenoise;}
+        if(checkstring(argv[4],(unsigned char *)"U")!=NULL && left){lset=1;local_sound_mode_left=(uint16_t *)usertable;}
+        if(checkstring(argv[4],(unsigned char *)"U")!=NULL && right){rset=1;local_sound_mode_right=(uint16_t *)usertable;}
 		if(left && lset==0){
-			p=getCstring(argv[4]);
+			p=(char *)getCstring(argv[4]);
 			if(strcasecmp(p,"O")==0)local_sound_mode_left=(uint16_t *)nulltable;
 			if(strcasecmp(p,"Q")==0)local_sound_mode_left=(uint16_t *)squaretable;
 			if(strcasecmp(p,"T")==0)local_sound_mode_left=(uint16_t *)triangletable;
@@ -1519,7 +1517,7 @@ void cmd_play(void) {
 			else lset=1;
 		}
 		if(right && rset==0){
-			p=getCstring(argv[4]);
+			p=(char *)getCstring(argv[4]);
 			if(strcasecmp(p,"O")==0)local_sound_mode_right=(uint16_t *)nulltable;
 			if(strcasecmp(p,"Q")==0)local_sound_mode_right=(uint16_t *)squaretable;
 			if(strcasecmp(p,"T")==0)local_sound_mode_right=(uint16_t *)triangletable;
@@ -1580,21 +1578,21 @@ void cmd_play(void) {
         CurrentlyPlaying = P_SOUND;
         return;
     }
-    if((tp = checkstring(cmdline, "WAV"))) {
+    if((tp = checkstring(cmdline, (unsigned char *)"WAV"))) {
         char *p;
         int i __attribute((unused))=0;
-        getargs(&tp, 3,",");                                  // this MUST be the first executable line in the function
+        getargs(&tp, 3,(unsigned char *)",");                                  // this MUST be the first executable line in the function
         if(!(argc == 1 || argc == 3)) error("Argument count");
 
         if(CurrentlyPlaying != P_NOTHING) error("Sound output in use for $",PlayingStr[CurrentlyPlaying]);
 
         if(!InitSDCard()) return;
-        p = getCstring(argv[0]);                                    // get the file name
+        p = (char *)getFstring(argv[0]);                                    // get the file name
         WAVInterrupt = NULL;
 
         WAVcomplete = 0;
         if(argc == 3) {
-            WAVInterrupt = GetIntAddress(argv[2]);					// get the interrupt location
+            WAVInterrupt = (char *)GetIntAddress(argv[2]);					// get the interrupt location
             InterruptUsed = true;
         }
 		if(FatFSFileSystem){
@@ -1630,21 +1628,21 @@ void cmd_play(void) {
         wavcallback(p);
         return;
     }
-	if((tp = checkstring(cmdline, "FLAC"))) {
+	if((tp = checkstring(cmdline, (unsigned char *)"FLAC"))) {
         char *p;
         int i __attribute((unused))=0;
-        getargs(&tp, 3,",");                                  // this MUST be the first executable line in the function
+        getargs(&tp, 3,(unsigned char *)",");                                  // this MUST be the first executable line in the function
         if(!(argc == 1 || argc == 3)) error("Argument count");
 
         if(CurrentlyPlaying != P_NOTHING) error("Sound output in use for $",PlayingStr[CurrentlyPlaying]);
 
         if(!InitSDCard()) return;
-        p = getCstring(argv[0]);                                    // get the file name
+        p = (char *)getFstring(argv[0]);                                    // get the file name
         WAVInterrupt = NULL;
 
         WAVcomplete = 0;
         if(argc == 3) {
-            WAVInterrupt = GetIntAddress(argv[2]);					// get the interrupt location
+            WAVInterrupt = (char *)GetIntAddress(argv[2]);					// get the interrupt location
             InterruptUsed = true;
         }
 		if(FatFSFileSystem){
@@ -1680,8 +1678,8 @@ void cmd_play(void) {
         flaccallback(p);
         return;
 	}
-    if((tp = checkstring(cmdline, "MODFILE"))) {
-        getargs(&tp, 1,",");                                  // this MUST be the first executable line in the function
+    if((tp = checkstring(cmdline, (unsigned char *)"MODFILE"))) {
+        getargs(&tp, 1,(unsigned char *)",");                                  // this MUST be the first executable line in the function
         char *p, *r;
         int i __attribute((unused))=0,fsize;
         modfilesamplerate=16000;
@@ -1692,11 +1690,11 @@ void cmd_play(void) {
         sbuff2 = GetMemory(WAV_BUFFER_SIZE);
         ibuff1 = (uint16_t *)sbuff1;
         ibuff2 = (uint16_t *)sbuff2;
-        p = getCstring(argv[0]);                                    // get the file name
+        p = (char *)getFstring(argv[0]);                                    // get the file name
         WAVInterrupt = NULL;
         WAVcomplete = 0;
         // open the file
-        if(strchr(p, '.') == NULL) strcat(p, ".MOD");
+        if(strchr((char *)p, '.') == NULL) strcat((char *)p, ".MOD");
         WAV_fnbr = FindFreeFileNbr();
         if(!BasicFileOpen(p, WAV_fnbr, FA_READ)) return;
         i=0;
@@ -1715,7 +1713,7 @@ void cmd_play(void) {
 				r[i] = FileGetChar(WAV_fnbr);
 			}  
 			disable_interrupts();
-			flash_range_program(j, r, 256);
+			flash_range_program(j, (uint8_t *)r, 256);
 			enable_interrupts();
 			routinechecks();
 			j+=256;
@@ -1727,13 +1725,13 @@ void cmd_play(void) {
 		hxcmod_load( mcontext, (void*)modbuff, fsize );
 		if(!mcontext->mod_loaded)error("Load failed");
 		if(!CurrentLinePtr){
-			MMPrintString("Playing ");MMPrintString(mcontext->song.title);PRet();
+			MMPrintString("Playing ");MMPrintString((char *)mcontext->song.title);PRet();
 		}
         hxcmod_fillbuffer( mcontext, (msample*)sbuff1, WAV_BUFFER_SIZE/4, NULL );
         wav_filesize=WAV_BUFFER_SIZE/2;
         bcount[1]=WAV_BUFFER_SIZE/2;
         bcount[2]=0;
-        iconvert((int16_t *)ibuff1, (int16_t *)sbuff1, bcount[1]);
+        iconvert((uint16_t *)ibuff1, (int16_t *)sbuff1, bcount[1]);
         nchannels=2;
         CurrentlyPlaying = P_MOD;
         swingbuf=1;
@@ -1752,11 +1750,11 @@ void cmd_play(void) {
 		}
         return;
     }
-    if((tp = checkstring(cmdline, "MODSAMPLE"))) {
+    if((tp = checkstring(cmdline, (unsigned char *)"MODSAMPLE"))) {
         unsigned short sampnum, seffectnum;
         unsigned char volume;
         unsigned int samprate, period;
-        getargs(&tp, 5,",");                                  // this MUST be the first executable line in the function
+        getargs(&tp, 5,(unsigned char *)",");                                  // this MUST be the first executable line in the function
         if(!(argc == 5 || argc == 3)) error("Argument count");
 
         if(!(CurrentlyPlaying == P_MOD)) error("Samples play over MOD file");
@@ -1824,11 +1822,11 @@ void checkWAVinput(void){
         if(CurrentlyPlaying == P_FLAC){
             if(swingbuf==2){
                 bcount[1]=(volatile unsigned int)drflac_read_pcm_frames_s16(myflac, WAV_BUFFER_SIZE/2, (drwav_int16*)sbuff1) * myflac->channels;
-                iconvert(ibuff1, (uint16_t *)sbuff1, bcount[1]);
+                iconvert(ibuff1, (int16_t *)sbuff1, bcount[1]);
                 wav_filesize = bcount[1];
             } else {
                 bcount[2]=(volatile unsigned int)drflac_read_pcm_frames_s16(myflac, WAV_BUFFER_SIZE/2, (drwav_int16*)sbuff2) * myflac->channels;
-                 iconvert(ibuff2, (uint16_t *)sbuff2, bcount[2]);
+                 iconvert(ibuff2, (int16_t *)sbuff2, bcount[2]);
                 wav_filesize = bcount[2];
             }
             nextbuf=swingbuf;
@@ -1837,12 +1835,12 @@ void checkWAVinput(void){
 				hxcmod_fillbuffer( mcontext, (msample*)sbuff1, WAV_BUFFER_SIZE/4, NULL );
 				wav_filesize=WAV_BUFFER_SIZE/2;
 				bcount[1]=WAV_BUFFER_SIZE/2;
-				iconvert((int16_t *)ibuff1, (int16_t *)sbuff1, bcount[1]);
+				iconvert((uint16_t *)ibuff1, (int16_t *)sbuff1, bcount[1]);
 			} else {
 				hxcmod_fillbuffer( mcontext, (msample*)sbuff2, WAV_BUFFER_SIZE/4, NULL );
 				wav_filesize=WAV_BUFFER_SIZE/2;
 				bcount[2]=WAV_BUFFER_SIZE/2;
-				iconvert((int16_t *)ibuff2, (int16_t *)sbuff2, bcount[2]);
+				iconvert((uint16_t *)ibuff2, (int16_t *)sbuff2, bcount[2]);
 			}
         	nextbuf=swingbuf;
 	} else if(CurrentlyPlaying == P_WAV){

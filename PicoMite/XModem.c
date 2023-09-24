@@ -67,15 +67,15 @@ void MIPS16 cmd_xmodem(void) {
         if(rcv) {
             xmodemReceive(buf, EDIT_BUFFER_SIZE, 0, crunch);
             ClearSavedVars();                                       // clear any saved variables
-            SaveProgramToFlash(buf, true);
+            SaveProgramToFlash((unsigned char *)buf, true);
         } else {
             int nbrlines = 0;
             // we must copy program memory into RAM expanding tokens as we go
-            fromp  = ProgMemory;
+            fromp  = (char *)ProgMemory;
             p = buf;                                                // the RAM buffer
             while(1) {
                 if(*fromp == T_NEWLINE) {
-                    fromp = llist(p, fromp);                        // expand the line into the buffer
+                    fromp = (char *)llist((unsigned char *)p, (unsigned char *)fromp);                        // expand the line into the buffer
                     nbrlines++;
                     if(!(nbrlines==1 && p[0]=='\'' && p[1]=='#')){
                         p += strlen(p);
@@ -93,7 +93,7 @@ void MIPS16 cmd_xmodem(void) {
         if(crunch) error("Invalid command");
         if(!InitSDCard()) return;
         fnbr = FindFreeFileNbr();
-        fname = getFstring(cmdline);                                // get the file name
+        fname = (char *)getFstring(cmdline);                                // get the file name
 
         if(rcv) {
             if(!BasicFileOpen(fname, fnbr, FA_WRITE | FA_CREATE_ALWAYS)) return;

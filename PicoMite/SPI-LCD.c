@@ -107,53 +107,54 @@ void SetAndReserve(int pin, int inp, int init, int type) {
 
 
 void MIPS16 ConfigDisplaySPI(unsigned char *p) {
-	char code,CD,RESET,CS,BACKLIGHT=0;
+	char code,CD,RESET,CS=0;
+	uint8_t BACKLIGHT=0;
 	int DISPLAY_TYPE=0;
-    getargs(&p, 13, ",");
-    if(checkstring(argv[0], "ILI9163")) {
+    getargs(&p, 13, (unsigned char *)",");
+    if(checkstring(argv[0], (unsigned char *)"ILI9163")) {
         DISPLAY_TYPE = ILI9163;
-    } else if(checkstring(argv[0], "SSD1331")) {
+    } else if(checkstring(argv[0], (unsigned char *)"SSD1331")) {
         DISPLAY_TYPE = SSD1331;
-    } else if(checkstring(argv[0], "ST7735S")) {
+    } else if(checkstring(argv[0], (unsigned char *)"ST7735S")) {
         DISPLAY_TYPE = ST7735S;
-    } else if(checkstring(argv[0], "ST7735")) {
+    } else if(checkstring(argv[0], (unsigned char *)"ST7735")) {
         DISPLAY_TYPE = ST7735;
-    } else if(checkstring(argv[0], "ST7789")) {
+    } else if(checkstring(argv[0], (unsigned char *)"ST7789")) {
         DISPLAY_TYPE = ST7789;
-    } else if(checkstring(argv[0], "ST7789_135")) {
+    } else if(checkstring(argv[0], (unsigned char *)"ST7789_135")) {
         DISPLAY_TYPE = ST7789A;
-    } else if(checkstring(argv[0], "ST7789_320")) {
+    } else if(checkstring(argv[0], (unsigned char *)"ST7789_320")) {
         DISPLAY_TYPE = ST7789B;
-    } else if(checkstring(argv[0], "ILI9481IPS")) {
+    } else if(checkstring(argv[0], (unsigned char *)"ILI9481IPS")) {
         DISPLAY_TYPE = ILI9481IPS;
-    } else if(checkstring(argv[0], "ILI9481")) {
+    } else if(checkstring(argv[0], (unsigned char *)"ILI9481")) {
         DISPLAY_TYPE = ILI9481;
-    } else if(checkstring(argv[0], "ILI9488")) {
+    } else if(checkstring(argv[0], (unsigned char *)"ILI9488")) {
         DISPLAY_TYPE = ILI9488;
-    } else if(checkstring(argv[0], "ILI9488W")) {
+    } else if(checkstring(argv[0], (unsigned char *)"ILI9488W")) {
         DISPLAY_TYPE = ILI9488W;
-    } else if(checkstring(argv[0], "ILI9341")) {
+    } else if(checkstring(argv[0], (unsigned char *)"ILI9341")) {
         DISPLAY_TYPE = ILI9341;
-    } else if(checkstring(argv[0], "ST7735S_W")) {
+    } else if(checkstring(argv[0], (unsigned char *)"ST7735S_W")) {
         DISPLAY_TYPE = ST7735S_W;
-    } else if(checkstring(argv[0], "GC9A01")) {
+    } else if(checkstring(argv[0], (unsigned char *)"GC9A01")) {
         DISPLAY_TYPE = GC9A01;
-    } else if(checkstring(argv[0], "N5110")) {
+    } else if(checkstring(argv[0], (unsigned char *)"N5110")) {
         DISPLAY_TYPE = N5110;
-    } else if(checkstring(argv[0], "SSD1306SPI")) {
+    } else if(checkstring(argv[0], (unsigned char *)"SSD1306SPI")) {
         DISPLAY_TYPE = SSD1306SPI;
-    } else if(checkstring(argv[0], "ST7920")) {
+    } else if(checkstring(argv[0], (unsigned char *)"ST7920")) {
         DISPLAY_TYPE = ST7920;
 	} else return;
 	if(!Option.SYSTEM_CLK)error("System SPI not configured");
     if(!(argc == 7 || argc == 9 || argc==11 || argc==13)) error("Argument count");
-    if(checkstring(argv[2], "L") || checkstring(argv[2], "LANDSCAPE"))
+    if(checkstring(argv[2], (unsigned char *)"L") || checkstring(argv[2], (unsigned char *)"LANDSCAPE"))
         Option.DISPLAY_ORIENTATION = LANDSCAPE;
-    else if(checkstring(argv[2], "P") || checkstring(argv[2], "PORTRAIT"))
+    else if(checkstring(argv[2], (unsigned char *)"P") || checkstring(argv[2], (unsigned char *)"PORTRAIT"))
         Option.DISPLAY_ORIENTATION = PORTRAIT;
-    else if(checkstring(argv[2], "RL") || checkstring(argv[2], "RLANDSCAPE"))
+    else if(checkstring(argv[2], (unsigned char *)"RL") || checkstring(argv[2], (unsigned char *)"RLANDSCAPE"))
         Option.DISPLAY_ORIENTATION = RLANDSCAPE;
-    else if(checkstring(argv[2], "RP") || checkstring(argv[2], "RPORTRAIT"))
+    else if(checkstring(argv[2], (unsigned char *)"RP") || checkstring(argv[2], (unsigned char *)"RPORTRAIT"))
         Option.DISPLAY_ORIENTATION = RPORTRAIT;
     else error("Orientation");
     if(DISPLAY_TYPE==ST7789 || DISPLAY_TYPE == ST7789A|| DISPLAY_TYPE == ST7789A)Option.DISPLAY_ORIENTATION=(Option.DISPLAY_ORIENTATION+2) % 4;
@@ -1151,7 +1152,7 @@ void DrawBitmapSPI(int x1, int y1, int width, int height, int scale, int fc, int
         i = 0;
         j = width * height * scale * scale * 3;
         p = GetMemory(j);                                              //allocate some temporary memory
-        ReadBuffer(XStart, y1, XEnd, YEnd, p);
+        ReadBuffer(XStart, y1, XEnd, YEnd, (unsigned char *)p);
     }
     // convert the colours to 565 format
 	if(Option.DISPLAY_TYPE==ILI9488 || Option.DISPLAY_TYPE==ILI9481IPS ){
@@ -1183,7 +1184,7 @@ void DrawBitmapSPI(int x1, int y1, int width, int height, int scale, int fc, int
             if(vertCoord++ < 0) continue;                           // we are above the top of the screen
             if(vertCoord > VRes) {                                  // we have extended beyond the bottom of the screen
     			ClearCS(Option.LCD_CS);                                       //set CS high
-                if(p != NULL) FreeMemory(p);
+                if(p != NULL) FreeMemory((unsigned char *)p);
                 return;
             }
             horizCoord = x1;
@@ -1219,7 +1220,7 @@ void DrawBitmapSPI(int x1, int y1, int width, int height, int scale, int fc, int
     ClearCS(Option.LCD_CS);                                       //set CS high
 
     // revert to non enhanced SPI mode
-    if(p != NULL) FreeMemory(p);
+    if(p != NULL) FreeMemory((unsigned char *)p);
 
 }
 const unsigned char map32[256];
@@ -1267,8 +1268,8 @@ void DrawBufferSPI(int x1, int y1, int x2, int y2, unsigned char* p) {
     char rgbbytes[4];
     unsigned int rgb;
     } c;
-	unsigned char q[2];
-	int i,j,t;
+	unsigned char q[3];
+	int i,t;
     if(x2 <= x1) { t = x1; x1 = x2; x2 = t; }
     if(y2 <= y1) { t = y1; y1 = y2; y2 = t; }
     if(x1 < 0) x1 = 0;
@@ -1279,7 +1280,6 @@ void DrawBufferSPI(int x1, int y1, int x2, int y2, unsigned char* p) {
     if(y1 >= VRes) y1 = VRes - 1;
     if(y2 < 0) y2 = 0;
     if(y2 >= VRes) y2 = VRes - 1;
-	j=0;
 	i=(x2-x1+1) * (y2-y1+1);
     DefineRegionSPI(x1, y1, x2, y2, 1);
     while(i--){
@@ -1305,7 +1305,7 @@ void DrawBufferSPI(int x1, int y1, int x2, int y2, unsigned char* p) {
     ClearCS(Option.LCD_CS);                  //set CS high
 }
 void DrawBufferMEM(int x1, int y1, int x2, int y2, unsigned char* p) {
-    int x,y,t;
+    int x,y; 
     union colourmap
     {
     char rgbbytes[4];

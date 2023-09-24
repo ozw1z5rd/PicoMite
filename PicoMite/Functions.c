@@ -98,7 +98,7 @@ static int MInStr(char *srch, char c) {
 
 void fun_bound(void){
 	int which=1;
-	getargs(&ep, 3,",");
+	getargs(&ep, 3,(unsigned char *)",");
 	if(argc==3)which=getint(argv[2],0,MAXDIM);
     findvar(argv[0], V_FIND | V_EMPTY_OK | V_NOFIND_ERR);
 	if(which==0)iret=OptionBase;
@@ -114,8 +114,8 @@ void fun_bound(void){
 static int scan_for_delimiter(int start, unsigned char *p, unsigned char *delims, unsigned char *quotes) {
     int i;
     unsigned char qidx;
-    for(i = start; i <= *(unsigned char *)p && !MInStr(delims, p[i]); i++) {
-        if(MInStr(quotes, p[i])) {                                  // if we have a quote
+    for(i = start; i <= *(unsigned char *)p && !MInStr((char *)delims, (char )p[i]); i++) {
+        if(MInStr((char *)quotes, (char )p[i])) {                                  // if we have a quote
             qidx = p[i];
             i++;                                                    // step over the opening quote
             while(i < *(unsigned char *)p && p[i] != qidx) i++;    // skip the quoted text
@@ -133,8 +133,8 @@ void fun_call(void){
     q = skipexpression(q);
 	if(*q==',')q++;
 	i = FindSubFun(p, true);                   // it could be a defined command
-	strcat(p," ");
-	strcat(p,q);
+	strcat((char *)p," ");
+	strcat((char *)p,(char *)q);
     targ= T_NOTYPE;
 	if(i >= 0) {                                // >= 0 means it is a user defined command
 		DefinedSubFun(true, p, i, &f, &i64, &s, &targ);
@@ -154,7 +154,7 @@ void fun_call(void){
 void fun_field(void) {
 	unsigned char *p, *delims = (unsigned char *)"\1,", *quotes = (unsigned char *)"\0";
     int fnbr, i, j, k;
-	getargs(&ep, 7,",");
+	getargs(&ep, 7,(unsigned char *)",");
 	if(!(argc == 3 || argc == 5 || argc == 7)) error("Syntax");
     p = getstring(argv[0]);                                         // the string containing the fields
     fnbr = getint(argv[2], 1, MAXSTRLEN);                           // field nbr to return
@@ -190,11 +190,11 @@ void fun_str2bin(void){
     	uint16_t us;
     }map;
     int j;
-	getargs(&ep, 5,",");
+	getargs(&ep, 5,(unsigned char *)",");
 	if(!(argc==3 || argc==5))error("Syntax");
-	if(argc==5 && !checkstring(argv[4],"BIG"))error("Syntax");
+	if(argc==5 && !checkstring(argv[4],(unsigned char *)"BIG"))error("Syntax");
 	char *p;
-	p = getstring(argv[2]);
+	p = (char *)getstring(argv[2]);
 	int len=p[0];
 	map.l=0;
     for(j=0;j<len;j++)map.c[j]=p[j+1];
@@ -208,43 +208,43 @@ void fun_str2bin(void){
     		map.c[m]=k;
     	}
     }
-    if(checkstring(argv[0],"DOUBLE")){
+    if(checkstring(argv[0],(unsigned char *)"DOUBLE")){
         if(len!=8)error("String length");
 	targ=T_NBR;
 	fret=(MMFLOAT)map.d;
-    } else if(checkstring(argv[0],"SINGLE")){
+    } else if(checkstring(argv[0],(unsigned char *)"SINGLE")){
         if(len!=4)error("String length");
 	targ=T_NBR;
 	fret=(MMFLOAT)map.f;
-    } else if(checkstring(argv[0],"INT64")){
+    } else if(checkstring(argv[0],(unsigned char *)"INT64")){
         if(len!=8)error("String length");
     	targ=T_INT;
     	iret=(int64_t)map.l;
-    } else if( checkstring(argv[0],"INT32")){
+    } else if( checkstring(argv[0],(unsigned char *)"INT32")){
         if(len!=4)error("String length");
     	targ=T_INT;
     	iret=(int64_t)map.i;
-    } else if(checkstring(argv[0],"INT16")){
+    } else if(checkstring(argv[0],(unsigned char *)"INT16")){
         if(len!=2)error("String length");
     	targ=T_INT;
     	iret=(int64_t)map.s;
-    } else if(checkstring(argv[0],"INT8")){
+    } else if(checkstring(argv[0],(unsigned char *)"INT8")){
         if(len!=1)error("String length");
     	targ=T_INT;
     	iret=(int64_t)map.c[0];
-    } else if(checkstring(argv[0],"UINT64")){
+    } else if(checkstring(argv[0],(unsigned char *)"UINT64")){
         if(len!=8)error("String length");
     	targ=T_INT;
     	iret=(int64_t)map.ul;
-    } else if(checkstring(argv[0],"UINT32")){
+    } else if(checkstring(argv[0],(unsigned char *)"UINT32")){
         if(len!=4)error("String length");
     	targ=T_INT;
     	iret=(int64_t)map.ui;
-    } else if(checkstring(argv[0],"UINT16")){
+    } else if(checkstring(argv[0],(unsigned char *)"UINT16")){
         if(len!=2)error("String length");
     	targ=T_INT;
     	iret=(int64_t)map.us;
-    } else if(checkstring(argv[0],"UINT8")){
+    } else if(checkstring(argv[0],(unsigned char *)"UINT8")){
         if(len!=1)error("String length");
     	targ=T_INT;
     	iret=(int64_t)map.uc[0];
@@ -268,45 +268,45 @@ void fun_bin2str(void){
     	uint16_t us;
     }map;
     int64_t i64;
-	getargs(&ep, 5,",");
+	getargs(&ep, 5,(unsigned char *)",");
 	if(!(argc==3 || argc==5))error("Syntax");
-    if(argc==5 && !(checkstring(argv[4],"BIG")))error("Syntax");
+    if(argc==5 && !(checkstring(argv[4],(unsigned char *)"BIG")))error("Syntax");
 	sret = GetTempMemory(STRINGSIZE);									// this will last for the life of the command
-    if(checkstring(argv[0],"DOUBLE")){
+    if(checkstring(argv[0],(unsigned char *)"DOUBLE")){
 		len=8;
 		map.d=(double)getnumber(argv[2]);
-    } else if(checkstring(argv[0],"SINGLE")){
+    } else if(checkstring(argv[0],(unsigned char *)"SINGLE")){
 		len=4;
     	map.f=(float)getnumber(argv[2]);
     } else {
     	i64=getinteger(argv[2]);
-    	if(checkstring(argv[0],"INT64")){
+    	if(checkstring(argv[0],(unsigned char *)"INT64")){
     		len=8;
     		map.l=(int64_t)i64;
-    	} else if( checkstring(argv[0],"INT32")){
+    	} else if( checkstring(argv[0],(unsigned char *)"INT32")){
     		len=4;
     		if(i64 > 2147483647 || i64 < -2147483648)error("Overflow");
     		map.i=(int32_t)i64;
-    	} else if(checkstring(argv[0],"INT16")){
+    	} else if(checkstring(argv[0],(unsigned char *)"INT16")){
     		len=2;
     		if(i64 > 32767 || i64 < -32768)error("Overflow");
     		map.s=(int16_t)i64;
-    	} else if(checkstring(argv[0],"INT8")){
+    	} else if(checkstring(argv[0],(unsigned char *)"INT8")){
     		len=1;
     		if(i64 > 127 || i64 < -128)error("Overflow");
     		map.c[0]=(int8_t)i64;
-    	} else if(checkstring(argv[0],"UINT64")){
+    	} else if(checkstring(argv[0],(unsigned char *)"UINT64")){
     		len=8;
     		map.ul=(uint64_t)i64;
-    	} else if(checkstring(argv[0],"UINT32")){
+    	} else if(checkstring(argv[0],(unsigned char *)"UINT32")){
     		len=4;
     		if(i64 > 4294967295 || i64 < 0)error("Overflow");
     		map.ui=(uint32_t)i64;
-    	} else if(checkstring(argv[0],"UINT16")){
+    	} else if(checkstring(argv[0],(unsigned char *)"UINT16")){
     		len=2;
     		if(i64 > 65535 || i64 < 0)error("Overflow");
     		map.us=(uint16_t)i64;
-    	} else if(checkstring(argv[0],"UINT8")){
+    	} else if(checkstring(argv[0],(unsigned char *)"UINT8")){
     		len=1;
     		if(i64 > 255 || i64 < 0)error("Overflow");
     		map.uc[0]=(uint8_t)i64;
@@ -441,7 +441,7 @@ void DoHexOctBin(int base) {
     if(argc == 3) j = getint(argv[2], 0, MAXSTRLEN);                // get the optional number of chars to return
 	if(j==0)j=1;
 	sret = GetTempMemory(STRINGSIZE);                                    // this will last for the life of the command
-    IntToStrPad(sret, (signed long long int )i, '0', j, base);
+    IntToStrPad((char *)sret, (signed long long int )i, '0', j, base);
 	CtoM(sret);
     targ = T_STR;
 }
@@ -517,8 +517,8 @@ void fun_instr(void) {
 		regmatch_t pmatch;
 		MMFLOAT *temp=NULL;
 		char *s=GetTempMemory(STRINGSIZE), *p=GetTempMemory(STRINGSIZE);
-		strcpy(s,getCstring(argv[0+n]));
-		strcpy(p,getCstring(argv[2+n]));
+		strcpy(s,(char *)getCstring(argv[0+n]));
+		strcpy(p,(char *)getCstring(argv[2+n]));
 		if(argc==5+n){
 			temp = findvar(argv[4+n], V_FIND);
 			if(!(vartbl[VarIndex].type & T_NBR)) error("Invalid variable");
@@ -774,6 +774,7 @@ void fun_eval(void) {
     MtoC(st);                                                       // and convert to a C string
     inpbuf[0] = 'r'; inpbuf[1] = '=';                               // place a dummy assignment in the input buffer to keep the tokeniser happy
     strcpy((char *)inpbuf + 2, (char *)st);
+	multi=false;
     tokenise(true);                                                 // and tokenise it (the result is in tknbuf)
     strcpy((char *)st, (char *)(tknbuf + 3));
     targ = T_NOTYPE;
@@ -794,7 +795,7 @@ void fun_errno(void) {
 
 void fun_errmsg(void) {
     sret = GetTempMemory(STRINGSIZE);
-    strcpy(sret, MMErrMsg);
+    strcpy((char *)sret, MMErrMsg);
     CtoM(sret);
     targ = T_STR;
 }
@@ -825,7 +826,7 @@ void fun_str(void) {
     int m, n;
     unsigned char ch, *p;
 
-    getargs(&ep, 7, ",");
+    getargs(&ep, 7, (unsigned char *)",");
     if((argc & 1) != 1) error("Syntax");
     t = T_NOTYPE;
     p = evaluate(argv[0], &f, &i64, &s, &t, false);                 // get the value and type of the argument
@@ -841,15 +842,15 @@ void fun_str(void) {
 
 	sret = GetTempMemory(STRINGSIZE);									    // this will last for the life of the command
     if(t & T_NBR)
-        FloatToStr(sret, f, m, n, ch);                              // convert the float
+        FloatToStr((char *)sret, f, m, n, ch);                              // convert the float
     else {
         if(n < 0)
-            FloatToStr(sret, i64, m, n, ch);                        // convert as a float
+            FloatToStr((char *)sret, i64, m, n, ch);                        // convert as a float
         else {
-            IntToStrPad(sret, i64, ch, m, 10);                      // convert the integer
+            IntToStrPad((char *)sret, i64, ch, m, 10);                      // convert the integer
             if(n != STR_AUTO_PRECISION && n > 0) {
-                strcat(sret, ".");
-                while(n--) strcat(sret, "0");                       // and add on any zeros after the point
+                strcat((char *)sret, ".");
+                while(n--) strcat((char *)sret, "0");                       // and add on any zeros after the point
             }
         }
     }
@@ -865,7 +866,7 @@ void fun_string(void) {
     int i, j, t = T_NOTYPE;
     void *p;
 
-    getargs(&ep, 3, ",");
+    getargs(&ep, 3, (unsigned char *)",");
     if(argc != 3) error("Syntax");
 
     i = getint(argv[0], 0, MAXSTRLEN);
@@ -1029,7 +1030,7 @@ void fun_acos(void) {
 void do_max_min(int cmp) {
     int i;
     MMFLOAT nbr, f;
-    getargs(&ep, (MAX_ARG_COUNT * 2) - 1, ",");
+    getargs(&ep, (MAX_ARG_COUNT * 2) - 1, (unsigned char *)",");
     if((argc & 1) != 1) error("Syntax");
     if(cmp) nbr = -FLT_MAX; else nbr = FLT_MAX;
     for(i = 0; i < argc; i += 2) {
@@ -1055,7 +1056,7 @@ void __not_in_flash_func(fun_ternary)(void){
     long long int i64 = 0;
     unsigned char *s = NULL;
     int t = T_NOTYPE;
-	getargs(&ep,5,",");
+	getargs(&ep,5,(unsigned char *)",");
 	if(argc!=5)error("Syntax");
 	int which=getnumber(argv[0]);
 	if(which){

@@ -45,7 +45,7 @@ void fun_math(void);
 **********************************************************************************/
 #ifdef INCLUDE_COMMAND_TABLE
 
-	{ "Math",		T_CMD,				0, cmd_math		},
+	{ (unsigned char *)"Math",		T_CMD,				0, cmd_math		},
         
 #endif
 
@@ -54,7 +54,7 @@ void fun_math(void);
  All other tokens (keywords, functions, operators) should be inserted in this table
 **********************************************************************************/
 #ifdef INCLUDE_TOKEN_TABLE
-	{ "Math(",	    T_FUN | T_NBR | T_INT,		0, fun_math	},
+	{ (unsigned char *)"Math(",	    T_FUN | T_NBR | T_INT,		0, fun_math	},
 //	{ "FFT",		T_CMD,				0, cmd_FFT		},
 
 #endif

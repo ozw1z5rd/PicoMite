@@ -101,7 +101,7 @@ int ProgramChanged;                                                 // true if t
 struct s_hash hashlist[MAXVARS/2]={0};
 int hashlistpointer=0;
 unsigned char *LibMemory;                                           //This is where the library is stored. At the last flash slot (4)
-
+int multi=false;
 unsigned char *ProgMemory;                                                      // program memory, this is where the program is stored
 int PSize;                                                          // the size of the program stored in ProgMemory[]
 
@@ -305,7 +305,7 @@ void   MIPS16 InitBasic(void) {
 
 int CheckEmpty(char *p){
         int emptyarray=0;
-        char *pp = strchr(p, '(');
+        char *pp = strchr((char *)p, '(');
         if(pp){
             pp++;
             skipspace(pp);
@@ -336,9 +336,9 @@ void __not_in_flash_func(ExecuteProgram)(unsigned char *p) {
             if(++TraceBuffIndex >= TRACE_BUFF_SIZE) TraceBuffIndex = 0;
             if(TraceOn && p > ProgMemory && p < ProgMemory + MAX_PROG_SIZE) {
                 inpbuf[0] = '[';
-                IntToStr(inpbuf + 1, CountLines(p), 10);
-                strcat(inpbuf, "]");
-                MMPrintString(inpbuf);
+                IntToStr((char *)inpbuf + 1, CountLines(p), 10);
+                strcat((char *)inpbuf, "]");
+                MMPrintString((char *)inpbuf);
                 uSec(1000);
             }
             p++;                                                    // and step over the token
@@ -391,15 +391,17 @@ void __not_in_flash_func(ExecuteProgram)(unsigned char *p) {
  Code associated with processing user defined subroutines and functions
 ********************************************************************************************************************************************/
 
-
 // Scan through the program loaded in flash and build a table pointing to the definition of all user defined subroutines and functions.
 // This pre processing speeds up the program when using defined subroutines and functions
 // this routine also looks for embedded fonts and adds them to the font table
 void   MIPS16 PrepareProgram(int ErrAbort) {
-    int i, j, u, NbrFuncts, namelen;
+    int i, j, NbrFuncts;
+#ifdef PICOMITE
+    int u, namelen;
     uint32_t hash=FNV_offset_basis;
-    unsigned char *p1, *p2;
     char printvar[MAXVARLEN+1];
+#endif
+    unsigned char *p1, *p2;
     for(i = FONT_BUILTIN_NBR; i < FONT_TABLE_SIZE; i++)
         FontTable[i] = NULL;                                        // clear the font table
 
@@ -420,7 +422,7 @@ void   MIPS16 PrepareProgram(int ErrAbort) {
     	p1 = subfun[i];
         p1++;
         skipspace(p1);
-        p2 = printvar; namelen = 0;
+        p2 = (unsigned char *)printvar; namelen = 0;
         hash=FNV_offset_basis;
     	do {
             u=mytoupper(*p1);
@@ -520,8 +522,8 @@ int   MIPS16 PrepareProgramExt(unsigned char *p, int i, unsigned char **CFunPtr,
     //Bit 7 on the last address byte is used to identify a font.
     cfp = *(unsigned int **)CFunPtr;
     while(*cfp != 0xffffffff) {
-        if((*cfp) >> 31 )
-            FontTable[*cfp] = (unsigned char *)(cfp + 2);
+        if(*cfp & 0x80000000)
+            FontTable[*cfp & (FONT_TABLE_SIZE-1)] = (unsigned char *)(cfp + 2);
         cfp++;
         cfp += (*cfp + 4) / sizeof(unsigned int);
     }
@@ -554,7 +556,7 @@ int __not_in_flash_func(FindSubFun)(unsigned char *p, int type) {
 //	MMPrintString("Searching for function: ");MMPrintString(name);PIntComma(hash);PRet();
 	while(funtbl[hash].name[0]!=0){
 		ip=name;
-		tp=funtbl[hash].name;
+		tp=(unsigned char *)funtbl[hash].name;
 //		MMPrintString("Testing : ");MMPrintString(tp);PRet();
 		if(*ip++ == *tp++) {                 // preliminary quick check
 			j = namelen-1;
@@ -574,7 +576,7 @@ int __not_in_flash_func(FindSubFun)(unsigned char *p, int type) {
 }
 #else
 int __not_in_flash_func(FindSubFun)(unsigned char *p, int type) {
-    char *p1, *p2;
+    unsigned char *p1, *p2;
     int i;
 
     for(i = 0;  i < MAXSUBFUN && subfun[i] != NULL; i++) {
@@ -799,7 +801,7 @@ void __not_in_flash_func(DefinedSubFun)(int isfun, unsigned char *cmd, int index
         } else if(argtype[i] != 0) {                                           // in getting the memory argtype[] is initialised to zero
             // the parameter was an expression or a just straight variables with different types (therefore not a pointer))
             if((vartbl[VarIndex].type & T_STR) && (argtype[i] & T_STR)) {      // both are a string
-                Mstrcpy((char *)vartbl[VarIndex].val.s, (char *)argval[i].s);
+                Mstrcpy(vartbl[VarIndex].val.s, argval[i].s);
                 FreeMemorySafe((void **)&argval[i].s);
             } else if((vartbl[VarIndex].type & T_NBR) && (argtype[i] & T_NBR)) // both are a float
                 vartbl[VarIndex].val.f = argval[i].f;
@@ -987,12 +989,12 @@ void  MIPS16 tokenise(int console) {
         if(*p < ' ' || *p == 0x7f)  *p = ' ';
         p++;
     }
-    STR_REPLACE(inpbuf,"MM.INFO$","MM.INFO");
-    STR_REPLACE(inpbuf,"=>",">=");
-    STR_REPLACE(inpbuf,"=<","<=");
-    STR_REPLACE(inpbuf,"MM.FONTHEIGHT","MM.INFO(FONTHEIGHT)");
-    STR_REPLACE(inpbuf,"MM.FONTWIDTH","MM.INFO(FONTWIDTH)");
-    STR_REPLACE(inpbuf,"MM.PS2","MM.INFO(PS2)");
+    STR_REPLACE((char *)inpbuf,"MM.INFO$","MM.INFO");
+    STR_REPLACE((char *)inpbuf,"=>",">=");
+    STR_REPLACE((char *)inpbuf,"=<","<=");
+    STR_REPLACE((char *)inpbuf,"MM.FONTHEIGHT","MM.INFO(FONTHEIGHT)");
+    STR_REPLACE((char *)inpbuf,"MM.FONTWIDTH","MM.INFO(FONTWIDTH)");
+    STR_REPLACE((char *)inpbuf,"MM.PS2","MM.INFO(PS2)");
     // setup the input and output buffers
     p = inpbuf;
     op = tknbuf;
@@ -1003,7 +1005,7 @@ void  MIPS16 tokenise(int console) {
     skipspace(tp);
     for(i = 0; i < 8; i++) if(!isxdigit(tp[i])) break;              // test if this is eight hex digits
     if(IsDigitinline(*tp) && i < 8) {                                     // if it a digit and not an 8 digit hex number (ie, it is CFUNCTION data) then try for a line number
-        i = strtol(tp, (char **)&tp, 10);
+        i = strtol((char *)tp, (char **)&tp, 10);
         if(!console && i > 0 && i <= MAXLINENBR) {
             *op++ = T_LINENBR;
             *op++ = (i>>8);
@@ -1016,7 +1018,9 @@ void  MIPS16 tokenise(int console) {
     firstnonwhite = true;
     labelvalid = true;
     while(*p) {
-
+	    if(*p=='*' && p[1]=='/'){
+            multi=false;
+        }
         // just copy a space
         if(*p == ' ') {
             *op++ = *p++;
@@ -1035,7 +1039,7 @@ void  MIPS16 tokenise(int console) {
         }
 
         // copy anything after a comment (')
-        if(*p == '\'') {
+        if(*p == '\'' || multi==true) {
             do {
                 *op++ = *p++;
             } while(*p);
@@ -1077,33 +1081,33 @@ void  MIPS16 tokenise(int console) {
             int match_i = -1, match_l = 0;
             // first test if it is a print shortcut char (?) - this needs special treatment
             if(*p == '?') {
-                match_i = GetCommandValue("Print") - C_BASETOKEN;
+                match_i = GetCommandValue((unsigned char *)"Print") - C_BASETOKEN;
                 if(*++p == ' ') p++;                                // eat a trailing space
                 match_p = p;
              // translate US spelling of COLOUR and therefor save a token slot
-            } else if((tp2 = checkstring(p, "COLOR")) != NULL) {
-                    match_i = GetCommandValue("Colour") - C_BASETOKEN;
+            } else if((tp2 = checkstring(p, (unsigned char *)"COLOR")) != NULL) {
+                    match_i = GetCommandValue((unsigned char *)"Colour") - C_BASETOKEN;
                     match_p = p = tp2;
-            } else if((tp2 = checkstring(p, "ELSE IF")) != NULL) {
-                    match_i = GetCommandValue("ElseIf") - C_BASETOKEN;
+            } else if((tp2 = checkstring(p, (unsigned char *)"ELSE IF")) != NULL) {
+                    match_i = GetCommandValue((unsigned char *)"ElseIf") - C_BASETOKEN;
                     match_p = p = tp2;
-            } else if((tp2 = checkstring(p, "END IF")) != NULL) {
-                    match_i = GetCommandValue("EndIf") - C_BASETOKEN;
+            } else if((tp2 = checkstring(p, (unsigned char *)"END IF")) != NULL) {
+                    match_i = GetCommandValue((unsigned char *)"EndIf") - C_BASETOKEN;
                     match_p = p = tp2;
-            } else if((tp2 = checkstring(p, "EXIT DO")) != NULL) {
-                    match_i = GetCommandValue("Exit") - C_BASETOKEN;
+            } else if((tp2 = checkstring(p, (unsigned char *)"EXIT DO")) != NULL) {
+                    match_i = GetCommandValue((unsigned char *)"Exit") - C_BASETOKEN;
                     match_p = p = tp2;
 #ifdef PICOMITEVGA
-            } else if((tp2 = checkstring(p, "BLIT")) != NULL) {
-                    match_i = GetCommandValue("SPRITE") - C_BASETOKEN;
+            } else if((tp2 = checkstring(p, (unsigned char *)"BLIT")) != NULL) {
+                    match_i = GetCommandValue((unsigned char *)"SPRITE") - C_BASETOKEN;
                     match_p = p = tp2;
 #else
-            } else if((tp2 = checkstring(p, "SPRITE")) != NULL) {
-                    match_i = GetCommandValue("Blit") - C_BASETOKEN;
+            } else if((tp2 = checkstring(p, (unsigned char *)"SPRITE")) != NULL) {
+                    match_i = GetCommandValue((unsigned char *)"Blit") - C_BASETOKEN;
                     match_p = p = tp2;
 #endif
-            } else if((tp2 = checkstring(p, "CAT")) != NULL) {
-                    match_i = GetCommandValue("Inc") - C_BASETOKEN;
+            } else if((tp2 = checkstring(p, (unsigned char *)"CAT")) != NULL) {
+                    match_i = GetCommandValue((unsigned char *)"Inc") - C_BASETOKEN;
                     match_p = p = tp2;
             } else {
                 // now try for a command in the command table
@@ -1112,7 +1116,7 @@ void  MIPS16 tokenise(int console) {
                 // without looking for the longest match we might think that we have a match when we found just END.
             for(i = 0 ; i < CommandTableSize - 1; i++) {
                     tp2 = p;
-                    tp = (char *)commandtbl[i].name;
+                    tp = commandtbl[i].name;
                     while(mytoupper(*tp2) == mytoupper(*tp) && *tp != 0) {
                         if(*tp == ' ')
                             skipspace(tp2);                         // eat up any extra spaces between keywords
@@ -1125,9 +1129,9 @@ void  MIPS16 tokenise(int console) {
                     if(*tp == 0 && (!isnamechar(*tp2) || (commandtbl[i].type & T_FUN))) {
                         if(*(tp - 1) != '(' && isnamechar(*tp2)) continue;   // skip if not the function
                         // save the details if it is the longest command found so far
-                        if(strlen(commandtbl[i].name) > match_l) {
+                        if(strlen((char *)commandtbl[i].name) > match_l) {
                             match_p = tp2;
-                            match_l = strlen(commandtbl[i].name);
+                            match_l = strlen((char *)commandtbl[i].name);
                             match_i = i;
                         }
                     }
@@ -1139,10 +1143,15 @@ void  MIPS16 tokenise(int console) {
                 *op++ = match_i + C_BASETOKEN;                      // insert the token found
                 p = match_p;                                        // step over the command in the source
                 if(isalpha(*(p-1)) && *p == ' ') p++;               // if the command is followed by a space skip over it
-                if(match_i + C_BASETOKEN == GetCommandValue("Rem")) // check if it is a REM command
+                if(match_i + C_BASETOKEN == GetCommandValue((unsigned char *)"Rem")) // check if it is a REM command
                     while(*p) *op++ = *p++;                         // and in that case just copy everything
                 firstnonwhite = false;
                 labelvalid = false;                                 // we do not want any labels after this
+                if(match_i + C_BASETOKEN == GetCommandValue((unsigned char *)"/*")){
+                    multi= true;
+                }
+                if(match_i + C_BASETOKEN == GetCommandValue((unsigned char *)"*/"))multi= false;
+
                 continue;
             }
 
@@ -1164,7 +1173,7 @@ void  MIPS16 tokenise(int console) {
             unsigned char *tp2 = NULL;
             for(i = 0 ; i < TokenTableSize - 1; i++) {
                 tp2 = p;
-                tp = (char *)tokentbl[i].name;
+                tp = tokentbl[i].name;
                 // check this entry
                 while(mytoupper(*tp2) == mytoupper(*tp) && *tp != 0) {
                     tp++; tp2++;
@@ -1630,7 +1639,7 @@ unsigned char __not_in_flash_func(*getvalue)(unsigned char *p, MMFLOAT *fa, long
 		else if(*p == '"') {
 			p++;                                                        // step over the quote
 			p1 = s = GetTempMemory(STRINGSIZE);                                // this will last for the life of the command
-			tp = strchr(p, '"');
+			tp = (unsigned char *)strchr((char *)p, '"');
                 int toggle=0;
                 while(p != tp){
                     if(*p=='\\' && tp>p+1 && OptionEscape)toggle^=1;
@@ -1801,7 +1810,7 @@ void hashlabels(unsigned char *p,int ErrAbort){
             break;
 
         if(p[0] == T_NEWLINE) {
-            lastp = p;                                              // save in case this is the right line
+            lastp = (char *)p;                                              // save in case this is the right line
             p++;                                                    // and step over the line number
             continue;
         }
@@ -1849,7 +1858,7 @@ void hashlabels(unsigned char *p,int ErrAbort){
 unsigned char *__not_in_flash_func(findlabel)(unsigned char *labelptr) {
 //    char *p, *lastp = (char *)ProgMemory + 1;
 	unsigned char  *tp, *ip;
-    int i, u;
+    int i;
     uint32_t hash=FNV_offset_basis;
     char label[MAXVARLEN + 1];
 
@@ -1873,15 +1882,15 @@ unsigned char *__not_in_flash_func(findlabel)(unsigned char *labelptr) {
 	if(funtbl[hash].name[0]==0)error("Cannot find label");
 	while(funtbl[hash].name[0]!=0){
 		//if(funtbl[hash].index>=(uint32_t)ProgMemory){  //Is there a need to test this? Without this we can find labels in the Library
-			tp=funtbl[hash].name;
-			ip=&label[1];
+			tp=(unsigned char *)funtbl[hash].name;
+			ip=(unsigned char *)&label[1];
 			if(*ip++ == *tp++) {                 // preliminary quick check
 				i = label[0]-1;
 				while(i > 0 && *ip == *tp) {                              // compare each letter
 					i--; ip++; tp++;
 				}
 				if(i == 0  && (*(char *)tp == 0)) {       // found a matching name
-					return (char *)funtbl[hash].index;
+					return (unsigned char *)funtbl[hash].index;
 				}
 			}
 		//}
@@ -1894,7 +1903,7 @@ unsigned char *__not_in_flash_func(findlabel)(unsigned char *labelptr) {
 }
 #else
 unsigned char *findlabel(unsigned char *labelptr) {
-    char *p, *lastp = ProgMemory + 1;
+    char *p, *lastp = (char *)ProgMemory + 1;
     char *next;
     int i,j=0;
     char label[MAXVARLEN + 1];
@@ -1912,12 +1921,12 @@ unsigned char *findlabel(unsigned char *labelptr) {
     }
     label[0] = i - 1;                                               // the length byte
    
-    p = ProgMemory;
-    next=LibMemory;
+    p = (char *)ProgMemory;
+    next=(char *)LibMemory;
     if (Option.LIBRARY_FLASH_SIZE==MAX_PROG_SIZE){
        if (CurrentLinePtr >= LibMemory && CurrentLinePtr <= LibMemory + MAX_PROG_SIZE){
-          p=LibMemory;
-          next=ProgMemory;
+          p=(char *)LibMemory;
+          next=(char *)ProgMemory;
        }
     }
 
@@ -1949,8 +1958,8 @@ unsigned char *findlabel(unsigned char *labelptr) {
 
         if(p[0] == T_LABEL) {
             p++;                                                    // point to the length of the label
-            if(mem_equal(p, label, label[0] + 1))                   // compare the strings including the length byte
-                return lastp;                                       // and if successful return pointing to the beginning of the line
+            if(mem_equal((unsigned char *)p, (unsigned char *)label, label[0] + 1))                   // compare the strings including the length byte
+                return (unsigned char *)lastp;                                       // and if successful return pointing to the beginning of the line
             p += p[0] + 1;                                          // still looking! skip over the label
             continue;
         }
@@ -2046,7 +2055,10 @@ void __not_in_flash_func(*findvar)(unsigned char *p, int action) {
 //    int hashIndex=0;
     int GlobalhashIndex, OriginalGlobalHash;
     int LocalhashIndex, OriginalLocalHash;
-    uint32_t funhash, hash=FNV_offset_basis;
+    uint32_t hash=FNV_offset_basis;
+#ifdef PICOMITE
+	uint32_t funhash;
+#endif
 	char  *tp, *ip;
     int dim[MAXDIM]={0}, dnbr;
 //	if(__get_MSP() < (uint32_t)&stackcheck-0x5000){
@@ -2070,7 +2082,9 @@ void __not_in_flash_func(*findvar)(unsigned char *p, int action) {
 		*s++ = u;
 		if(++namelen > MAXVARLEN) error("Variable name too long");
 	} while(isnamechar(*p));
+#ifdef PICOMITE
     funhash=hash % MAXSUBHASH;
+#endif
 	hash %= MAXVARHASH; //scale 0-255
     
 	if(namelen!=MAXVARLEN)*s=0;
@@ -2094,7 +2108,7 @@ void __not_in_flash_func(*findvar)(unsigned char *p, int action) {
 
     // check if this is an array
     if(*p == '(') {
-        char *pp = p + 1;
+        char *pp = (char *)p + 1;
         skipspace(pp);
         if(action & V_EMPTY_OK && *pp == ')')  {                     // if this is an empty array.  eg  ()
         	emptyarray=1;
@@ -2104,7 +2118,7 @@ void __not_in_flash_func(*findvar)(unsigned char *p, int action) {
             // split the argument into individual elements
             // find the value of each dimension and store in dims[]
             // the bracket in "(," is a signal to getargs that the list is in brackets
-            getargs(&p, MAXDIM * 2, "(,");
+            getargs(&p, MAXDIM * 2, (unsigned char *)"(,");
             if((argc & 0x01) == 0) error("Dimensions");
             dnbr = argc/2 + 1;
             if(dnbr > MAXDIM) error("Dimensions");
@@ -2139,8 +2153,8 @@ void __not_in_flash_func(*findvar)(unsigned char *p, int action) {
 			localifree = LocalhashIndex;
 		} else {
 			while(vartbl[LocalhashIndex].name[0]!=0){
-				ip=name;
-				tp=vartbl[LocalhashIndex].name;
+				ip=(char *)name;
+				tp=(char *)vartbl[LocalhashIndex].name;
 				if(vartbl[LocalhashIndex].type==T_BLOCKED)tmp=LocalhashIndex;
 				if(*ip++ == *tp++) {                 // preliminary quick check
 					j = namelen-1;
@@ -2171,8 +2185,8 @@ void __not_in_flash_func(*findvar)(unsigned char *p, int action) {
 				globalifree = GlobalhashIndex;
 			} else {
 				while(vartbl[GlobalhashIndex].name[0]!=0){
-					ip=name;
-					tp=vartbl[GlobalhashIndex].name;
+					ip=(char *)name;
+					tp=(char *)vartbl[GlobalhashIndex].name;
 					if(vartbl[GlobalhashIndex].type==T_BLOCKED)tmp=GlobalhashIndex;
 					if(*ip++ == *tp++) {                 // preliminary quick check
 						j = namelen-1;
@@ -2203,8 +2217,8 @@ void __not_in_flash_func(*findvar)(unsigned char *p, int action) {
 			globalifree = GlobalhashIndex;
 		} else {
 			while(vartbl[GlobalhashIndex].name[0]!=0){
-				ip=name;
-				tp=vartbl[GlobalhashIndex].name;
+				ip=(char *)name;
+				tp=(char *)vartbl[GlobalhashIndex].name;
 				if(vartbl[GlobalhashIndex].type==T_BLOCKED)tmp=GlobalhashIndex;
 				if(*ip++ == *tp++) {                 // preliminary quick check
 					j = namelen-1;
@@ -2323,7 +2337,7 @@ void __not_in_flash_func(*findvar)(unsigned char *p, int action) {
 #ifdef PICOMITE
     if(!(action & V_FUNCT) && (funtbl[funhash].name[0])) {                                       // don't do this if we are defining the local variable for a function name
 		while(funtbl[funhash].name[0]!=0){
-			ip=name;
+			ip=(char *)name;
 			tp=funtbl[funhash].name;
 			if(*ip++ == *tp++) {                 // preliminary quick check
 				j = namelen-1;
@@ -2371,7 +2385,7 @@ void __not_in_flash_func(*findvar)(unsigned char *p, int action) {
                 } while(i);
             }
             skipspace(p);
-            if((s = checkstring(p, "LENGTH")) != NULL)
+            if((s = checkstring(p, (unsigned char *)"LENGTH")) != NULL)
                 size = getint(s, 1, MAXSTRLEN) ;
             else
                 if(!(*p == ',' || *p == 0 || tokenfunction(*p) == op_equal || tokenfunction(*p) == op_invalid)) error("Unexpected text: $", p);
@@ -2644,6 +2658,12 @@ void error(char *msg, ...) {
     LoadOptions();                                                  // make sure that the option struct is in a clean state
 
     if(Option.DISPLAY_CONSOLE) {
+        #ifdef PICOMITEVGA
+            WriteBuf=(unsigned char *)FRAMEBUFFER;
+            DisplayBuf=(unsigned char *)FRAMEBUFFER;
+        #else
+            restoreSPIpanel();            
+        #endif       // we now have CurrentLinePtr pointing to the start of the line
         SetFont(PromptFont);
         gui_fcolour = PromptFC;
         gui_bcolour = PromptBC;
@@ -2651,9 +2671,9 @@ void error(char *msg, ...) {
     }
     if(MMCharPos > 1) MMPrintString("\r\n");
     if(CurrentLinePtr) {
-        tp = p = ProgMemory;
+        tp = p = (char *)ProgMemory;
         if (Option.LIBRARY_FLASH_SIZE==MAX_PROG_SIZE && CurrentLinePtr < LibMemory+MAX_PROG_SIZE)
-           tp = p = LibMemory;
+           tp = p = (char *)LibMemory;
         //if(*CurrentLinePtr != T_NEWLINE && CurrentLinePtr < ProgMemory + MAX_PROG_SIZE) {
         if(*CurrentLinePtr != T_NEWLINE && ((CurrentLinePtr < ProgMemory + MAX_PROG_SIZE) || (Option.LIBRARY_FLASH_SIZE==MAX_PROG_SIZE && CurrentLinePtr < LibMemory+MAX_PROG_SIZE))) {    
             // normally CurrentLinePtr points to a T_NEWLINE token but in this case it does not
@@ -2661,7 +2681,7 @@ void error(char *msg, ...) {
           while(*p != 0xff) {
               while(*p) p++;                                        // look for the zero marking the start of an element
               if(p >= (char *)CurrentLinePtr || p[1] == 0) {                // the previous line was the one that we wanted
-                  CurrentLinePtr = tp;
+                  CurrentLinePtr = (unsigned char *)tp;
                   break;
                 }
               if(p[1] == T_NEWLINE) {
@@ -2676,11 +2696,11 @@ void error(char *msg, ...) {
        // we now have CurrentLinePtr pointing to the start of the line
 //        dump(CurrentLinePtr, 80);
         llist(tknbuf, CurrentLinePtr);
-        p = tknbuf; skipspace(p);
+        p = (char *)tknbuf; skipspace(p);
         MMPrintString(MMCharPos > 1 ? "\r\n[" : "[");
         if(CurrentLinePtr >= ProgMemory && CurrentLinePtr < ProgMemory + MAX_PROG_SIZE ){
-            IntToStr(inpbuf, CountLines(CurrentLinePtr), 10);
-            MMPrintString(inpbuf);
+            IntToStr((char *)inpbuf, CountLines(CurrentLinePtr), 10);
+            MMPrintString((char *)inpbuf);
             StartEditPoint = CurrentLinePtr;
             StartEditChar = 0;
         } else
@@ -3188,7 +3208,7 @@ unsigned char __not_in_flash_func(*GetNextCommand)(unsigned char *p, unsigned ch
         }
         if(*p == 0) {
             if(EOFMsg == NULL) return p;
-            error(EOFMsg);
+            error((char *)EOFMsg);
         }
         if(*p == T_NEWLINE) {
             if(CLine) *CLine = p;                                   // and a pointer to the line also for error reporting

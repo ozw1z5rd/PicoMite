@@ -399,7 +399,7 @@ int __not_in_flash_func(MMInkey)(void) {
     static unsigned int c2 = -1;
     static unsigned int c3 = -1;
     static unsigned int c4 = -1;
-	static int crseen = 0;
+//	static int crseen = 0;
 
     if(c1 != -1) {                                                  // check if there are discarded chars from a previous sequence
         c = c1; c1 = c2; c2 = c3; c3 = c4; c4 = -1;                 // shuffle the queue down
@@ -479,12 +479,12 @@ void MMgetline(int filenbr, char *p) {
             if(c == F10) tp = "AUTOSAVE";
             if(c == F11) tp = "XMODEM RECEIVE";
             if(c == F12) tp = "XMODEM SEND";
-            if(c == F1) tp = Option.F1key;
-            if(c == F5) tp = Option.F5key;
-            if(c == F6) tp = Option.F6key;
-            if(c == F7) tp = Option.F7key;
-            if(c == F8) tp = Option.F8key;
-            if(c == F9) tp = Option.F9key;
+            if(c == F1) tp = (char *)Option.F1key;
+            if(c == F5) tp = (char *)Option.F5key;
+            if(c == F6) tp = (char *)Option.F6key;
+            if(c == F7) tp = (char *)Option.F7key;
+            if(c == F8) tp = (char *)Option.F8key;
+            if(c == F9) tp = (char *)Option.F9key;
             if(tp) {
                 strcpy(p, tp);
                 if(EchoOption) { MMPrintString(tp); MMPrintString("\r\n"); }
@@ -535,13 +535,13 @@ void MMgetline(int filenbr, char *p) {
 // using the up arrow usere can call up the last few commands executed.
 void MIPS16 InsertLastcmd(unsigned char *s) {
 int i, slen;
-    if(strcmp(lastcmd, s) == 0) return;                             // don't duplicate
-    slen = strlen(s);
+    if(strcmp((const char *)lastcmd, (const char *)s) == 0) return;                             // don't duplicate
+    slen = strlen((const char *)s);
     if(slen < 1 || slen > sizeof(lastcmd) - 1) return;
     slen++;
     for(i = sizeof(lastcmd) - 1; i >=  slen ; i--)
         lastcmd[i] = lastcmd[i - slen];                             // shift the contents of the buffer up
-    strcpy(lastcmd, s);                                             // and insert the new string in the beginning
+    strcpy((char *)lastcmd, (char *)s);                                             // and insert the new string in the beginning
     for(i = sizeof(lastcmd) - 1; lastcmd[i]; i--) lastcmd[i] = 0;             // zero the end of the buffer
 }
 
@@ -553,13 +553,13 @@ void MIPS16 EditInputLine(void) {
     int CharIndex, BufEdited;
     int c, i, j;
     maxchars = Option.Width;
-    if(strlen(inpbuf) >= maxchars) {
-        MMPrintString(inpbuf);
+    if(strlen((const char *)inpbuf) >= maxchars) {
+        MMPrintString((char *)inpbuf);
         error("Line is too long to edit");
     }
     startline = MMCharPos - 1;                                                          // save the current cursor position
-    MMPrintString(inpbuf);                                                              // display the contents of the input buffer (if any)
-    CharIndex = strlen(inpbuf);                                                         // get the current cursor position in the line
+    MMPrintString((char *)inpbuf);                                                              // display the contents of the input buffer (if any)
+    CharIndex = strlen((const char *)inpbuf);                                                         // get the current cursor position in the line
     insert = false;
 //    Cursor = C_STANDARD;
     lastcmd_edit = lastcmd_idx = 0;
@@ -593,10 +593,10 @@ void MIPS16 EditInputLine(void) {
                 case '\b':  if(CharIndex > 0) {
                                 BufEdited = true;
                                 i = CharIndex - 1;
-                                for(p = inpbuf + i; *p; p++) *p = *(p + 1);                 // remove the char from inpbuf
+                                for(p = (char *)inpbuf + i; *p; p++) *p = *(p + 1);                 // remove the char from inpbuf
                                 while(CharIndex)  { MMputchar('\b',0); CharIndex--; }         // go to the beginning of the line
-                                MMPrintString(inpbuf); MMputchar(' ',0); MMputchar('\b',0);     // display the line and erase the last char
-                                for(CharIndex = strlen(inpbuf); CharIndex > i; CharIndex--)
+                                MMPrintString((char *)inpbuf); MMputchar(' ',0); MMputchar('\b',0);     // display the line and erase the last char
+                                for(CharIndex = strlen((const char *)inpbuf); CharIndex > i; CharIndex--)
                                     MMputchar('\b',0);  
                                 fflush(stdout);                                      // return the cursor to the righ position
                             }
@@ -604,7 +604,7 @@ void MIPS16 EditInputLine(void) {
 
                 case CTRLKEY('S'):
                 case LEFT:  if(CharIndex > 0) {
-                                if(CharIndex == strlen(inpbuf)) {
+                                if(CharIndex == strlen((const char *)inpbuf)) {
                                     insert = true;
       //                              Cursor = C_INSERT;
                                 }
@@ -614,20 +614,20 @@ void MIPS16 EditInputLine(void) {
                             break; 
 
                 case CTRLKEY('D'):
-                case RIGHT: if(CharIndex < strlen(inpbuf)) {
+                case RIGHT: if(CharIndex < strlen((const char *)inpbuf)) {
                                 MMputchar(inpbuf[CharIndex],1);
                                 CharIndex++;
                             }
                             break;
 
                 case CTRLKEY(']'):
-                case DEL:   if(CharIndex < strlen(inpbuf)) {
+                case DEL:   if(CharIndex < strlen((const char *)inpbuf)) {
                                 BufEdited = true;
                                 i = CharIndex;
-                                for(p = inpbuf + i; *p; p++) *p = *(p + 1);                 // remove the char from inpbuf
+                                for(p = (char *)inpbuf + i; *p; p++) *p = *(p + 1);                 // remove the char from inpbuf
                                 while(CharIndex)  { MMputchar('\b',0); CharIndex--; }         // go to the beginning of the line
-                                MMPrintString(inpbuf); MMputchar(' ',0); MMputchar('\b',0);     // display the line and erase the last char
-                                for(CharIndex = strlen(inpbuf); CharIndex > i; CharIndex--)
+                                MMPrintString((char *)inpbuf); MMputchar(' ',0); MMputchar('\b',0);     // display the line and erase the last char
+                                for(CharIndex = strlen((const char *)inpbuf); CharIndex > i; CharIndex--)
                                     MMputchar('\b',0);   
                                 fflush(stdout);                                     // return the cursor to the right position
                             }
@@ -640,7 +640,7 @@ void MIPS16 EditInputLine(void) {
 
                 case CTRLKEY('U'):
                 case HOME:  if(CharIndex > 0) {
-                                if(CharIndex == strlen(inpbuf)) {
+                                if(CharIndex == strlen((const char *)inpbuf)) {
                                     insert = true;
 //                                    Cursor = C_INSERT;
                                 }
@@ -650,9 +650,10 @@ void MIPS16 EditInputLine(void) {
                             break;
 
                 case CTRLKEY('K'):
-                case END:   while(CharIndex < strlen(inpbuf))
+                case END:   while(CharIndex < strlen((const char *)inpbuf)){
                                 MMputchar(inpbuf[CharIndex++],0);
-                                fflush(stdout);
+                            }   
+                            fflush(stdout);
                             break;
 
 /*            if(c == F2)  tp = "RUN";
@@ -667,7 +668,7 @@ void MIPS16 EditInputLine(void) {
             if(c == F8) tp = Option.F8key;
             if(c == F9) tp = Option.F9key;*/
                 case 0x91:
-                    if(*Option.F1key)strcpy(&buf[1],Option.F1key);
+                    if(*Option.F1key)strcpy(&buf[1],(char *)Option.F1key);
                     break;
                 case 0x92:
                     strcpy(&buf[1],"RUN\r\n");
@@ -680,7 +681,7 @@ void MIPS16 EditInputLine(void) {
                     break;
                 case 0x95:
                     if(*Option.F5key){
-                        strcpy(&buf[1],Option.F5key);
+                        strcpy(&buf[1],(char *)Option.F5key);
                     }else{
                          /*** F5 will clear the VT100  ***/
             	         SSPrintString("\e[2J\e[H");
@@ -691,16 +692,16 @@ void MIPS16 EditInputLine(void) {
                     }    
                     break;
                 case 0x96:
-                    if(*Option.F6key)strcpy(&buf[1],Option.F6key);
+                    if(*Option.F6key)strcpy(&buf[1],(char *)Option.F6key);
                     break;
                 case 0x97:
-                    if(*Option.F7key)strcpy(&buf[1],Option.F7key);
+                    if(*Option.F7key)strcpy(&buf[1],(char *)Option.F7key);
                     break;
                 case 0x98:
-                    if(*Option.F8key)strcpy(&buf[1],Option.F8key);
+                    if(*Option.F8key)strcpy(&buf[1],(char *)Option.F8key);
                     break;
                 case 0x99:
-                    if(*Option.F9key)strcpy(&buf[1],Option.F9key);
+                    if(*Option.F9key)strcpy(&buf[1],(char *)Option.F9key);
                     break;
                 case 0x9a:
                     strcpy(&buf[1],"AUTOSAVE\r\n");
@@ -716,11 +717,11 @@ void MIPS16 EditInputLine(void) {
                                 while(CharIndex)  { MMputchar('\b',0); CharIndex--; } 
                                 fflush(stdout);       // go to the beginning of line
                                 if(lastcmd_edit) {
-                                    i = lastcmd_idx + strlen(&lastcmd[lastcmd_idx]) + 1;    // find the next command
+                                    i = lastcmd_idx + strlen((const char *)&lastcmd[lastcmd_idx]) + 1;    // find the next command
                                     if(lastcmd[i] != 0 && i < sizeof(lastcmd) - 1) lastcmd_idx = i;  // and point to it for the next time around
                                 } else
                                     lastcmd_edit = true;
-                                strcpy(inpbuf, &lastcmd[lastcmd_idx]);                      // get the command into the buffer for editing
+                                strcpy((char *)inpbuf, (const char *)&lastcmd[lastcmd_idx]);                      // get the command into the buffer for editing
                                 goto insert_lastcmd;
                             }
                             break;
@@ -735,25 +736,25 @@ void MIPS16 EditInputLine(void) {
                                 else {
                                     for(i = lastcmd_idx - 2; i > 0 && lastcmd[i - 1] != 0; i--);// find the start of the previous command
                                     lastcmd_idx = i;                                        // and point to it for the next time around
-                                    strcpy(inpbuf, &lastcmd[i]);                            // get the command into the buffer for editing
+                                    strcpy((char *)inpbuf, (const char *)&lastcmd[i]);                            // get the command into the buffer for editing
                                 }
                                 goto insert_lastcmd;                                        // gotos are bad, I know, I know
                             }
                             break;
 
                 insert_lastcmd:                                                             // goto here if we are just editing a command
-                            if(strlen(inpbuf) + startline >= maxchars) {                    // if the line is too long
+                            if(strlen((const char *)inpbuf) + startline >= maxchars) {                    // if the line is too long
                                 while(CharIndex)  { MMputchar('\b',0); CharIndex--; }         // go to the start of the line
-                                MMPrintString(inpbuf);                                      // display the offending line
+                                MMPrintString((char *)inpbuf);                                      // display the offending line
                                 error("Line is too long to edit");
                             }
-                            MMPrintString(inpbuf);                                          // display the line
-                            CharIndex = strlen(inpbuf);                                     // get the current cursor position in the line
-                            for(i = 1; i <= maxchars - strlen(inpbuf) - startline; i++) {
+                            MMPrintString((char *)inpbuf);                                          // display the line
+                            CharIndex = strlen((const char *)inpbuf);                                     // get the current cursor position in the line
+                            for(i = 1; i <= maxchars - strlen((const char *)inpbuf) - startline; i++) {
                                 MMputchar(' ',0);                                             // erase the rest of the line
                                 CharIndex++;
                             }
-                            while(CharIndex > strlen(inpbuf)) { MMputchar('\b',0); CharIndex--; } // return the cursor to the right position
+                            while(CharIndex > strlen((const char *)inpbuf)) { MMputchar('\b',0); CharIndex--; } // return the cursor to the right position
 
                             SSPrintString("\033[0K");
                             break;
@@ -761,22 +762,21 @@ void MIPS16 EditInputLine(void) {
                 default:    if(buf[0] >= ' ' && buf[0] < 0x7f) {
                                 BufEdited = true;                                           // this means that something was typed
                                 i = CharIndex;
-                                j = strlen(inpbuf);
+                                j = strlen((const char *)inpbuf);
                                 if(insert) {
-                                    if(strlen(inpbuf) >= maxchars - 1) break;               // sorry, line full
-                                    for(p = inpbuf + strlen(inpbuf); j >= CharIndex; p--, j--) *(p + 1) = *p;
+                                    if(strlen((const char *)inpbuf) >= maxchars - 1) break;               // sorry, line full
+                                    for(p = (char *)inpbuf + strlen((const char *)inpbuf); j >= CharIndex; p--, j--) *(p + 1) = *p;
                                     inpbuf[CharIndex] = buf[0];                             // insert the char
-                                    MMPrintString(&inpbuf[CharIndex]);                      // display new part of the line
+                                    MMPrintString((char *)&inpbuf[CharIndex]);                      // display new part of the line
                                     CharIndex++;
-                                    for(j = strlen(inpbuf); j > CharIndex; j--)
-                                        MMputchar('\b',0); 
+                                    for(j = strlen((const char *)inpbuf); j > CharIndex; j--) MMputchar('\b',0); 
                                         fflush(stdout);                                   // return the cursor to the right position
                                 } else {
-                                    inpbuf[strlen(inpbuf) + 1] = 0;                         // incase we are adding to the end of the string
+                                    inpbuf[strlen((const char *)inpbuf) + 1] = 0;                         // incase we are adding to the end of the string
                                     inpbuf[CharIndex++] = buf[0];                           // overwrite the char
                                     MMputchar(buf[0],1);                                      // display it
                                     if(CharIndex + startline >= maxchars) {                 // has the input gone beyond the end of the line?
-                                        MMgetline(0, inpbuf);                               // use the old fashioned way of getting the line
+                                        MMgetline(0, (char *)inpbuf);                               // use the old fashioned way of getting the line
                                         //if(autoOn && atoi(inpbuf) > 0) autoNext = atoi(inpbuf) + autoIncr;
                                         goto saveline;
                                     }
@@ -786,7 +786,7 @@ void MIPS16 EditInputLine(void) {
             }
             for(i = 0; i < MAXKEYLEN + 1; i++) buf[i] = buf[i + 1];                             // shuffle down the buffer to get the next char
         } while(*buf);
-    if(CharIndex == strlen(inpbuf)) {
+    if(CharIndex == strlen((const char *)inpbuf)) {
         insert = false;
 //        Cursor = C_STANDARD;
         }
@@ -1301,7 +1301,7 @@ void __not_in_flash_func(QVgaLine0)()
             } else {
                 line>>=1;
                 register unsigned char *p=&DisplayBuf[line * 160];
-                register unsigned char *q=&LayerBuf[line * 160];
+//                register unsigned char *q=&LayerBuf[line * 160];
                 register uint16_t *r=fbuff[nextbuf];
                 for(int i=0;i<160;i++){
                     register int low= *p & 0xF;
@@ -1712,13 +1712,13 @@ void MIPS16 updatebootcount(void){
  */
 static void MIPS16 transform_star_command(char *input) {
     char *src = input;
-    while (isspace(*src)) src++; // Skip leading whitespace.
+    while (isspace((uint8_t)*src)) src++; // Skip leading whitespace.
     if (*src != '*') error("Internal fault");
     src++;
 
     // Trim any trailing whitespace from the input.
     char *end = input + strlen(input) - 1;
-    while (isspace(*end)) *end-- = '\0';
+    while (isspace((uint8_t)*end)) *end-- = '\0';
 
     // Allocate extra space to avoid string overrun.
     char *tmp = (char *) GetTempMemory(STRINGSIZE + 32);
@@ -1734,7 +1734,7 @@ static void MIPS16 transform_star_command(char *input) {
     } else {
         // Everything before the first space is the name of the file to RUN.
         int count = 0;
-        while (*src && !isspace(*src)) {
+        while (*src && !isspace((uint8_t)*src)) {
             if (++count == 1) {
                 *dst++ = ' ';
                 *dst++ = '\"';
@@ -1744,7 +1744,7 @@ static void MIPS16 transform_star_command(char *input) {
         if (count) *dst++ = '\"';
     }
 
-    while (isspace(*src)) src++; // Skip whitespace.
+    while (isspace((uint8_t)*src)) src++; // Skip whitespace.
 
     // Anything else is arguments.
     if (*src) {
@@ -1811,7 +1811,7 @@ void WebConnect(void){
         }
         cyw43_wifi_pm(&cyw43_state, CYW43_NO_POWERSAVE_MODE);        
         MMPrintString(" connecting to WiFi...\r\n");
-        if (cyw43_arch_wifi_connect_timeout_ms(Option.SSID, (*Option.PASSWORD ? Option.PASSWORD : NULL), (*Option.PASSWORD ? CYW43_AUTH_WPA2_AES_PSK : CYW43_AUTH_OPEN), 30000)) {
+        if (cyw43_arch_wifi_connect_timeout_ms((char *)Option.SSID, (char *)(*Option.PASSWORD ? Option.PASSWORD : NULL), (*Option.PASSWORD ? CYW43_AUTH_WPA2_AES_PSK : CYW43_AUTH_OPEN), 30000)) {
             MMPrintString("failed to connect.\r\n");
             WIFIconnected=0;
         } else {
@@ -1918,7 +1918,7 @@ int main(){
             if(!(_excep_code == RESET_COMMAND))MMPrintString(MES_SIGNON); //MMPrintString(b);                                 // print sign on message
         } else {
             if(Option.Autorun!=MAXFLASHSLOTS+1){
-                ProgMemory=(char *)(flash_target_contents+(Option.Autorun-1)*MAX_PROG_SIZE);
+                ProgMemory=(unsigned char *)(flash_target_contents+(Option.Autorun-1)*MAX_PROG_SIZE);
             }
             if(*ProgMemory != 0x01 ) MMPrintString(MES_SIGNON); 
         }
@@ -1972,13 +1972,13 @@ int main(){
     }
     #endif
         PrepareProgram(true);
-        if(FindSubFun("MM.STARTUP", 0) >= 0) ExecuteProgram("MM.STARTUP\0");
+        if(FindSubFun((unsigned char *)"MM.STARTUP", 0) >= 0) ExecuteProgram((unsigned char *)"MM.STARTUP\0");
         if(Option.Autorun && _excep_code != RESTART_DOAUTORUN) {
             ClearRuntime();
             PrepareProgram(true);
             if(*ProgMemory == 0x01 ){
                 memset(tknbuf,0,STRINGSIZE);
-                *tknbuf=GetCommandValue((char *)"RUN");
+                *tknbuf=GetCommandValue((unsigned char *)"RUN");
                 goto autorun;
             }  else {
                 Option.Autorun=0;
@@ -2006,11 +2006,11 @@ int main(){
                 MMPrintString("Console locked, press enter to restart: ");
             else
                 MMPrintString("Enter PIN or 0 to restart: ");
-            MMgetline(0, inpbuf);
+            MMgetline(0, (char *)inpbuf);
             if(Option.PIN == 99999999) SoftReset();
             if(*inpbuf != 0) {
                 uSec(3000000);
-                i = atoi(inpbuf);
+                i = atoi((char *)inpbuf);
                 if(i == 0) SoftReset();
                 if(i == Option.PIN) {
                     IgnorePIN = true;
@@ -2020,16 +2020,16 @@ int main(){
         }
         if(_excep_code!=POSSIBLE_WATCHDOG)_excep_code = 0;
         PrepareProgram(false);
-        if(!ErrorInPrompt && FindSubFun("MM.PROMPT", 0) >= 0) {
+        if(!ErrorInPrompt && FindSubFun((unsigned char *)"MM.PROMPT", 0) >= 0) {
             ErrorInPrompt = true;
-            ExecuteProgram("MM.PROMPT\0");
+            ExecuteProgram((unsigned char *)"MM.PROMPT\0");
         } else
             MMPrintString("> ");                                    // print the prompt
         ErrorInPrompt = false;
         EditInputLine();
         InsertLastcmd(inpbuf);                                  // save in case we want to edit it later
         if(!*inpbuf) continue;                                      // ignore an empty line
-        char *p=inpbuf;
+        char *p=(char *)inpbuf;
         skipspace(p);
         executelocal(p);
         if(strlen(p)==2 && p[1]==':'){
@@ -2037,14 +2037,15 @@ int main(){
             if(toupper(*p)=='B')strcpy(p,"drive \"b:\"");
         }
         if(*p=='*'){ //shortform RUN command so convert to a normal version
-                transform_star_command(inpbuf);
-                p = inpbuf;
+                transform_star_command((char *)inpbuf);
+                p = (char *)inpbuf;
         }
+        multi=false;
         tokenise(true);                                             // turn into executable code
 autorun:
         i=0;
         WatchdogSet=savewatchdog;
-        if(*tknbuf==GetCommandValue((char *)"RUN"))i=1;
+        if(*tknbuf==GetCommandValue((unsigned char *)"RUN"))i=1;
         if (setjmp(jmprun) != 0) {
             PrepareProgram(false);
             CurrentLinePtr = 0;
@@ -2076,13 +2077,21 @@ void MIPS16 testlocal(char *p, char *command, void (*func)()){
         skipspace(p);
         cmdline=GetTempMemory(STRINGSIZE);
         stripcomment(p);
-        strcpy(cmdline,p);
+        strcpy((char *)cmdline,(const char *)p);
+        char *q=(char *)cmdline;
+        int toggle=0;
+        while(*q){
+            if(*q++ == '"') {
+            toggle ^=1;
+            }
+        }
+        if(toggle)cmdline[strlen((const char *)cmdline)]='"';
         (*func)();
         memset(inpbuf,0,STRINGSIZE);
         longjmp(mark, 1);												// jump back to the input prompt
     }
-
 }
+
 void executelocal(char *p){
     testlocal(p,"FILES",cmd_files);
     testlocal(p,"UPDATE FIRMWARE",cmd_update);
@@ -2093,7 +2102,8 @@ void executelocal(char *p){
 void MIPS16 SaveProgramToFlash(unsigned char *pm, int msg) {
     unsigned char *p, endtoken, fontnbr, prevchar = 0, buf[STRINGSIZE];
     int nbr, i, j, n, SaveSizeAddr;
-    uint32_t storedupdates[MAXCFUNCTION], updatecount=0, realflashsave, retvalue;
+    multi=false;
+    uint32_t storedupdates[MAXCFUNCTION], updatecount=0, realflashsave;
     initFonts();
     memcpy(buf, tknbuf, STRINGSIZE);                                // save the token buffer because we are going to use it
     FlashWriteInit(PROGRAM_FLASH);
@@ -2147,7 +2157,7 @@ void MIPS16 SaveProgramToFlash(unsigned char *pm, int msg) {
      // The next CFunction/CSub/Font starts immediately following the last word of the previous CFunction/CSub/Font
     int firsthex=1;
     realflashsave= realflashpointer;
-    p = (char *)flash_progmemory;                                              // start scanning program memory
+    p = (unsigned char *)flash_progmemory;                                              // start scanning program memory
     while(*p != 0xff) {
     	nbr++;
         if(*p == 0) p++;                                            // if it is at the end of an element skip the zero marker
@@ -2163,9 +2173,9 @@ void MIPS16 SaveProgramToFlash(unsigned char *pm, int msg) {
             p += p[1] + 2;                                          // skip over the label
             skipspace(p);                                           // and any following spaces
         }
-        if(*p == cmdCSUB || *p == GetCommandValue("DefineFont")) {      // found a CFUNCTION, CSUB or DEFINEFONT token
-            if(*p == GetCommandValue("DefineFont")) {
-             endtoken = GetCommandValue("End DefineFont");
+        if(*p == cmdCSUB || *p == GetCommandValue((unsigned char *)"DefineFont")) {      // found a CFUNCTION, CSUB or DEFINEFONT token
+            if(*p == GetCommandValue((unsigned char *)"DefineFont")) {
+             endtoken = GetCommandValue((unsigned char *)"End DefineFont");
              p++;                                                // step over the token
              skipspace(p);
              if(*p == '#') p++;
@@ -2179,7 +2189,7 @@ void MIPS16 SaveProgramToFlash(unsigned char *pm, int msg) {
              skipelement(p);                                     // go to the end of the command
              p--;
             } else {
-                endtoken = GetCommandValue("End CSub");
+                endtoken = GetCommandValue((unsigned char *)"End CSub");
                 realflashpointer+=4;
                 fontnbr = 0;
                 firsthex=0;
@@ -2252,7 +2262,7 @@ void MIPS16 SaveProgramToFlash(unsigned char *pm, int msg) {
      }
     realflashpointer = realflashsave ;
     updatecount=0;
-    p = (char *)flash_progmemory;                                              // start scanning program memory
+    p = (unsigned char *)flash_progmemory;                                              // start scanning program memory
      while(*p != 0xff) {
      	nbr++;
          if(*p == 0) p++;                                            // if it is at the end of an element skip the zero marker
@@ -2268,9 +2278,9 @@ void MIPS16 SaveProgramToFlash(unsigned char *pm, int msg) {
              p += p[1] + 2;                                          // skip over the label
              skipspace(p);                                           // and any following spaces
          }
-         if(*p == cmdCSUB || *p == GetCommandValue("DefineFont")) {      // found a CFUNCTION, CSUB or DEFINEFONT token
-         if(*p == GetCommandValue("DefineFont")) {      // found a CFUNCTION, CSUB or DEFINEFONT token
-             endtoken = GetCommandValue("End DefineFont");
+         if(*p == cmdCSUB || *p == GetCommandValue((unsigned char *)"DefineFont")) {      // found a CFUNCTION, CSUB or DEFINEFONT token
+         if(*p == GetCommandValue((unsigned char *)"DefineFont")) {      // found a CFUNCTION, CSUB or DEFINEFONT token
+             endtoken = GetCommandValue((unsigned char *)"End DefineFont");
              p++;                                                // step over the token
              skipspace(p);
              if(*p == '#') p++;
@@ -2292,7 +2302,7 @@ void MIPS16 SaveProgramToFlash(unsigned char *pm, int msg) {
              skipelement(p);                                     // go to the end of the command
              p--;
          } else {
-             endtoken = GetCommandValue("End CSub");
+             endtoken = GetCommandValue((unsigned char *)"End CSub");
              FlashWriteWord((unsigned int)(p-flash_progmemory));               // if a CFunction/CSub save a relative pointer to the declaration
              fontnbr = 0;
          }
@@ -2360,8 +2370,8 @@ void MIPS16 SaveProgramToFlash(unsigned char *pm, int msg) {
     if(msg) {                                                       // if requested by the caller, print an informative message
         if(MMCharPos > 1) MMPrintString("\r\n");                    // message should be on a new line
         MMPrintString("Saved ");
-        IntToStr(tknbuf, nbr + 3, 10);
-        MMPrintString(tknbuf);
+        IntToStr((char *)tknbuf, nbr + 3, 10);
+        MMPrintString((char *)tknbuf);
         MMPrintString(" bytes\r\n");
     }
     memcpy(tknbuf, buf, STRINGSIZE);                                // restore the token buffer in case there are other commands in it
@@ -2375,7 +2385,7 @@ void MIPS16 SaveProgramToFlash(unsigned char *pm, int msg) {
         FlashWriteClose();
         error("Not enough memory");
 }
-
+ 
 
 #ifdef __cplusplus
 }

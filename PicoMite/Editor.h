@@ -46,7 +46,7 @@ void cmd_edit(void);
 #ifdef INCLUDE_COMMAND_TABLE
 
 #if !defined(LITE)
-  { "Edit",   T_CMD,              0, cmd_edit     },
+  { (unsigned char *)"Edit",   T_CMD,              0, cmd_edit     },
 #endif
 
 #endif

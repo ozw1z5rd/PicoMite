@@ -44,9 +44,9 @@ Pradeep Budagutta    03-Mar-2008    First release
 
 
 #define  IMG_FILE   fnbr
-int IMG_FREAD(int fnbr, void *buff, int count, int *read){
+int IMG_FREAD(int fnbr, void *buff, int count, unsigned int *read){
         if(filesource[IMG_FILE]==FATFSFILE){
-                return f_read(FileTable[IMG_FILE].fptr, buff, count, read);
+                return f_read(FileTable[IMG_FILE].fptr, buff, count, (UINT *)read);
         } else {
                 int n=lfs_file_read(&lfs, FileTable[IMG_FILE].lfsptr, buff, count);
                 if(n>=0)return 0;
@@ -401,13 +401,12 @@ BYTE BMP_bDecode(int x, int y, int fnbr)
         }
         else if(BmpDec.wPaletteEntries != 0 && BmpDec.bBitsPerPixel == 4 && BmpDec.blCompressionType==2) /* 16 colors Image */
         {
-                BYTE bIndex, bValue;
-                int c,j,i;
+                BYTE bIndex;
+                int c;
                 unsigned char b[2];
                 for(wY = 0; wY < BmpDec.lHeight; wY++)
                 {
                         IMG_vCheckAndAbort();
-                        i=0;
                         wX=0;
                         do {
                                 FSerror = IMG_FREAD(IMG_FILE, b, 2, &nbr);  
@@ -446,7 +445,7 @@ BYTE BMP_bDecode(int x, int y, int fnbr)
                          }
                 }
         }
-        FreeMemory(linebuff);
+        FreeMemory((void *)linebuff);
         return 0;
 }
 /*******************************************************************************
@@ -516,7 +515,7 @@ BYTE BMP_bDecode_memory(int x, int y, int xlen, int ylen, int fnbr, char *p)
                 }
         }
         else error("Only 24-bit colour images supported");
-        FreeMemory(linebuff);
+        FreeMemory((void *)linebuff);
         return 0;
 }
 

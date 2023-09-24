@@ -68,7 +68,7 @@ struct option_s {
     unsigned int HEAP_SIZE;
     char Height;
     char Width;
-    char DISPLAY_TYPE;
+    unsigned char DISPLAY_TYPE;
     char DISPLAY_ORIENTATION; //12=20
 //
     int  PIN;

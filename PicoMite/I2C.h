@@ -47,9 +47,9 @@ void fun_mmi2c(void);
 **********************************************************************************/
 #ifdef INCLUDE_COMMAND_TABLE
 
-	{ "I2C",	T_CMD,		0, cmd_i2c              },
-	{ "I2C2",	T_CMD,		0, cmd_i2c2              },
-  	{ "RTC",    T_CMD,      0, cmd_rtc              },
+	{ (unsigned char *)"I2C",	T_CMD,		0, cmd_i2c              },
+	{ (unsigned char *)"I2C2",	T_CMD,		0, cmd_i2c2              },
+  	{ (unsigned char *)"RTC",    T_CMD,      0, cmd_rtc              },
 #endif
 
 
@@ -58,7 +58,7 @@ void fun_mmi2c(void);
 **********************************************************************************/
 #ifdef INCLUDE_TOKEN_TABLE
 
-	{ "MM.I2C",	T_FNA | T_INT,	0, fun_mmi2c		},
+	{ (unsigned char *)"MM.I2C",	T_FNA | T_INT,	0, fun_mmi2c		},
 #endif
 
 

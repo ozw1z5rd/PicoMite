@@ -463,13 +463,13 @@ void cmd_math(void){
 	skipspace(cmdline);
 	if(toupper(*cmdline)=='S'){
 
-		tp = checkstring(cmdline, "SET");
+		tp = checkstring(cmdline, (unsigned char *)"SET");
 		if(tp) {
 			void *ptr1 = NULL;
 			int i,j,card1=1;
 			MMFLOAT *a1float=NULL;
 			int64_t *a1int=NULL;
-			getargs(&tp, 3,",");
+			getargs(&tp, 3,(unsigned char *)",");
 			if(!(argc == 3)) error("Argument count");
 		    evaluate(argv[0], &f, &i64, &s, &t, false);
 		    if(t & T_STR) error("Syntax");
@@ -499,14 +499,14 @@ void cmd_math(void){
 			return;
 		}
 
-		tp = checkstring(cmdline, "SCALE");
+		tp = checkstring(cmdline, (unsigned char *)"SCALE");
 		if(tp) {
 			void *ptr1 = NULL;
 			void *ptr2 = NULL;
 			int i,j,card1=1, card2=1;
 			MMFLOAT *a1float=NULL,*a2float=NULL, scale;
 			int64_t *a1int=NULL, *a2int=NULL;
-			getargs(&tp, 5,",");
+			getargs(&tp, 5,(unsigned char *)",");
 			if(!(argc == 5)) error("Argument count");
 			ptr1 = findvar(argv[0], V_FIND | V_EMPTY_OK | V_NOFIND_ERR);
 			if(vartbl[VarIndex].type & T_NBR) {
@@ -571,13 +571,14 @@ void cmd_math(void){
 			}
 			return;
 		}
-		tp = checkstring(cmdline, "SLICE");
+
+		tp = checkstring(cmdline, (unsigned char *)"SLICE");
 		if(tp) {
 			int i, j, start, increment, dim[MAXDIM], pos[MAXDIM],off[MAXDIM], dimcount=0, target=-1, toarray=0;
 			int64_t *a1int=NULL,*a2int=NULL;
 			void *ptr1 = NULL;
 			void *ptr2 = NULL;
-			getargs(&tp, 13,",");
+			getargs(&tp, 13,(unsigned char *)",");
 			if(argc<7)error("Argument count");
 			ptr1 = findvar(argv[0], V_FIND | V_EMPTY_OK | V_NOFIND_ERR);
 			if(vartbl[VarIndex].type & (T_NBR | T_INT)) {
@@ -632,20 +633,20 @@ void cmd_math(void){
 			for(i=0;i<=dim[target];i++)*a2int++ = a1int[start+i*increment];
 			return;
 		}
-		tp = checkstring(cmdline, "SENSORFUSION");
+		tp = checkstring(cmdline, (unsigned char *)"SENSORFUSION");
 		if(tp) {
-			cmd_SensorFusion(tp);
+			cmd_SensorFusion((char *)tp);
 			return;
 		}
 	} else if(toupper(*cmdline)=='V') {
-		tp = checkstring(cmdline, "V_MULT");
+		tp = checkstring(cmdline, (unsigned char *)"V_MULT");
 		if(tp) {
 			void *ptr1 = NULL;
 			void *ptr2 = NULL;
 			void *ptr3 = NULL;
 			int i,j, numcols=0, numrows=0;
 			MMFLOAT *a1float=NULL,*a2float=NULL,*a2sfloat=NULL,*a3float=NULL;
-			getargs(&tp, 5,",");
+			getargs(&tp, 5,(unsigned char *)",");
 			if(!(argc == 5)) error("Argument count");
 			ptr1 = findvar(argv[0], V_FIND | V_EMPTY_OK | V_NOFIND_ERR);
 			if(vartbl[VarIndex].type & T_NBR) {
@@ -695,13 +696,13 @@ void cmd_math(void){
 			return;
 		}
 
-		tp = checkstring(cmdline, "V_NORMALISE");
+		tp = checkstring(cmdline, (unsigned char *)"V_NORMALISE");
 		if(tp) {
 			void *ptr1 = NULL;
 			void *ptr2 = NULL;
 			int j, numrows=0;
 			MMFLOAT *a1float=NULL,*a1sfloat=NULL,*a2float=NULL,mag=0.0;
-			getargs(&tp, 3,",");
+			getargs(&tp, 3,(unsigned char *)",");
 			if(!(argc == 3)) error("Argument count");
 			ptr1 = findvar(argv[0], V_FIND | V_EMPTY_OK | V_NOFIND_ERR);
 			if(vartbl[VarIndex].type & T_NBR) {
@@ -735,7 +736,7 @@ void cmd_math(void){
 			return;
 		}
 
-		tp = checkstring(cmdline, "V_CROSS");
+		tp = checkstring(cmdline, (unsigned char *)"V_CROSS");
 		if(tp) {
 			void *ptr1 = NULL;
 			void *ptr2 = NULL;
@@ -743,7 +744,7 @@ void cmd_math(void){
 			int j, numcols=0;
 			MMFLOAT *a1float=NULL,*a2float=NULL,*a3float=NULL;
 			MMFLOAT a[3],b[3];
-			getargs(&tp, 5,",");
+			getargs(&tp, 5,(unsigned char *)",");
 			if(!(argc == 5)) error("Argument count");
 			ptr1 = findvar(argv[0], V_FIND | V_EMPTY_OK | V_NOFIND_ERR);
 			if(vartbl[VarIndex].type & T_NBR) {
@@ -786,13 +787,13 @@ void cmd_math(void){
 		*a3float = a[0]*b[1] - a[1]*b[0];
 		return;
 		}
-		tp = checkstring(cmdline, "V_PRINT");
+		tp = checkstring(cmdline, (unsigned char *)"V_PRINT");
 		if(tp) {
 			void *ptr1 = NULL;
 			int j, numcols=0;
 			MMFLOAT *a1float=NULL;
 			int64_t *a1int=NULL;
-			getargs(&tp, 1,",");
+			getargs(&tp, 1,(unsigned char *)",");
 			if(!(argc == 1)) error("Argument count");
 			ptr1 = findvar(argv[0], V_FIND | V_EMPTY_OK | V_NOFIND_ERR);
 			if(vartbl[VarIndex].type & T_NBR) {
@@ -825,13 +826,13 @@ void cmd_math(void){
 			return;
 		}
 	} else if(toupper(*cmdline)=='M') {
-		tp = checkstring(cmdline, "M_INVERSE");
+		tp = checkstring(cmdline, (unsigned char *)"M_INVERSE");
 		if(tp){
 			void *ptr1 = NULL;
 			void *ptr2 = NULL;
 			int i, j, n, numcols=0, numrows=0;
 			MMFLOAT *a1float=NULL, *a2float=NULL,det;
-			getargs(&tp, 3,",");
+			getargs(&tp, 3,(unsigned char *)",");
 			if(!(argc == 3)) error("Argument count");
 			ptr1 = findvar(argv[0], V_FIND | V_EMPTY_OK | V_NOFIND_ERR);
 			if(vartbl[VarIndex].type & T_NBR) {
@@ -887,13 +888,13 @@ void cmd_math(void){
 
 			return;
 		}
-		tp = checkstring(cmdline, "M_TRANSPOSE");
+		tp = checkstring(cmdline, (unsigned char *)"M_TRANSPOSE");
 		if(tp) {
 			void *ptr1 = NULL;
 			void *ptr2 = NULL;
 			int i,j, numcols1=0, numrows1=0, numcols2=0, numrows2=0;
 			MMFLOAT *a1float=NULL,*a2float=NULL;
-			getargs(&tp, 3,",");
+			getargs(&tp, 3,(unsigned char *)",");
 			if(!(argc == 3)) error("Argument count");
 			ptr1 = findvar(argv[0], V_FIND | V_EMPTY_OK | V_NOFIND_ERR);
 			if(vartbl[VarIndex].type & T_NBR) {
@@ -949,14 +950,14 @@ void cmd_math(void){
 			return;
 		}
 
-		tp = checkstring(cmdline, "M_MULT");
+		tp = checkstring(cmdline, (unsigned char *)"M_MULT");
 		if(tp) {
 			void *ptr1 = NULL;
 			void *ptr2 = NULL;
 			void *ptr3 = NULL;
 			int i,j, k, numcols1=0, numrows1=0, numcols2=0, numrows2=0, numcols3=0, numrows3=0;
 			MMFLOAT *a1float=NULL,*a2float=NULL,*a3float=NULL;
-			getargs(&tp, 5,",");
+			getargs(&tp, 5,(unsigned char *)",");
 			if(!(argc == 5)) error("Argument count");
 			ptr1 = findvar(argv[0], V_FIND | V_EMPTY_OK | V_NOFIND_ERR);
 			if(vartbl[VarIndex].type & T_NBR) {
@@ -1036,14 +1037,14 @@ void cmd_math(void){
 			dealloc2df(matrix3,numcols3,numrows3);
 			return;
 		}
-		tp = checkstring(cmdline, "M_PRINT");
+		tp = checkstring(cmdline, (unsigned char *)"M_PRINT");
 		if(tp) {
 			void *ptr1 = NULL;
 			int i,j, numcols=0, numrows=0;
 			MMFLOAT *a1float=NULL;
 			int64_t *a1int=NULL;
 			// need three arrays with same cardinality, second array must be 2 dimensional
-			getargs(&tp, 1,",");
+			getargs(&tp, 1,(unsigned char *)",");
 			if(!(argc == 1)) error("Argument count");
 			ptr1 = findvar(argv[0], V_FIND | V_EMPTY_OK | V_NOFIND_ERR);
 			if(vartbl[VarIndex].type & T_NBR) {
@@ -1107,13 +1108,13 @@ void cmd_math(void){
 		}
 	} else if(toupper(*cmdline)=='Q') {
 
-		tp = checkstring(cmdline, "Q_INVERT");
+		tp = checkstring(cmdline, (unsigned char *)"Q_INVERT");
 		if(tp) {
 			void *ptr1 = NULL;
 			void *ptr2 = NULL;
 			int numcols=0;
 			MMFLOAT *q=NULL,*n=NULL;
-			getargs(&tp, 3,",");
+			getargs(&tp, 3,(unsigned char *)",");
 			if(!(argc == 3)) error("Argument count");
 			ptr1 = findvar(argv[0], V_FIND | V_EMPTY_OK | V_NOFIND_ERR);
 			if(vartbl[VarIndex].type & T_NBR) {
@@ -1140,13 +1141,13 @@ void cmd_math(void){
 			return;
 		}
 
-		tp = checkstring(cmdline, "Q_VECTOR");
+		tp = checkstring(cmdline, (unsigned char *)"Q_VECTOR");
 		if(tp) {
 			void *ptr1 = NULL;
 			int numcols=0;
 			MMFLOAT *q=NULL;
 			MMFLOAT mag=0.0;
-			getargs(&tp, 7,",");
+			getargs(&tp, 7,(unsigned char *)",");
 			if(!(argc == 7)) error("Argument count");
 			MMFLOAT x=getnumber(argv[0]);
 			MMFLOAT y=getnumber(argv[2]);
@@ -1171,12 +1172,12 @@ void cmd_math(void){
 			return;
 		}
 
-		tp = checkstring(cmdline, "Q_EULER");
+		tp = checkstring(cmdline, (unsigned char *)"Q_EULER");
 		if(tp) {
 			void *ptr1 = NULL;
 			int numcols=0;
 			MMFLOAT *q=NULL;
-			getargs(&tp, 7,",");
+			getargs(&tp, 7,(unsigned char *)",");
 			if(!(argc == 7)) error("Argument count");
 			MMFLOAT yaw=-getnumber(argv[0])/optionangle;
 			MMFLOAT pitch=getnumber(argv[2])/optionangle;
@@ -1206,13 +1207,13 @@ void cmd_math(void){
 			return;
 		}
 
-		tp = checkstring(cmdline, "Q_CREATE");
+		tp = checkstring(cmdline, (unsigned char *)"Q_CREATE");
 		if(tp) {
 			void *ptr1 = NULL;
 			int numcols=0;
 			MMFLOAT *q=NULL;
 			MMFLOAT mag=0.0;
-			getargs(&tp, 9,",");
+			getargs(&tp, 9,(unsigned char *)",");
 			if(!(argc == 9)) error("Argument count");
 			MMFLOAT theta=getnumber(argv[0]);
 			MMFLOAT x=getnumber(argv[2]);
@@ -1243,14 +1244,14 @@ void cmd_math(void){
 			return;
 		}
 
-		tp = checkstring(cmdline, "Q_MULT");
+		tp = checkstring(cmdline, (unsigned char *)"Q_MULT");
 		if(tp) {
 			void *ptr1 = NULL;
 			void *ptr2 = NULL;
 			void *ptr3 = NULL;
 			int numcols=0;
 			MMFLOAT *q1=NULL,*q2=NULL,*n=NULL;
-			getargs(&tp, 5,",");
+			getargs(&tp, 5,(unsigned char *)",");
 			if(!(argc == 5)) error("Argument count");
 			ptr1 = findvar(argv[0], V_FIND | V_EMPTY_OK | V_NOFIND_ERR);
 			if(vartbl[VarIndex].type & T_NBR) {
@@ -1288,7 +1289,7 @@ void cmd_math(void){
 			return;
 		}
 
-		tp = checkstring(cmdline, "Q_ROTATE");
+		tp = checkstring(cmdline, (unsigned char *)"Q_ROTATE");
 		if(tp) {
 			void *ptr1 = NULL;
 			void *ptr2 = NULL;
@@ -1296,7 +1297,7 @@ void cmd_math(void){
 			int numcols=0;
 			MMFLOAT *q1=NULL,*v1=NULL,*n=NULL;
 			MMFLOAT temp[5], qtemp[5];
-			getargs(&tp, 5,",");
+			getargs(&tp, 5,(unsigned char *)",");
 			if(!(argc == 5)) error("Argument count");
 			ptr1 = findvar(argv[0], V_FIND | V_EMPTY_OK | V_NOFIND_ERR);
 			if(vartbl[VarIndex].type & T_NBR) {
@@ -1338,14 +1339,14 @@ void cmd_math(void){
 			return;
 		}
 	} else {
-		tp = checkstring(cmdline, "ADD");
+		tp = checkstring(cmdline, (unsigned char *)"ADD");
 		if(tp) {
 			void *ptr1 = NULL;
 			void *ptr2 = NULL;
 			int i,j,card1=1, card2=1;
 			MMFLOAT *a1float=NULL,*a2float=NULL, scale;
 			int64_t *a1int=NULL, *a2int=NULL;
-			getargs(&tp, 5,",");
+			getargs(&tp, 5,(unsigned char *)",");
 			if(!(argc == 5)) error("Argument count");
 			ptr1 = findvar(argv[0], V_FIND | V_EMPTY_OK | V_NOFIND_ERR);
 			if(vartbl[VarIndex].type & T_NBR) {
@@ -1411,14 +1412,14 @@ void cmd_math(void){
 			return;
 		}
 
-		tp = checkstring(cmdline, "WINDOW");
+		tp = checkstring(cmdline, (unsigned char *)"WINDOW");
 		if(tp) {
 			void *ptr1 = NULL;
 			void *ptr2 = NULL;
 			int i,j,card1=1, card2=1;
 			MMFLOAT *a1float=NULL,*a2float=NULL, outmin,outmax, inmin=1.5e+308 , inmax=-1.5e308;
 			int64_t *a1int=NULL, *a2int=NULL;
-			getargs(&tp, 11,",");
+			getargs(&tp, 11,(unsigned char *)",");
 			if(!(argc == 7 || argc==11)) error("Argument count");
 			ptr1 = findvar(argv[0], V_FIND | V_EMPTY_OK | V_NOFIND_ERR);
 			if(vartbl[VarIndex].type & T_NBR) {
@@ -1470,11 +1471,11 @@ void cmd_math(void){
 			}
 			if(argc==11){
 				ptr1 = findvar(argv[8], V_FIND);
-				if(!(vartbl[VarIndex].type & T_NBR | T_INT)) error("Invalid variable");
+				if(!(vartbl[VarIndex].type & (T_NBR | T_INT))) error("Invalid variable");
 				if(vartbl[VarIndex].type==T_INT)*(long long int *)ptr1=(long long int)inmin;
 				else *(MMFLOAT *)ptr1=inmin;
 				ptr2 = findvar(argv[10], V_FIND);
-				if(!(vartbl[VarIndex].type & T_NBR | T_INT)) error("Invalid variable");
+				if(!(vartbl[VarIndex].type & (T_NBR | T_INT))) error("Invalid variable");
 				if(vartbl[VarIndex].type==T_INT)*(long long int *)ptr2=(long long int)inmax;
 				else *(MMFLOAT *)ptr2=inmax;
 			}
@@ -1491,10 +1492,10 @@ void cmd_math(void){
 		}
 
 
-		tp = checkstring(cmdline, "RANDOMIZE");
+		tp = checkstring(cmdline, (unsigned char *)"RANDOMIZE");
 		if(tp) {
 			int i;
-			getargs(&tp,1,",");
+			getargs(&tp,1,(unsigned char *)",");
 			if(argc==1)i = getinteger(argv[0]);
 			else i=time_us_32();
 			if(i < 0) error("Number out of bounds");
@@ -1502,7 +1503,7 @@ void cmd_math(void){
 			seedRand(i);
 			return;
 		}
-		tp = checkstring(cmdline, "INTERPOLATE");
+		tp = checkstring(cmdline, (unsigned char *)"INTERPOLATE");
 		if(tp) {
 			void *ptr1 = NULL;
 			void *ptr2 = NULL;
@@ -1510,7 +1511,7 @@ void cmd_math(void){
 			int i,j,card1=1, card2=1, card3=1;
 			MMFLOAT *a1float=NULL,*a2float=NULL, *a3float=NULL, scale, tmp1, tmp2, tmp3;
 			int64_t *a1int=NULL, *a2int=NULL, *a3int=NULL;
-			getargs(&tp, 7,",");
+			getargs(&tp, 7,(unsigned char *)",");
 			if(!(argc == 7)) error("Argument count");
 			ptr1 = findvar(argv[0], V_FIND | V_EMPTY_OK | V_NOFIND_ERR);
 			if(vartbl[VarIndex].type & T_NBR) {
@@ -1592,13 +1593,13 @@ void cmd_math(void){
 			}
 			return;
 		}
-		tp = checkstring(cmdline, "INSERT");
+		tp = checkstring(cmdline, (unsigned char *)"INSERT");
 		if(tp) {
 			int i, j, start, increment, dim[MAXDIM], pos[MAXDIM],off[MAXDIM], dimcount=0, target=-1, toarray=0;
 			int64_t *a1int=NULL,*a2int=NULL;
 			void *ptr1 = NULL;
 			void *ptr2 = NULL;
-			getargs(&tp, 13,",");
+			getargs(&tp, 13,(unsigned char *)",");
 			if(argc<7)error("Argument count");
 			ptr1 = findvar(argv[0], V_FIND | V_EMPTY_OK | V_NOFIND_ERR);
 			if(vartbl[VarIndex].type & (T_NBR | T_INT)) {
@@ -1653,7 +1654,7 @@ void cmd_math(void){
 			for(i=0;i<=dim[target];i++) a1int[start+i*increment]=*a2int++;
 			return;
 		}
-		tp = checkstring(cmdline, "FFT");
+		tp = checkstring(cmdline, (unsigned char *)"FFT");
 		if(tp) {
 			cmd_FFT(tp);
 			return;
@@ -1667,10 +1668,10 @@ void fun_math(void){
 	unsigned char *tp, *tp1;
 	skipspace(ep);
 	if(toupper(*ep)=='A'){
-		tp = checkstring(ep, "ATAN3");
+		tp = checkstring(ep, (unsigned char *)"ATAN3");
 		if(tp) {
 			MMFLOAT y,x,z;
-			getargs(&tp, 3,",");
+			getargs(&tp, 3,(unsigned char *)",");
 			if(argc != 3)error("Syntax");
 			y=getnumber(argv[0]);
 			x=getnumber(argv[2]);
@@ -1682,20 +1683,20 @@ void fun_math(void){
 		}
 	} else if(toupper(*ep)=='C') {
 
-		tp = checkstring(ep, "CRC8");
+		tp = checkstring(ep, (unsigned char *)"CRC8");
 		if(tp) {
 		    void *ptr1 = NULL;
-		    int i,j;
+		    int i;
 		    MMFLOAT *a1float=NULL;
 		    int64_t *a1int=NULL;
-			getargs(&tp,13,",");
+			getargs(&tp,13,(unsigned char *)",");
 			if(argc<1)error("Syntax");
 			uint8_t polynome=CRC8_DEFAULT_POLYNOME;
 			uint8_t startmask=0;
 			uint8_t endmask=0;
 			uint8_t reverseIn=false;
 			uint8_t reverseOut=false;
-			unsigned char *a1str;
+			unsigned char *a1str=NULL;
 			int arraylength=0;
 			int length=0;
 			if(argc>1 && *argv[2])length=getint(argv[2],1,65535);
@@ -1744,20 +1745,20 @@ void fun_math(void){
 			targ=T_INT;
 			return;
 		}
-		tp = checkstring(ep, "CRC12");
+		tp = checkstring(ep, (unsigned char *)"CRC12");
 		if(tp) {
 		    void *ptr1 = NULL;
-		    int i,j;
+		    int i;
 		    MMFLOAT *a1float=NULL;
 		    int64_t *a1int=NULL;
-			getargs(&tp,13,",");
+			getargs(&tp,13,(unsigned char *)",");
 			if(argc<1)error("Syntax");
 			uint16_t polynome=CRC12_DEFAULT_POLYNOME;
 			uint16_t startmask=0;
 			uint16_t endmask=0;
 			uint8_t reverseIn=false;
 			uint8_t reverseOut=false;
-			unsigned char *a1str;
+			unsigned char *a1str=NULL;
 			int arraylength=0;
 			int length=0;
 			if(argc>1 && *argv[2])length=getint(argv[2],1,65535);
@@ -1806,20 +1807,20 @@ void fun_math(void){
 			targ=T_INT;
 			return;
 		}
-		tp = checkstring(ep, "CRC16");
+		tp = checkstring(ep, (unsigned char *)"CRC16");
 		if(tp) {
 		    void *ptr1 = NULL;
-		    int i,j;
+		    int i;
 		    MMFLOAT *a1float=NULL;
 		    int64_t *a1int=NULL;
-			getargs(&tp,13,",");
+			getargs(&tp,13,(unsigned char *)",");
 			if(argc<1)error("Syntax");
 			uint16_t polynome=CRC16_DEFAULT_POLYNOME;
 			uint16_t startmask=0;
 			uint16_t endmask=0;
 			uint8_t reverseIn=false;
 			uint8_t reverseOut=false;
-			unsigned char *a1str;
+			unsigned char *a1str=NULL;
 			int arraylength=0;
 			int length=0;
 			if(argc>1 && *argv[2])length=getint(argv[2],1,65535);
@@ -1868,20 +1869,20 @@ void fun_math(void){
 			targ=T_INT;
 			return;
 		}
-		tp = checkstring(ep, "CRC32");
+		tp = checkstring(ep, (unsigned char *)"CRC32");
 		if(tp) {
 		    void *ptr1 = NULL;
-		    int i,j;
+		    int i;
 		    MMFLOAT *a1float=NULL;
 		    int64_t *a1int=NULL;
-			getargs(&tp,13,",");
+			getargs(&tp,13,(unsigned char *)",");
 			if(argc<1)error("Syntax");
 			uint32_t polynome=CRC32_DEFAULT_POLYNOME;
 			uint32_t startmask=0;
 			uint32_t endmask=0;
 			uint8_t reverseIn=false;
 			uint8_t reverseOut=false;
-			unsigned char *a1str;
+			unsigned char *a1str=NULL;
 			int arraylength=0;
 			int length=0;
 			if(argc>1 && *argv[2])length=getint(argv[2],1,65535);
@@ -1930,15 +1931,15 @@ void fun_math(void){
 			targ=T_INT;
 			return;
 		}
-		tp = checkstring(ep, "COSH");
+		tp = checkstring(ep, (unsigned char *)"COSH");
 		if(tp) {
-			getargs(&tp, 1,",");
+			getargs(&tp, 1,(unsigned char *)",");
 			if(!(argc == 1)) error("Argument count");
 			fret=cosh(getnumber(argv[0]));
 			targ=T_NBR;
 			return;
 		}
-		tp = checkstring(ep, "CORREL");
+		tp = checkstring(ep, (unsigned char *)"CORREL");
 		if(tp) {
 		    void *ptr1 = NULL;
 		    void *ptr2 = NULL;
@@ -1947,7 +1948,7 @@ void fun_math(void){
 		    MMFLOAT *a3float=NULL, *a4float=NULL;
 		    MMFLOAT axb=0, a2=0, b2=0;
 		    int64_t *a1int=NULL, *a2int=NULL;
-		    getargs(&tp, 3,",");
+		    getargs(&tp, 3,(unsigned char *)",");
 		    if(!(argc == 3)) error("Argument count");
 		    ptr1 = findvar(argv[0], V_FIND | V_EMPTY_OK | V_NOFIND_ERR);
 			if(vartbl[VarIndex].type & T_NBR) {
@@ -2015,8 +2016,8 @@ void fun_math(void){
 			fret=axb/sqrt(a2*b2);
 			return;
 		}
-	tp = (checkstring(ep, "CHI_P"));
-	tp1 = (checkstring(ep, "CHI"));
+	tp = (checkstring(ep, (unsigned char *)"CHI_P"));
+	tp1 = (checkstring(ep, (unsigned char *)"CHI"));
 	if(tp || tp1) {
 			void *ptr1 = NULL;
 			int chi_p=1;
@@ -2029,7 +2030,7 @@ void fun_math(void){
 			MMFLOAT total=0.0;
 			int64_t *a1int=NULL;
 			{
-				getargs(&tp, 1,",");
+				getargs(&tp, 1,(unsigned char *)",");
 				if(!(argc == 1)) error("Argument count");
 				ptr1 = findvar(argv[0], V_FIND | V_EMPTY_OK | V_NOFIND_ERR);
 				if(vartbl[VarIndex].type & T_NBR) {
@@ -2117,14 +2118,14 @@ void fun_math(void){
 
 	} else if(toupper(*ep)=='D') {
 
-		tp = checkstring(ep, "DOTPRODUCT");
+		tp = checkstring(ep, (unsigned char *)"DOTPRODUCT");
 		if(tp) {
 			int i;
 			void *ptr1 = NULL,*ptr2 = NULL;
 			int numcols=0;
 			MMFLOAT *a1float=NULL, *a2float=NULL;
 			// need two arrays with same cardinality
-			getargs(&tp, 3,",");
+			getargs(&tp, 3,(unsigned char *)",");
 			if(!(argc == 3)) error("Argument count");
 			ptr1 = findvar(argv[0], V_FIND | V_EMPTY_OK | V_NOFIND_ERR);
 			if(vartbl[VarIndex].type & T_NBR) {
@@ -2155,9 +2156,9 @@ void fun_math(void){
 			return;
 		}
 	} else if(toupper(*ep)=='L') {
-		tp = checkstring(ep, "LOG10");
+		tp = checkstring(ep, (unsigned char *)"LOG10");
 		if(tp) {
-			getargs(&tp, 1,",");
+			getargs(&tp, 1,(unsigned char *)",");
 			if(!(argc == 1)) error("Argument count");
 			fret=log10(getnumber(argv[0]));
 			targ=T_NBR;
@@ -2165,12 +2166,12 @@ void fun_math(void){
 		}
 
 	} else if(toupper(*ep)=='M') {
-		tp = checkstring(ep, "M_DETERMINANT");
+		tp = checkstring(ep, (unsigned char *)"M_DETERMINANT");
 		if(tp){
 			void *ptr1 = NULL;
 			int i, j, n, numcols=0, numrows=0;
 			MMFLOAT *a1float=NULL;
-			getargs(&tp, 1,",");
+			getargs(&tp, 1,(unsigned char *)",");
 			if(!(argc == 1)) error("Argument count");
 			ptr1 = findvar(argv[0], V_FIND | V_EMPTY_OK | V_NOFIND_ERR);
 			if(vartbl[VarIndex].type & T_NBR) {
@@ -2201,14 +2202,14 @@ void fun_math(void){
 			return;
 		}
 
-		tp = checkstring(ep, "MAX");
+		tp = checkstring(ep, (unsigned char *)"MAX");
 		if(tp) {
 			void *ptr1 = NULL;
 			int i,j,card1=1;
 			MMFLOAT *a1float=NULL, max=-3.0e+38;
 			int64_t *a1int=NULL;
 			long long int *temp=NULL;
-			getargs(&tp, 3,",");
+			getargs(&tp, 3,(unsigned char *)",");
 //			if(!(argc == 1)) error("Argument count");
 			ptr1 = findvar(argv[0], V_FIND | V_EMPTY_OK | V_NOFIND_ERR);
 			if(vartbl[VarIndex].type & T_NBR) {
@@ -2261,14 +2262,14 @@ void fun_math(void){
 			fret=max;
 			return;
 		}
-		tp = checkstring(ep, "MIN");
+		tp = checkstring(ep, (unsigned char *)"MIN");
 		if(tp) {
 			void *ptr1 = NULL;
 			int i,j,card1=1;
 			MMFLOAT *a1float=NULL, min=3.0e+38;
 			int64_t *a1int=NULL;
 			long long int *temp=NULL;
-			getargs(&tp, 3,",");
+			getargs(&tp, 3,(unsigned char *)",");
 //			if(!(argc == 1)) error("Argument count");
 			ptr1 = findvar(argv[0], V_FIND | V_EMPTY_OK | V_NOFIND_ERR);
 			if(vartbl[VarIndex].type & T_NBR) {
@@ -2320,14 +2321,14 @@ void fun_math(void){
 			fret=min;
 			return;
 		}
-		tp = checkstring(ep, "MAGNITUDE");
+		tp = checkstring(ep, (unsigned char *)"MAGNITUDE");
 		if(tp) {
 			int i;
 			void *ptr1 = NULL;
 			int numcols=0;
 			MMFLOAT *a1float=NULL;
 			MMFLOAT mag=0.0;
-			getargs(&tp, 1,",");
+			getargs(&tp, 1,(unsigned char *)",");
 			if(!(argc == 1)) error("Argument count");
 			ptr1 = findvar(argv[0], V_FIND | V_EMPTY_OK | V_NOFIND_ERR);
 			if(vartbl[VarIndex].type & T_NBR) {
@@ -2349,13 +2350,13 @@ void fun_math(void){
 			return;
 		}
 
-		tp = checkstring(ep, "MEAN");
+		tp = checkstring(ep, (unsigned char *)"MEAN");
 		if(tp) {
 			void *ptr1 = NULL;
 			int i,j,card1=1;
 			MMFLOAT *a1float=NULL, mean=0;
 			int64_t *a1int=NULL;
-			getargs(&tp, 1,",");
+			getargs(&tp, 1,(unsigned char *)",");
 			if(!(argc == 1)) error("Argument count");
 			ptr1 = findvar(argv[0], V_FIND | V_EMPTY_OK | V_NOFIND_ERR);
 			if(vartbl[VarIndex].type & T_NBR) {
@@ -2385,13 +2386,13 @@ void fun_math(void){
 			return;
 		}
 
-		tp = checkstring(ep, "MEDIAN");
+		tp = checkstring(ep, (unsigned char *)"MEDIAN");
 		if(tp) {
 			void *ptr2 = NULL;
 			int i,j,card1, card2=1;
 			MMFLOAT *a1float=NULL, *a2float=NULL;
 			int64_t *a2int=NULL;
-			getargs(&tp, 1,",");
+			getargs(&tp, 1,(unsigned char *)",");
 			if(!(argc == 1)) error("Argument count");
 			ptr2 = findvar(argv[0], V_FIND | V_EMPTY_OK | V_NOFIND_ERR);
 			if(vartbl[VarIndex].type & T_NBR) {
@@ -2427,22 +2428,22 @@ void fun_math(void){
 		}
 	} else if(toupper(*ep)=='S') {
 
-		tp = checkstring(ep, "SINH");
+		tp = checkstring(ep, (unsigned char *)"SINH");
 		if(tp) {
-			getargs(&tp, 1,",");
+			getargs(&tp, 1,(unsigned char *)",");
 			if(!(argc == 1)) error("Argument count");
 			fret=sinh(getnumber(argv[0]));
 			targ=T_NBR;
 			return;
 		}
 
-		tp = checkstring(ep, "SD");
+		tp = checkstring(ep, (unsigned char *)"SD");
 		if(tp) {
 			void *ptr1 = NULL;
 			int i,j,card1=1;
 			MMFLOAT *a2float=NULL, *a1float=NULL, mean=0, var=0, deviation;
 			int64_t *a2int=NULL, *a1int=NULL;
-			getargs(&tp, 1,",");
+			getargs(&tp, 1,(unsigned char *)",");
 			if(!(argc == 1)) error("Argument count");
 			ptr1 = findvar(argv[0], V_FIND | V_EMPTY_OK | V_NOFIND_ERR);
 			if(vartbl[VarIndex].type & T_NBR) {
@@ -2484,13 +2485,13 @@ void fun_math(void){
 			return;
 		}
 
-		tp = checkstring(ep, "SUM");
+		tp = checkstring(ep, (unsigned char *)"SUM");
 		if(tp) {
 			void *ptr1 = NULL;
 			int i,j,card1=1;
 			MMFLOAT *a1float=NULL, sum=0;
 			int64_t *a1int=NULL;
-			getargs(&tp, 1,",");
+			getargs(&tp, 1,(unsigned char *)",");
 			if(!(argc == 1)) error("Argument count");
 			ptr1 = findvar(argv[0], V_FIND | V_EMPTY_OK | V_NOFIND_ERR);
 			if(vartbl[VarIndex].type & T_NBR) {
@@ -2521,16 +2522,16 @@ void fun_math(void){
 		}
 	} else if(toupper(*ep)=='T') {
 
-		tp = checkstring(ep, "TANH");
+		tp = checkstring(ep, (unsigned char *)"TANH");
 		if(tp) {
-			getargs(&tp, 1,",");
+			getargs(&tp, 1,(unsigned char *)",");
 			if(!(argc == 1)) error("Argument count");
 			fret=tanh(getnumber(argv[0]));
 			targ=T_NBR;
 			return;
 		}
 	} else if(toupper(*ep)=='R') {
-		tp = checkstring(ep, "RAND");
+		tp = checkstring(ep, (unsigned char *)"RAND");
 		if(tp) {
 			if(g_myrand==NULL){
 				g_myrand=(struct tagMTRand *)GetMemory(sizeof(struct tagMTRand));
@@ -2607,9 +2608,9 @@ void cmd_FFT(unsigned char *pp){
     cplx *a1cplx=NULL, *a2cplx=NULL;
     MMFLOAT *a3float=NULL, *a4float=NULL, *a5float;
     int i, size, powerof2=0;
-	tp = checkstring(pp, "MAGNITUDE");
+	tp = checkstring(pp, (unsigned char *)"MAGNITUDE");
 	if(tp) {
-		getargs(&tp,3,",");
+		getargs(&tp,3,(unsigned char *)",");
 	    ptr1 = findvar(argv[0], V_FIND | V_EMPTY_OK | V_NOFIND_ERR);
 	    if(vartbl[VarIndex].type & T_NBR) {
 	        if(vartbl[VarIndex].dims[1] != 0) error("Invalid variable");
@@ -2642,9 +2643,9 @@ void cmd_FFT(unsigned char *pp){
 	    for(i=0;i<=size;i++)a4float[i]=cabs(a1cplx[i]);
 		return;
 	}
-	tp = checkstring(pp, "PHASE");
+	tp = checkstring(pp, (unsigned char *)"PHASE");
 	if(tp) {
-		getargs(&tp,3,",");
+		getargs(&tp,3,(unsigned char *)",");
 	    ptr1 = findvar(argv[0], V_FIND | V_EMPTY_OK | V_NOFIND_ERR);
 	    if(vartbl[VarIndex].type & T_NBR) {
 	        if(vartbl[VarIndex].dims[1] != 0) error("Invalid variable");
@@ -2677,9 +2678,9 @@ void cmd_FFT(unsigned char *pp){
 	    for(i=0;i<=size;i++)a4float[i]=carg(a1cplx[i]);
 		return;
 	}
-	tp = checkstring(pp, "INVERSE");
+	tp = checkstring(pp, (unsigned char *)"INVERSE");
 	if(tp) {
-		getargs(&tp,3,",");
+		getargs(&tp,3,(unsigned char *)",");
 	    ptr1 = findvar(argv[0], V_FIND | V_EMPTY_OK | V_NOFIND_ERR);
 	    if(vartbl[VarIndex].type & T_NBR) {
 	        if(vartbl[VarIndex].dims[1] <= 0) error("Invalid variable");
@@ -2714,7 +2715,7 @@ void cmd_FFT(unsigned char *pp){
 	    for(i=0;i<=size;i++)a3float[i]=creal(a2cplx[i]);
 	    return;
 	}
-	getargs(&pp,3,",");
+	getargs(&pp,3,(unsigned char *)",");
     ptr1 = findvar(argv[0], V_FIND | V_EMPTY_OK | V_NOFIND_ERR);
     if(vartbl[VarIndex].type & T_NBR) {
         if(vartbl[VarIndex].dims[1] != 0) error("Invalid variable");
@@ -2747,8 +2748,8 @@ void cmd_FFT(unsigned char *pp){
 }
 void cmd_SensorFusion(char *passcmdline){
     unsigned char *p;
-    if((p = checkstring(passcmdline, "MADGWICK")) != NULL) {
-    getargs(&p, 25,",");
+    if((p = checkstring((unsigned char *)passcmdline, (unsigned char *)"MADGWICK")) != NULL) {
+    getargs(&p, 25,(unsigned char *)",");
     if(argc < 23) error("Incorrect number of parameters");
         MMFLOAT t;
         MMFLOAT *pitch, *yaw, *roll;
@@ -2776,8 +2777,8 @@ void cmd_SensorFusion(char *passcmdline){
         MadgwickQuaternionUpdate(ax, ay, az, gx, gy, gz, mx, my, mz, beta, t, pitch, yaw, roll);
         return;
     }
-    if((p = checkstring(passcmdline, "MAHONY")) != NULL) {
-    getargs(&p, 27,",");
+    if((p = checkstring((unsigned char *)passcmdline, (unsigned char *)"MAHONY")) != NULL) {
+    getargs(&p, 27,(unsigned char *)",");
     if(argc < 23) error("Incorrect number of parameters");
         MMFLOAT t;
         MMFLOAT *pitch, *yaw, *roll;

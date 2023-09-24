@@ -72,11 +72,11 @@ static unsigned char I2C_Send_Buffer[256];                                   // 
 unsigned int I2C2_enabled=0;									// I2C enable marker
 unsigned int I2C2_Timeout;									// master timeout value
 volatile unsigned int I2C2_Status;										// status flags
-static char I2C_Rcv_Buffer[256];                                // I2C receive buffer
+//static char I2C_Rcv_Buffer[256];                                // I2C receive buffer
 static unsigned int I2C_Slave_Addr;                                 // slave address
 char *I2C_Slave_Send_IntLine;                                   // pointer to the slave send interrupt line number
 char *I2C_Slave_Receive_IntLine;                                // pointer to the slave receive interrupt line number
-static char I2C2_Rcv_Buffer[256];                                // I2C receive buffer
+//static char I2C2_Rcv_Buffer[256];                                // I2C receive buffer
 char *I2C2_Slave_Send_IntLine;                                   // pointer to the slave send interrupt line number
 char *I2C2_Slave_Receive_IntLine;                                // pointer to the slave receive interrupt line number
 static unsigned int I2C2_Slave_Addr;                                 // slave address
@@ -127,23 +127,23 @@ void I2C_Send_Data(unsigned char* data, int n){
 }
 #ifndef PICOMITEVGA
 void ConfigDisplayI2C(unsigned char *p) {
-	int DISPLAY_TYPE;
-    getargs(&p, 5, ",");
+	unsigned char DISPLAY_TYPE=0;
+    getargs(&p, 5, (unsigned char *)",");
     if(!(argc == 3 || argc == 5)) error("Argument count");
-    if(checkstring(argv[0], "SSD1306I2C")) {
+    if(checkstring(argv[0], (unsigned char *)"SSD1306I2C")) {
         DISPLAY_TYPE = SSD1306I2C;
-    } else if(checkstring(argv[0], "SSD1306I2C32")) {
+    } else if(checkstring(argv[0], (unsigned char *)"SSD1306I2C32")) {
         DISPLAY_TYPE = SSD1306I2C32;
     } else
         error("Invalid display type");
 
-    if(checkstring(argv[2], "L") || checkstring(argv[2], "LANDSCAPE"))
+    if(checkstring(argv[2], (unsigned char *)"L") || checkstring(argv[2], (unsigned char *)"LANDSCAPE"))
         Option.DISPLAY_ORIENTATION = LANDSCAPE;
-    else if(checkstring(argv[2], "P") || checkstring(argv[2], "PORTRAIT"))
+    else if(checkstring(argv[2], (unsigned char *)"P") || checkstring(argv[2], (unsigned char *)"PORTRAIT"))
         Option.DISPLAY_ORIENTATION = PORTRAIT;
-    else if(checkstring(argv[2], "RL") || checkstring(argv[2], "RLANDSCAPE"))
+    else if(checkstring(argv[2], (unsigned char *)"RL") || checkstring(argv[2], (unsigned char *)"RLANDSCAPE"))
         Option.DISPLAY_ORIENTATION = RLANDSCAPE;
-    else if(checkstring(argv[2], "RP") || checkstring(argv[2], "RPORTRAIT"))
+    else if(checkstring(argv[2], (unsigned char *)"RP") || checkstring(argv[2], (unsigned char *)"RPORTRAIT"))
         Option.DISPLAY_ORIENTATION = RPORTRAIT;
     else error("Orientation");
     Option.I2Coffset=0;
@@ -210,23 +210,23 @@ void cmd_i2c(void) {
     unsigned char *p;//, *pp;
 	if(I2C0SDApin==99 || I2C0SCLpin==99)error("Pin not set for I2C");
 
-    if((p = checkstring(cmdline, "OPEN")) != NULL)
+    if((p = checkstring(cmdline, (unsigned char *)"OPEN")) != NULL)
         i2cEnable(p);
-    else if((p = checkstring(cmdline, "CLOSE")) != NULL)
+    else if((p = checkstring(cmdline, (unsigned char *)"CLOSE")) != NULL)
         i2cDisable(p);
-    else if((p = checkstring(cmdline, "WRITE")) != NULL)
+    else if((p = checkstring(cmdline, (unsigned char *)"WRITE")) != NULL)
         i2cSend(p);
-    else if((p = checkstring(cmdline, "READ")) != NULL)
+    else if((p = checkstring(cmdline, (unsigned char *)"READ")) != NULL)
         i2cReceive(p);
-    else if((p = checkstring(cmdline, "CHECK")) != NULL)
+    else if((p = checkstring(cmdline, (unsigned char *)"CHECK")) != NULL)
         i2cCheck(p);
-    else if((p = checkstring(cmdline, "SLAVE OPEN")) != NULL)
+    else if((p = checkstring(cmdline, (unsigned char *)"SLAVE OPEN")) != NULL)
         i2cSlave(p);
-    else if((p = checkstring(cmdline, "SLAVE READ")) != NULL)
+    else if((p = checkstring(cmdline, (unsigned char *)"SLAVE READ")) != NULL)
         i2cReceiveSlave(p,0);
-    else if((p = checkstring(cmdline, "SLAVE WRITE")) != NULL)
+    else if((p = checkstring(cmdline, (unsigned char *)"SLAVE WRITE")) != NULL)
         i2cSendSlave(p,0);
-    else if((p = checkstring(cmdline, "SLAVE CLOSE")) != NULL)
+    else if((p = checkstring(cmdline, (unsigned char *)"SLAVE CLOSE")) != NULL)
         i2cDisable(p);
    else
         error("Unknown command");
@@ -235,23 +235,23 @@ void cmd_i2c2(void) {
     unsigned char *p;//, *pp;
 	if(I2C1SDApin==99 || I2C1SCLpin==99)error("Pin not set for I2C2");
 
-    if((p = checkstring(cmdline, "OPEN")) != NULL)
+    if((p = checkstring(cmdline, (unsigned char *)"OPEN")) != NULL)
         i2c2Enable(p);
-    else if((p = checkstring(cmdline, "CLOSE")) != NULL)
+    else if((p = checkstring(cmdline, (unsigned char *)"CLOSE")) != NULL)
         i2c2Disable(p);
-    else if((p = checkstring(cmdline, "WRITE")) != NULL)
+    else if((p = checkstring(cmdline, (unsigned char *)"WRITE")) != NULL)
         i2c2Send(p);
-    else if((p = checkstring(cmdline, "READ")) != NULL)
+    else if((p = checkstring(cmdline, (unsigned char *)"READ")) != NULL)
         i2c2Receive(p);
-    else if((p = checkstring(cmdline, "CHECK")) != NULL)
+    else if((p = checkstring(cmdline, (unsigned char *)"CHECK")) != NULL)
         i2c2Check(p);
-    else if((p = checkstring(cmdline, "SLAVE OPEN")) != NULL)
+    else if((p = checkstring(cmdline, (unsigned char *)"SLAVE OPEN")) != NULL)
         i2c2Slave(p);
-    else if((p = checkstring(cmdline, "SLAVE READ")) != NULL)
+    else if((p = checkstring(cmdline, (unsigned char *)"SLAVE READ")) != NULL)
         i2cReceiveSlave(p,1);
-    else if((p = checkstring(cmdline, "SLAVE WRITE")) != NULL)
+    else if((p = checkstring(cmdline, (unsigned char *)"SLAVE WRITE")) != NULL)
         i2cSendSlave(p,1);
-    else if((p = checkstring(cmdline, "SLAVE CLOSE")) != NULL)
+    else if((p = checkstring(cmdline, (unsigned char *)"SLAVE CLOSE")) != NULL)
         i2c2Disable(p);
     else
         error("Unknown command");
@@ -282,8 +282,8 @@ void __not_in_flash_func(i2c1_irq_handler)(void) {
     }
 }
 void i2cSlave(unsigned char *p){
-    int options, addr, mask;
-    getargs(&p, 5, ",");
+    int addr;
+    getargs(&p, 5, (unsigned char *)",");
     if(argc != 5) error("Argument count");
     if(I2C_Status & I2C_Status_Slave) error("Slave already open");
     addr = getinteger(argv[0]);
@@ -293,8 +293,8 @@ void i2cSlave(unsigned char *p){
     gpio_pull_up(PinDef[I2C0SCLpin].GPno);
 	i2c_init(i2c0, 400000);
     I2C_Slave_Addr = addr;
-    I2C_Slave_Send_IntLine = GetIntAddress(argv[2]);                // get the interrupt routine's location
-    I2C_Slave_Receive_IntLine = GetIntAddress(argv[4]);             // get the interrupt routine's location
+    I2C_Slave_Send_IntLine = (char *)GetIntAddress(argv[2]);                // get the interrupt routine's location
+    I2C_Slave_Receive_IntLine = (char *)GetIntAddress(argv[4]);             // get the interrupt routine's location
     InterruptUsed = true;
 	i2c_set_slave_mode(i2c0,true, I2C_Slave_Addr);
 	// Enable the I2C interrupts we want to process
@@ -307,8 +307,8 @@ void i2cSlave(unsigned char *p){
 
 }
 void i2c2Slave(unsigned char *p){
-    int options, addr, mask;
-    getargs(&p, 5, ",");
+    int addr;
+    getargs(&p, 5, (unsigned char *)",");
     if(argc != 5) error("Argument count");
     if(I2C2_Status & I2C_Status_Slave) error("Slave already open");
     addr = getinteger(argv[0]);
@@ -318,8 +318,8 @@ void i2c2Slave(unsigned char *p){
     gpio_pull_up(PinDef[I2C1SCLpin].GPno);
 	i2c_init(i2c1, 400000);
     I2C2_Slave_Addr = addr;
-    I2C2_Slave_Send_IntLine = GetIntAddress(argv[2]);                // get the interrupt routine's location
-    I2C2_Slave_Receive_IntLine = GetIntAddress(argv[4]);             // get the interrupt routine's location
+    I2C2_Slave_Send_IntLine = (char *)GetIntAddress(argv[2]);                // get the interrupt routine's location
+    I2C2_Slave_Receive_IntLine = (char *)GetIntAddress(argv[4]);             // get the interrupt routine's location
     InterruptUsed = true;
 	i2c_set_slave_mode(i2c1,true, I2C2_Slave_Addr);
 	// Enable the I2C interrupts we want to process
@@ -345,7 +345,7 @@ int DoRtcI2C(int addr, unsigned char *buff) {
 
 void CheckI2CKeyboard(int noerror, int read){
 	uint16_t buff;
-	int readover=0; 
+//	int readover=0; 
 	static int ctrlheld=0;
 //	while(readover==0){
 		if(I2C0locked){
@@ -444,7 +444,7 @@ void RtcGetTime(int noerror) {
 		I2C_Rcvbuf_Int = NULL;
 		I2C_Rcvlen = 7;                                                 // get 7 bytes
 		I2C_Sendlen = 0;
-		if(!DoRtcI2C(DS1307 ? 0x68 : 0x51, buff)) goto error_exit;
+		if(!DoRtcI2C(DS1307 ? 0x68 : 0x51, (unsigned char *)buff)) goto error_exit;
 	} else {
 		I2C2_Sendlen = 1;                                                // send one byte
 		I2C2_Rcvlen = 0;
@@ -459,7 +459,7 @@ void RtcGetTime(int noerror) {
 		I2C2_Rcvbuf_Int = NULL;
 		I2C2_Rcvlen = 7;                                                 // get 7 bytes
 		I2C2_Sendlen = 0;
-		if(!DoRtcI2C(DS1307 ? 0x68 : 0x51, buff)) goto error_exit;
+		if(!DoRtcI2C(DS1307 ? 0x68 : 0x51, (unsigned char *)buff)) goto error_exit;
 	}
     mT4IntEnable(0);
     second = ((buff[0] & 0x7f) >> 4) * 10 + (buff[0] & 0x0f);
@@ -507,13 +507,13 @@ void cmd_rtc(void) {
     unsigned char *p;
     void *ptr = NULL;
 	if(!(I2C0locked || I2C1locked))error("SYSTEM I2C not configured");
-    if(checkstring(cmdline, "GETTIME")) {
+    if(checkstring(cmdline, (unsigned char *)"GETTIME")) {
         RtcGetTime(0);
         return;
     }
-    if((p = checkstring(cmdline, "SETTIME")) != NULL) {
+    if((p = checkstring(cmdline, (unsigned char *)"SETTIME")) != NULL) {
 		int Fulldate=0;
-        getargs(&p, 11, ",");
+        getargs(&p, 11, (unsigned char *)",");
 		if(I2C0locked){
 			if(argc == 1) {
 				// single argument - assume the data is in DATETIME2 format used by GUI FORMATBOX
@@ -598,8 +598,8 @@ void cmd_rtc(void) {
 			}
 		}
         RtcGetTime(0);
-    } else if((p = checkstring(cmdline, "GETREG")) != NULL) {
-        getargs(&p, 3, ",");
+    } else if((p = checkstring(cmdline, (unsigned char *)"GETREG")) != NULL) {
+        getargs(&p, 3, (unsigned char *)",");
         if(argc != 3) error("Argument count");
 		if(I2C0locked){
 			I2C_Sendlen = 1;                                            // send one byte
@@ -630,13 +630,13 @@ void cmd_rtc(void) {
 			I2C2_Rcvlen = 1;                                             // get 1 byte
 			I2C2_Sendlen = 0;
 		}
-        if(!DoRtcI2C(DS1307 ? 0x68 : 0x51, buff)) error("RTC not responding1");
+        if(!DoRtcI2C(DS1307 ? 0x68 : 0x51, (unsigned char *)buff)) error("RTC not responding1");
         if(vartbl[VarIndex].type & T_NBR)
             *(MMFLOAT *)ptr = buff[0];
         else
             *(long long int *)ptr = buff[0];
-    } else if((p = checkstring(cmdline, "SETREG")) != NULL) {
-        getargs(&p, 3, ",");
+    } else if((p = checkstring(cmdline, (unsigned char *)"SETREG")) != NULL) {
+        getargs(&p, 3, (unsigned char *)",");
         if(argc != 3) error("Argument count");
 		if(I2C0locked){
 			I2C_Rcvlen = 0;
@@ -660,7 +660,7 @@ void cmd_rtc(void) {
 // enable the I2C1 module - master mode
 void i2cEnable(unsigned char *p) {
 	int speed, timeout;
-	getargs(&p, 3, ",");
+	getargs(&p, 3, (unsigned char *)",");
 	if(argc != 3) error("Invalid syntax");
 	speed = getinteger(argv[0]);
 	if(!(speed ==100 || speed == 400)) error("Valid speeds 100, 400");
@@ -674,7 +674,7 @@ void i2cEnable(unsigned char *p) {
 // enable the I2C1 module - master mode
 void i2c2Enable(unsigned char *p) {
 	int speed, timeout;
-	getargs(&p, 3, ",");
+	getargs(&p, 3, (unsigned char *)",");
 	if(argc != 3) error("Invalid syntax");
 	speed = getinteger(argv[0]);
 	if(!(speed ==100 || speed == 400)) error("Valid speeds 100, 400");
@@ -705,7 +705,7 @@ void i2cSend(unsigned char *p) {
 	void *ptr = NULL;
 	unsigned char *cptr = NULL;
 
-	getargs(&p, 99, ",");
+	getargs(&p, 99, (unsigned char *)",");
 	if(!(argc & 0x01) || (argc < 7)) error("Invalid syntax");
 	if(!I2C_enabled)error("I2C not open");
 	addr = getinteger(argv[0]);
@@ -756,10 +756,10 @@ void i2cSend(unsigned char *p) {
 }
 // send data to an I2C slave - master mode
 void i2cSendSlave(unsigned char *p, int channel) {
-	int addr, i2c_options, sendlen, i;
+	int sendlen, i;
 	void *ptr = NULL;
 	unsigned char *cptr = NULL;
-	getargs(&p, 99, ",");
+	getargs(&p, 99, (unsigned char *)",");
 	if(!(argc >=3)) error("Invalid syntax");
 	if(!((I2C_Status & I2C_Status_Slave && channel==0) || (I2C2_Status & I2C_Status_Slave && channel==1)))error("I2C slave not open");
 	unsigned char *bbuff;
@@ -812,7 +812,7 @@ void i2c2Send(unsigned char *p) {
 	void *ptr = NULL;
 	unsigned char *cptr = NULL;
 
-	getargs(&p, 99, ",");
+	getargs(&p, 99, (unsigned char *)",");
 	if(!(argc & 0x01) || (argc < 7)) error("Invalid syntax");
 	if(!I2C2_enabled)error("I2C not open");
 	addr = getinteger(argv[0]);
@@ -865,7 +865,7 @@ void i2c2Send(unsigned char *p) {
 void i2cCheck(unsigned char *p) {
 	int addr;
 	uint8_t rxdata;
-	getargs(&p, 1, ",");
+	getargs(&p, 1, (unsigned char *)",");
 	if(!I2C_enabled)error("I2C not open");
 	addr = getinteger(argv[0]);
     if(addr<0 || addr>0x7F)error("Invalid I2C address");
@@ -875,7 +875,7 @@ void i2cCheck(unsigned char *p) {
 void i2c2Check(unsigned char *p) {
 	int addr;
 	uint8_t rxdata;
-	getargs(&p, 1, ",");
+	getargs(&p, 1, (unsigned char *)",");
 	if(!I2C2_enabled)error("I2C not open");
 	addr = getinteger(argv[0]);
     if(addr<0 || addr>0x7F)error("Invalid I2C address");
@@ -886,7 +886,7 @@ void i2c2Check(unsigned char *p) {
 void i2cReceive(unsigned char *p) {
 	int addr, i2c_options, rcvlen;
 	void *ptr = NULL;
-	getargs(&p, 7, ",");
+	getargs(&p, 7, (unsigned char *)",");
 	if(argc != 7) error("Invalid syntax");
 	if(!I2C_enabled)error("I2C not open");
 	addr = getinteger(argv[0]);
@@ -931,13 +931,13 @@ void i2cReceive(unsigned char *p) {
 	I2C_Sendlen = 0;
 	char *buff=GetTempMemory(STRINGSIZE);
 //	PInt((uint32_t)I2C_Rcvbuf_String);
-	i2c_masterCommand(1, buff);
+	i2c_masterCommand(1, (unsigned char *)buff);
 //	PIntComma(rcvlen);
 //	PInt((uint32_t)I2C_Rcvbuf_String);PRet();
 //	if(vartbl[VarIndex].type & T_STR)*(char *)ptr = rcvlen;
 }
 void i2cReceiveSlave(unsigned char *p, int channel) {
-	int addr, i2c_options, rcvlen;
+	int rcvlen;
 	void *ptr = NULL;
     MMFLOAT *rcvdlenFloat=NULL;
 	long long int *rcvdlenInt=NULL;
@@ -948,7 +948,7 @@ void i2cReceiveSlave(unsigned char *p, int channel) {
     I2C2_Rcvbuf_Float = NULL;
     I2C2_Rcvbuf_Int = NULL;
     I2C2_Rcvbuf_String = NULL;
-	getargs(&p, 5, ",");
+	getargs(&p, 5, (unsigned char *)",");
 	if(argc != 5) error("Invalid syntax");
 	if(!((I2C_Status & I2C_Status_Slave && channel==0) || (I2C2_Status & I2C_Status_Slave && channel==1)))error("I2C slave not open");
 	rcvlen = getinteger(argv[0]);
@@ -1031,7 +1031,7 @@ void i2cReceiveSlave(unsigned char *p, int channel) {
 void i2c2Receive(unsigned char *p) {
 	int addr, i2c2_options, rcvlen;
 	void *ptr = NULL;
-	getargs(&p, 7, ",");
+	getargs(&p, 7, (unsigned char *)",");
 	if(argc != 7) error("Invalid syntax");
 	if(!I2C2_enabled)error("I2C not open");
 	addr = getinteger(argv[0]);
@@ -1076,7 +1076,7 @@ void i2c2Receive(unsigned char *p) {
 	I2C2_Sendlen = 0;
 
 	char *buff=GetTempMemory(STRINGSIZE);
-	i2c2_masterCommand(1, buff);
+	i2c2_masterCommand(1, (unsigned char *)buff);
 }
 
 /**************************************************************************************************

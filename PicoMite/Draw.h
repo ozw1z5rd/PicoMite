@@ -244,7 +244,7 @@ extern void DrawTriangle(int x0, int y0, int x1, int y1, int x2, int y2, int c, 
 extern void cmd_guiMX170(void);
 extern void initFonts(void);
 extern void ShowCursor(int show);
-extern unsigned char *FontTable[];
+extern unsigned char *FontTable[16];
 extern int CurrentX, CurrentY;
 extern int PrintPixelMode;
 extern int CMM1;

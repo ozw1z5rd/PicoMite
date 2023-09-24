@@ -308,51 +308,51 @@ timegm(const struct tm *tm)
 void fun_GPS(void){
     sret = GetTempMemory(STRINGSIZE);                                    // this will last for the life of the command
     if(!GPSchannel) error("GPS not activated");
-    if(checkstring(ep, "LATITUDE") != NULL) {
+    if(checkstring(ep, (unsigned char *)"LATITUDE") != NULL) {
         fret = GPSlatitude;
         targ = T_NBR;   
     }
-    else if(checkstring(ep, "LONGITUDE") != NULL) {
+    else if(checkstring(ep, (unsigned char *)"LONGITUDE") != NULL) {
         fret = GPSlongitude;
         targ = T_NBR;   
     }
-    else if(checkstring(ep, "SPEED") != NULL) {
+    else if(checkstring(ep, (unsigned char *)"SPEED") != NULL) {
         fret = GPSspeed;
         targ = T_NBR;   
     }
-    else if(checkstring(ep, "TRACK") != NULL) {
+    else if(checkstring(ep, (unsigned char *)"TRACK") != NULL) {
         fret = GPStrack;
         targ = T_NBR;   
     }
-    else if(checkstring(ep, "VALID") != NULL) {
+    else if(checkstring(ep, (unsigned char *)"VALID") != NULL) {
         iret = GPSvalid;
         targ = T_INT;   
     }
-    else if(checkstring(ep, "TIME") != NULL) {
-        sret = GPStime;
+    else if(checkstring(ep, (unsigned char *)"TIME") != NULL) {
+        sret = (unsigned char *)GPStime;
         targ = T_STR;   
     } 
-    else if(checkstring(ep, "DATE") != NULL) {
-        sret = GPSdate;
+    else if(checkstring(ep, (unsigned char *)"DATE") != NULL) {
+        sret = (unsigned char *)GPSdate;
         targ = T_STR;   
     } 
-    else if(checkstring(ep, "SATELLITES") != NULL) {
+    else if(checkstring(ep, (unsigned char *)"SATELLITES") != NULL) {
         iret = GPSsatellites;
         targ = T_INT;   
     } 
-    else if(checkstring(ep, "ALTITUDE") != NULL) {
+    else if(checkstring(ep, (unsigned char *)"ALTITUDE") != NULL) {
         fret = GPSaltitude;
         targ = T_NBR;   
     }
-    else if(checkstring(ep, "DOP") != NULL) {
+    else if(checkstring(ep, (unsigned char *)"DOP") != NULL) {
         fret = GPSdop;
         targ = T_NBR;   
     }
-    else if(checkstring(ep, "FIX") != NULL) {
+    else if(checkstring(ep, (unsigned char *)"FIX") != NULL) {
         iret = GPSfix;
         targ = T_INT;   
     } 
-    else if(checkstring(ep, "GEOID") != NULL) {
+    else if(checkstring(ep, (unsigned char *)"GEOID") != NULL) {
         fret = GPSgeoid;
         targ = T_NBR;   
     }
@@ -426,7 +426,7 @@ void GPS_parse(char *nmea) {
     // found GGA
     char *p = nmea;
     // get time
-    p = strchr(p, ',')+1;
+    p = strchr((char *)p, ',')+1;
     MMFLOAT timef = atof(p);
     uint32_t time = timef;
     hour = time / 10000;
@@ -436,7 +436,7 @@ void GPS_parse(char *nmea) {
     milliseconds = fmod(timef, 1.0) * 1000;
 
     // parse out latitude
-    p = strchr(p, ',')+1;
+    p = strchr((char *)p, ',')+1;
     if (',' != *p)
     {
       strncpy(degreebuff, p, 2);
@@ -454,7 +454,7 @@ void GPS_parse(char *nmea) {
       latitudeDegrees += (MMFLOAT)((int)(latitude/100));
     }
     
-    p = strchr(p, ',')+1;
+    p = strchr((char *)p, ',')+1;
     if (',' != *p)
     {
       if (p[0] == 'S') latitudeDegrees *= -1.0;
@@ -466,7 +466,7 @@ void GPS_parse(char *nmea) {
     GPSlatitude=(MMFLOAT)latitudeDegrees;
     
     // parse out longitude
-    p = strchr(p, ',')+1;
+    p = strchr((char *)p, ',')+1;
     if (',' != *p)
     {
       strncpy(degreebuff, p, 3);
@@ -484,7 +484,7 @@ void GPS_parse(char *nmea) {
       longitudeDegrees += (MMFLOAT)((int)(longitude/100));
     }
     
-    p = strchr(p, ',')+1;
+    p = strchr((char *)p, ',')+1;
     if (',' != *p)
     {
       if (p[0] == 'W') longitudeDegrees *= -1.0;
@@ -495,36 +495,36 @@ void GPS_parse(char *nmea) {
     }
     GPSlongitude=(MMFLOAT)longitudeDegrees;
     
-    p = strchr(p, ',')+1;
+    p = strchr((char *)p, ',')+1;
     if (',' != *p)
     {
       fixquality = atoi(p);
       GPSfix=(int)fixquality;
     }
     
-    p = strchr(p, ',')+1;
+    p = strchr((char *)p, ',')+1;
     if (',' != *p)
     {
       satellites = atoi(p);
       GPSsatellites=(int)satellites;
     }
     
-    p = strchr(p, ',')+1;
+    p = strchr((char *)p, ',')+1;
     if (',' != *p)
     {
       HDOP = atof(p);
       GPSdop=(MMFLOAT)HDOP;
     }
     
-    p = strchr(p, ',')+1;
+    p = strchr((char *)p, ',')+1;
     if (',' != *p)
     {
       altitude = atof(p);
       GPSaltitude=(MMFLOAT)altitude;
     }
     
-    p = strchr(p, ',')+1;
-    p = strchr(p, ',')+1;
+    p = strchr((char *)p, ',')+1;
+    p = strchr((char *)p, ',')+1;
     if (',' != *p)
     {
       geoidheight = atof(p);
@@ -537,7 +537,7 @@ void GPS_parse(char *nmea) {
     char *p = nmea;
     int i, localGPSvalid=0;
     // get time
-    p = strchr(p, ',')+1;
+    p = strchr((char *)p, ',')+1;
     MMFLOAT timef = atof(p);
     uint32_t time = timef;
     hour = time / 10000;
@@ -554,7 +554,7 @@ void GPS_parse(char *nmea) {
     GPStime[7]=(seconds/10) + 48;
     GPStime[8]=(seconds % 10) + 48;
 
-    p = strchr(p, ',')+1;
+    p = strchr((char *)p, ',')+1;
     if (p[0] == 'A') 
       localGPSvalid = 1;
     else if (p[0] == 'V')
@@ -566,7 +566,7 @@ void GPS_parse(char *nmea) {
     }
 
     // parse out latitude
-    p = strchr(p, ',')+1;
+    p = strchr((char *)p, ',')+1;
     if (',' != *p)
     {
       strncpy(degreebuff, p, 2);
@@ -584,7 +584,7 @@ void GPS_parse(char *nmea) {
       latitudeDegrees += (MMFLOAT)((int)(latitude/100));
     }
     
-    p = strchr(p, ',')+1;
+    p = strchr((char *)p, ',')+1;
     if (',' != *p)
     {
       if (p[0] == 'S') latitudeDegrees *= -1.0;
@@ -596,7 +596,7 @@ void GPS_parse(char *nmea) {
     GPSlatitude=(MMFLOAT)latitudeDegrees;
     
     // parse out longitude
-    p = strchr(p, ',')+1;
+    p = strchr((char *)p, ',')+1;
     if (',' != *p)
     {
       strncpy(degreebuff, p, 3);
@@ -614,7 +614,7 @@ void GPS_parse(char *nmea) {
       longitudeDegrees += (MMFLOAT)((int)(longitude/100));
     }
     
-    p = strchr(p, ',')+1;
+    p = strchr((char *)p, ',')+1;
     if (',' != *p)
     {
       if (p[0] == 'W') longitudeDegrees *= -1.0;
@@ -625,7 +625,7 @@ void GPS_parse(char *nmea) {
     }
     GPSlongitude=(MMFLOAT)longitudeDegrees;
     // speed
-    p = strchr(p, ',')+1;
+    p = strchr((char *)p, ',')+1;
     if (',' != *p)
     {
       speed = atof(p);
@@ -633,14 +633,14 @@ void GPS_parse(char *nmea) {
     }
     
     // angle
-    p = strchr(p, ',')+1;
+    p = strchr((char *)p, ',')+1;
     if (',' != *p)
     {
       angle = atof(p);
       GPStrack=(MMFLOAT)angle;
     }
     
-    p = strchr(p, ',')+1;
+    p = strchr((char *)p, ',')+1;
     if (',' != *p && p[6]==',')
     {
       uint32_t fulldate = atoi(p);

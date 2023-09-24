@@ -225,29 +225,29 @@ Initialise the serial function including the timer and interrupts.
 ****************************************************************************************************/
 void MIPS16 SerialOpen(unsigned char *spec) {
 	int baud, i, s2, parity, b7, bufsize, inv=0, ilevel=1;
-	char *interrupt, *TXinterrupt;
+	char *interrupt;
 
-	getargs(&spec, 21, ":,");										// this is a macro and must be the first executable stmt
+	getargs(&spec, 21, (unsigned char *)":,");										// this is a macro and must be the first executable stmt
 	if(argc != 2 && (argc & 0x01) == 0) error("COM specification");
 
     b7 = 8;
 	parity = UART_PARITY_NONE;
 	s2 = 1;
     for(i = 0; i < 5; i++) {
-    	if(str_equal(argv[argc - 1], "EVEN")) {
+    	if(str_equal(argv[argc - 1], (unsigned char *)"EVEN")) {
     		if(parity)error("Syntax");
     		else {parity = UART_PARITY_EVEN; argc -= 2; }	// set even parity
     	}
-    	if(str_equal(argv[argc - 1], "ODD")) {
+    	if(str_equal(argv[argc - 1], (unsigned char *)"ODD")) {
     		if(parity)error("Syntax");
     		else {parity = UART_PARITY_ODD; argc -= 2; }	// set even parity
     	}
-    	if(str_equal(argv[argc - 1], "INV")) { inv = 1; argc -= 2; };	// invert the serial port
-    	if(str_equal(argv[argc - 1], "DE")) error("DE not Supported");	// get the two stop bit option
-	   	if(str_equal(argv[argc - 1], "OC")) error("OC not Supported");	// get the two stop bit option
-    	if(str_equal(argv[argc - 1], "9BIT")) error("9BIT not Supported");	// get the two stop bit option
-     	if(str_equal(argv[argc - 1], "S2")) { s2 = 2; argc -= 2; }	// get the two stop bit option
-    	if(str_equal(argv[argc - 1], "7BIT")) { b7 = 7; argc -= 2; }	// set the 7 bit byte option
+    	if(str_equal(argv[argc - 1], (unsigned char *)"INV")) { inv = 1; argc -= 2; };	// invert the serial port
+    	if(str_equal(argv[argc - 1], (unsigned char *)"DE")) error("DE not Supported");	// get the two stop bit option
+	   	if(str_equal(argv[argc - 1], (unsigned char *)"OC")) error("OC not Supported");	// get the two stop bit option
+    	if(str_equal(argv[argc - 1], (unsigned char *)"9BIT")) error("9BIT not Supported");	// get the two stop bit option
+     	if(str_equal(argv[argc - 1], (unsigned char *)"S2")) { s2 = 2; argc -= 2; }	// get the two stop bit option
+    	if(str_equal(argv[argc - 1], (unsigned char *)"7BIT")) { b7 = 7; argc -= 2; }	// set the 7 bit byte option
     }
 	if(argc < 1 || argc > 9) error("COM specification");
 
@@ -263,8 +263,8 @@ void MIPS16 SerialOpen(unsigned char *spec) {
 
 	if(argc >= 7) {
     	InterruptUsed = true;
-    	argv[6]=strupr(argv[6]);
-		interrupt = GetIntAddress(argv[6]);							// get the interrupt location
+    	argv[6]=(unsigned char *)strupr((char *)argv[6]);
+		interrupt = (char *)GetIntAddress(argv[6]);							// get the interrupt location
 	} else
 		interrupt = NULL;
 

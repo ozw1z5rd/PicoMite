@@ -40,13 +40,13 @@ void cmd_spi(void) {
     long long int *dd;
 	if(SPI0TXpin==99 || SPI0RXpin==99|| SPI0SCKpin==99)error("Not all pins set for SPI");
 
-    if(checkstring(cmdline, "CLOSE")) {
+    if(checkstring(cmdline, (unsigned char *)"CLOSE")) {
         if(!SPI0locked)	SPIClose();
         else error("Allocated to System SPI");
         return;
     }
 
-    if((p = checkstring(cmdline, "WRITE")) != NULL) {
+    if((p = checkstring(cmdline, (unsigned char *)"WRITE")) != NULL) {
     	union car
     	{
     		uint32_t aTxBuffer;
@@ -63,7 +63,7 @@ void cmd_spi(void) {
         return;
     }
 
-    if((p = checkstring(cmdline, "READ")) != NULL) {
+    if((p = checkstring(cmdline, (unsigned char *)"READ")) != NULL) {
     	union car
     	{
     		uint32_t aRxBuffer;
@@ -81,13 +81,13 @@ void cmd_spi(void) {
         return;
     }
 
-    p = checkstring(cmdline, "OPEN");
+    p = checkstring(cmdline, (unsigned char *)"OPEN");
     if(p == NULL) error("Invalid syntax");
     if(ExtCurrentConfig[SPI0TXpin] >= EXT_COM_RESERVED) error("Already open");
 
     { // start a new block for getargs()
-    	int mode,bits=8;
-    	getargs(&p, 5, ",");
+    	int mode;
+    	getargs(&p, 5, (unsigned char *)",");
         if(argc < 3) error("Incorrect argument count");
         mode=getinteger(argv[2]);
         speed = getinteger(argv[0]);
@@ -143,13 +143,13 @@ void cmd_spi2(void) {
     long long int *dd;
 	if(SPI1TXpin==99 || SPI1RXpin==99 || SPI1SCKpin==99)error("Not all pins set for SPI2");
 
-    if(checkstring(cmdline, "CLOSE")) {
+    if(checkstring(cmdline, (unsigned char *)"CLOSE")) {
         if(!SPI1locked)	SPI2Close();
         else error("Allocated to System SPI");
         return;
     }
 
-    if((p = checkstring(cmdline, "WRITE")) != NULL) {
+    if((p = checkstring(cmdline, (unsigned char *)"WRITE")) != NULL) {
     	union car
     	{
     		uint32_t aTxBuffer;
@@ -167,7 +167,7 @@ void cmd_spi2(void) {
         return;
     }
 
-    if((p = checkstring(cmdline, "READ")) != NULL) {
+    if((p = checkstring(cmdline, (unsigned char *)"READ")) != NULL) {
     	union car
     	{
     		uint32_t aRxBuffer;
@@ -185,13 +185,13 @@ void cmd_spi2(void) {
         return;
     }
 
-    p = checkstring(cmdline, "OPEN");
+    p = checkstring(cmdline, (unsigned char *)"OPEN");
     if(p == NULL) error("Invalid syntax");
     if(ExtCurrentConfig[SPI1TXpin] >= EXT_COM_RESERVED) error("Already open");
 
     { // start a new block for getargs()
     	int mode;
-    	getargs(&p, 5, ",");
+    	getargs(&p, 5, (unsigned char *)",");
         if(argc < 3) error("Incorrect argument count");
         mode=getinteger(argv[2]);
         speed = getinteger(argv[0]);
@@ -244,7 +244,7 @@ unsigned int *GetSendDataList(unsigned char *p, unsigned int *nbr) {
     int i;
     void *ptr;
 
-    getargs(&p, MAX_ARG_COUNT, ",");
+    getargs(&p, MAX_ARG_COUNT, (unsigned char *)",");
     if(!(argc & 1)) error("Invalid syntax");
     *nbr = getint(argv[0], 0, 9999999);
     if(!*nbr) return NULL;
@@ -252,7 +252,7 @@ unsigned int *GetSendDataList(unsigned char *p, unsigned int *nbr) {
 
     // first check if this is the situation with just two arguments where the second argument could be a string or a simple variable or an array
     // check the correct arg count AND that the second argument looks like a variable AND it is not a function
-    if(argc == 3 && isnamestart(*argv[2]) && *skipvar(argv[2], false) == 0 && !(FindSubFun(argv[2], 1) >= 0 && strchr(argv[2], '(') != NULL)) {
+    if(argc == 3 && isnamestart(*argv[2]) && *skipvar(argv[2], false) == 0 && !(FindSubFun(argv[2], 1) >= 0 && strchr((char *)argv[2], '(') != NULL)) {
     	ptr = findvar(argv[2], V_NOFIND_NULL | V_EMPTY_OK);
 		if(ptr == NULL) error("Invalid variable");
 
@@ -307,7 +307,7 @@ unsigned int *GetSendDataList(unsigned char *p, unsigned int *nbr) {
 long long int *GetReceiveDataBuffer(unsigned char *p, unsigned int *nbr) {
     void *ptr;
 
-    getargs(&p, 3, ",");
+    getargs(&p, 3, (unsigned char *)",");
     if(argc != 3) error("Invalid syntax");
     *nbr = getinteger(argv[0]);
     ptr = findvar(argv[2], V_NOFIND_NULL | V_EMPTY_OK);

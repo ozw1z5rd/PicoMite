@@ -25,8 +25,8 @@ unsigned int CFuncInt2 = (unsigned int)NULL;
 unsigned int CFuncInt3 = (unsigned int)NULL;
 unsigned int CFuncInt4 = (unsigned int)NULL;
 unsigned int CFuncAudio = (unsigned int)NULL;
-static uint64_t timer(void){ return time_us_64();}
-static int64_t PinReadFunc(int a){return gpio_get(PinDef[a].GPno);}
+//static uint64_t timer(void){ return time_us_64();}
+//static int64_t PinReadFunc(int a){return gpio_get(PinDef[a].GPno);}
 
 
 // used by CallCFunction() below to find a CFunction or CSub in program flash or the library
@@ -60,16 +60,16 @@ long long int CallCFunction(unsigned char *CmdPtr, unsigned char *ArgList, unsig
     // next, get the argument types (if specified)
     {  // first copy the type list to a buffer and trim the following closing bracket (if there)
         char buf[MAXSTRLEN];
-        unsigned char *p = buf;
+        unsigned char *p = (unsigned char *)buf;
         if(*DefP == '(') DefP++;
         while(*DefP && *DefP != ')' && *DefP != '\'') *p++ = *DefP++;
         *p = 0;
-        p = buf;
+        p = (unsigned char *)buf;
         skipspace(p);
         CheckIfTypeSpecified(p, &i, true);
         if(i != DefaultType) {
             // if there is a type list get each entry
-            getargs(&p, 19, ",");
+            getargs(&p, 19, (unsigned char *)",");
             for(i = 0; i < argc; i+=2) {                            // get each definition
                 CheckIfTypeSpecified(argv[i], &typ[i/2], false);
                 typ[i/2] &= ~T_IMPLIED;
@@ -80,10 +80,10 @@ long long int CallCFunction(unsigned char *CmdPtr, unsigned char *ArgList, unsig
     // we have found the CFunction or CSub and the types on its command line
     CurrentLinePtr = CallersLinePtr;                                // report errors at the caller
     if(*ArgList != ')') {
-        getargs(&ArgList, 19, ",");                                 // expand the command line of the caller
+        getargs(&ArgList, 19, (unsigned char *)",");                                 // expand the command line of the caller
         for(i = 0; i < argc; i += 2) {
             // if this is a straight variable we want to pass a pointer to its value in RAM
-            if(isnamestart((uint8_t)*argv[i]) && (*skipvar(argv[i], false) == 0 || *skipvar(argv[i], false) == ')') && !(FindSubFun(argv[i], 1) >= 0 && strchr(argv[i], '(') != NULL)) {
+            if(isnamestart((uint8_t)*argv[i]) && (*skipvar(argv[i], false) == 0 || *skipvar(argv[i], false) == ')') && !(FindSubFun(argv[i], 1) >= 0 && strchr((const char *)argv[i], '(') != NULL)) {
                 arg[i/2] = findvar(argv[i], V_FIND | V_EMPTY_OK /* | V_NOFIND_ERR */ );   // if the argument
                 if(typ[i/2] != 0 && !(TypeMask(vartbl[VarIndex].type) & typ[i/2])) error("Incompatible type");
             } else {
@@ -135,9 +135,9 @@ void CallCFuncmSec(void){
 
 // save the interpreter state if re entering it
 void CallExecuteProgram(char *p) {
-    char *nextstmtSaved = nextstmt;
+    unsigned char *nextstmtSaved = nextstmt;
     LocalIndex++;
-    ExecuteProgram(p);
+    ExecuteProgram((unsigned char *)p);
     nextstmt = nextstmtSaved;
     LocalIndex--;
     TempMemoryIsChanged = true;                                     // signal that temporary memory should be checked

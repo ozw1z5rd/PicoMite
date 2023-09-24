@@ -52,7 +52,7 @@ void fun_touch(void);
 **********************************************************************************/
 #ifdef INCLUDE_TOKEN_TABLE
 
-  { "Touch(",       T_FUN | T_INT,        0, fun_touch  },
+  { (unsigned char *)"Touch(",       T_FUN | T_INT,        0, fun_touch  },
 
 #endif
 

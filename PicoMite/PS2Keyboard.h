@@ -54,5 +54,6 @@ extern volatile int PS2int;
 #define CONFIG_BE		5
 #define CONFIG_UK		6
 #define CONFIG_ES		7
+#define CONFIG_BR		8
 #define CONFIG_I2C  128
 #endif /* PS2KEYBOARD_H_ */

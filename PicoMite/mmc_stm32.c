@@ -161,7 +161,7 @@ BYTE MDD_SDSPI_WriteProtectState(void)
 }
 void __not_in_flash_func(on_pwm_wrap)(void) {
 	static int repeatcount=1;
-	uint16_t left,right;
+	uint16_t left=0,right=0;
     // play a tone
     pwm_clear_irq(AUDIO_SLICE);
     if(CurrentlyPlaying == P_TONE){
@@ -327,10 +327,8 @@ void BitBangSendSPI(const BYTE *buff, int cnt){
     		SPIData=buff[i];
     		for (SPICount = 0; SPICount < 8; SPICount++)          // Prepare to clock out the Address byte
     		{
-    			if (SPIData & 0x80)                                 // Check for a 1
-    				gpio_put(SD_MOSI_PIN,GPIO_PIN_SET);
-    			else
-    				gpio_put(SD_MOSI_PIN,GPIO_PIN_RESET);
+    			if (SPIData & 0x80) gpio_put(SD_MOSI_PIN,GPIO_PIN_SET);
+    			else gpio_put(SD_MOSI_PIN,GPIO_PIN_RESET);
 				asm("NOP");
     			gpio_put(SD_CLK_PIN,GPIO_PIN_SET);
     			SPIData <<= 1;                                      // Rotate to get the next bit
@@ -342,12 +340,10 @@ void BitBangSendSPI(const BYTE *buff, int cnt){
     		SPIData=buff[i];
     		for (SPICount = 0; SPICount < 8; SPICount++)          // Prepare to clock out the Address byte
     		{
-    			if (SPIData & 0x80)                                 // Check for a 1
-    				gpio_put(SD_MOSI_PIN,GPIO_PIN_SET);
-    			else
-    				gpio_put(SD_MOSI_PIN,GPIO_PIN_RESET);
+    			if (SPIData & 0x80) gpio_put(SD_MOSI_PIN,GPIO_PIN_SET);
+    			else gpio_put(SD_MOSI_PIN,GPIO_PIN_RESET);
 				asm("NOP");asm("NOP");asm("NOP");
-    			gpio_put(SD_CLK_PIN,GPIO_PIN_SET);
+    			gpio_put(SD_CLK_PIN, GPIO_PIN_SET);
     			SPIData <<= 1;   asm("NOP");                                   // Rotate to get the next bit
     			gpio_put(SD_CLK_PIN,GPIO_PIN_RESET);
     		}  // and loop back to send the next bit
@@ -474,6 +470,7 @@ int BitBangSetClk(int speed, int polarity, int edge){
 	gpio_set_drive_strength(SD_CLK_PIN,GPIO_DRIVE_STRENGTH_12MA);
 	gpio_set_input_hysteresis_enabled(SD_MISO_PIN,true);
 	SD_SPI_SPEED=speed;
+	return speed;
 }
 BYTE __not_in_flash_func(HW0SwapSPI)(BYTE data_out){
 	BYTE data_in=0;
@@ -1085,7 +1082,7 @@ void InitReservedIO(void) {
 		CurrentSPISpeed=NONE_SPI_SPEED;
 		if(Option.DISPLAY_BL){
 			ExtCfg(Option.DISPLAY_BL, EXT_BOOT_RESERVED, 0);
-			int pin=Option.DISPLAY_BL,value, slice;
+			int pin=Option.DISPLAY_BL, slice=0;
 			if(PinDef[pin].mode & PWM0A){PWM0Apin=pin;slice=0;}
 			else if(PinDef[pin].mode & PWM0B){PWM0Bpin=pin;slice=0;}
 			else if(PinDef[pin].mode & PWM1A){PWM1Apin=pin;slice=1;}

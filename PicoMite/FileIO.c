@@ -342,7 +342,7 @@ int __not_in_flash_func(fs_flash_sync)(const struct lfs_config *c)
     return 0;
 }
 void cmd_disk(void){
-    char *p=getCstring(cmdline);
+    char *p=(char *)getCstring(cmdline);
     char *b=GetTempMemory(STRINGSIZE);
     for(int i=0;i<strlen(p);i++)b[i]=toupper(p[i]);
     if(strcmp(b, "A:/FORMAT")==0)  { 
@@ -361,11 +361,11 @@ void cmd_disk(void){
 void cmd_flash(void)
 {
     unsigned char *p;
-    if ((p = checkstring(cmdline, "ERASE ALL")))
+    if ((p = checkstring(cmdline, (unsigned char *)"ERASE ALL")))
     {
         if (CurrentLinePtr)
             error("Invalid in program");
-        uint32_t j = FLASH_TARGET_OFFSET + FLASH_ERASE_SIZE + SAVEDVARS_FLASH_SIZE;
+//        uint32_t j = FLASH_TARGET_OFFSET + FLASH_ERASE_SIZE + SAVEDVARS_FLASH_SIZE;
         int k=MAXFLASHSLOTS;
         if(Option.LIBRARY_FLASH_SIZE==MAX_PROG_SIZE )
            k--;
@@ -378,7 +378,7 @@ void cmd_flash(void)
         }
         enable_interrupts();
     }
-    else if ((p = checkstring(cmdline, "ERASE")))
+    else if ((p = checkstring(cmdline, (unsigned char *)"ERASE")))
     {
         if (CurrentLinePtr)
             error("Invalid in program");
@@ -390,7 +390,7 @@ void cmd_flash(void)
         flash_range_erase(j, MAX_PROG_SIZE);
         enable_interrupts();
     }
-    else if ((p = checkstring(cmdline, "OVERWRITE")))
+    else if ((p = checkstring(cmdline, (unsigned char *)"OVERWRITE")))
     {
         if (CurrentLinePtr)
             error("Invalid in program");
@@ -420,21 +420,21 @@ void cmd_flash(void)
         }
         enable_interrupts();
     }
-    else if ((p = checkstring(cmdline, "LIST")))
+    else if ((p = checkstring(cmdline, (unsigned char *)"LIST")))
     {
         int j, i, k;
         int *pp;
-        getargs(&p, 3, ",");
+        getargs(&p, 3, (unsigned char *)",");
         if (argc)
         {
             int i = getint(argv[0], 1, MAXFLASHSLOTS);
             if(Option.LIBRARY_FLASH_SIZE==MAX_PROG_SIZE && i==MAXFLASHSLOTS) error("Library is using Slot % ",MAXFLASHSLOTS);
-            ProgMemory = (char *)(flash_target_contents + (i - 1) * MAX_PROG_SIZE);
+            ProgMemory = (unsigned char *)(flash_target_contents + (i - 1) * MAX_PROG_SIZE);
             if (argc == 1)
-                ListProgram((char *)ProgMemory, false);
-            else if (argc == 3 && checkstring(argv[2], "ALL"))
+                ListProgram(ProgMemory, false);
+            else if (argc == 3 && checkstring(argv[2], (unsigned char *)"ALL"))
             {
-                ListProgram((char *)ProgMemory, true);
+                ListProgram(ProgMemory, true);
             }
             else
                 error("Syntax");
@@ -461,7 +461,7 @@ void cmd_flash(void)
                         if ((unsigned char)*pp == T_NEWLINE)
                         {
                             MMPrintString(": \"");
-                            llist(buff, (unsigned char *)pp);
+                            llist((unsigned char *)buff, (unsigned char *)pp);
                             MMPrintString(buff);
                             MMPrintString("\"\r\n");
                         }
@@ -484,7 +484,7 @@ void cmd_flash(void)
             }
         }
     }
-    else if ((p = checkstring(cmdline, "SAVE")))
+    else if ((p = checkstring(cmdline, (unsigned char *)"SAVE")))
     {
         if (CurrentLinePtr)
             error("Invalid in program");
@@ -508,7 +508,7 @@ void cmd_flash(void)
                 error("Erase error");
             }
         disable_interrupts();
-        uint8_t save = 0, *q = (uint8_t *)ProgMemory;
+        uint8_t *q = (uint8_t *)ProgMemory;
         uint8_t *writebuff = (uint8_t *)GetTempMemory(4096);
         for (int k = 0; k < MAX_PROG_SIZE; k += 4096)
         {
@@ -518,7 +518,7 @@ void cmd_flash(void)
         }
         enable_interrupts();
     }
-    else if ((p = checkstring(cmdline, "LOAD")))
+    else if ((p = checkstring(cmdline, (unsigned char *)"LOAD")))
     {
         if (CurrentLinePtr)
             error("Invalid in program");
@@ -558,29 +558,29 @@ void cmd_flash(void)
         enable_interrupts();
         FlashLoad = 0;
     }
-    else if ((p = checkstring(cmdline, "CHAIN")))
+    else if ((p = checkstring(cmdline, (unsigned char *)"CHAIN")))
     {
         if (!CurrentLinePtr)
             error("Invalid at command prompt");
         int i = getint(p, 0, MAXFLASHSLOTS);
         if(Option.LIBRARY_FLASH_SIZE==MAX_PROG_SIZE && i==MAXFLASHSLOTS) error("Library is using Slot % ",MAXFLASHSLOTS);
-        if(i) ProgMemory = (char *)(flash_target_contents + (i - 1) * MAX_PROG_SIZE);
-        else ProgMemory = (char *)(flash_target_contents + MAXFLASHSLOTS * MAX_PROG_SIZE);
+        if(i) ProgMemory = (unsigned char *)(flash_target_contents + (i - 1) * MAX_PROG_SIZE);
+        else ProgMemory = (unsigned char *)(flash_target_contents + MAXFLASHSLOTS * MAX_PROG_SIZE);
         FlashLoad = i;
         PrepareProgram(true);
         nextstmt = (unsigned char *)ProgMemory;
     }
-    else if ((p = checkstring(cmdline, "RUN")))
+    else if ((p = checkstring(cmdline, (unsigned char *)"RUN")))
     {
         int i = getint(p, 0, MAXFLASHSLOTS);
          if(Option.LIBRARY_FLASH_SIZE==MAX_PROG_SIZE && i==MAXFLASHSLOTS) error("Library is using Slot % ",MAXFLASHSLOTS);
-        if(i) ProgMemory = (char *)(flash_target_contents + (i - 1) * MAX_PROG_SIZE);
-        else ProgMemory = (char *)(flash_target_contents + MAXFLASHSLOTS * MAX_PROG_SIZE);
+        if(i) ProgMemory = (unsigned char *)(flash_target_contents + (i - 1) * MAX_PROG_SIZE);
+        else ProgMemory = (unsigned char *)(flash_target_contents + MAXFLASHSLOTS * MAX_PROG_SIZE);
         ClearRuntime();
         FlashLoad = i;
         PrepareProgram(true);
         // Create a global constant MM.CMDLINE$ containing the empty string.
-        (void) findvar("MM.CMDLINE$", V_FIND | V_DIM_VAR | T_CONST);
+        (void) findvar((unsigned char *)"MM.CMDLINE$", V_FIND | V_DIM_VAR | T_CONST);
         if(Option.LIBRARY_FLASH_SIZE == MAX_PROG_SIZE) ExecuteProgram(LibMemory);  // run anything that might be in the library
         nextstmt = (unsigned char *)ProgMemory;
     }
@@ -590,10 +590,10 @@ void cmd_flash(void)
 
 void ErrorCheck(int fnbr)
 { // checks for an error, if fnbr is specified frees up the filehandle before sending error
-    int e, type;
+    int e;
     e = (int)FSerror;
     if (fnbr != 0 && e != 0)
-        type=ForceFileClose(fnbr);
+        ForceFileClose(fnbr);
     if (e >= 1 && e <= 19)
         ErrorThrow(e, FATFSFILE);
     if (e<0 && e>=-84)
@@ -623,7 +623,7 @@ void LoadImage(unsigned char *p)
     int xOrigin, yOrigin;
 
     // get the command line arguments
-    getargs(&p, 5, ","); // this MUST be the first executable line in the function
+    getargs(&p, 5, (unsigned char *)","); // this MUST be the first executable line in the function
     if (argc == 0)
         error("Argument count");
     if (!InitSDCard())
@@ -638,10 +638,10 @@ void LoadImage(unsigned char *p)
         yOrigin = getinteger(argv[4]); // get the y origin (optional) argument
 
     // open the file
-    if (strchr(p, '.') == NULL)
-        strcat(p, ".bmp");
+    if (strchr((char *)p, '.') == NULL)
+        strcat((char *)p, ".bmp");
     fnbr = FindFreeFileNbr();
-    if (!BasicFileOpen(p, fnbr, FA_READ))
+    if (!BasicFileOpen((char *)p, fnbr, FA_READ))
         return;
     BMP_bDecode(xOrigin, yOrigin, fnbr);
     FileClose(fnbr);
@@ -695,7 +695,7 @@ void LoadJPGImage(unsigned char *p)
     int xOrigin, yOrigin;
 
     // get the command line arguments
-    getargs(&p, 5, ","); // this MUST be the first executable line in the function
+    getargs(&p, 5, (unsigned char *)","); // this MUST be the first executable line in the function
     if (argc == 0)
         error("Argument count");
     if (!InitSDCard())
@@ -710,10 +710,10 @@ void LoadJPGImage(unsigned char *p)
         yOrigin = getint(argv[4], 0, VRes - 1); // get the y origin (optional) argument
 
     // open the file
-    if (strchr(p, '.') == NULL)
-        strcat(p, ".jpg");
+    if (strchr((char *)p, '.') == NULL)
+        strcat((char *)p, ".jpg");
     jpgfnbr = FindFreeFileNbr();
-    if (!BasicFileOpen(p, jpgfnbr, FA_READ))
+    if (!BasicFileOpen((char *)p, jpgfnbr, FA_READ))
         return;
 
     if(filesource[jpgfnbr]!=FLASHFILE)  g_nInFileSize = f_size(FileTable[jpgfnbr].fptr);
@@ -869,7 +869,7 @@ void fun_dir(void)
     static lfs_dir_t lfs_dir_dir;
     struct lfs_info lfs_info_dir;
     unsigned char *p;
-    getargs(&ep, 3, ",");
+    getargs(&ep, 3, (unsigned char *)",");
     if (argc != 0)
         dirflags = -1;
     if (!(argc <= 3))
@@ -877,11 +877,11 @@ void fun_dir(void)
 
     if (argc == 3)
     {
-        if (checkstring(argv[2], "DIR"))
+        if (checkstring(argv[2], (unsigned char *)"DIR"))
             dirflags = AM_DIR;
-        else if (checkstring(argv[2], "FILE"))
+        else if (checkstring(argv[2], (unsigned char *)"FILE"))
             dirflags = -1;
-        else if (checkstring(argv[2], "ALL"))
+        else if (checkstring(argv[2], (unsigned char *)"ALL"))
             dirflags = 0;
         else
             error("Invalid flag specification");
@@ -896,7 +896,7 @@ void fun_dir(void)
         // this must be the first call eg:  DIR$("*.*", FILE)
         p = getFstring(argv[0]);
         char fullfilename[FF_MAX_LFN]={0};
-        getfullfilename(p,fullfilename);
+        getfullfilename((char *)p,(char *)fullfilename);
         FSsave=FatFSFileSystem;
         int i = strlen(fullfilename) - 1;
         while (i > 1 && !(fullfilename[i] == '/')) i--;
@@ -984,12 +984,13 @@ void fun_dir(void)
         }
     }
 
-    if (FSerror != FR_OK || !fnod.fname[0])
-        if(FSsave==1)f_closedir(&djd);
+    if (FSerror != FR_OK || !fnod.fname[0]){
+         if(FSsave==1)f_closedir(&djd);
         else lfs_dir_close(&lfs, &lfs_dir_dir);
+    }
 
     sret = GetTempMemory(STRINGSIZE); // this will last for the life of the command
-    strcpy(sret, fnod.fname);
+    strcpy((char *)sret, fnod.fname);
     CtoM(sret); // convert to a MMBasic style string
     FatFSFileSystem=FatFSFileSystemSave;
     targ = T_STR;
@@ -1000,7 +1001,7 @@ void cmd_mkdir(void)
     char *p;
     int i;
     char q[FF_MAX_LFN]={0};
-    p = getFstring(cmdline);                                        // get the directory name and convert to a standard C string
+    p = (char *)getFstring(cmdline);                                        // get the directory name and convert to a standard C string
     if(drivecheck(p,&i)!=FatFSFileSystem+1) error("Only valid on current drive");
     getfullpath(p,q);
     if(FatFSFileSystem){
@@ -1019,7 +1020,7 @@ void cmd_rmdir(void)
     char *p;
     int i;
     char q[FF_MAX_LFN]={0};
-    p = getFstring(cmdline);                                        // get the directory name and convert to a standard C string
+    p = (char *)getFstring(cmdline);                                        // get the directory name and convert to a standard C string
     if(drivecheck(p,&i)!=FatFSFileSystem+1) error("Only valid on current drive");
     getfullpath(p,q);
     if(FatFSFileSystem){
@@ -1037,7 +1038,7 @@ void cmd_chdir(void){
 	int i;
     char *p;
     char rp[STRINGSIZE],oldfilepath[STRINGSIZE];
-    p = getFstring(cmdline);  // get the directory name and convert to a standard C string
+    p = (char *)getFstring(cmdline);  // get the directory name and convert to a standard C string
     if(drivecheck(p,&i)!=FatFSFileSystem+1) error("Only valid on current drive");
     if(strcmp(p,".")==0)return; //nothing to do
     if(strlen(p)==0)return;//nothing to do
@@ -1080,17 +1081,17 @@ void cmd_chdir(void){
 
 void fun_cwd(void)
 {
-    sret = CtoM(GetCWD());
+    sret = CtoM((unsigned char *)GetCWD());
     targ = T_STR;
 }
 
 void cmd_kill(void)
 {
     char q[FF_MAX_LFN]={0};
-    getargs(&cmdline,3,",");
-    char *tp = getFstring(argv[0]);
+    getargs(&cmdline,3,(unsigned char *)",");
+    char *tp = (char *)getFstring(argv[0]);
     if(strchr(tp,'*') || strchr(tp,'?')){
-        char *fromfile;
+//        char *fromfile;
         char fromdir[FF_MAX_LFN]={0};
         int fromfilesystem;
         char *in=GetTempMemory(STRINGSIZE);
@@ -1101,15 +1102,15 @@ void cmd_kill(void)
         tp+=waste;
         tp[0]='"';
         FatFSFileSystem=t-1;
-        int i,j;
-        int fcnt, sortorder = 0;
+        int i;
+//        int fcnt, sortorder = 0;
         char pp[FF_MAX_LFN] = {0};
         char q[FF_MAX_LFN] = {0};
         DIR djd;
         FILINFO fnod;
-        memset(&djd, 0, sizeof(DIR));
-        memset(&fnod, 0, sizeof(FILINFO));
-        char *p = getFstring(argv[0]);
+        memset((void *)&djd, 0, sizeof(DIR));
+        memset((void *)&fnod, 0, sizeof(FILINFO));
+        char *p = (char *)getFstring(argv[0]);
         i = strlen(p) - 1;
         while (i > 0 && !(p[i] == '/'))
             i--;
@@ -1140,7 +1141,7 @@ void cmd_kill(void)
             FatFSFileSystem=localsave;
             error("$ not a directory",fromdir);
         }
-        if(argc==3 && checkstring(argv[2],"ALL")){
+        if(argc==3 && checkstring(argv[2],(unsigned char *)"ALL")){
             all=1;
             MMPrintString("Deleting ");MMPrintString(pp);MMPrintString(" from ");
             MMPrintString(fromfilesystem==1 ? "B:" : "A:"); MMPrintString(fromdir);
@@ -1234,7 +1235,7 @@ void cmd_kill(void)
         else lfs_dir_close(&lfs, &lfs_dir);
         FatFSFileSystem=FatFSFileSystemSave;
     } else {
-        int localsave=FatFSFileSystem;
+//        int localsave=FatFSFileSystem;
         int waste=0, t=FatFSFileSystem+1;
         t = drivecheck(tp,&waste);
         tp+=waste;
@@ -1255,7 +1256,7 @@ void cmd_seek(void)
 {
     int fnbr, idx;
     char *buff;
-    getargs(&cmdline, 5, ",");
+    getargs(&cmdline, 5, (unsigned char *)",");
     if (argc != 3)
         error("Syntax");
     if (*argv[0] == '#')
@@ -1301,12 +1302,12 @@ void cmd_name(void)
     ss[1] = 0;
     char qold[FF_MAX_LFN]={0};
     char qnew[FF_MAX_LFN]={0};
-    getargs(&cmdline, 3, ss);                                   // getargs macro must be the first executable stmt in a block
+    getargs(&cmdline, 3, (unsigned char *)ss);                                   // getargs macro must be the first executable stmt in a block
     if(argc != 3) error("Syntax");
-    old = getFstring(argv[0]);                                  // get the old name
+    old = (char *)getFstring(argv[0]);                                  // get the old name
     if(drivecheck(old,&i)!=FatFSFileSystem+1) error("Only valid on current drive");
     getfullfilepath(old,qold);
-    new = getFstring(argv[2]);                                  // get the new name
+    new = (char *)getFstring(argv[2]);                                  // get the new name
     if(drivecheck(new,&i)!=FatFSFileSystem+1) error("Only valid on current drive");
     getfullfilepath(new,qnew);
     if(!FatFSFileSystem){
@@ -1329,7 +1330,7 @@ void cmd_save(void)
     int maxW = HRes;
     if (!InitSDCard()) return;
     fnbr = FindFreeFileNbr();
-    if ((p = checkstring(cmdline, "COMPRESSED IMAGE")) != NULL){
+    if ((p = checkstring(cmdline, (unsigned char *)"COMPRESSED IMAGE")) != NULL){
         if(!(ReadBuffer==ReadBufferColour || ReadBuffer==ReadBufferMono))error("Invalid for this display");
         unsigned int nbr;
         int i, x, y, w, h, filesize;
@@ -1363,8 +1364,8 @@ void cmd_save(void)
             255,255,255,0
         };
         
-        unsigned char bmppad[3] = {0, 0, 0};
-        getargs(&p, 9, ",");
+//        unsigned char bmppad[3] = {0, 0, 0};
+        getargs(&p, 9, (unsigned char *)",");
         if (!InitSDCard())
             return;
         if ((void *)ReadBuffer == (void *)DisplayNotSet)
@@ -1372,9 +1373,9 @@ void cmd_save(void)
         pp = getFstring(argv[0]);
         if (argc != 1 && argc != 9)
             error("Syntax");
-        if (strchr(pp, '.') == NULL)
-            strcat(pp, ".bmp");
-        if (!BasicFileOpen(pp, fnbr, FA_WRITE | FA_CREATE_ALWAYS))
+        if (strchr((char *)pp, '.') == NULL)
+            strcat((char *)pp, ".bmp");
+        if (!BasicFileOpen((char *)pp, fnbr, FA_WRITE | FA_CREATE_ALWAYS))
             return;
         if (argc == 1)
         {
@@ -1443,7 +1444,7 @@ void cmd_save(void)
                     *pp = fcolour<<4;
                 }
             }
-            unsigned char *ppp=foutbuf;
+            unsigned char *ppp=(unsigned char *)foutbuf;
             unsigned char *q=outbuf;
             int count=0;
             int k=w;
@@ -1476,7 +1477,7 @@ void cmd_save(void)
         FileClose(fnbr);
         return;
     }
-    if ((p = checkstring(cmdline, "IMAGE")) != NULL)
+    if ((p = checkstring(cmdline, (unsigned char *)"IMAGE")) != NULL)
     {
         if(ReadBuffer==ReadBufferColour || ReadBuffer==ReadBufferMono){
 	        unsigned int nbr;
@@ -1512,7 +1513,7 @@ void cmd_save(void)
 	        };
 	        
 	        unsigned char bmppad[3] = {0, 0, 0};
-	        getargs(&p, 9, ",");
+	        getargs(&p, 9, (unsigned char *)",");
 	        if (!InitSDCard())
 	            return;
 	        if ((void *)ReadBuffer == (void *)DisplayNotSet)
@@ -1520,9 +1521,9 @@ void cmd_save(void)
 	        pp = getFstring(argv[0]);
 	        if (argc != 1 && argc != 9)
 	            error("Syntax");
-	        if (strchr(pp, '.') == NULL)
-	            strcat(pp, ".bmp");
-	        if (!BasicFileOpen(pp, fnbr, FA_WRITE | FA_CREATE_ALWAYS))
+	        if (strchr((char *)pp, '.') == NULL)
+	            strcat((char *)pp, ".bmp");
+	        if (!BasicFileOpen((char *)pp, fnbr, FA_WRITE | FA_CREATE_ALWAYS))
 	            return;
 	        if (argc == 1)
 	        {
@@ -1596,13 +1597,14 @@ void cmd_save(void)
 	            }
 	            if(FSerror>0)FSerror=0;
 	            ErrorCheck(fnbr);
-	            if ((w / 2) % 4 != 0)
+	            if ((w / 2) % 4 != 0){
 	                if(filesource[fnbr]==FATFSFILE)f_write(FileTable[fnbr].fptr, bmppad, 4 - ((w / 2 ) % 4), &nbr);
 	                else {
 	                    FSerror=lfs_file_write(&lfs, FileTable[fnbr].lfsptr, bmppad, 4 - ((w / 2 ) % 4)); 
 	                }
 	                if(FSerror>0)FSerror=0;
 	                ErrorCheck(fnbr);
+                }
 	        }
 	        FileClose(fnbr);
 	        return;
@@ -1613,7 +1615,7 @@ void cmd_save(void)
         unsigned char bmpfileheader[14] = {'B', 'M', 0, 0, 0, 0, 0, 0, 0, 0, 54, 0, 0, 0};
         unsigned char bmpinfoheader[40] = {40, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 24, 0};
         unsigned char bmppad[3] = {0, 0, 0};
-        getargs(&p, 9, ",");
+        getargs(&p, 9, (unsigned char *)",");
         if (!InitSDCard())
             return;
         if ((void *)ReadBuffer == (void *)DisplayNotSet)
@@ -1621,9 +1623,9 @@ void cmd_save(void)
         pp = getFstring(argv[0]);
         if (argc != 1 && argc != 9)
             error("Syntax");
-        if (strchr(pp, '.') == NULL)
-            strcat(pp, ".bmp");
-        if (!BasicFileOpen(pp, fnbr, FA_WRITE | FA_CREATE_ALWAYS))
+        if (strchr((char *)pp, '.') == NULL)
+            strcat((char *)pp, ".bmp");
+        if (!BasicFileOpen((char *)pp, fnbr, FA_WRITE | FA_CREATE_ALWAYS))
             return;
         if (argc == 1)
         {
@@ -1674,13 +1676,14 @@ void cmd_save(void)
                     if(FSerror>0)FSerror=0;
                     ErrorCheck(fnbr);
             }
-            if ((w * 3) % 4 != 0)
+            if ((w * 3) % 4 != 0){
                 if(filesource[fnbr]==FATFSFILE)f_write(FileTable[fnbr].fptr, bmppad, 4 - ((w * 3) % 4), &nbr);
                 else {
                     FSerror=lfs_file_write(&lfs, FileTable[fnbr].lfsptr, bmppad, 4 - ((w * 3) % 4)); 
                     if(FSerror>0)FSerror=0;
                     ErrorCheck(fnbr);
                 }
+            }
         }
         FileClose(fnbr);
         return;
@@ -1689,9 +1692,9 @@ void cmd_save(void)
     {
         unsigned char b[STRINGSIZE];
         p = getFstring(cmdline); // get the file name and change to the directory
-        if (strchr(p, '.') == NULL)
-            strcat(p, ".bas");
-        if (!BasicFileOpen(p, fnbr, FA_WRITE | FA_CREATE_ALWAYS))
+        if (strchr((char *)p, '.') == NULL)
+            strcat((char *)p, ".bas");
+        if (!BasicFileOpen((char *)p, fnbr, FA_WRITE | FA_CREATE_ALWAYS))
             return;
         p = ProgMemory;
         int lineno=0;
@@ -1719,8 +1722,8 @@ int FileLoadProgram(unsigned char *fname)
     if (!InitSDCard()) return false;
     ClearProgram(); // clear any leftovers from the previous program
     fnbr = FindFreeFileNbr();
-    p = getFstring(fname);
-    if (strchr(p, '.') == NULL) strcat(p, ".bas");
+    p = (char *)getFstring(fname);
+    if (strchr((char *)p, '.') == NULL) strcat((char *)p, ".bas");
     char q[FF_MAX_LFN]={0};
     FatFSFileSystemSave=FatFSFileSystem;
     getfullfilename(p,q);
@@ -1751,7 +1754,7 @@ int FileLoadProgram(unsigned char *fname)
     *p = 0; // terminate the string in RAM
     FileClose(fnbr);
     ClearSavedVars(); // clear any saved variables
-    SaveProgramToFlash(buf, false);
+    SaveProgramToFlash((unsigned char *)buf, false);
     return true;
 }
 
@@ -1760,20 +1763,20 @@ void cmd_load(void)
     int autorun = false;
     unsigned char *p;
 
-    p = checkstring(cmdline, "IMAGE");
+    p = checkstring(cmdline, (unsigned char *)"IMAGE");
     if (p)
     {
         LoadImage(p);
         return;
     }
-    p = checkstring(cmdline, "JPG");
+    p = checkstring(cmdline, (unsigned char *)"JPG");
     if (p)
     {
         LoadJPGImage(p);
         return;
     }
 
-    getargs(&cmdline, 3, ",");
+    getargs(&cmdline, 3, (unsigned char *)",");
     if (!(argc & 1) || argc == 0)
         error("Syntax");
     if (argc == 3)
@@ -1993,7 +1996,7 @@ void CloseAllFiles(void)
 void FilePutStr(int count, char *c, int fnbr)
 {
    if(filesource[fnbr]==FLASHFILE){
-        int err;
+//        int err;
         FSerror=lfs_file_write(&lfs, FileTable[fnbr].lfsptr, c, count);
         if(FSerror!=count)FSerror=-5;
         if(FSerror>0)FSerror=0;
@@ -2015,7 +2018,7 @@ void MMfputs(unsigned char *p, int filenbr)
     i = *p++;
     if (FileTable[filenbr].com > MAXCOMPORTS)
     {
-        FilePutStr(i, p, filenbr);
+        FilePutStr(i, (char *)p, filenbr);
     }
     else
     {
@@ -2058,7 +2061,7 @@ void getfullfilename(char *fname, char *q){
     FatFSFileSystem=t-1;
     char pp[FF_MAX_LFN] = {0};
     char *p=fname;
-    int i,j;
+    int i;
     i=strlen(p)-1;
     while(i>0 && !(p[i]=='/'))i--;
     if(i>0){
@@ -2119,7 +2122,7 @@ int BasicFileOpen(char *fname, int fnbr, int mode)
             int dt=get_fattime();
             FSerror=lfs_setattr(&lfs, q, 'A', &dt,   4);
             ErrorCheck(0);
-            if(mode != FA_WRITE | FA_CREATE_ALWAYS)lfs_file_seek(&lfs, FileTable[fnbr].lfsptr, lfs_file_size(&lfs,FileTable[fnbr].lfsptr), LFS_SEEK_SET);
+            if(mode != (FA_WRITE | FA_CREATE_ALWAYS))lfs_file_seek(&lfs, FileTable[fnbr].lfsptr, lfs_file_size(&lfs,FileTable[fnbr].lfsptr), LFS_SEEK_SET);
             lfs_file_sync(&lfs, FileTable[fnbr].lfsptr);
         }
 	    ErrorCheck(fnbr);
@@ -2157,14 +2160,14 @@ int strcicmp(char const *a, char const *b)
 }
 void B2A(unsigned char *fromfile, unsigned char *tofile){
     char buff[512];
-    unsigned int nbr = 0, bw;
-    int fnbr1, fnbr2, err;
+    unsigned int nbr = 0;
+    int fnbr1, fnbr2;
     fnbr1 = FindFreeFileNbr();
     FatFSFileSystem=1; //set to SD
-    BasicFileOpen(fromfile, fnbr1, FA_READ);
+    BasicFileOpen((char *)fromfile, fnbr1, FA_READ);
     fnbr2 = FindFreeFileNbr();
     FatFSFileSystem=0; //set to flash
-    if (!BasicFileOpen(tofile, fnbr2, FA_WRITE | FA_CREATE_ALWAYS))
+    if (!BasicFileOpen((char *)tofile, fnbr2, FA_WRITE | FA_CREATE_ALWAYS))
     {
         FileClose(fnbr1);
     }
@@ -2184,13 +2187,13 @@ void B2A(unsigned char *fromfile, unsigned char *tofile){
 void A2B(unsigned char *fromfile, unsigned char *tofile){
     char buff[512];
     unsigned int nbr = 0, bw;
-    int fnbr1, fnbr2, err;
+    int fnbr1, fnbr2;
     FatFSFileSystem=0; //set to flash
     fnbr1 = FindFreeFileNbr();
-    BasicFileOpen(fromfile, fnbr1, FA_READ);
+    BasicFileOpen((char *)fromfile, fnbr1, FA_READ);
     fnbr2 = FindFreeFileNbr();
     FatFSFileSystem=1; //set to SD
-    if (!BasicFileOpen(tofile, fnbr2, FA_WRITE | FA_CREATE_ALWAYS))
+    if (!BasicFileOpen((char *)tofile, fnbr2, FA_WRITE | FA_CREATE_ALWAYS))
     {
         FileClose(fnbr1);
     }
@@ -2209,13 +2212,13 @@ void A2B(unsigned char *fromfile, unsigned char *tofile){
 void B2B(unsigned char *fromfile, unsigned char *tofile){
     char buff[512];
     unsigned int nbr = 0, bw;
-    int fnbr1, fnbr2, err;
+    int fnbr1, fnbr2;
     fnbr1 = FindFreeFileNbr();
     FatFSFileSystem=1; //set to SD
-    BasicFileOpen(fromfile, fnbr1, FA_READ);
+    BasicFileOpen((char *)fromfile, fnbr1, FA_READ);
     FatFSFileSystem=1; //set to SD
     fnbr2 = FindFreeFileNbr();
-    if (!BasicFileOpen(tofile, fnbr2, FA_WRITE | FA_CREATE_ALWAYS))
+    if (!BasicFileOpen((char *)tofile, fnbr2, FA_WRITE | FA_CREATE_ALWAYS))
     {
         FileClose(fnbr1);
     }
@@ -2232,14 +2235,14 @@ void B2B(unsigned char *fromfile, unsigned char *tofile){
 }
 void A2A(unsigned char *fromfile, unsigned char *tofile){
     char buff[512];
-    unsigned int nbr = 0, bw;
-    int fnbr1, fnbr2, err;
+    unsigned int nbr = 0;
+    int fnbr1, fnbr2;
     fnbr1 = FindFreeFileNbr();
     FatFSFileSystem=0; //set to FLASH
-    BasicFileOpen(fromfile, fnbr1, FA_READ);
+    BasicFileOpen((char *)fromfile, fnbr1, FA_READ);
     fnbr2 = FindFreeFileNbr();
     FatFSFileSystem=0; //set to FLASH
-    if (!BasicFileOpen(tofile, fnbr2, FA_WRITE | FA_CREATE_ALWAYS))
+    if (!BasicFileOpen((char *)tofile, fnbr2, FA_WRITE | FA_CREATE_ALWAYS))
     {
         FileClose(fnbr1);
     }
@@ -2285,40 +2288,40 @@ void cmd_copy(void)
     unsigned char *p=GetTempMemory(STRINGSIZE);
     memcpy(p,cmdline,STRINGSIZE);
     char ss[2]; // this will be used to split up the argument line
-    char *fromfile, *tofile;
+    unsigned char *fromfile, *tofile;
     ss[0] = tokenTO;
     ss[1] = 0;
     int waste;
-    unsigned char *tp = checkstring(cmdline, "B2A");
+    unsigned char *tp = checkstring(cmdline, (unsigned char *)"B2A");
     if(tp){
-        getargs(&tp, 3, ss);
+        getargs(&tp, 3, (unsigned char *)ss);
         if (argc != 3) error("Syntax");
         fromfile = getFstring(argv[0]);
         tofile = getFstring(argv[2]);
         B2A(fromfile,tofile);
         return;
     }        
-    tp = checkstring(cmdline, "A2B");
+    tp = checkstring(cmdline, (unsigned char *)"A2B");
     if(tp){
-        getargs(&tp, 3, ss);
+        getargs(&tp, 3, (unsigned char *)ss);
         if (argc != 3) error("Syntax");
         fromfile = getFstring(argv[0]);
         tofile = getFstring(argv[2]);
         A2B(fromfile,tofile);
         return;
     }
-    tp = checkstring(cmdline, "A2A");
+    tp = checkstring(cmdline, (unsigned char *)"A2A");
     if(tp){
-        getargs(&tp, 3, ss);
+        getargs(&tp, 3, (unsigned char *)ss);
         if (argc != 3) error("Syntax");
         fromfile = getFstring(argv[0]);
         tofile = getFstring(argv[2]);
         A2A(fromfile,tofile);
         return;
     }
-    tp = checkstring(cmdline, "B2B");
+    tp = checkstring(cmdline, (unsigned char *)"B2B");
     if(tp){
-        getargs(&tp, 3, ss);
+        getargs(&tp, 3, (unsigned char *)ss);
         if (argc != 3) error("Syntax");
         fromfile = getFstring(argv[0]);
         tofile = getFstring(argv[2]);
@@ -2326,7 +2329,7 @@ void cmd_copy(void)
         return;
     }
     
-    getargs(&p, 3, ss);
+    getargs(&p, 3, (unsigned char *)ss);
     if (argc != 3) error("Syntax");
     fromfile = getFstring(argv[0]);
     tofile = getFstring(argv[2]);
@@ -2334,33 +2337,31 @@ void cmd_copy(void)
     char todir[FF_MAX_LFN]={0};
     int fromfilesystem;
     char fromdir[FF_MAX_LFN]={0};
-    if(strchr(fromfile,'*') || strchr(fromfile,'?')){ //wildcard in the source so bulk copy
-        char *in=GetTempMemory(STRINGSIZE);
-        char *out=GetTempMemory(STRINGSIZE);
+    if(strchr((char *)fromfile,'*') || strchr((char *)fromfile,'?')){ //wildcard in the source so bulk copy
+        unsigned char *in=GetTempMemory(STRINGSIZE);
+        unsigned char *out=GetTempMemory(STRINGSIZE);
 //         MMPrintString("Bulk copying\r\n");
         int localsave=FatFSFileSystem;
-        if(!(ExistsDir(tofile, todir, &tofilesystem))){
+        if(!(ExistsDir((char *)tofile, todir, &tofilesystem))){
             FatFSFileSystem=localsave;
             error("$ not a directory",tofile);
         } 
         int waste=0, t=FatFSFileSystem+1;
-        t = drivecheck(getFstring(argv[0]),&waste);
+        t = drivecheck((char *)getFstring(argv[0]),&waste);
         argv[0]+=waste;
         *argv[0]='"';
         FatFSFileSystem=t-1;
-        int i,j, currentsize;
-        uint32_t currentdate;
-        char *p, extension[8];
-        int fcnt, sortorder = 0;
-        char ts[FF_MAX_LFN] = {0};
+        int i;
+//        uint32_t currentdate;
+        char *p;
+//        char ts[FF_MAX_LFN] = {0};
         char pp[FF_MAX_LFN] = {0};
         char q[FF_MAX_LFN] = {0};
         DIR djd;
         FILINFO fnod;
         memset(&djd, 0, sizeof(DIR));
         memset(&fnod, 0, sizeof(FILINFO));
-        fcnt = 0;
-        p = getFstring(argv[0]);
+        p = (char *)getFstring(argv[0]);
         i = strlen(p) - 1;
         while (i > 0 && !(p[i] == '/'))
             i--;
@@ -2406,16 +2407,16 @@ void cmd_copy(void)
                 if (!(fnod.fattrib & (AM_SYS | AM_HID | AM_DIR)))
                 {
                     // add a prefix to each line so that directories will sort ahead of files
-                   currentsize = fnod.fsize;
+//                   currentsize = fnod.fsize;
                     // and concatenate the filename found
                     MMPrintString("Copying ");
                     MMPrintString(fnod.fname);PRet();
-                    strcpy(in,fromdir);
-                    strcpy(out,todir);
-                    if(in[strlen(in)-1]!='/')strcat(in,"/");
-                    if(out[strlen(out)-1]!='/')strcat(out,"/");
-                    strcat(out,fnod.fname);
-                    strcat(in,fnod.fname);
+                    strcpy((char *)in,fromdir);
+                    strcpy((char *)out,todir);
+                    if(in[strlen((char *)in)-1]!='/')strcat((char *)in,"/");
+                    if(out[strlen((char *)out)-1]!='/')strcat((char *)out,"/");
+                    strcat((char *)out,fnod.fname);
+                    strcat((char *)in,fnod.fname);
                     if(fromfilesystem==1 && tofilesystem==1)B2B(in,out);
                     else if(fromfilesystem==0 && tofilesystem==0)A2A(in,out);
                     else if(fromfilesystem==1 && tofilesystem==0)B2A(in,out);
@@ -2438,16 +2439,16 @@ void cmd_copy(void)
                     found=1;
                 }
                 if(found){
-                    currentsize = lfs_info.size;
+//                    currentsize = lfs_info.size;
                     // and concatenate the filename found
                     MMPrintString("Copying ");
                     MMPrintString(lfs_info.name);PRet();
-                    strcpy(in,fromdir);
-                    strcpy(out,todir);
-                    if(in[strlen(in)-1]!='/')strcat(in,"/");
-                    if(out[strlen(out)-1]!='/')strcat(out,"/");
-                    strcat(out,lfs_info.name);
-                    strcat(in,lfs_info.name);
+                    strcpy((char *)in,fromdir);
+                    strcpy((char *)out,todir);
+                    if(in[strlen((char *)in)-1]!='/')strcat((char *)in,"/");
+                    if(out[strlen((char *)out)-1]!='/')strcat((char *)out,"/");
+                    strcat((char *)out,lfs_info.name);
+                    strcat((char *)in,lfs_info.name);
                     if(fromfilesystem==1 && tofilesystem==1)B2B(in,out);
                     else if(fromfilesystem==0 && tofilesystem==0)A2A(in,out);
                     else if(fromfilesystem==1 && tofilesystem==0)B2A(in,out);
@@ -2461,19 +2462,19 @@ void cmd_copy(void)
         return;
     }
 
-    if(drivecheck(fromfile, &waste)==FLASHFILE && drivecheck(tofile, &waste)==FLASHFILE){
+    if(drivecheck((char *)fromfile, &waste)==FLASHFILE && drivecheck((char *)tofile, &waste)==FLASHFILE){
         A2A(fromfile,tofile);
         return;
     }
-    if(drivecheck(fromfile, &waste)==FATFSFILE && drivecheck(tofile, &waste)==FATFSFILE){
+    if(drivecheck((char *)fromfile, &waste)==FATFSFILE && drivecheck((char *)tofile, &waste)==FATFSFILE){
         B2B(fromfile,tofile);
         return;
     }
-    if(drivecheck(fromfile, &waste)==FLASHFILE && drivecheck(tofile, &waste)==FATFSFILE){
+    if(drivecheck((char *)fromfile, &waste)==FLASHFILE && drivecheck((char *)tofile, &waste)==FATFSFILE){
         A2B(fromfile,tofile);
         return;
     }
-    if(drivecheck(fromfile, &waste)==FATFSFILE && drivecheck(tofile, &waste)==FLASHFILE){
+    if(drivecheck((char *)fromfile, &waste)==FATFSFILE && drivecheck((char *)tofile, &waste)==FLASHFILE){
         B2A(fromfile,tofile);
         return;
     }
@@ -2547,7 +2548,7 @@ void fullpath(char *q)
     char *rp = GetMemory(STRINGSIZE);
     char *fp=p;
     char *frp=rp;
-    int i;
+//    int i;
     strcpy(p, q);
     memset(fullpathname[FatFSFileSystem], 0, sizeof(fullpathname[FatFSFileSystem]));
     strcpy(fullpathname[FatFSFileSystem], filepath[FatFSFileSystem]);
@@ -2555,8 +2556,8 @@ void fullpath(char *q)
     {
         memmove(fullpathname[FatFSFileSystem], &fullpathname[FatFSFileSystem][2], strlen(fullpathname[FatFSFileSystem]));
         //    	MMPrintString("Now: ");MMPrintString(fullpathname);PRet();
-	    FreeMemory(fp);
-	    FreeMemory(frp);
+	    FreeMemory((unsigned char *)fp);
+	    FreeMemory((unsigned char *)frp);
         return; // nothing to do
     }
     if (p[1] == ':')
@@ -2588,18 +2589,18 @@ void fullpath(char *q)
     strcpy(fullpathname[FatFSFileSystem], rp); // store this back to the filepath variable
     memmove(fullpathname[FatFSFileSystem], &fullpathname[FatFSFileSystem][2], strlen(fullpathname[FatFSFileSystem]));
 //    MMPrintString("Now: ");MMPrintString(fullpathname[FatFSFileSystem]);PRet();
-    FreeMemory(fp);
-    FreeMemory(frp);
+    FreeMemory((unsigned char *)fp);
+    FreeMemory((unsigned char *)frp);
 }
 void getfullpath(char *p, char *q){
-	int j;
+//	int j;
     strcpy(q,p);
     if(q[1]==':')q[0]='0';
     fullpath(q);
     strcpy(q,fullpathname[FatFSFileSystem]);
 }
 void getfullfilepath(char *p, char *q){
-	int i,j;
+	int i;
     char pp[FF_MAX_LFN] = {0};
     i=strlen(p)-1;
     while(i>0 && !(p[i]=='/'))i--;
@@ -2625,13 +2626,13 @@ void cmd_files(void)
     if(CurrentLinePtr) error("Invalid in a program");
     int waste=0, t=FatFSFileSystem+1;
     if(*cmdline){
-        t = drivecheck(getFstring(cmdline),&waste);
+        t = drivecheck((char *)getFstring(cmdline),&waste);
         cmdline+=waste;
         *cmdline='"';
     }
     ClearVars(0);
     ClearRuntime();
-    int i, j, c, dirs, ListCnt, currentsize;
+    int i, c, dirs, ListCnt, currentsize;
     uint32_t currentdate;
     char *p, extension[8];
     int fcnt, sortorder = 0;
@@ -2646,10 +2647,10 @@ void cmd_files(void)
     fcnt = 0;
     if (*cmdline)
     {
-        getargs(&cmdline, 3, ",");
+        getargs(&cmdline, 3, (unsigned char *)",");
         if (!(argc == 1 || argc == 3))
             error("Syntax");
-        p = getFstring(argv[0]);
+        p = (char *)getFstring(argv[0]);
         i = strlen(p) - 1;
         while (i > 0 && !(p[i] == '/'))
             i--;
@@ -2669,13 +2670,13 @@ void cmd_files(void)
         }
         if (argc == 3)
         {
-            if (checkstring(argv[2], "NAME"))
+            if (checkstring(argv[2], (unsigned char *)"NAME"))
                 sortorder = 0;
-            else if (checkstring(argv[2], "TIME"))
+            else if (checkstring(argv[2], (unsigned char *)"TIME"))
                 sortorder = 1;
-            else if (checkstring(argv[2], "SIZE"))
+            else if (checkstring(argv[2], (unsigned char *)"SIZE"))
                 sortorder = 2;
-            else if (checkstring(argv[2], "TYPE"))
+            else if (checkstring(argv[2], (unsigned char *)"TYPE"))
                 sortorder = 3;
             else
                 error("Syntax");
@@ -3111,7 +3112,7 @@ void cmd_autosave(void)
     int count = 0;
     uint64_t timeout;
     if (CurrentLinePtr)error("Invalid in a program");
-    char *tp=checkstring(cmdline,"APPEND");
+    char *tp=(char *)checkstring(cmdline,(unsigned char *)"APPEND");
     if(tp){
         ClearVars(0);
         CloseAudio(1);
@@ -3123,12 +3124,12 @@ void cmd_autosave(void)
         }
 #endif
         p = buf = GetMemory(EDIT_BUFFER_SIZE);
-        char * fromp  = ProgMemory;
+        char * fromp  = (char *)ProgMemory;
         p = buf;
         while(*fromp != 0xff) {
             if(*fromp == T_NEWLINE) {
-                fromp = llist(p, fromp);                                // otherwise expand the line
-                p += strlen(p);
+                fromp = (char *)llist((unsigned char *)p, (unsigned char *)fromp);                                // otherwise expand the line
+                p += strlen((char *)p);
                 *p++ = '\n'; *p = 0;
             }
             // finally, is it the end of the program?
@@ -3199,7 +3200,8 @@ readin:;
     if (c == F2)
     {
         ClearVars(0);
-        strcpy(inpbuf, "RUN\r\n");
+        strcpy((char *)inpbuf, "RUN\r\n");
+        multi=false;
         tokenise(true);         // turn into executable code
         ExecuteProgram(tknbuf); // execute the line straight away
     }
@@ -3209,20 +3211,20 @@ void FileOpen(char *fname, char *fmode, char *ffnbr)
 {
     int fnbr;
     BYTE mode = 0;
-    if (str_equal(fmode, "OUTPUT"))
+    if (str_equal((const unsigned char *)fmode, (const unsigned char *)"OUTPUT"))
         mode = FA_WRITE | FA_CREATE_ALWAYS;
-    else if (str_equal(fmode, "APPEND"))
+    else if (str_equal((const unsigned char *)fmode, (const unsigned char *)"APPEND"))
         mode = FA_WRITE | FA_OPEN_APPEND;
-    else if (str_equal(fmode, "INPUT"))
+    else if (str_equal((const unsigned char *)fmode, (const unsigned char *)"INPUT"))
         mode = FA_READ;
-    else if (str_equal(fmode, "RANDOM"))
+    else if (str_equal((const unsigned char *)fmode, (const unsigned char *)"RANDOM"))
         mode = FA_WRITE | FA_OPEN_APPEND | FA_READ;
     else
         error("File access mode");
 
     if (*ffnbr == '#')
         ffnbr++;
-    fnbr = getinteger(ffnbr);
+    fnbr = getinteger((unsigned char *)ffnbr);
     BasicFileOpen(fname, fnbr, mode);
 }
 
@@ -3237,19 +3239,19 @@ void cmd_open(void)
     ss[2] = ',';
     ss[3] = 0;
     {                             // start a new block
-        getargs(&cmdline, 7, ss); // getargs macro must be the first executable stmt in a block
+        getargs(&cmdline, 7, (unsigned char *)ss); // getargs macro must be the first executable stmt in a block
         if (!(argc == 3 || argc == 5 || argc == 7))
             error("Syntax");
-        fname = getFstring(argv[0]);
+        fname = (char *)getFstring(argv[0]);
 
         // check that it is a serial port that we are opening
-        if (argc == 5 && !(mem_equal(fname, "COM1:", 5) || mem_equal(fname, "COM2:", 5)))
+        if (argc == 5 && !(mem_equal((unsigned char *)fname, (unsigned char *)"COM1:", 5) || mem_equal((unsigned char *)fname, (unsigned char *)"COM2:", 5)))
         {
-            FileOpen(fname, argv[2], argv[4]);
+            FileOpen(fname, (char *)argv[2], (char *)argv[4]);
             diskchecktimer = DISKCHECKRATE;
             return;
         }
-        if (!(mem_equal(fname, "COM1:", 5) || mem_equal(fname, "COM2:", 5)))
+        if (!(mem_equal((unsigned char *)fname, (unsigned char *)"COM1:", 5) || mem_equal((unsigned char *)fname, (unsigned char *)"COM2:", 5)))
             error("Invalid COM port");
         if ((*argv[2] == 'G') || (*argv[2] == 'g'))
         {
@@ -3269,13 +3271,13 @@ void cmd_open(void)
                 gpsmonitor = getint(argv[6], 0, 1);
             GPSadjust = (int)(timeadjust * 3600.0);
             // check that it is a serial port that we are opening
-            SerialOpen(fname);
+            SerialOpen((unsigned char *)fname);
             fnbr = FindFreeFileNbr();
             GPSfnbr = fnbr;
             FileTable[fnbr].com = fname[3] - '0';
-            if (mem_equal(fname, "COM1:", 5))
+            if (mem_equal((unsigned char *)fname, (unsigned char *)"COM1:", 5))
                 GPSchannel = 1;
-            if (mem_equal(fname, "COM2:", 5))
+            if (mem_equal((unsigned char *)fname, (unsigned char *)"COM2:", 5))
                 GPSchannel = 2;
             gpsbuf = gpsbuf1;
             gpscurrent = 0;
@@ -3288,7 +3290,7 @@ void cmd_open(void)
             fnbr = getint(argv[2], 1, MAXOPENFILES);
             if (FileTable[fnbr].com != 0)
                 error("Already open");
-            SerialOpen(fname);
+            SerialOpen((unsigned char *)fname);
             FileTable[fnbr].com = fname[3] - '0';
         }
     }
@@ -3297,7 +3299,7 @@ void cmd_open(void)
 void fun_inputstr(void)
 {
     int i, nbr, fnbr;
-    getargs(&ep, 3, ",");
+    getargs(&ep, 3, (unsigned char *)",");
     if (argc != 3)
         error("Syntax");
     sret = GetTempMemory(STRINGSIZE); // this will last for the life of the command
@@ -3333,7 +3335,7 @@ void fun_inputstr(void)
 void fun_eof(void)
 {
     int fnbr;
-    getargs(&ep, 1, ",");
+    getargs(&ep, 1, (unsigned char *)",");
     if (argc == 0)
         error("Syntax");
     if (*argv[0] == '#')
@@ -3346,7 +3348,7 @@ void fun_eof(void)
 void cmd_flush(void)
 {
     int fnbr;
-    getargs(&cmdline, 1, ",");
+    getargs(&cmdline, 1, (unsigned char *)",");
     if (argc == 0)
         error("Syntax");
     if (*argv[0] == '#')
@@ -3377,7 +3379,7 @@ void cmd_flush(void)
 void fun_loc(void)
 {
     int fnbr;
-    getargs(&ep, 1, ",");
+    getargs(&ep, 1, (unsigned char *)",");
     if (argc == 0)
         error("Syntax");
     if (*argv[0] == '#')
@@ -3405,7 +3407,7 @@ void fun_loc(void)
 void fun_lof(void)
 {
     int fnbr;
-    getargs(&ep, 1, ",");
+    getargs(&ep, 1, (unsigned char *)",");
     if (argc == 0)
         error("Syntax");
     if (*argv[0] == '#')
@@ -3438,7 +3440,7 @@ void fun_lof(void)
 void cmd_close(void)
 {
     int i, fnbr;
-    getargs(&cmdline, (MAX_ARG_COUNT * 2) - 1, ","); // getargs macro must be the first executable stmt in a block
+    getargs(&cmdline, (MAX_ARG_COUNT * 2) - 1, (unsigned char *)","); // getargs macro must be the first executable stmt in a block
     if ((argc & 0x01) == 0)
         error("Syntax");
     for (i = 0; i < argc; i += 2)
@@ -3528,8 +3530,8 @@ void __not_in_flash_func(CheckSDCard)(void)
 void LoadOptions(void)
 {
     int i = sizeof(struct option_s);
-    unsigned char *pp = (char *)flash_option_contents;
-    unsigned char *qq = (char *)&Option;
+    unsigned char *pp = (unsigned char *)flash_option_contents;
+    unsigned char *qq = (unsigned char *)&Option;
     while (i--)
         *qq++ = *pp++;
 }
@@ -3623,7 +3625,7 @@ void FlashWriteBlock(void)
     int i;
     uint32_t address = realflashpointer - 256;
     //    if(address % 32)error("Memory write address");
-    flash_range_program((const uint32_t)address, (const char *)&MemWord.i64[0], 256);
+    flash_range_program((const uint32_t)address, (const uint8_t *)&MemWord.i64[0], 256);
     for (i = 0; i < 64; i++)
         MemWord.i32[i] = 0xFFFFFFFF;
 }
@@ -3689,13 +3691,13 @@ void cmd_var(void)
     int i, j, nbr = 1, nbr2 = 1, array, type, SaveDefaultType;
     int VarList[MAX_ARG_COUNT];
     unsigned char *VarDataList[MAX_ARG_COUNT];
-    if ((p = checkstring(cmdline, "CLEAR")))
+    if ((p = checkstring(cmdline, (unsigned char *)"CLEAR")))
     {
         checkend(p);
         ClearSavedVars();
         return;
     }
-    if ((p = checkstring(cmdline, "RESTORE")))
+    if ((p = checkstring(cmdline, (unsigned char *)"RESTORE")))
     {
         char b[MAXVARLEN + 3];
         checkend(p);
@@ -3712,9 +3714,9 @@ void cmd_var(void)
             DefaultType = TypeMask(type); // and set the default type to this
             if (array)
             {
-                strcpy(b, bufp);
+                strcpy(b, (const char *)bufp);
                 strcat(b, "()");
-                vdata = findvar(b, type | V_EMPTY_OK | V_NOFIND_ERR); // find an array
+                vdata = findvar((unsigned char *)b, type | V_EMPTY_OK | V_NOFIND_ERR); // find an array
             }
             else
                 vdata = findvar(bufp, type | V_FIND); // find or create a non arrayed variable
@@ -3757,9 +3759,9 @@ void cmd_var(void)
         return;
     }
 
-    if ((p = checkstring(cmdline, "SAVE")))
+    if ((p = checkstring(cmdline, (unsigned char *)"SAVE")))
     {
-        getargs(&p, (MAX_ARG_COUNT * 2) - 1, ","); // getargs macro must be the first executable stmt in a block
+        getargs(&p, (MAX_ARG_COUNT * 2) - 1, (unsigned char *)","); // getargs macro must be the first executable stmt in a block
         if (argc && (argc & 0x01) == 0)
             error("Invalid syntax");
 
@@ -3772,7 +3774,7 @@ void cmd_var(void)
             VarList[i / 2] = VarIndex;
             if ((vartbl[VarIndex].type & (T_CONST | T_PTR)) || vartbl[VarIndex].level != 0)
                 error("Invalid variable");
-            p = &argv[i][strlen(argv[i]) - 1]; // pointer to the last char
+            p = &argv[i][strlen((char *)argv[i]) - 1]; // pointer to the last char
             if (*p == ')')
             { // strip off any empty brackets which indicate an array
                 p--;
@@ -3813,11 +3815,11 @@ void cmd_var(void)
             }
             for (i = 0; i < argc; i += 2)
             {                                      // scan the argument list
-                p = &argv[i][strlen(argv[i]) - 1]; // pointer to the last char
+                p = &argv[i][strlen((char *)argv[i]) - 1]; // pointer to the last char
                 lastc = *p;                        // get the last char
                 if (lastc <= '%')
                     *p = 0; // remove the type suffix for the compare
-                if (strncasecmp(vdata, argv[i], MAXVARLEN) == 0)
+                if (strncasecmp((char *)vdata, (char *)argv[i], MAXVARLEN) == 0)
                 { // does the entry have the same name?
                     while (nbr--)
                         varp++; // found matching variable, skip over the entry in flash (ie, do not copy to RAM)

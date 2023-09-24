@@ -186,7 +186,7 @@ int GetCtrlParams(int type, unsigned char *p) {
     int r, a;
     struct s_GaugeS *GaugeS;                                        // in case we are dealing with a GAUGE control
     if(!Option.MaxCtrls)error("No memory allocated for GUI controls");
-    getargs(&p, 40, ",");
+    getargs(&p, 40, (unsigned char *)",");
     if((argc & 1) != 1) error("Argument count");
     if(*argv[0] == '#') argv[0]++;
     r = getint(argv[0], 1, Option.MaxCtrls - 1);
@@ -219,7 +219,7 @@ int GetCtrlParams(int type, unsigned char *p) {
         case CTRL_SWITCH:
         case CTRL_FRAME:
         case CTRL_RADIOBTN:
-        case CTRL_CHECKBOX:         strcpy(Ctrl[r].s, getCstring(argv[a += 2]));
+        case CTRL_CHECKBOX:         strcpy((char *)Ctrl[r].s, (char *)getCstring(argv[a += 2]));
     }
 
     if(type == CTRL_FMTBOX) {
@@ -227,7 +227,7 @@ int GetCtrlParams(int type, unsigned char *p) {
         a += 2;
         if(*argv[a] == '"') {
             Ctrl[r].fmt = GetMemory(MAXSTRLEN);
-            strcpy(Ctrl[r].fmt, getCstring(argv[a]));
+            strcpy((char *)Ctrl[r].fmt, (char *)getCstring(argv[a]));
         } else {
             // Format String:
             // xc where x is the maximum value digit and c is the ghost char
@@ -236,22 +236,22 @@ int GetCtrlParams(int type, unsigned char *p) {
             //                     1 to 24 = 2hHh       0 to 179 = 1dLd9d
             // A separator is in brackets.  Eg (:)   or   (' )
             // Special chars: A = AM/PM    N = N/S    E = E/W
-            if(checkstring(argv[a], "DATE1")) Ctrl[r].fmt = "3dDd(/)1mMm(/)9y9y";
-            if(checkstring(argv[a], "DATE2")) Ctrl[r].fmt = "1mMm(/)3dDd(/)9y9y";
-            if(checkstring(argv[a], "DATE3")) Ctrl[r].fmt = "9y9y9y9y(/)1mMm(/)3dDd";
-            if(checkstring(argv[a], "TIME1")) Ctrl[r].fmt = "2hHh(:)5m9m";
-            if(checkstring(argv[a], "TIME2")) Ctrl[r].fmt = "2hHh(:)5m9m(:)5s9s";
-            if(checkstring(argv[a], "TIME3")) Ctrl[r].fmt = "1hMh(:)5m9m( )A";
-            if(checkstring(argv[a], "TIME4")) Ctrl[r].fmt = "1hMh(:)5m9m(:)5s9s( )A";
-            if(checkstring(argv[a], "DATETIME1")) Ctrl[r].fmt = "3dDd(/)1mMm(/)9y9y( )1hMh(:)5m9m( )A";
-            if(checkstring(argv[a], "DATETIME2")) Ctrl[r].fmt = "3dDd(/)1mMm(/)9y9y( )2hHh(:)5m9m";
-            if(checkstring(argv[a], "DATETIME3")) Ctrl[r].fmt = "1mMm(/)3dDd(/)9y9y( )1hMh(:)5m9m( )A";
-            if(checkstring(argv[a], "DATETIME4")) Ctrl[r].fmt = "1mMm(/)3dDd(/)9y9y( )2hHh(:)5m9m";
-            if(checkstring(argv[a], "LAT1")) Ctrl[r].fmt = "8d9d(` )5m9m(' )5s9s(\" )N";
-            if(checkstring(argv[a], "LAT2")) Ctrl[r].fmt = "8d9d(` )5m9m(' )5s9s(.)9s(\" )N";
-            if(checkstring(argv[a], "LONG1")) Ctrl[r].fmt = "1dLd9d(` )5m9m(' )5s9s(\" )E";
-            if(checkstring(argv[a], "LONG2")) Ctrl[r].fmt = "1dLd9d(` )5m9m(' )5s9s(.)9s(\" )E";
-            if(checkstring(argv[a], "ANGLE1")) Ctrl[r].fmt = "9d9d9d(` )5m9m(')";
+            if(checkstring(argv[a], (unsigned char *)"DATE1")) Ctrl[r].fmt = (unsigned char *)"3dDd(/)1mMm(/)9y9y";
+            if(checkstring(argv[a], (unsigned char *)"DATE2")) Ctrl[r].fmt = (unsigned char *)"1mMm(/)3dDd(/)9y9y";
+            if(checkstring(argv[a], (unsigned char *)"DATE3")) Ctrl[r].fmt = (unsigned char *)"9y9y9y9y(/)1mMm(/)3dDd";
+            if(checkstring(argv[a], (unsigned char *)"TIME1")) Ctrl[r].fmt = (unsigned char *)"2hHh(:)5m9m";
+            if(checkstring(argv[a], (unsigned char *)"TIME2")) Ctrl[r].fmt = (unsigned char *)"2hHh(:)5m9m(:)5s9s";
+            if(checkstring(argv[a], (unsigned char *)"TIME3")) Ctrl[r].fmt = (unsigned char *)"1hMh(:)5m9m( )A";
+            if(checkstring(argv[a], (unsigned char *)"TIME4")) Ctrl[r].fmt = (unsigned char *)"1hMh(:)5m9m(:)5s9s( )A";
+            if(checkstring(argv[a], (unsigned char *)"DATETIME1")) Ctrl[r].fmt = (unsigned char *)"3dDd(/)1mMm(/)9y9y( )1hMh(:)5m9m( )A";
+            if(checkstring(argv[a], (unsigned char *)"DATETIME2")) Ctrl[r].fmt = (unsigned char *)"3dDd(/)1mMm(/)9y9y( )2hHh(:)5m9m";
+            if(checkstring(argv[a], (unsigned char *)"DATETIME3")) Ctrl[r].fmt = (unsigned char *)"1mMm(/)3dDd(/)9y9y( )1hMh(:)5m9m( )A";
+            if(checkstring(argv[a], (unsigned char *)"DATETIME4")) Ctrl[r].fmt = (unsigned char *)"1mMm(/)3dDd(/)9y9y( )2hHh(:)5m9m";
+            if(checkstring(argv[a], (unsigned char *)"LAT1")) Ctrl[r].fmt = (unsigned char *)"8d9d(` )5m9m(' )5s9s(\" )N";
+            if(checkstring(argv[a], (unsigned char *)"LAT2")) Ctrl[r].fmt = (unsigned char *)"8d9d(` )5m9m(' )5s9s(.)9s(\" )N";
+            if(checkstring(argv[a], (unsigned char *)"LONG1")) Ctrl[r].fmt = (unsigned char *)"1dLd9d(` )5m9m(' )5s9s(\" )E";
+            if(checkstring(argv[a], (unsigned char *)"LONG2")) Ctrl[r].fmt = (unsigned char *)"1dLd9d(` )5m9m(' )5s9s(.)9s(\" )E";
+            if(checkstring(argv[a], (unsigned char *)"ANGLE1")) Ctrl[r].fmt = (unsigned char *)"9d9d9d(` )5m9m(')";
         }
     }
 
@@ -266,8 +266,8 @@ int GetCtrlParams(int type, unsigned char *p) {
         a += 2;
         if(!(argc < a || *argv[a] == 0)) {                          // if justification is specified
             int jh = 0, jv = 0, jo = 0;
-            if(!GetJustification(argv[a], &jh, &jv, &jo))
-                if(!GetJustification(getCstring(argv[a]), &jh, &jv, &jo))
+            if(!GetJustification((char *)argv[a], &jh, &jv, &jo))
+                if(!GetJustification((char *)getCstring(argv[a]), &jh, &jv, &jo))
                     error("Justification");
             Ctrl[r].x2 = jh | jv << 2 | jo << 4;                    // stuff the justification parameters into the short int
         }
@@ -299,7 +299,7 @@ int GetCtrlParams(int type, unsigned char *p) {
                                         // we have the width/height in x2 and it is saved in Ctrl[r].inc
                                         Ctrl[r].inc = Ctrl[r].x2;
                                         Ctrl[r].y2 =  Ctrl[r].y1 + Ctrl[r].x2;  // calculate the touch sensitive area
-                                        Ctrl[r].x2 = Ctrl[r].x1 + Ctrl[r].x2 + (gui_font_width * (strlen(Ctrl[r].s) + 1));  // calculate the touch sensitive area
+                                        Ctrl[r].x2 = Ctrl[r].x1 + Ctrl[r].x2 + (gui_font_width * (strlen((char *)Ctrl[r].s) + 1));  // calculate the touch sensitive area
                                         break;
 
             case CTRL_LED:
@@ -307,7 +307,7 @@ int GetCtrlParams(int type, unsigned char *p) {
                                         // their touch sensitive area is stored in x1, y1, x2 and y2
                                         // the radius is stored in Ctrl[r].max and the X and Y centre of the button is calculated when drawing the control
                                         Ctrl[r].max = Ctrl[r].x2;
-                                        Ctrl[r].x2 = Ctrl[r].x1 + Ctrl[r].max + (gui_font_width * (strlen(Ctrl[r].s) + 1));  // calculate the touch sensitive area
+                                        Ctrl[r].x2 = Ctrl[r].x1 + Ctrl[r].max + (gui_font_width * (strlen((char *)Ctrl[r].s) + 1));  // calculate the touch sensitive area
                                         Ctrl[r].x1 -= Ctrl[r].max;
                                         Ctrl[r].y2 = Ctrl[r].y1 + Ctrl[r].max;
                                         Ctrl[r].y1 -= Ctrl[r].max;
@@ -347,12 +347,12 @@ int GetCtrlParams(int type, unsigned char *p) {
         if(argc > a + 2) if(*argv[a += 2] != 0) last_max = Ctrl[r].max = getnumber(argv[a]);
         if(type == CTRL_GAUGE) { if(argc > a + 2) if(*argv[a += 2] != 0) last_inc = Ctrl[r].inc = getnumber(argv[a]); }
 
-        strcpy(Ctrl[r].s, last_units);                              // setup the default default
+        strcpy((char *)Ctrl[r].s, last_units);                              // setup the default default
         if(type == CTRL_GAUGE && argc > a + 2) {
             if(*argv[a += 2] != 0) {
-                strcpy(Ctrl[r].s, getCstring(argv[a]));             // get the units caption
+                strcpy((char *)Ctrl[r].s, (char *)getCstring(argv[a]));             // get the units caption
                 Ctrl[r].s[GAUGE_UNITS_SIZE - 1] = 0;                // truncate to max size
-               strcpy(last_units, Ctrl[r].s);                       // save as default
+               strcpy(last_units, (char *)Ctrl[r].s);                       // save as default
             } else
                 *last_units = *Ctrl[r].s = 0;
         }
@@ -389,51 +389,50 @@ void cmd_gui(void) {
 
     if(!Option.DISPLAY_TYPE) error("Display not configured");
 
-    if((p = checkstring(cmdline, "PAGE"))) {
+    if((p = checkstring(cmdline, (unsigned char *)"PAGE"))) {
     	cmd_GUIpage(p);
     	return;
     }
-    if((p = checkstring(cmdline, "BUTTON"))) {
+    if((p = checkstring(cmdline, (unsigned char *)"BUTTON"))) {
         r = GetCtrlParams(CTRL_BUTTON, p);
         return;
     }
 
 
-    if((p = checkstring(cmdline, "SWITCH"))) {
+    if((p = checkstring(cmdline, (unsigned char *)"SWITCH"))) {
         r = GetCtrlParams(CTRL_SWITCH, p);
         return;
     }
 
 
-    if((p = checkstring(cmdline, "CHECKBOX"))) {
+    if((p = checkstring(cmdline, (unsigned char *)"CHECKBOX"))) {
         r = GetCtrlParams(CTRL_CHECKBOX, p);
         return;
     }
 
 
-    if((p = checkstring(cmdline, "RADIO"))) {
+    if((p = checkstring(cmdline, (unsigned char *)"RADIO"))) {
         r = GetCtrlParams(CTRL_RADIOBTN, p);
 
         return;
     }
 
 
-    if((p = checkstring(cmdline, "LED"))) {
+    if((p = checkstring(cmdline, (unsigned char *)"LED"))) {
         r = GetCtrlParams(CTRL_LED, p);
         Ctrl[r].inc = 0;
         return;
     }
 
 
-    if((p = checkstring(cmdline, "FRAME"))) {
+    if((p = checkstring(cmdline, (unsigned char *)"FRAME"))) {
         r = GetCtrlParams(CTRL_FRAME, p);
         return;
     }
 
 
-    if((p = checkstring(cmdline, "NUMBERBOX"))) {
-        char *pp;
-        if((pp = checkstring(p, "CANCEL"))) {
+    if((p = checkstring(cmdline, (unsigned char *)"NUMBERBOX"))) {
+         if((checkstring(p, (unsigned char *)"CANCEL"))) {
             if(!Option.MaxCtrls)error("No memory allocated for GUI controls");
             if(!InvokingCtrl) return;
             DrawKeyboard(KEY_KEY_CANCEL);
@@ -443,9 +442,8 @@ void cmd_gui(void) {
     }
 
 
-    if((p = checkstring(cmdline, "TEXTBOX"))) {
-        char *pp;
-        if((pp = checkstring(p, "CANCEL"))) {
+    if((p = checkstring(cmdline, (unsigned char *)"TEXTBOX"))) {
+        if((checkstring(p, (unsigned char *)"CANCEL"))) {
             if(!Option.MaxCtrls)error("No memory allocated for GUI controls");
             if(!InvokingCtrl) return;
             DrawKeyboard(KEY_KEY_CANCEL);
@@ -456,9 +454,8 @@ void cmd_gui(void) {
     }
 
 
-    if((p = checkstring(cmdline, "FORMATBOX"))) {
-        char *pp;
-        if((pp = checkstring(p, "CANCEL"))) {
+    if((p = checkstring(cmdline, (unsigned char *)"FORMATBOX"))) {
+        if((checkstring(p, (unsigned char *)"CANCEL"))) {
             if(!Option.MaxCtrls)error("No memory allocated for GUI controls");
             if(!InvokingCtrl) return;
             DrawFmtBox(KEY_KEY_CANCEL);
@@ -468,53 +465,53 @@ void cmd_gui(void) {
     }
 
 
-    if((p = checkstring(cmdline, "SPINBOX"))) {
+    if((p = checkstring(cmdline, (unsigned char *)"SPINBOX"))) {
         r = GetCtrlParams(CTRL_SPINNER, p);
         Ctrl[r].value = 0;
         if(Ctrl[r].value < Ctrl[r].min) Ctrl[r].value = Ctrl[r].min;
         if(Ctrl[r].value > Ctrl[r].max) Ctrl[r].value = Ctrl[r].max;
-        FloatToStr(Ctrl[r].s, Ctrl[r].value, 0, STR_AUTO_PRECISION, ' ');
+        FloatToStr((char *)Ctrl[r].s, Ctrl[r].value, 0, STR_AUTO_PRECISION, ' ');
         UpdateControl(r);                                           // update the displayed string
         return;
     }
 
 
-    if((p = checkstring(cmdline, "DISPLAYBOX"))) {
+    if((p = checkstring(cmdline, (unsigned char *)"DISPLAYBOX"))) {
         r = GetCtrlParams(CTRL_DISPLAYBOX, p);
         return;
     }
 
 
-    if((p = checkstring(cmdline, "CAPTION"))) {
+    if((p = checkstring(cmdline, (unsigned char *)"CAPTION"))) {
         r = GetCtrlParams(CTRL_CAPTION, p);
         return;
     }
 
 
-    if((p = checkstring(cmdline, "GAUGE"))) {
+    if((p = checkstring(cmdline, (unsigned char *)"GAUGE"))) {
         r = GetCtrlParams(CTRL_GAUGE, p);
         return;
     }
 
 
-    if((p = checkstring(cmdline, "BARGAUGE"))) {
+    if((p = checkstring(cmdline, (unsigned char *)"BARGAUGE"))) {
         r = GetCtrlParams(CTRL_BARGAUGE, p);
         return;
     }
 
 
-    if((p = checkstring(cmdline, "AREA"))) {
+    if((p = checkstring(cmdline, (unsigned char *)"AREA"))) {
         r = GetCtrlParams(CTRL_AREA, p);
         return;
     }
 
 
-    if((p = checkstring(cmdline, "DELETE"))) {
+    if((p = checkstring(cmdline, (unsigned char *)"DELETE"))) {
         int i, r;
-        getargs(&p, MAX_ARG_COUNT, ",");
+        getargs(&p, MAX_ARG_COUNT, (unsigned char *)",");
         if(!(argc & 1)) error("Argument count");
         if(!Option.MaxCtrls)error("No memory allocated for GUI controls");
-        if(checkstring(argv[0], "ALL")) {
+        if(checkstring(argv[0], (unsigned char *)"ALL")) {
             for(r = 1; r < Option.MaxCtrls; r++)
                 if(Ctrl[r].type != 0) {
                     SetCtrlState(r, CTRL_HIDDEN, true);
@@ -537,12 +534,12 @@ void cmd_gui(void) {
     }
 
 
-    if((p = checkstring(cmdline, "DISABLE"))) {
+    if((p = checkstring(cmdline, (unsigned char *)"DISABLE"))) {
         int i, r;
-        getargs(&p, MAX_ARG_COUNT, ",");
+        getargs(&p, MAX_ARG_COUNT, (unsigned char *)",");
         if(!(argc & 1)) error("Argument count");
         if(!Option.MaxCtrls)error("No memory allocated for GUI controls");
-        if(checkstring(argv[0], "ALL")) {
+        if(checkstring(argv[0], (unsigned char *)"ALL")) {
             for(r = 1; r < Option.MaxCtrls; r++)
                 if(CurrentPages & (1 << Ctrl[r].page))
                     SetCtrlState(r, CTRL_DISABLED, false);
@@ -557,12 +554,12 @@ void cmd_gui(void) {
     }
 
 
-    if((p = checkstring(cmdline, "HIDE"))) {
+    if((p = checkstring(cmdline, (unsigned char *)"HIDE"))) {
         int i, r;
-        getargs(&p, MAX_ARG_COUNT, ",");
+        getargs(&p, MAX_ARG_COUNT, (unsigned char *)",");
         if(!Option.MaxCtrls)error("No memory allocated for GUI controls");
         if(!(argc & 1)) error("Argument count");
-        if(checkstring(argv[0], "ALL")) {
+        if(checkstring(argv[0], (unsigned char *)"ALL")) {
             for(r = 1; r < Option.MaxCtrls; r++)
                 if(CurrentPages & (1 << Ctrl[r].page))
                     SetCtrlState(r, CTRL_HIDDEN, false);
@@ -577,12 +574,12 @@ void cmd_gui(void) {
     }
 
 
-    if((p = checkstring(cmdline, "ENABLE"))) {
+    if((p = checkstring(cmdline, (unsigned char *)"ENABLE"))) {
         int i, r;
-        getargs(&p, MAX_ARG_COUNT, ",");
+        getargs(&p, MAX_ARG_COUNT, (unsigned char *)",");
         if(!(argc & 1)) error("Argument count");
         if(!Option.MaxCtrls)error("No memory allocated for GUI controls");
-        if(checkstring(argv[0], "ALL")) {
+        if(checkstring(argv[0], (unsigned char *)"ALL")) {
             for(r = 1; r < Option.MaxCtrls; r++) {
                 if(CurrentPages & (1 << Ctrl[r].page)) {
                     Ctrl[r].state &= ~(CTRL_DISABLED | CTRL_DISABLED2);
@@ -601,12 +598,12 @@ void cmd_gui(void) {
     }
 
 
-    if((p = checkstring(cmdline, "SHOW"))) {
+    if((p = checkstring(cmdline, (unsigned char *)"SHOW"))) {
         int i, r;
-        getargs(&p, MAX_ARG_COUNT, ",");
+        getargs(&p, MAX_ARG_COUNT, (unsigned char *)",");
         if(!(argc & 1)) error("Argument count");
         if(!Option.MaxCtrls)error("No memory allocated for GUI controls");
-        if(checkstring(argv[0], "ALL")) {
+        if(checkstring(argv[0], (unsigned char *)"ALL")) {
             for(r = 1; r < Option.MaxCtrls; r++) {
                 if(CurrentPages & (1 << Ctrl[r].page)) {
                     Ctrl[r].state &= ~CTRL_HIDDEN;
@@ -625,12 +622,12 @@ void cmd_gui(void) {
     }
 
 
-    if((p = checkstring(cmdline, "RESTORE"))) {
+    if((p = checkstring(cmdline, (unsigned char *)"RESTORE"))) {
         int i, r;
-        getargs(&p, MAX_ARG_COUNT, ",");
+        getargs(&p, MAX_ARG_COUNT, (unsigned char *)",");
         if(!Option.MaxCtrls)error("No memory allocated for GUI controls");
         if(!(argc & 1)) error("Argument count");
-        if(checkstring(argv[0], "ALL")) {
+        if(checkstring(argv[0], (unsigned char *)"ALL")) {
             for(r = 1; r < Option.MaxCtrls; r++) {
                     if(CurrentPages & (1 << Ctrl[r].page)) {
                     Ctrl[r].state &= ~(CTRL_DISABLED | CTRL_DISABLED2 | CTRL_HIDDEN);
@@ -649,12 +646,12 @@ void cmd_gui(void) {
     }
 
 
-    if((p = checkstring(cmdline, "REDRAW"))) {
+    if((p = checkstring(cmdline, (unsigned char *)"REDRAW"))) {
         int i, r;
-        getargs(&p, MAX_ARG_COUNT, ",");
+        getargs(&p, MAX_ARG_COUNT, (unsigned char *)",");
         if(!(argc & 1)) error("Argument count");
         if(!Option.MaxCtrls)error("No memory allocated for GUI controls");
-        if(checkstring(argv[0], "ALL")) {
+        if(checkstring(argv[0], (unsigned char *)"ALL")) {
             ClearScreen(gui_bcolour);
             for(r = 1; r < Option.MaxCtrls; r++)
                 if(CurrentPages & (1 << Ctrl[r].page)) {
@@ -673,9 +670,9 @@ void cmd_gui(void) {
     }
 
 
-    if((p = checkstring(cmdline, "FCOLOUR")) || (p = checkstring(cmdline, "BCOLOUR"))) {
+    if((p = checkstring(cmdline, (unsigned char *)"FCOLOUR")) || (p = checkstring(cmdline, (unsigned char *)"BCOLOUR"))) {
         int i, r, c;
-        getargs(&p, MAX_ARG_COUNT, ",");
+        getargs(&p, MAX_ARG_COUNT, (unsigned char *)",");
         if(!Option.MaxCtrls)error("No memory allocated for GUI controls");
         if(!(argc & 1) || argc < 3) error("Argument count");
         c = getint(argv[0], BLACK, WHITE);
@@ -683,7 +680,7 @@ void cmd_gui(void) {
             if(*argv[i] == '#') argv[i]++;
             r = getint(argv[i], 1, Option.MaxCtrls - 1);
             if(Ctrl[r].type == 0) error("Control #% does not exist", r);
-            if(checkstring(cmdline, "FCOLOUR"))
+            if(checkstring(cmdline, (unsigned char *)"FCOLOUR"))
                 Ctrl[r].fc = c;
             else
                 Ctrl[r].bc = c;
@@ -700,16 +697,16 @@ void cmd_gui(void) {
   }*/
 
 
-    if((p = checkstring(cmdline, "INTERRUPT"))) {
-        getargs(&p, 3, ",");
+    if((p = checkstring(cmdline, (unsigned char *)"INTERRUPT"))) {
+        getargs(&p, 3, (unsigned char *)",");
         if(Option.TOUCH_CS == 0) error("Touch option not set");
         if(!Option.TOUCH_XZERO && !Option.TOUCH_YZERO) error("Touch not calibrated");
       if(*argv[0] == '0' && !isdigit(*(argv[0]+1)))
             GuiIntDownVector = GuiIntUpVector = NULL;
         else {
-            GuiIntDownVector = GetIntAddress(argv[0]);              // get a pointer to the down interrupt routine
+            GuiIntDownVector = (char *)GetIntAddress(argv[0]);              // get a pointer to the down interrupt routine
             if(argc == 3)
-                GuiIntUpVector = GetIntAddress(argv[2]);            // and for the up routine
+                GuiIntUpVector = (char *)GetIntAddress(argv[2]);            // and for the up routine
             else
                 GuiIntUpVector = NULL;
             InterruptUsed = true;
@@ -719,7 +716,7 @@ void cmd_gui(void) {
   }
 
 
-    if((p = checkstring(cmdline, "SETUP"))) {
+    if((p = checkstring(cmdline, (unsigned char *)"SETUP"))) {
         if(!Option.MaxCtrls)error("No memory allocated for GUI controls");
         SetupPage = getint(p, 1, MAX_PAGES) - 1;
     return;
@@ -735,7 +732,7 @@ void cmd_gui(void) {
 void cmd_GUIpage(unsigned char *p) {
     int i, r, OldPages;
 
-    getargs(&p, MAX_ARG_COUNT, ",");
+    getargs(&p, MAX_ARG_COUNT, (unsigned char *)",");
     if(!(argc & 1)) error("Argument count");
     if(!Option.MaxCtrls)error("No memory allocated for GUI controls");
     OldPages = CurrentPages;
@@ -848,7 +845,7 @@ void SpecialPrintString(int x, int y, int jh, int jv, int jo, int fc, int bc, ch
     // while we are doing this save their addresses in idx[]
     idx[0] = p = str;
     lines = 1;
-    while((p = strchr(p, '~')) != NULL && lines < MAX_CAPTION_LINES) {
+    while((p = strchr((char *)p, '~')) != NULL && lines < MAX_CAPTION_LINES) {
         idx[lines] = p++;
         lines++;
     }
@@ -947,9 +944,9 @@ void DrawButton(int r) {
 
     // draw the caption
     if(Ctrl[r].value == 0)
-        SpecialPrintString(Ctrl[r].x1 + (Ctrl[r].x2 - Ctrl[r].x1)/2, Ctrl[r].y1 + (Ctrl[r].y2 - Ctrl[r].y1)/2, JUSTIFY_CENTER, JUSTIFY_MIDDLE, ORIENT_NORMAL, Ctrl[r].fc, Ctrl[r].bc, s, Ctrl[r].state);
+        SpecialPrintString(Ctrl[r].x1 + (Ctrl[r].x2 - Ctrl[r].x1)/2, Ctrl[r].y1 + (Ctrl[r].y2 - Ctrl[r].y1)/2, JUSTIFY_CENTER, JUSTIFY_MIDDLE, ORIENT_NORMAL, Ctrl[r].fc, Ctrl[r].bc, (char *)s, Ctrl[r].state);
     else
-        SpecialPrintString(Ctrl[r].x1 + (Ctrl[r].x2 - Ctrl[r].x1)/2 + bs, Ctrl[r].y1 + (Ctrl[r].y2 - Ctrl[r].y1)/2 + bs, JUSTIFY_CENTER, JUSTIFY_MIDDLE, ORIENT_NORMAL, Ctrl[r].fc, Ctrl[r].bc, p, Ctrl[r].state);
+        SpecialPrintString(Ctrl[r].x1 + (Ctrl[r].x2 - Ctrl[r].x1)/2 + bs, Ctrl[r].y1 + (Ctrl[r].y2 - Ctrl[r].y1)/2 + bs, JUSTIFY_CENTER, JUSTIFY_MIDDLE, ORIENT_NORMAL, Ctrl[r].fc, Ctrl[r].bc, (char *)p, Ctrl[r].state);
 }
 
 
@@ -992,9 +989,9 @@ void DrawSwitch(int r) {
 
     // draw the captions
     if(on) shift = 0; else shift = BTN_CAPTION_SHIFT;
-    SpecialPrintString(Ctrl[r].x1 + (half - Ctrl[r].x1)/2 + shift, Ctrl[r].y1 + (Ctrl[r].y2 - Ctrl[r].y1)/2 + shift,      JUSTIFY_CENTER, JUSTIFY_MIDDLE, ORIENT_NORMAL, ChangeBright(Ctrl[r].fc, (on || !twobtn) ? 0:-25), ChangeBright(Ctrl[r].bc, on ? 0:-25), s, Ctrl[r].state);
+    SpecialPrintString(Ctrl[r].x1 + (half - Ctrl[r].x1)/2 + shift, Ctrl[r].y1 + (Ctrl[r].y2 - Ctrl[r].y1)/2 + shift,      JUSTIFY_CENTER, JUSTIFY_MIDDLE, ORIENT_NORMAL, ChangeBright(Ctrl[r].fc, (on || !twobtn) ? 0:-25), ChangeBright(Ctrl[r].bc, on ? 0:-25), (char *)s, Ctrl[r].state);
     if(!on) shift = 0; else shift = BTN_CAPTION_SHIFT;
-    if(twobtn) SpecialPrintString(half + (Ctrl[r].x2 - half)/2 + shift, Ctrl[r].y1 + (Ctrl[r].y2 - Ctrl[r].y1)/2 + shift, JUSTIFY_CENTER, JUSTIFY_MIDDLE, ORIENT_NORMAL, ChangeBright(Ctrl[r].fc, on ? -25:0),  ChangeBright(Ctrl[r].bc, on ? -25:0),  p, Ctrl[r].state);
+    if(twobtn) SpecialPrintString(half + (Ctrl[r].x2 - half)/2 + shift, Ctrl[r].y1 + (Ctrl[r].y2 - Ctrl[r].y1)/2 + shift, JUSTIFY_CENTER, JUSTIFY_MIDDLE, ORIENT_NORMAL, ChangeBright(Ctrl[r].fc, on ? -25:0),  ChangeBright(Ctrl[r].bc, on ? -25:0),  (char *)p, Ctrl[r].state);
 }
 
 
@@ -1004,7 +1001,7 @@ void DrawCheckBox(int r) {
     int i, w;
 
     SpecialDrawBox(Ctrl[r].x1, Ctrl[r].y1, Ctrl[r].x1 + Ctrl[r].inc, Ctrl[r].y1 + Ctrl[r].inc, BTN_SIDE_WIDTH, ChangeBright(Ctrl[r].fc, -30), gui_bcolour, Ctrl[r].state) ;
-    SpecialPrintString(Ctrl[r].x1 + Ctrl[r].inc + Ctrl[r].inc/2, Ctrl[r].y1 + Ctrl[r].inc/2, JUSTIFY_LEFT, JUSTIFY_MIDDLE, ORIENT_NORMAL, Ctrl[r].fcc, gui_bcolour, Ctrl[r].s, Ctrl[r].state);
+    SpecialPrintString(Ctrl[r].x1 + Ctrl[r].inc + Ctrl[r].inc/2, Ctrl[r].y1 + Ctrl[r].inc/2, JUSTIFY_LEFT, JUSTIFY_MIDDLE, ORIENT_NORMAL, Ctrl[r].fcc, gui_bcolour, (char *)Ctrl[r].s, Ctrl[r].state);
 
     // draw the tick
     if(Ctrl[r].value != 0) {
@@ -1027,7 +1024,7 @@ void DrawRadioBtn(int r) {
     int yc = Ctrl[r].y1 + Ctrl[r].max;
 
     SpecialDrawCircle(xc, yc, Ctrl[r].max, BTN_SIDE_WIDTH, ChangeBright(Ctrl[r].fc, -30), gui_bcolour, 1.0, Ctrl[r].state);
-    SpecialPrintString(xc + Ctrl[r].max + gui_font_width - (gui_font_width/4), yc, JUSTIFY_LEFT, JUSTIFY_MIDDLE, ORIENT_NORMAL, Ctrl[r].fcc, gui_bcolour, Ctrl[r].s, Ctrl[r].state);
+    SpecialPrintString(xc + Ctrl[r].max + gui_font_width - (gui_font_width/4), yc, JUSTIFY_LEFT, JUSTIFY_MIDDLE, ORIENT_NORMAL, Ctrl[r].fcc, gui_bcolour, (char *)Ctrl[r].s, Ctrl[r].state);
 
     if(Ctrl[r].value != 0) {
         // draw the button if this control has been selected
@@ -1062,7 +1059,7 @@ void DrawLED(int r) {
 
     SpecialDrawCircle(xc, yc, Ctrl[r].max, 0, 0, RGB(160,160,160), 1.0, Ctrl[r].state);
     SpecialDrawCircle(xc, yc, Ctrl[r].max - BTN_SIDE_WIDTH/2, 0, 0, ChangeBright(Ctrl[r].fc, (Ctrl[r].value == 0) ? -65:0), 1.0, Ctrl[r].state);
-    SpecialPrintString(xc + Ctrl[r].max + gui_font_width - (gui_font_width/4), yc, JUSTIFY_LEFT, JUSTIFY_MIDDLE, ORIENT_NORMAL, Ctrl[r].fcc, gui_bcolour, Ctrl[r].s, Ctrl[r].state);
+    SpecialPrintString(xc + Ctrl[r].max + gui_font_width - (gui_font_width/4), yc, JUSTIFY_LEFT, JUSTIFY_MIDDLE, ORIENT_NORMAL, Ctrl[r].fcc, gui_bcolour, (char *)Ctrl[r].s, Ctrl[r].state);
 }
 
 
@@ -1075,9 +1072,9 @@ void DrawSpinner(int r) {
     x1 = Ctrl[r].x1; x2 = Ctrl[r].x2;
     y1 = Ctrl[r].y1; y2 = Ctrl[r].y2;
     SpecialDrawRBox(x1 + h, y1, x2 - h, y2, 10,  Ctrl[r].fc, Ctrl[r].bc, Ctrl[r].state);
-    FloatToStr(Ctrl[r].s, Ctrl[r].value, 0, STR_AUTO_PRECISION, ' ');               // convert the value to a string for display
+    FloatToStr((char *)Ctrl[r].s, Ctrl[r].value, 0, STR_AUTO_PRECISION, ' ');               // convert the value to a string for display
     Ctrl[r].s[(x2 - x1 - h * 2) / gui_font_width] = 0;              // truncate to the display width
-    SpecialPrintString(x1 + (x2 - x1)/2, y1 + h/2, JUSTIFY_CENTER, JUSTIFY_MIDDLE, ORIENT_NORMAL, Ctrl[r].fc, Ctrl[r].bc, Ctrl[r].s, Ctrl[r].state);
+    SpecialPrintString(x1 + (x2 - x1)/2, y1 + h/2, JUSTIFY_CENTER, JUSTIFY_MIDDLE, ORIENT_NORMAL, Ctrl[r].fc, Ctrl[r].bc, (char *)Ctrl[r].s, Ctrl[r].state);
     if(Ctrl[r].state & CTRL_SPINUP)
         SpecialDrawTriangle(x2 - h/2, y1 + z, x2 - z, y1 + h - z, x2 - h + z, y1 + h - z, Ctrl[r].bc, Ctrl[r].fc, Ctrl[r].state);  // touched up pointing spin button
     else
@@ -1092,12 +1089,12 @@ void DrawSpinner(int r) {
 
 void DrawFrame(int r) {
     SpecialDrawRBox(Ctrl[r].x1, Ctrl[r].y1, Ctrl[r].x2, Ctrl[r].y2, 10, Ctrl[r].fc, -1, Ctrl[r].state);     // the border
-    SpecialPrintString(Ctrl[r].x1 + 15, Ctrl[r].y1, JUSTIFY_LEFT, JUSTIFY_MIDDLE, ORIENT_NORMAL, Ctrl[r].fc, gui_bcolour, Ctrl[r].s, Ctrl[r].state);
+    SpecialPrintString(Ctrl[r].x1 + 15, Ctrl[r].y1, JUSTIFY_LEFT, JUSTIFY_MIDDLE, ORIENT_NORMAL, Ctrl[r].fc, gui_bcolour, (char *)Ctrl[r].s, Ctrl[r].state);
 }
 
 
 void DrawCaption(int r) {
-    SpecialPrintString(Ctrl[r].x1, Ctrl[r].y1, Ctrl[r].x2 & 0b0000011, (Ctrl[r].x2 >> 2) & 0b0000011, (Ctrl[r].x2 >> 4) & 0b0000111, Ctrl[r].fc, Ctrl[r].bc, Ctrl[r].s, Ctrl[r].state);
+    SpecialPrintString(Ctrl[r].x1, Ctrl[r].y1, Ctrl[r].x2 & 0b0000011, (Ctrl[r].x2 >> 2) & 0b0000011, (Ctrl[r].x2 >> 4) & 0b0000111, Ctrl[r].fc, Ctrl[r].bc, (char *)Ctrl[r].s, Ctrl[r].state);
 }
 
 
@@ -1217,7 +1214,7 @@ void DrawGauge(int r) {
     if(v > tc) c = GaugeS->c4;
     
     // draw the text
-    if(*Ctrl[r].s) { strcat(buf, "~"); strcat(buf, Ctrl[r].s); }    // append the units string
+    if(*Ctrl[r].s) { strcat(buf, "~"); strcat(buf, (char *)Ctrl[r].s); }    // append the units string
     SpecialPrintString(x, y, JUSTIFY_CENTER, JUSTIFY_MIDDLE, ORIENT_NORMAL, c, Ctrl[r].bc, buf, Ctrl[r].state);
 
     GaugeS->cval = v;
@@ -1450,10 +1447,10 @@ void DrawDisplayBox(int r) {
         bc = Ctrl[r].bc;
     }
     SpecialDrawRBox(Ctrl[r].x1, Ctrl[r].y1, Ctrl[r].x2, Ctrl[r].y2, 10,  fc, bc, Ctrl[r].state);
-    if(strlen(Ctrl[r].s) > 2 && Ctrl[r].s[0] == '#' && Ctrl[r].s[1] == '#')
-        SpecialPrintString(Ctrl[r].x1 + (Ctrl[r].x2 - Ctrl[r].x1)/2, Ctrl[r].y1 + (Ctrl[r].y2 - Ctrl[r].y1)/2, JUSTIFY_CENTER, JUSTIFY_MIDDLE, ORIENT_NORMAL, ChangeBright(fc, BTN_DISABLED), bc, Ctrl[r].s + 2, Ctrl[r].state);
+    if(strlen((char *)Ctrl[r].s) > 2 && Ctrl[r].s[0] == '#' && Ctrl[r].s[1] == '#')
+        SpecialPrintString(Ctrl[r].x1 + (Ctrl[r].x2 - Ctrl[r].x1)/2, Ctrl[r].y1 + (Ctrl[r].y2 - Ctrl[r].y1)/2, JUSTIFY_CENTER, JUSTIFY_MIDDLE, ORIENT_NORMAL, ChangeBright(fc, BTN_DISABLED), bc, (char *)Ctrl[r].s + 2, Ctrl[r].state);
     else
-        SpecialPrintString(Ctrl[r].x1 + (Ctrl[r].x2 - Ctrl[r].x1)/2, Ctrl[r].y1 + (Ctrl[r].y2 - Ctrl[r].y1)/2, JUSTIFY_CENTER, JUSTIFY_MIDDLE, ORIENT_NORMAL, fc, bc, Ctrl[r].s , Ctrl[r].state);
+        SpecialPrintString(Ctrl[r].x1 + (Ctrl[r].x2 - Ctrl[r].x1)/2, Ctrl[r].y1 + (Ctrl[r].y2 - Ctrl[r].y1)/2, JUSTIFY_CENTER, JUSTIFY_MIDDLE, ORIENT_NORMAL, fc, bc, (char *)Ctrl[r].s , Ctrl[r].state);
 }
 
 
@@ -1590,8 +1587,8 @@ void DrawKeyboard(int mode) {
                         case 4:
                         case 5:
                         case 11: return;
-                        case 3:  if(*Ctrl[InvokingCtrl].s == 0) break; else if(strchr(Ctrl[InvokingCtrl].s, '.') != NULL) return; break;
-                        case 8:  if(*Ctrl[InvokingCtrl].s == 0) break; else if(strchr(Ctrl[InvokingCtrl].s, 'E') != NULL) return; break;
+                        case 3:  if(*Ctrl[InvokingCtrl].s == 0) break; else if(strchr((char *)Ctrl[InvokingCtrl].s, '.') != NULL) return; break;
+                        case 8:  if(*Ctrl[InvokingCtrl].s == 0) break; else if(strchr((char *)Ctrl[InvokingCtrl].s, 'E') != NULL) return; break;
                         case 9:
                         case 10: if(*Ctrl[InvokingCtrl].s == 0) return;
                     }
@@ -1618,7 +1615,7 @@ void DrawKeyboard(int mode) {
     }
 
     if(mode == KEY_KEY_CANCEL || (is_alpha && GUIKeyDown == 11) || (!is_alpha && KeyAltShift && GUIKeyDown == 1)) {        // the user has hit the cancel key
-        strcpy(Ctrl[InvokingCtrl].s, CancelValue);                  // restore the current value
+        strcpy((char *)Ctrl[InvokingCtrl].s, CancelValue);                  // restore the current value
         GUIKeyDown = (is_alpha ? 10 : 2);                              // fake the Enter key
     }
 
@@ -1627,11 +1624,11 @@ void DrawKeyboard(int mode) {
         if(!is_alpha) {
             int t = STR_FLOAT_PRECISION;
             // get the number of digits that have been entered after the decimal point and use that to determine the precision of the display
-            if(strchr(Ctrl[InvokingCtrl].s, 'e') == NULL && strchr(Ctrl[InvokingCtrl].s, 'E') == NULL && strchr(Ctrl[InvokingCtrl].s, '.') != NULL) {
-                t = strlen(strchr(Ctrl[InvokingCtrl].s, '.') + 1);
+            if(strchr((char *)Ctrl[InvokingCtrl].s, 'e') == NULL && strchr((char *)Ctrl[InvokingCtrl].s, 'E') == NULL && strchr((char *)Ctrl[InvokingCtrl].s, '.') != NULL) {
+                t = strlen(strchr((char *)Ctrl[InvokingCtrl].s, '.') + 1);
                 if(t < 1 || t > 16) t = STR_FLOAT_PRECISION;
             }
-            FloatToStr(Ctrl[InvokingCtrl].s, Ctrl[InvokingCtrl].value = atof(Ctrl[InvokingCtrl].s), 1, t, ' ');     // convert to a float and put back on the display
+            FloatToStr((char *)Ctrl[InvokingCtrl].s, Ctrl[InvokingCtrl].value = atof((char *)Ctrl[InvokingCtrl].s), 1, t, ' ');     // convert to a float and put back on the display
         }
         KeyPadErase(is_alpha);                                      // hide the keypad
         Ctrl[InvokingCtrl].state &= ~CTRL_SELECTED;                 // deselect the text box
@@ -1641,7 +1638,7 @@ void DrawKeyboard(int mode) {
         return;
     }
 
-    p = Ctrl[InvokingCtrl].s + strlen(Ctrl[InvokingCtrl].s);
+    p = Ctrl[InvokingCtrl].s + strlen((char *)Ctrl[InvokingCtrl].s);
     if(!is_alpha) {
         // this is the number pad
         if(KeyAltShift) {
@@ -1662,7 +1659,7 @@ void DrawKeyboard(int mode) {
     } else {
         // this is the text keyboard
         if(GUIKeyDown == 32) {                                         // is this the delete key
-            if(strlen(Ctrl[InvokingCtrl].s)) *(--p) = 0;            // delete the char
+            if(strlen((char *)Ctrl[InvokingCtrl].s)) *(--p) = 0;            // delete the char
         } else if(GUIKeyDown == 9) {                                   // if it is space
             *p++ = ' ';                                             // insert a space
         } else {
@@ -1752,7 +1749,7 @@ void DrawFmtKeypad(char x, char prev, int GUIKeyDown) {
 
 void DrawFmtControl(int r, char *pfmt) {
     unsigned char *p;
-    p = Ctrl[r].s + strlen(Ctrl[r].s);
+    p = Ctrl[r].s + strlen((char *)Ctrl[r].s);
     if(*pfmt) *p++ = 0xff;                                                    // marker to change the following text brightness to dim
     while(*pfmt) {
         if(*pfmt == '(') {
@@ -1782,7 +1779,7 @@ void DrawFmtBox(int mode) {
         pfmt = Ctrl[InvokingCtrl].fmt;
         p = Ctrl[InvokingCtrl].s;
         DrawFmtKeypad(*pfmt, 0, 99);                                // just draw all the buttons
-        DrawFmtControl(InvokingCtrl, pfmt);
+        DrawFmtControl(InvokingCtrl, (char *)pfmt);
         GUIKeyDown = -1;                                               // no key to be down
         return;
     }
@@ -1800,7 +1797,7 @@ void DrawFmtBox(int mode) {
             if(TouchX > x1 && TouchX < x2 && TouchY > y1 && TouchY < y2) {  // if the touch is on this key
                 // get the key and do something with it
                 if(FmtKeyEnabled[i] == false || (i == 0 && pfmt == Ctrl[InvokingCtrl].fmt)) return;                      // do nothing if key is disabled
-                DrawFmtKeypad(*pfmt, *(p - 1), i);                      // show that the key is down
+                DrawFmtKeypad((char)*pfmt, *(p - 1), i);                      // show that the key is down
                 ClickTimer += CLICK_DURATION;  // make a click
 
                 if(i == 0) {
@@ -1819,7 +1816,7 @@ void DrawFmtBox(int mode) {
                     break;
                 } else {
                     // this is an ordinary key (eg, 0 to 9)
-                    p += strlen(strcpy(p, FmtKeyCaption[i]));          // add they key caption to the display box string
+                    p += strlen(strcpy((char *)p, FmtKeyCaption[i]));          // add they key caption to the display box string
                     pfmt++;
                     if(*pfmt) pfmt++;
                     if(*pfmt) {
@@ -1833,7 +1830,7 @@ void DrawFmtBox(int mode) {
                     if(*pfmt == 0) break;                           // *pfmt == 0 means that we have reached the end of the format string
                 }
                 GUIKeyDown = i;
-                DrawFmtControl(InvokingCtrl, pfmt);
+                DrawFmtControl(InvokingCtrl, (char *)pfmt);
                 return;
             }
         }
@@ -1841,7 +1838,7 @@ void DrawFmtBox(int mode) {
 
 
     if(*pfmt == 0 || mode == KEY_KEY_CANCEL) {
-        if(mode == KEY_KEY_CANCEL) strcpy(Ctrl[InvokingCtrl].s, CancelValue);       // if we are cancelling first restore the current value
+        if(mode == KEY_KEY_CANCEL) strcpy((char *)Ctrl[InvokingCtrl].s, CancelValue);       // if we are cancelling first restore the current value
         KeyPadErase(false);                                         // hide the keypad
         DrawControl(InvokingCtrl);
         Ctrl[InvokingCtrl].state &= ~CTRL_SELECTED;                 // deselect the text box
@@ -1980,10 +1977,10 @@ void ProcessTouch(void) {
                                         break;
 
                     case CTRL_NBRBOX:
-                                        FloatToStr(Ctrl[r].s, Ctrl[r].value, 0, STR_AUTO_PRECISION, ' ');   // set the string value to be saved
+                                        FloatToStr((char *)Ctrl[r].s, Ctrl[r].value, 0, STR_AUTO_PRECISION, ' ');   // set the string value to be saved
                                         // fall thru
 
-                    case CTRL_TEXTBOX:  strcpy(CancelValue, Ctrl[r].s);                                     // save the current value in case the user cancels
+                    case CTRL_TEXTBOX:  strcpy(CancelValue, (char *)Ctrl[r].s);                                     // save the current value in case the user cancels
                                         *Ctrl[r].s = 0;                                                     // set it to an empty string
                                         Ctrl[r].state |= CTRL_SELECTED;                                     // select the number text/box
                                         PopUpRedrawAll(r, true);
@@ -1998,7 +1995,7 @@ void ProcessTouch(void) {
                                             DelayedDrawKeyboard = true;  
                                         return;
 
-                    case CTRL_FMTBOX:   strcpy(CancelValue, Ctrl[r].s);                                     // save the current value in case the user cancels
+                    case CTRL_FMTBOX:   strcpy(CancelValue, (char *)Ctrl[r].s);                                     // save the current value in case the user cancels
                                         *Ctrl[r].s = 0;                                                     // set it to an empty string
                                         Ctrl[r].state |= CTRL_SELECTED;                                     // select the number text/box
                                         PopUpRedrawAll(r, true);
@@ -2107,17 +2104,17 @@ void ServiceInterrupts(void) {
 
     CheckAbort();
     LocalIndex++;                                                   // preserve the current temporary string memory allocations
-    ttp = nextstmt;                                                 // save the globals used by commands
+    ttp = (char *)nextstmt;                                                 // save the globals used by commands
     tcmdtoken = cmdtoken;
-    s = cmdline;
+    s = (char *)cmdline;
 
     p[0] = cmdENDIF;                                                // setup a short program that does nothing
     p[1] = p[2] = 0;
-    ExecuteProgram(p);                                              // execute the program's code
+    ExecuteProgram((unsigned char *)p);                                              // execute the program's code
 
-    cmdline = s;                                                    // restore the globals
+    cmdline = (unsigned char *)s;                                                    // restore the globals
     cmdtoken = tcmdtoken;
-    nextstmt = ttp;
+    nextstmt = (unsigned char *)ttp;
     LocalIndex--;
     TempMemoryIsChanged = true;                                     // signal that temporary memory should be checked
 }
@@ -2132,12 +2129,12 @@ void fun_msgbox(void) {
     int btnx1[4], btny1, btnx2[4], btny2;
     long long int timeout;
     if(!Option.MaxCtrls)error("No memory allocated for GUI controls");
-    getargs(&ep, 9, ",");
+    getargs(&ep, 9, (unsigned char *)",");
     if(argc < 3) error("Argument count");
     msg = GetMemory(MAX_CAPTION_LINES * MAXSTRLEN);
     btn = GetMemory(4 * MAXSTRLEN);
 
-    p = getCstring(argv[0]);
+    p = (char *)getCstring(argv[0]);
     i = msgnbr = 0;
     while(*p) {
         if(*p == '~') {
@@ -2152,7 +2149,7 @@ void fun_msgbox(void) {
 
     btnnbr = ((argc - 2) / 2) + 1;
     for(i = 0; i < btnnbr; i++)
-        strcpy(&btn[i * MAXSTRLEN], getCstring(argv[(i * 2) + 2]));
+        strcpy(&btn[i * MAXSTRLEN], (char *)getCstring(argv[(i * 2) + 2]));
 
     for(j = i = 0; i < msgnbr; i++)
         if(strlen(&msg[i * MAXSTRLEN]) > j) j = strlen(&msg[i * MAXSTRLEN]);
@@ -2202,7 +2199,7 @@ void fun_msgbox(void) {
             PopUpRedrawAll(0, false);
             iret = i + 1;
             targ = T_INT;
-            FreeMemory(msg);  FreeMemory(btn);
+            FreeMemory((unsigned char *)msg);  FreeMemory((unsigned char *)btn);
             return;
         }
     }
@@ -2229,15 +2226,15 @@ void fun_ctrlval(void) {
     } else if(Ctrl[r].type == CTRL_TEXTBOX || Ctrl[r].type == CTRL_FMTBOX) {
         sret = GetTempMemory(STRINGSIZE);                                  // this will last for the life of the command
         if(r == InvokingCtrl)                                       // is the keypad for the number box being displayed?
-                strcpy(sret, CancelValue);                          // just return the value saved in case of a cancel
+                strcpy((char *)sret, CancelValue);                          // just return the value saved in case of a cancel
           else
-            strcpy(sret, Ctrl[r].s);
+            strcpy((char *)sret, (char *)Ctrl[r].s);
         if(Ctrl[r].s[0] == '#' && Ctrl[r].s[1] == '#') *sret = 0;   // return a zero length string if it is just "ghost text"
         CtoM(sret);                                                 // convert to a MMBasic string
         targ = T_STR;
     } else if(Ctrl[r].type == CTRL_DISPLAYBOX || Ctrl[r].type == CTRL_CAPTION) {
         sret = GetTempMemory(STRINGSIZE);                                  // this will last for the life of the command
-        strcpy(sret, Ctrl[r].s);                                    // copy the string
+        strcpy((char *)sret, (char *)Ctrl[r].s);                                    // copy the string
         CtoM(sret);                                                 // convert to a MMBasic string
         targ = T_STR;
     } else {
@@ -2300,31 +2297,31 @@ void cmd_ctrlval(void) {
                             if(v > Ctrl[r].max) v = Ctrl[r].max;
                             if(Ctrl[r].value == v) return;          // don't update if no change
                             Ctrl[r].value = v;
-                            if(Ctrl[r].type == CTRL_SPINNER) FloatToStr(Ctrl[r].s, v, 0, STR_AUTO_PRECISION, ' ');   // update the displayed string
+                            if(Ctrl[r].type == CTRL_SPINNER) FloatToStr((char *)Ctrl[r].s, v, 0, STR_AUTO_PRECISION, ' ');   // update the displayed string
                             break;
 
-        case CTRL_NBRBOX:   if(strlen(cmdline) > 3 && cmdline[0] == '"' && cmdline[1] == '#' && cmdline[2] == '#') {
+        case CTRL_NBRBOX:   if(strlen((char *)cmdline) > 3 && cmdline[0] == '"' && cmdline[1] == '#' && cmdline[2] == '#') {
                                 // the user wants ghost text
-                                strcpy(Ctrl[r].s, getCstring(cmdline));
+                                strcpy((char *)Ctrl[r].s, (char *)getCstring(cmdline));
                                 Ctrl[r].value = 0;
                             } else {
                                 // a normal number
                                 v = getnumber(cmdline);
                                 if(r != InvokingCtrl && Ctrl[r].value == v) return;     // don't update if no change
                                 Ctrl[r].value = v;
-                                FloatToStr(Ctrl[r].s, v, 0, STR_AUTO_PRECISION, ' ');   // update the displayed string
+                                FloatToStr((char *)Ctrl[r].s, v, 0, STR_AUTO_PRECISION, ' ');   // update the displayed string
                             }
                             break;
 
         case CTRL_FRAME:
         case CTRL_CAPTION:
-                            memset(Ctrl[r].s, ' ', strlen(Ctrl[r].s));  // set the caption to spaces
+                            memset(Ctrl[r].s, ' ', strlen((char *)Ctrl[r].s));  // set the caption to spaces
                             UpdateControl(r);                           // erase the existing text
                             // fall through
 
         case CTRL_DISPLAYBOX:
         case CTRL_TEXTBOX:
-        case CTRL_FMTBOX:  strcpy(Ctrl[r].s, getCstring(cmdline));  break;
+        case CTRL_FMTBOX:  strcpy((char *)Ctrl[r].s, (char *)getCstring(cmdline));  break;
         }
 
     if(!(Ctrl[r].state & CTRL_DISABLED2)) UpdateControl(r);         // don't update if the gauge is disabled by a keypad (updating may mess they keypad)

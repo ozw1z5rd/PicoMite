@@ -22,6 +22,7 @@ LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON A
 OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. 
 
 ************************************************************************************************************************/
+#include "configuration.h"
 #if !defined(INCLUDE_COMMAND_TABLE) && !defined(INCLUDE_TOKEN_TABLE)
 void fun_GPS(void);
 #endif
@@ -30,7 +31,7 @@ void fun_GPS(void);
 **********************************************************************************/
 #ifdef INCLUDE_TOKEN_TABLE
 
-	{ "GPS(",	    T_FUN | T_NBR | T_INT| T_STR,		0, fun_GPS	},
+	{ (unsigned char *)"GPS(",	    T_FUN | T_NBR | T_INT| T_STR,		0, fun_GPS	},
 
 #endif
 #if !defined(INCLUDE_COMMAND_TABLE) && !defined(INCLUDE_TOKEN_TABLE)

@@ -83,7 +83,7 @@ void __not_in_flash_func(cmd_null)(void) {
 void cmd_inc(void){
 	unsigned char *p, *q;
     int vtype;
-	getargs(&cmdline,3,",");
+	getargs(&cmdline,3,(unsigned char *)",");
 	if(argc==1){
 		p = findvar(argv[0], V_FIND);
 		if(vartbl[VarIndex].type & T_CONST) error("Cannot change a constant");
@@ -180,11 +180,11 @@ void cmd_print(void) {
 				p = evaluate(p, &f, &i64, &s, &t, true);			// get the value and type of the argument
                 if(t & T_NBR) {
                     *inpbuf = ' ';                                  // preload a space
-                    FloatToStr(inpbuf + ((f >= 0) ? 1:0), f, 0, STR_AUTO_PRECISION, ' ');// if positive output a space instead of the sign
+                    FloatToStr((char *)inpbuf + ((f >= 0) ? 1:0), f, 0, STR_AUTO_PRECISION, (unsigned char)' ');// if positive output a space instead of the sign
 					MMfputs((unsigned char *)CtoM(inpbuf), fnbr);					// convert to a MMBasic string and output
 				} else if(t & T_INT) {
                     *inpbuf = ' ';                                  // preload a space
-                    IntToStr(inpbuf + ((i64 >= 0) ? 1:0), i64, 10); // if positive output a space instead of the sign
+                    IntToStr((char *)inpbuf + ((i64 >= 0) ? 1:0), i64, 10); // if positive output a space instead of the sign
 					MMfputs((unsigned char *)CtoM(inpbuf), fnbr);					// convert to a MMBasic string and output
 				} else if(t & T_STR) {
 					MMfputs((unsigned char *)s, fnbr);								// print if a string (s is a MMBasic string)
@@ -311,25 +311,25 @@ void MIPS16 ListFile(char *pp, int all) {
 void MIPS16 cmd_list(void) {
 	unsigned char *p;
 	int i,j,k,m,step;
-    if((p = checkstring(cmdline, "ALL"))) {
+    if((p = checkstring(cmdline, (unsigned char *)"ALL"))) {
         if(!(*p == 0 || *p == '\'')) {
-        	getargs(&p,1,",");
+        	getargs(&p,1,(unsigned char *)",");
         	char *buff=GetTempMemory(STRINGSIZE);
-        	strcpy(buff,getCstring(argv[0]));
+        	strcpy(buff,(char *)getCstring(argv[0]));
     		if(strchr(buff, '.') == NULL) strcat(buff, ".bas");
             ListFile(buff, true);
         } else {
-        	ListProgram((char *)ProgMemory, true);
+        	ListProgram(ProgMemory, true);
         	checkend(p);
         }
-   } else if((p = checkstring(cmdline, "COMMANDS"))) {
+   } else if((p = checkstring(cmdline, (unsigned char *)"COMMANDS"))) {
     	step=5;
     	m=0;
-		int x=11;
+		int x=9;
 		char** c=GetTempMemory((CommandTableSize+x)*sizeof(*c)+(CommandTableSize+x)*18);
 		for(i=0;i<CommandTableSize+x;i++){
 				c[m]= (char *)((int)c + sizeof(char *) * (CommandTableSize+x) + m*18);
-    			if(m<CommandTableSize)strcpy(c[m],commandtbl[i].name);
+    			if(m<CommandTableSize)strcpy(c[m],(char *)commandtbl[i].name);
     			else if(m==CommandTableSize)strcpy(c[m],"Color");
     			else if(m==CommandTableSize+1)strcpy(c[m],"Else If");
     			else if(m==CommandTableSize+2)strcpy(c[m],"End If");
@@ -338,8 +338,6 @@ void MIPS16 cmd_list(void) {
 				else if(m==CommandTableSize+5)strcpy(c[m],"Autosave");
 				else if(m==CommandTableSize+6)strcpy(c[m],"Files");
 				else if(m==CommandTableSize+7)strcpy(c[m],"Update Firmware");
-				else if(m==CommandTableSize+7)strcpy(c[m],"/*");
-				else if(m==CommandTableSize+7)strcpy(c[m],"*/");
     			else strcpy(c[m],"Cat");
     			m++;
 		}
@@ -354,14 +352,14 @@ void MIPS16 cmd_list(void) {
     		MMPrintString("\r\n");
     	}
 		MMPrintString("Total of ");PInt(m-1);MMPrintString(" commands\r\n");
-    } else if((p = checkstring(cmdline, "FUNCTIONS"))) {
+    } else if((p = checkstring(cmdline, (unsigned char *)"FUNCTIONS"))) {
     	m=0;
     	step=5;
 		int x=5;
 		char** c=GetTempMemory((TokenTableSize+x)*sizeof(*c)+(TokenTableSize+x)*18);
 		for(i=0;i<TokenTableSize+x;i++){
 				c[m]= (char *)((int)c + sizeof(char *) * (TokenTableSize+x) + m*18);
-				if(m<TokenTableSize)strcpy(c[m],tokentbl[i].name);
+				if(m<TokenTableSize)strcpy(c[m],(char *)tokentbl[i].name);
 	   			else if(m==TokenTableSize)strcpy(c[m],"=>");
     			else if(m==TokenTableSize+1)strcpy(c[m],"=<");
 /*    			else if(m==TokenTableSize+2)strcpy(c[m],"OCT$(");
@@ -385,9 +383,9 @@ void MIPS16 cmd_list(void) {
 		MMPrintString("Total of ");PInt(m-1);MMPrintString(" functions and operators\r\n");
     } else {
         if(!(*cmdline == 0 || *cmdline == '\'')) {
-        	getargs(&cmdline,1,",");
+        	getargs(&cmdline,1,(unsigned char *)",");
         	char *buff=GetTempMemory(STRINGSIZE);
-        	strcpy(buff,getCstring(argv[0]));
+        	strcpy(buff,(char *)getCstring(argv[0]));
     		if(strchr(buff, '.') == NULL) strcat(buff, ".bas");
 			ListFile(buff, false);
         } else {
@@ -416,7 +414,7 @@ void MIPS16 ListProgram(unsigned char *p, int all) {
     int ListCnt = 1;
 	while(!(*p == 0 || *p == 0xff)) {                               // normally a LIST ends at the break so this is a safety precaution
         if(*p == T_NEWLINE) {
-			p = llist(b, p);                                        // otherwise expand the line
+			p = llist((unsigned char *)b, p);                                        // otherwise expand the line
             if(!(ListCnt==1 && b[0]=='\'' && b[1]=='#')){
 				pp = b;
 				while(*pp) {
@@ -440,8 +438,8 @@ void MIPS16 cmd_run(void) {
 	}
 	ClearRuntime();*/
     // RUN [ filename$ ] [, cmd_args$ ]
-    unsigned char *filename = "", *cmd_args = "";
-    getargs(&cmdline, 3, ",");
+    unsigned char *filename = (unsigned char *)"", *cmd_args = (unsigned char *)"";
+    getargs(&cmdline, 3, (unsigned char *)",");
 	    switch (argc) {
         case 0:
             break;
@@ -461,10 +459,10 @@ void MIPS16 cmd_run(void) {
     // a call to FileLoadProgram() so we need to cache 'filename' and
     // 'cmd_args' on the stack.
     unsigned char buf[MAXSTRLEN + 1];
-    if (snprintf(buf, MAXSTRLEN + 1, "\"%s\",%s", filename, cmd_args) > MAXSTRLEN) {
+    if (snprintf((char *)buf, MAXSTRLEN + 1, "\"%s\",%s", filename, cmd_args) > MAXSTRLEN) {
         error("RUN command line too long");
     }
-    unsigned char *pcmd_args = buf + strlen(filename) + 3; // *** THW 16/4/23
+    unsigned char *pcmd_args = buf + strlen((char *)filename) + 3; // *** THW 16/4/23
 
     if (*filename && !FileLoadProgram(buf)) return;
 
@@ -472,7 +470,7 @@ void MIPS16 cmd_run(void) {
     PrepareProgram(true);
 
     // Create a global constant MM.CMDLINE$ containing 'cmd_args'.
-    void *ptr = findvar("MM.CMDLINE$", V_FIND | V_DIM_VAR | T_CONST);
+    void *ptr = findvar((unsigned char *)"MM.CMDLINE$", V_FIND | V_DIM_VAR | T_CONST);
     CtoM(pcmd_args);
     memcpy(ptr, pcmd_args, *pcmd_args + 1); // *** THW 16/4/23
 
@@ -481,12 +479,12 @@ void MIPS16 cmd_run(void) {
     if(*ProgMemory != T_NEWLINE) return;                             // no program to run
 #ifdef PICOMITEWEB
     void *v;
-    v = findvar("MM.TOPIC$", T_STR | V_NOFIND_NULL);    // create the variable
-    if(v==NULL)findvar("MM.TOPIC$", V_FIND | V_DIM_VAR | T_CONST);
-    v = findvar("MM.MESSAGE$", T_STR | V_NOFIND_NULL);    // create the variable
-    if(v==NULL)findvar("MM.MESSAGE$", V_FIND | V_DIM_VAR | T_CONST);
-    v = findvar("MM.ADDRESS$", T_STR | V_NOFIND_NULL);    // create the variable
-    if(v==NULL)findvar("MM.ADDRESS$", V_FIND | V_DIM_VAR | T_CONST);
+    v = findvar((unsigned char *)"MM.TOPIC$", T_STR | V_NOFIND_NULL);    // create the variable
+    if(v==NULL)findvar((unsigned char *)"MM.TOPIC$", V_FIND | V_DIM_VAR | T_CONST);
+    v = findvar((unsigned char *)"MM.MESSAGE$", T_STR | V_NOFIND_NULL);    // create the variable
+    if(v==NULL)findvar((unsigned char *)"MM.MESSAGE$", V_FIND | V_DIM_VAR | T_CONST);
+    v = findvar((unsigned char *)"MM.ADDRESS$", T_STR | V_NOFIND_NULL);    // create the variable
+    if(v==NULL)findvar((unsigned char *)"MM.ADDRESS$", V_FIND | V_DIM_VAR | T_CONST);
 	cleanserver();
 #endif
 	nextstmt = ProgMemory;
@@ -515,10 +513,10 @@ void  MIPS16 cmd_continue(void) {
 
 void MIPS16 cmd_new(void) {
 #ifdef PICOMITEVGA
-	WriteBuf=FRAMEBUFFER;
-	DisplayBuf=FRAMEBUFFER;
-	LayerBuf=FRAMEBUFFER;
-	FrameBuf=FRAMEBUFFER;
+	WriteBuf=(unsigned char *)FRAMEBUFFER;
+	DisplayBuf=(unsigned char *)FRAMEBUFFER;
+	LayerBuf=(unsigned char *)FRAMEBUFFER;
+	FrameBuf=(unsigned char *)FRAMEBUFFER;
 #else
 	closeframebuffer();
 #endif	
@@ -539,16 +537,16 @@ void MIPS16 cmd_erase(void) {
 	int i,j,k, len;
 	char p[MAXVARLEN + 1], *s, *x;
 
-	getargs(&cmdline, (MAX_ARG_COUNT * 2) - 1, ",");				// getargs macro must be the first executable stmt in a block
+	getargs(&cmdline, (MAX_ARG_COUNT * 2) - 1, (unsigned char *)",");				// getargs macro must be the first executable stmt in a block
 	if((argc & 0x01) == 0) error("Argument count");
 
 	for(i = 0; i < argc; i += 2) {
-		strcpy((char *)p, argv[i]);
+		strcpy((char *)p, (char *)argv[i]);
         while(!isnamechar(p[strlen(p) - 1])) p[strlen(p) - 1] = 0;
 
-		makeupper(p);                                               // all variables are stored as uppercase
+		makeupper((unsigned char *)p);                                               // all variables are stored as uppercase
 		for(j = MAXVARS/2; j < MAXVARS; j++) {
-            s = p;  x = vartbl[j].name; len = strlen(p);
+            s = p;  x = (char *)vartbl[j].name; len = strlen(p);
             while(len > 0 && *s == *x) {                            // compare the variable to the name that we have
                 len--; s++; x++;
             }
@@ -672,7 +670,7 @@ retest_an_if:
 				// if an ELSEIF is found re execute this function to evaluate the condition following the ELSEIF
 				i = 1; p = nextstmt;
 				while(1) {
-                    p = GetNextCommand(p, &rp, "No matching ENDIF");
+                    p = GetNextCommand(p, &rp, (unsigned char *)"No matching ENDIF");
 					if(*p == cmdtoken) {
 						// found a nested IF command, we now need to determine if it is a single or multiline IF
 						// search for a THEN, then check if only white space follows.  If so, it is multiline.
@@ -758,7 +756,7 @@ void __not_in_flash_func(cmd_else)(void) {
 	if(cmdtoken ==  cmdELSE) checkend(cmdline);
 
 	while(1) {
-        p = GetNextCommand(p, NULL, "No matching ENDIF");
+        p = GetNextCommand(p, NULL, (unsigned char *)"No matching ENDIF");
 		if(*p == cmdIF) { 
 			// found a nested IF command, we now need to determine if it is a single or multiline IF
 			// search for a THEN, then check if only white space follows.  If so, it is multiline.
@@ -808,10 +806,8 @@ void cmd_end(void) {
     memset(inpbuf,0,STRINGSIZE);
 	CloseAudio(1);
 #ifdef PICOMITEVGA
-	WriteBuf=FRAMEBUFFER;
-	DisplayBuf=FRAMEBUFFER;
-	LayerBuf=FRAMEBUFFER;
-	FrameBuf=FRAMEBUFFER;
+	WriteBuf=(unsigned char *)FRAMEBUFFER;
+	DisplayBuf=(unsigned char *)FRAMEBUFFER;
 #endif
     adcrunning=0;
 	WatchdogSet = false;
@@ -838,14 +834,14 @@ void cmd_select(void) {
     type = TypeMask(type);
     if(type & T_NBR) f = *(MMFLOAT *)v;
     if(type & T_INT) i64 = *(long long int  *)v;
-    if(type & T_STR) Mstrcpy((char *)s, (char *)v);
+    if(type & T_STR) Mstrcpy((unsigned char *)s, (unsigned char *)v);
 
     // now search through the program looking for a matching CASE statement
     // i tracks the nesting level of any nested SELECT CASE commands
     SaveCurrentLinePtr = CurrentLinePtr;                            // save where we are because we will have to fake CurrentLinePtr to get errors reported correctly
     i = 1; p = nextstmt;
     while(1) {
-        p = GetNextCommand(p, &rp, "No matching END SELECT");
+        p = GetNextCommand(p, &rp, (unsigned char *)"No matching END SELECT");
 
         if(*p == cmdSELECT_CASE) i++;                                  // found a nested SELECT CASE command, increase the nested count and carry on searching
 
@@ -954,7 +950,7 @@ void cmd_case(void) {
     // i tracks the nesting level of any nested SELECT CASE commands
     i = 1; p = nextstmt;
     while(1) {
-        p = GetNextCommand(p, NULL, "No matching END SELECT");
+        p = GetNextCommand(p, NULL, (unsigned char *)"No matching END SELECT");
 
         if(*p == cmdSELECT_CASE) i++;                               // found a nested SELECT CASE command, we now need to search for its END CASE
 
@@ -999,7 +995,7 @@ void cmd_input(void) {
 
 	if(argc - i < 1) error("Syntax");						// no variable to input to
 	*inpbuf = 0;													// start with an empty buffer
-	MMgetline(fnbr, inpbuf);									    // get the line
+	MMgetline(fnbr, (char *)inpbuf);									    // get the line
 	p = inpbuf;
 
 	// step through the variables listed for the input statement
@@ -1054,10 +1050,10 @@ void MIPS16 cmd_trace(void) {
         while(i != TraceBuffIndex) {
 			if(TraceBuff[i] >= ProgMemory && TraceBuff[i] <= ProgMemory+MAX_PROG_SIZE){
            		 inpbuf[0] = '[';
-            	IntToStr(inpbuf + 1, CountLines(TraceBuff[i]), 10);
+            	IntToStr((char *)inpbuf + 1, CountLines(TraceBuff[i]), 10);
             	strcat((char *)inpbuf, "]");
 			}else if(TraceBuff[i]){
-                strcpy(inpbuf, "[Lib]");	
+                strcpy((char *)inpbuf, "[Lib]");	
 			}else{
 			    inpbuf[0] = 0;
 			}	
@@ -1431,8 +1427,8 @@ void cmd_error(void) {
 		IntToStr(&p[1],ln,10);
 		SaveCurrentLinePtr=CurrentLinePtr;
 		CurrentLinePtr = NULL;                                      // suppress printing the line that caused the issue
-		strcat(p,"] ");
-		strcat(p,s);
+		strcat((char *)p,"] ");
+		strcat((char *)p,(char *)s);
 		error(p);
 	}
 	else
@@ -1443,14 +1439,12 @@ void cmd_error(void) {
 
 void cmd_randomize(void) {
 	int i;
-	getargs(&cmdline,1,",");
+	getargs(&cmdline,1,(unsigned char *)",");
 	if(argc==1)i = getinteger(argv[0]);
 	else i=time_us_32();
 	if(i < 0) error("Number out of bounds");
 	srand(i);
 }
-
-
 
 // this is the Sub or Fun command
 // it simply skips over text until it finds the end of it
@@ -1470,7 +1464,7 @@ void cmd_subfun(void) {
     }
 	p = nextstmt;
 	while(1) {
-        p = GetNextCommand(p, NULL, "No matching END declaration");
+        p = GetNextCommand(p, NULL, (unsigned char *)"No matching END declaration");
         if(*p == cmdSUB || *p == cmdFUN || *p == cmdComment || *p == errtoken) error("No matching END declaration");
 		if(*p == returntoken) {                                     // found the next return
     		skipelement(p);
@@ -1482,7 +1476,7 @@ void cmd_subfun(void) {
 
 void cmd_gosub(void) {
    if(gosubindex >= MAXGOSUB) error("Too many nested GOSUB");
-   char *return_to = nextstmt;
+   char *return_to = (char *)nextstmt;
    if(isnamestart(*cmdline))
        nextstmt = findlabel(cmdline);
    else
@@ -1490,18 +1484,18 @@ void cmd_gosub(void) {
    IgnorePIN = false;
 
    errorstack[gosubindex] = CurrentLinePtr;
-   gosubstack[gosubindex++] = return_to;
+   gosubstack[gosubindex++] = (unsigned char *)return_to;
    LocalIndex++;
    CurrentLinePtr = nextstmt;
 }
 
 void cmd_mid(void){
 	unsigned char *p;
-	getargs(&cmdline,5,",");
+	getargs(&cmdline,5,(unsigned char *)",");
 	findvar(argv[0], V_NOFIND_ERR);
     if(vartbl[VarIndex].type & T_CONST) error("Cannot change a constant");
 	if(!(vartbl[VarIndex].type & T_STR)) error("Not a string");
-	char *sourcestring=getstring(argv[0]);
+	char *sourcestring=(char *)getstring(argv[0]);
 	int start=getint(argv[2],1,sourcestring[0]);
 	int num=0;
 	if(argc==5)num=getint(argv[4],1,sourcestring[0]);
@@ -1510,9 +1504,9 @@ void cmd_mid(void){
 	if(!*cmdline) error("Syntax");
 	++cmdline;
 	if(!*cmdline) error("Syntax");
-	char *value = getstring(cmdline);
+	char *value = (char *)getstring(cmdline);
 	if(num==0)num=value[0];
-	p=&value[1];
+	p=(unsigned char *)&value[1];
 	if(num==value[0]) memcpy(&sourcestring[start],p,num);
 	else {
 		int change=value[0]-num;
@@ -1561,7 +1555,7 @@ void MIPS16 cmd_read(void) {
 		NextData = datastore[restorepointer].SaveNextData;
 		return;
 	}
-    getargs(&cmdline, (MAX_ARG_COUNT * 2) - 1, ",");                // getargs macro must be the first executable stmt in a block
+    getargs(&cmdline, (MAX_ARG_COUNT * 2) - 1, (unsigned char *)",");                // getargs macro must be the first executable stmt in a block
     if(argc == 0) error("Syntax");
 	// first count the elements and do the syntax checking
     for(vcnt = i = 0; i < argc; i++) {
@@ -1585,7 +1579,8 @@ void MIPS16 cmd_read(void) {
     int *vsize=GetTempMemory(num_to_read * sizeof (int));
     // step through the arguments and save the pointer and type
     for(vcnt = i = 0; i < argc; i+=2) {
-		ptr = vtbl[vcnt] = findvar(argv[i], V_FIND | V_EMPTY_OK);
+		ptr = findvar(argv[i], V_FIND | V_EMPTY_OK);
+		vtbl[vcnt] = (char *)ptr;
 		card=1;
 		if(emptyarray){ //empty array
 			for(k=0;k<MAXDIM;k++){
@@ -1597,7 +1592,7 @@ void MIPS16 cmd_read(void) {
 			if(k){
 				if(vartbl[VarIndex].type & (T_INT | T_NBR))ptr+=8;
 				else ptr+=vartbl[VarIndex].size+1;
-				vtbl[vcnt]=ptr;
+				vtbl[vcnt]=(char *)ptr;
 			}
 			vtype[vcnt] = TypeMask(vartbl[VarIndex].type);
 			vsize[vcnt] = vartbl[VarIndex].size;
@@ -1607,7 +1602,7 @@ void MIPS16 cmd_read(void) {
 
     // setup for a search through the whole memory
     vidx = 0;
-    datatoken = GetCommandValue("Data");
+    datatoken = GetCommandValue((unsigned char *)"Data");
     p = lineptr = NextDataLine;
     if(*p == 0xff) error("No DATA to read");                        // error if there is no program
 
@@ -1633,7 +1628,7 @@ search_again:
 
         // we have a DATA statement, first split the line into arguments
         {                                                           // new block, the getargs macro must be the first executable stmt in a block
-        getargs(&p, (MAX_ARG_COUNT * 2) - 1, ",");
+        getargs(&p, (MAX_ARG_COUNT * 2) - 1, (unsigned char *)",");
         if((argc & 1) == 0) { CurrentLinePtr = lineptr; error("Syntax"); }
         // now step through the variables on the READ line and get their new values from the argument list
         // we set the line number to the number of the DATA stmt so that any errors are reported correctly
@@ -1649,10 +1644,10 @@ search_again:
                 char *p1, *p2;
                 if(*argv[NextData] == '"') {                               // if quoted string
                   	int toggle=0;
-                    for(len = 0, p1 = vtbl[vidx], p2 = argv[NextData] + 1; *p2 && *p2 != '"'; len++) {
+                    for(len = 0, p1 = vtbl[vidx], p2 = (char *)argv[NextData] + 1; *p2 && *p2 != '"'; len++) {
                     	if(*p2=='\\' && p2[1]!='"' && OptionEscape)toggle^=1;
 	                    if(toggle){
-	                        if(*p2=='\\' && isdigit(p2[1]) && isdigit(p2[2]) && isdigit(p2[3])){
+	                        if(*p2=='\\' && isdigit((unsigned char)p2[1]) && isdigit((unsigned char)p2[2]) && isdigit((unsigned char)p2[3])){
 	                            p2++;
 	                            i=(*p2++)-48;
 	                            i*=10;
@@ -1705,7 +1700,7 @@ search_again:
 	                                    break;
 	                                case '&':
 	                                    p2++;
-	                                    if(isxdigit(*p2) && isxdigit(p2[1])){
+	                                    if(isxdigit((unsigned char)*p2) && isxdigit((unsigned char)p2[1])){
 	                                        i=0;
 	                                        i = (i << 4) | ((mytoupper(*p2) >= 'A') ? mytoupper(*p2) - 'A' + 10 : *p2 - '0');
 	                                        p++;
@@ -1722,14 +1717,14 @@ search_again:
 	                    } else *p1++ = *p2++;
                     }
                 } else {                                            // else if not quoted
-                    for(len = 0, p1 = vtbl[vidx], p2 = argv[NextData]; *p2 && *p2 != '\'' ; len++, p1++, p2++) {
+                    for(len = 0, p1 = vtbl[vidx], p2 = (char *)argv[NextData]; *p2 && *p2 != '\'' ; len++, p1++, p2++) {
                         if(*p2 < 0x20 || *p2 >= 0x7f) error("Invalid character");
                         *p1 = *p2;                                  // copy up to the comma
                     }
                 }
                 if(len > vsize[vidx]) error("String too long");
                 *p1 = 0;                                            // terminate the string
-                CtoM(vtbl[vidx]);                                   // convert to a MMBasic string
+                CtoM((unsigned char *)vtbl[vidx]);                                   // convert to a MMBasic string
             }
             else if(vtype[vidx] & T_INT)
                 *((long long int *)vtbl[vidx]) = getinteger(argv[NextData]); // much easier if integer variable
@@ -1748,8 +1743,8 @@ void cmd_call(void){
     unsigned char *q = skipexpression(cmdline);
 	if(*q==',')q++;
 	i = FindSubFun(p, false);                   // it could be a defined command
-	strcat(p," ");
-	strcat(p,q);
+	strcat((char *)p," ");
+	strcat((char *)p,(char *)q);
 //	MMPrintString(p);PRet();
 	if(i >= 0) {                                // >= 0 means it is a user defined command
 		DefinedSubFun(false, p, i, NULL, NULL, NULL, NULL);
@@ -1773,7 +1768,7 @@ void MIPS16 cmd_restore(void) {
 			NextDataLine = findlabel(getCstring(cmdline));
 			NextData = 0;
 		}
-		else if(isdigit(*cmdline) || *cmdline==GetTokenValue( (char *)"+") || *cmdline==GetTokenValue( (char *)"-")  || *cmdline=='.'){
+		else if(isdigit(*cmdline) || *cmdline==GetTokenValue((unsigned char *)"+") || *cmdline==GetTokenValue((unsigned char *)"-")  || *cmdline=='.'){
 			NextDataLine = findline(getinteger(cmdline), true); // try for a line number
 			NextData = 0;
 		} else {
@@ -1828,7 +1823,7 @@ void cmd_lineinput(void) {
 	vp = findvar(argv[i], V_FIND);
     if(vartbl[VarIndex].type & T_CONST) error("Cannot change a constant");
 	if(!(vartbl[VarIndex].type & T_STR)) error("Invalid variable");
-	MMgetline(fnbr, inpbuf);									    // get the input line
+	MMgetline(fnbr, (char *)inpbuf);									    // get the input line
 	if(strlen((char *)inpbuf) > vartbl[VarIndex].size) error("String too long");
 	strcpy((char *)vp, (char *)inpbuf);
 	CtoM(vp);														// convert to a MMBasic string
@@ -1840,9 +1835,9 @@ void cmd_on(void) {
 	unsigned char ss[4];													    // this will be used to split up the argument line
     unsigned char *p;
 	// first check if this is:   ON KEY location
-	p = checkstring(cmdline, "PS2");
+	p = checkstring(cmdline, (unsigned char *)"PS2");
 	if(p){
-		getargs(&p,1,",");
+		getargs(&p,1,(unsigned char *)",");
 		if(*argv[0] == '0' && !isdigit(*(argv[0]+1))){
 			OnPS2GOSUB = NULL;                                      // the program wants to turn the interrupt off
 		} else {
@@ -1851,9 +1846,9 @@ void cmd_on(void) {
 		}
 		return;
 	}
-	p = checkstring(cmdline, "KEY");
+	p = checkstring(cmdline, (unsigned char *)"KEY");
 	if(p) {
-		getargs(&p,3,",");
+		getargs(&p,3,(unsigned char *)",");
 		if(argc==1){
 			if(*argv[0] == '0' && !isdigit(*(argv[0]+1))){
 				OnKeyGOSUB = NULL;                                      // the program wants to turn the interrupt off
@@ -1870,27 +1865,27 @@ void cmd_on(void) {
 				if(*argv[2] == '0' && !isdigit(*(argv[2]+1))){
 					KeyInterrupt = NULL;                                      // the program wants to turn the interrupt off
 				} else {
-					KeyInterrupt = GetIntAddress(argv[2]);						    // get a pointer to the interrupt routine
+					KeyInterrupt = (char *)GetIntAddress(argv[2]);						    // get a pointer to the interrupt routine
 					InterruptUsed = true;
 				}
 			}
 			return;
 		}
 	}
-    p = checkstring(cmdline, "ERROR");
+    p = checkstring(cmdline, (unsigned char *)"ERROR");
 	if(p) {
-		if(checkstring(p, "ABORT")) {
+		if(checkstring(p, (unsigned char *)"ABORT")) {
             OptionErrorSkip = 0;
             return;
         }
         MMerrno = 0;                                                // clear the error flags
         *MMErrMsg = 0;
-        if(checkstring(p, "CLEAR")) return;
-		if(checkstring(p, "IGNORE")) {
+        if(checkstring(p, (unsigned char *)"CLEAR")) return;
+		if(checkstring(p, (unsigned char *)"IGNORE")) {
             OptionErrorSkip = -1;
             return;
         }
-		if((p = checkstring(p, "SKIP"))) {
+		if((p = checkstring(p, (unsigned char *)"SKIP"))) {
             if(*p == 0 || *p == (unsigned char)'\'')
                 OptionErrorSkip = 2;
             else
@@ -2018,17 +2013,17 @@ void MIPS16 cmd_dim(void) {
                 if(LocalIndex == 0) error("Invalid here");
                 // create a unique global name
                 if(*CurrentInterruptName)
-                    strcpy(VarName, CurrentInterruptName);          // we must be in an interrupt sub
+                    strcpy((char *)VarName, CurrentInterruptName);          // we must be in an interrupt sub
                 else
-                    strcpy(VarName, CurrentSubFunName);             // normal sub/fun
+                    strcpy((char *)VarName, CurrentSubFunName);             // normal sub/fun
                 for(k = 1; k <= MAXVARLEN; k++) if(!isnamechar(VarName[k])) {
                     VarName[k] = 0;                                 // terminate the string on a non valid char
                     break;
                 }
-                strcat(VarName, argv[i]);					        // by prefixing the var name with the sub/fun name
+                strcat((char *)VarName, (char *)argv[i]);					        // by prefixing the var name with the sub/fun name
             	StaticVar = true;
             } else
-            	strcpy(VarName, argv[i]);
+            	strcpy((char *)VarName, (char *)argv[i]);
 
             v = findvar(VarName, type | V_NOFIND_NULL);             // check if the variable exists
             typeSave = type;
@@ -2153,7 +2148,7 @@ unsigned char  *llist(unsigned char *b, unsigned char *p) {
 		if(*p == T_LINENBR) {
 			i = (((p[1]) << 8) | (p[2]));							// get the line number
 			p += 3;													// and step over the number
-                IntToStr(b, i, 10);
+                IntToStr((char *)b, i, 10);
                 b += strlen((char *)b);
 				if(*p != ' ') *b++ = ' ';
 			}
@@ -2171,13 +2166,13 @@ unsigned char  *llist(unsigned char *b, unsigned char *p) {
 				if(*p == GetCommandValue( (unsigned char *)"Let"))
 					*b = 0;											// use nothing if it LET
 				else {
-					strCopyWithCase(b, commandname(*p));			// expand the command (if it is not LET)
+					strCopyWithCase((char *)b, (char *)commandname(*p));			// expand the command (if it is not LET)
                     b += strlen((char *)b);                                 // update pointer to the end of the buffer
                     if(isalpha(*(b - 1))) *b++ = ' ';               // add a space to the end of the command name
                 }
 				firstnonwhite = false;
 			} else {												// not a command so must be a token
-				strCopyWithCase(b, tokenname(*p));					// expand the token
+				strCopyWithCase((char *)b, (char *)tokenname(*p));					// expand the token
                     b += strlen((char *)b);                                 // update pointer to the end of the buffer
 				if(*p == tokenTHEN || *p == tokenELSE)
 					firstnonwhite = true;
@@ -2240,7 +2235,7 @@ void execute_one_command(unsigned char *p) {
 
 void execute(char* mycmd) {
 	//    char *temp_tknbuf;
-	unsigned char* ttp;
+	unsigned char* ttp=NULL;
 	int i = 0, toggle = 0;
 	//    temp_tknbuf = GetTempStrMemory();
 	//    strcpy(temp_tknbuf, tknbuf);
@@ -2260,6 +2255,7 @@ void execute(char* mycmd) {
 			}
 			i++;
 		}
+		multi=false;
 		tokenise(true);                                                 // and tokenise it (the result is in tknbuf)
 		memset(inpbuf, 0, STRINGSIZE);
 		tknbuf[strlen((char *)tknbuf)] = 0;
@@ -2274,8 +2270,8 @@ void execute(char* mycmd) {
 	}
 	else {
 		unsigned char* p = inpbuf;
-		char* q, * s=NULL;
-		char fn[STRINGSIZE] = { 0 };
+		char* q;
+//		char fn[STRINGSIZE] = { 0 };
 		p[0] = GetCommandValue((unsigned char *)"RUN");
 		memmove(&p[1], &p[4], strlen((char *)p) - 4);
 		if ((q = strchr((char *)p, ':'))) {

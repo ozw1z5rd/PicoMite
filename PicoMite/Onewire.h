@@ -37,8 +37,8 @@ void fun_owCRC16(void);
 **********************************************************************************/
 #ifdef INCLUDE_COMMAND_TABLE
 
-	{ "OneWire",	T_CMD,		0, cmd_onewire      },
-	{ "TEMPR START", T_CMD,	0, cmd_ds18b20      },
+	{ (unsigned char *)"OneWire",	T_CMD,		0, cmd_onewire      },
+	{ (unsigned char *)"TEMPR START", T_CMD,	0, cmd_ds18b20      },
 
 #endif
 
@@ -49,12 +49,12 @@ void fun_owCRC16(void);
 #ifdef INCLUDE_TOKEN_TABLE
 
 #if defined(INCLUDE_CRC)
-	{ "OWCRC8(",	T_FUN | T_NBR,	0, fun_owCRC8       },
-	{ "OWCRC16(",	T_FUN | T_NBR,	0, fun_owCRC16      },
+//	{ (unsigned char *)"OWCRC8(",	T_FUN | T_NBR,	0, fun_owCRC8       },
+	{ (unsigned char *)"OWCRC16(",	T_FUN | T_NBR,	0, fun_owCRC16      },
 #endif
 
-	{ "MM.OneWire",	T_FNA | T_INT,	0, fun_mmOW         },
-	{ "TEMPR(",	T_FUN | T_NBR,	0, fun_ds18b20      },
+	{ (unsigned char *)"MM.OneWire",	T_FNA | T_INT,	0, fun_mmOW         },
+	{ (unsigned char *)"TEMPR(",	T_FUN | T_NBR,	0, fun_ds18b20      },
 
 #endif
 

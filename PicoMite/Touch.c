@@ -48,7 +48,7 @@ int TOUCH_GETIRQTRIS=0;
 // this is called by the OPTION TOUCH command
 void MIPS16 ConfigTouch(unsigned char *p) {
     int pin1, pin2, pin3=0;
-    getargs(&p, 5, ",");
+    getargs(&p, 5, (unsigned char *)",");
     if(!(argc == 3 || argc == 5)) error("Argument count");
 	unsigned char code;
 	if(!(code=codecheck(argv[0])))argv[0]+=2;
@@ -220,22 +220,22 @@ void TDelay(void)     // provides a small (~200ns) delay for the touch screen co
 
 // the MMBasic TOUCH() function
 void fun_touch(void) {
-    if(checkstring(ep, "X"))
+    if(checkstring(ep, (unsigned char *)"X"))
         iret = GetTouch(GET_X_AXIS);
-    else if(checkstring(ep, "Y"))
+    else if(checkstring(ep, (unsigned char *)"Y"))
         iret = GetTouch(GET_Y_AXIS);
 #ifndef PICOMITEWEB
-    else if(checkstring(ep, "REF"))
+    else if(checkstring(ep, (unsigned char *)"REF"))
         iret = CurrentRef;
-    else if(checkstring(ep, "LASTREF"))
+    else if(checkstring(ep, (unsigned char *)"LASTREF"))
         iret = LastRef;
-    else if(checkstring(ep, "LASTX"))
+    else if(checkstring(ep, (unsigned char *)"LASTX"))
         iret = LastX;
-    else if(checkstring(ep, "LASTY"))
+    else if(checkstring(ep, (unsigned char *)"LASTY"))
         iret = LastY;
-    else if(checkstring(ep, "DOWN"))
+    else if(checkstring(ep, (unsigned char *)"DOWN"))
         iret = TOUCH_DOWN;
-    else if(checkstring(ep, "UP"))
+    else if(checkstring(ep, (unsigned char *)"UP"))
         iret = !TOUCH_DOWN;
 #endif        
     else

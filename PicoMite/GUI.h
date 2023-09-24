@@ -52,7 +52,7 @@ void fun_mmvpos(void);
 #ifdef INCLUDE_COMMAND_TABLE
 
 //  { "BackLight",      T_CMD,                      0, cmd_backlight  },
-  { "CtrlVal(",       T_CMD | T_FUN,              0, cmd_ctrlval    },
+  { (unsigned char *)"CtrlVal(",       T_CMD | T_FUN,              0, cmd_ctrlval    },
 
 #endif
 
@@ -62,10 +62,10 @@ void fun_mmvpos(void);
 **********************************************************************************/
 #ifdef INCLUDE_TOKEN_TABLE
 
-  { "MsgBox(",        T_FUN | T_INT,              0, fun_msgbox     },
-  { "CtrlVal(",       T_FUN | T_NBR | T_STR,      0, fun_ctrlval    },
-  { "MM.HPos",        T_FNA | T_INT,              0, fun_mmhpos     },
-  { "MM.VPos",        T_FNA | T_INT,              0, fun_mmvpos     },
+  { (unsigned char *)"MsgBox(",        T_FUN | T_INT,              0, fun_msgbox     },
+  { (unsigned char *)"CtrlVal(",       T_FUN | T_NBR | T_STR,      0, fun_ctrlval    },
+  { (unsigned char *)"MM.HPos",        T_FNA | T_INT,              0, fun_mmhpos     },
+  { (unsigned char *)"MM.VPos",        T_FNA | T_INT,              0, fun_mmvpos     },
 
 #endif
 

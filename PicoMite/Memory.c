@@ -54,10 +54,10 @@ uint32_t M_Background[16] ={
 uint16_t __attribute__ ((aligned (256))) tilefcols[80*40];
 uint16_t __attribute__ ((aligned (256))) tilebcols[80*40];
 int ytilecount=16;
-unsigned char *WriteBuf=FRAMEBUFFER;
-unsigned char *DisplayBuf=FRAMEBUFFER;
-unsigned char *LayerBuf=FRAMEBUFFER;
-unsigned char *FrameBuf=FRAMEBUFFER;
+unsigned char *WriteBuf=(unsigned char *)FRAMEBUFFER;
+unsigned char *DisplayBuf=(unsigned char *)FRAMEBUFFER;
+unsigned char *LayerBuf=(unsigned char *)FRAMEBUFFER;
+unsigned char *FrameBuf=(unsigned char *)FRAMEBUFFER;
 #endif
 #ifdef PICOMITE
 unsigned char __attribute__ ((aligned (256))) MMHeap[HEAP_MEMORY_SIZE+256]={0};
@@ -95,9 +95,9 @@ int StrTmpIndex = 0;                                                // index to 
 ************************************************************************************************************************/
 void cmd_memory(void) {
 	unsigned char *p,*tp;
-    tp = checkstring(cmdline, "PACK");
+    tp = checkstring(cmdline, (unsigned char *)"PACK");
     if(tp){
-        getargs(&tp,7,",");
+        getargs(&tp,7,(unsigned char *)",");
         if(argc!=7)error("Syntax");
         int i,n=getinteger(argv[4]);
         if(n<=0)return;
@@ -106,7 +106,7 @@ void cmd_memory(void) {
         int sourcesize,destinationsize;
         void *top=NULL;
         uint64_t *from=NULL;
-        if(CheckEmpty(argv[0])){
+        if(CheckEmpty((char *)argv[0])){
         void *ptr1 = findvar(argv[0], V_FIND | V_EMPTY_OK | V_NOFIND_ERR);
         if(!(ptr1 && (vartbl[VarIndex].type & T_INT)))error("Invalid source");
             if(vartbl[VarIndex].dims[1] != 0) error("Invalid variable");
@@ -115,7 +115,7 @@ void cmd_memory(void) {
             if(n>sourcesize)error("Source array too small");
             from=(uint64_t *)ptr1;
         } else from=(uint64_t *)GetPokeAddr(argv[0]);
-        if(CheckEmpty(argv[2])){
+        if(CheckEmpty((char *)argv[2])){
             void *ptr2 = findvar(argv[2], V_FIND | V_EMPTY_OK | V_NOFIND_ERR);
             if(!(ptr2 && (vartbl[VarIndex].type & T_INT)))error("Invalid destination");
             if(vartbl[VarIndex].dims[1] != 0) error("Invalid variable");
@@ -163,9 +163,9 @@ void cmd_memory(void) {
         }
         return;
     }
-    tp = checkstring(cmdline, "UNPACK");
+    tp = checkstring(cmdline, (unsigned char *)"UNPACK");
     if(tp){
-        getargs(&tp,7,",");
+        getargs(&tp,7,(unsigned char *)",");
         if(argc!=7)error("Syntax");
         int i,n=getinteger(argv[4]);
         if(n<=0)return;
@@ -174,7 +174,7 @@ void cmd_memory(void) {
         int sourcesize,destinationsize;
         uint64_t *to=NULL;
         void *fromp=NULL;
-        if(CheckEmpty(argv[0])){
+        if(CheckEmpty((char *)argv[0])){
             void *ptr1 = findvar(argv[0], V_FIND | V_EMPTY_OK | V_NOFIND_ERR);
             if(!(ptr1 && (vartbl[VarIndex].type & T_INT)))error("Invalid source");
             if(vartbl[VarIndex].dims[1] != 0) error("Invalid variable");
@@ -184,7 +184,7 @@ void cmd_memory(void) {
         } else {
             fromp=(void*)GetPokeAddr(argv[0]);
         }
-        if(CheckEmpty(argv[2])){
+        if(CheckEmpty((char *)argv[2])){
             void *ptr2 = findvar(argv[2], V_FIND | V_EMPTY_OK | V_NOFIND_ERR);
             if(!(ptr2 && (vartbl[VarIndex].type & T_INT)))error("Invalid destination");
             if(vartbl[VarIndex].dims[1] != 0) error("Invalid variable");
@@ -197,7 +197,7 @@ void cmd_memory(void) {
             uint8_t *from=(uint8_t *)fromp;
             for(i=0;i<n;i++){
                 int s= i % 8;
-                *to++ = (*from) & ((0x1<<s) ? 1 : 0);
+                *to++ = ((*from & (1<<s)) ? 1 : 0);
                 if(s==7)from++;
            }
 
@@ -231,11 +231,11 @@ void cmd_memory(void) {
         }
         return;
     }
-    tp = checkstring(cmdline, "COPY");
+    tp = checkstring(cmdline, (unsigned char *)"COPY");
     if(tp){
-    	if((p = checkstring(tp, "INTEGER"))) {
+    	if((p = checkstring(tp, (unsigned char *)"INTEGER"))) {
     		int stepin=1, stepout=1;
-        	getargs(&p,9,",");
+        	getargs(&p,9,(unsigned char *)",");
         	if(argc<5)error("Syntax");
         	int n=getinteger(argv[4]);
         	if(n<=0)return;
@@ -245,19 +245,29 @@ void cmd_memory(void) {
         	if((uint32_t)to % 8)error("Address not divisible by 8");
         	if(argc>=7 && *argv[6])stepin=getint(argv[6],0,0xFFFF);
         	if(argc==9)stepout=getint(argv[8],0,0xFFFF);
-        	if(stepin==1 && stepout==1)memcpy(to, from, n*8);
+        	if(stepin==1 && stepout==1)memmove(to, from, n*8);
         	else{
-            	while(n--){
-            		*to=*from;
-            		to+=stepout;
-            		from+=stepin;
-            	}
+                if(from<to){
+                    from+=(n-1)*stepin;
+                    to+=(n-1)*stepout;
+                    while(n--){
+                        *to=*from;
+                        to-=stepout;
+                        from-=stepin;
+                    }
+                } else {
+                    while(n--){
+                        *to=*from;
+                        to+=stepout;
+                        from+=stepin;
+                    }
+                }
         	}
     		return;
     	}
-    	if((p = checkstring(tp, "FLOAT"))) {
+    	if((p = checkstring(tp, (unsigned char *)"FLOAT"))) {
     		int stepin=1, stepout=1;
-        	getargs(&p,9,","); //assume byte
+        	getargs(&p,9,(unsigned char *)","); //assume byte
         	if(argc<5)error("Syntax");
         	int n=getinteger(argv[4]);
         	if(n<=0)return;
@@ -268,29 +278,60 @@ void cmd_memory(void) {
         	if(argc>=7 && *argv[6])stepin=getint(argv[6],0,0xFFFF);
         	if(argc==9)stepout=getint(argv[8],0,0xFFFF);
         	if(n<=0)return;
-        	if(stepin==1 && stepout==1)memcpy(to, from, n*8);
+        	if(stepin==1 && stepout==1)memmove(to, from, n*8);
         	else{
-            	while(n--){
-            		*to=*from;
-            		to+=stepout;
-            		from+=stepin;
-            	}
+                if(from<to){
+                    from+=(n-1)*stepin;
+                    to+=(n-1)*stepout;
+                    while(n--){
+                        *to=*from;
+                        to-=stepout;
+                        from-=stepin;
+                    }
+                } else {
+                    while(n--){
+                        *to=*from;
+                        to+=stepout;
+                        from+=stepin;
+                    }
+                }
         	}
     		return;
     	}
-    	getargs(&tp,5,",");
-    	if(argc!=5)error("Syntax");
+        getargs(&tp,9,(unsigned char *)","); //assume byte
+        if(argc<5)error("Syntax");
+        int stepin=1, stepout=1;
     	char *from=(char *)GetPeekAddr(argv[0]);
     	char *to=(char *)GetPokeAddr(argv[2]);
     	int n=getinteger(argv[4]);
-    	memmove(to, from, n);
+        if(argc>=7 && *argv[6])stepin=getint(argv[6],0,0xFFFF);
+        if(argc==9)stepout=getint(argv[8],0,0xFFFF);
+        if(n<=0)return;
+    	if(stepin==1 && stepout==1)memmove(to, from, n);
+        else {
+            if(from<to){
+                from+=(n-1)*stepin;
+                to+=(n-1)*stepout;
+                while(n--){
+                    *to=*from;
+                    to-=stepout;
+                    from-=stepin;
+                }
+            } else {
+                while(n--){
+                    *to=*from;
+                    to+=stepout;
+                    from+=stepin;
+                }
+            }
+        }
     	return;
     }
-    tp = checkstring(cmdline, "SET");
+    tp = checkstring(cmdline, (unsigned char *)"SET");
     if(tp){
     	unsigned char *p;
-    	if((p = checkstring(tp, "BYTE"))) {
-        	getargs(&p,5,","); //assume byte
+    	if((p = checkstring(tp, (unsigned char *)"BYTE"))) {
+        	getargs(&p,5,(unsigned char *)","); //assume byte
         	if(argc!=5)error("Syntax");
          	char *to=(char *)GetPokeAddr(argv[0]);
          	int val=getint(argv[2],0,255);
@@ -299,8 +340,8 @@ void cmd_memory(void) {
         	memset(to, val, n);
     		return;
     	}
-    	if((p = checkstring(tp, "SHORT"))) {
-        	getargs(&p,5,","); //assume byte
+    	if((p = checkstring(tp, (unsigned char *)"SHORT"))) {
+        	getargs(&p,5,(unsigned char *)","); //assume byte
         	if(argc!=5)error("Syntax");
          	short *to=(short *)GetPokeAddr(argv[0]);
         	if((uint32_t)to % 2)error("Address not divisible by 2");
@@ -314,8 +355,8 @@ void cmd_memory(void) {
         	}
     		return;
     	}
-    	if((p = checkstring(tp, "WORD"))) {
-        	getargs(&p,5,","); //assume byte
+    	if((p = checkstring(tp, (unsigned char *)"WORD"))) {
+        	getargs(&p,5,(unsigned char *)","); //assume byte
         	if(argc!=5)error("Syntax");
          	unsigned int *to=(unsigned int *)GetPokeAddr(argv[0]);
         	if((uint32_t)to % 4)error("Address not divisible by 4");
@@ -329,9 +370,9 @@ void cmd_memory(void) {
         	}
     		return;
      	}
-    	if((p = checkstring(tp, "INTEGER"))) {
+    	if((p = checkstring(tp, (unsigned char *)"INTEGER"))) {
     		int stepin=1;
-        	getargs(&p,7,",");
+        	getargs(&p,7,(unsigned char *)",");
         	if(argc<5)error("Syntax");
          	uint64_t *to=(uint64_t *)GetPokeAddr(argv[0]);
         	if((uint32_t)to % 8)error("Address not divisible by 8");
@@ -349,9 +390,9 @@ void cmd_memory(void) {
         	}
     		return;
     	}
-    	if((p = checkstring(tp, "FLOAT"))) {
+    	if((p = checkstring(tp, (unsigned char *)"FLOAT"))) {
     		int stepin=1;
-        	getargs(&p,7,","); //assume byte
+        	getargs(&p,7,(unsigned char *)","); //assume byte
         	if(argc<5)error("Syntax");
         	MMFLOAT *to=(MMFLOAT *)GetPokeAddr(argv[0]);
         	if((uint32_t)to % 8)error("Address not divisible by 8");
@@ -369,7 +410,7 @@ void cmd_memory(void) {
         	}
     		return;
     	}
-    	getargs(&tp,5,","); //assume byte
+    	getargs(&tp,5,(unsigned char *)","); //assume byte
     	if(argc!=5)error("Syntax");
      	char *to=(char *)GetPokeAddr(argv[0]);
      	int val=getint(argv[2],0,255);
@@ -414,14 +455,14 @@ void cmd_memory(void) {
     GeneralSize = (i + 512)/1024; GeneralPercent = (i * 100)/CurrentRAM;
 
     // count the space used by saved variables (in flash)
-    p = (char *)SavedVarsFlash;
+    p = (unsigned char *)SavedVarsFlash;
     SavedVarCnt = 0;
     while(!(*p == 0 || *p == 0xff)) {
         unsigned char type, array;
         SavedVarCnt++;
         type = *p++;
         array = type & 0x80;  type &= 0x7f;                         // set array to true if it is an array
-        p += strlen(p) + 1;
+        p += strlen((char *)p) + 1;
         if(array)
             p += (p[0] | p[1] << 8 | p[2] << 16| p[3] << 24) + 4;
         else {
@@ -482,39 +523,39 @@ void cmd_memory(void) {
     if(i && ProgramSize == 0) ProgramPercent = ProgramSize = 1;                                        // adjust if it is zero and we have some lines
 
     MMPrintString("Program:\r\n");
-    IntToStrPad(inpbuf, ProgramSize, ' ', 4, 10); strcat(inpbuf, "K (");
-    IntToStrPad(inpbuf + strlen(inpbuf), ProgramPercent, ' ', 2, 10); strcat(inpbuf, "%) Program (");
-    IntToStr(inpbuf + strlen(inpbuf), i, 10); strcat(inpbuf, " lines)\r\n");
-	MMPrintString(inpbuf);
+    IntToStrPad((char *)inpbuf, ProgramSize, ' ', 4, 10); strcat((char *)inpbuf, "K (");
+    IntToStrPad((char *)inpbuf + strlen((char *)inpbuf), ProgramPercent, ' ', 2, 10); strcat((char *)inpbuf, "%) Program (");
+    IntToStr((char *)inpbuf + strlen((char *)inpbuf), i, 10); strcat((char *)inpbuf, " lines)\r\n");
+	MMPrintString((char *)inpbuf);
 
     if(CFunctNbr) {
-        IntToStrPad(inpbuf, CFunctSizeK, ' ', 4, 10); strcat(inpbuf, "K (");
-        IntToStrPad(inpbuf + strlen(inpbuf), CFunctPercent, ' ', 2, 10); strcat(inpbuf, "%) "); MMPrintString(inpbuf);
-        IntToStr(inpbuf, CFunctNbr, 10); strcat(inpbuf, " Embedded C Routine"); strcat(inpbuf, CFunctNbr == 1 ? "\r\n":"s\r\n");
-        MMPrintString(inpbuf);
+        IntToStrPad((char *)inpbuf, CFunctSizeK, ' ', 4, 10); strcat((char *)inpbuf, "K (");
+        IntToStrPad((char *)inpbuf + strlen((char *)inpbuf), CFunctPercent, ' ', 2, 10); strcat((char *)inpbuf, "%) "); MMPrintString((char *)inpbuf);
+        IntToStr((char *)inpbuf, CFunctNbr, 10); strcat((char *)inpbuf, " Embedded C Routine"); strcat((char *)inpbuf, CFunctNbr == 1 ? "\r\n":"s\r\n");
+        MMPrintString((char *)inpbuf);
     }
 
     if(FontNbr) {
-        IntToStrPad(inpbuf, FontSizeK, ' ', 4, 10); strcat(inpbuf, "K (");
-        IntToStrPad(inpbuf + strlen(inpbuf), FontPercent, ' ', 2, 10); strcat(inpbuf, "%) "); MMPrintString(inpbuf);
-        IntToStr(inpbuf, FontNbr, 10); strcat(inpbuf, " Embedded Fonts"); strcat(inpbuf, FontNbr == 1 ? "\r\n":"s\r\n");
-        MMPrintString(inpbuf);
+        IntToStrPad((char *)inpbuf, FontSizeK, ' ', 4, 10); strcat((char *)inpbuf, "K (");
+        IntToStrPad((char *)inpbuf + strlen((char *)inpbuf), FontPercent, ' ', 2, 10); strcat((char *)inpbuf, "%) "); MMPrintString((char *)inpbuf);
+        IntToStr((char *)inpbuf, FontNbr, 10); strcat((char *)inpbuf, " Embedded Fonts"); strcat((char *)inpbuf, FontNbr == 1 ? "\r\n":"s\r\n");
+        MMPrintString((char *)inpbuf);
     }
 /*
     if(SavedVarCnt) {
-        IntToStrPad(inpbuf, SavedVarSizeK, ' ', 4, 10); strcat(inpbuf, "K (");
-        IntToStrPad(inpbuf + strlen(inpbuf), SavedVarPercent, ' ', 2, 10); strcat(inpbuf, "%)");
-        IntToStrPad(inpbuf + strlen(inpbuf), SavedVarCnt, ' ', 2, 10); strcat(inpbuf, " Saved Variable"); strcat(inpbuf, SavedVarCnt == 1 ? " (":"s (");
-        IntToStr(inpbuf + strlen(inpbuf), SavedVarSize, 10); strcat(inpbuf, " bytes)\r\n");
+        IntToStrPad(inpbuf, SavedVarSizeK, ' ', 4, 10); strcat((char *)inpbuf, "K (");
+        IntToStrPad(inpbuf + strlen(inpbuf), SavedVarPercent, ' ', 2, 10); strcat((char *)inpbuf, "%)");
+        IntToStrPad(inpbuf + strlen(inpbuf), SavedVarCnt, ' ', 2, 10); strcat((char *)inpbuf, " Saved Variable"); strcat((char *)inpbuf, SavedVarCnt == 1 ? " (":"s (");
+        IntToStr((char *)inpbuf + strlen(inpbuf), SavedVarSize, 10); strcat((char *)inpbuf, " bytes)\r\n");
         MMPrintString(inpbuf);
     }
 */
 
 
 
-    IntToStrPad(inpbuf, ((MAX_PROG_SIZE/* + SAVEDVARS_FLASH_SIZE*/) + 512)/1024 - ProgramSize - CFunctSizeK - FontSizeK /*- SavedVarSizeK - LibrarySizeK*/, ' ', 4, 10); strcat(inpbuf, "K (");
-    IntToStrPad(inpbuf + strlen(inpbuf), 100 - ProgramPercent - CFunctPercent - FontPercent /*- SavedVarPercent - LibraryPercent*/, ' ', 2, 10); strcat(inpbuf, "%) Free\r\n");
-	MMPrintString(inpbuf);
+    IntToStrPad((char *)inpbuf, ((MAX_PROG_SIZE/* + SAVEDVARS_FLASH_SIZE*/) + 512)/1024 - ProgramSize - CFunctSizeK - FontSizeK /*- SavedVarSizeK - LibrarySizeK*/, ' ', 4, 10); strcat((char *)inpbuf, "K (");
+    IntToStrPad((char *)inpbuf + strlen((char *)inpbuf), 100 - ProgramPercent - CFunctPercent - FontPercent /*- SavedVarPercent - LibraryPercent*/, ' ', 2, 10); strcat((char *)inpbuf, "%) Free\r\n");
+	MMPrintString((char *)inpbuf);
 
      //Get the library size
     LibrarySizeK = LibraryPercent = 0;
@@ -554,41 +595,41 @@ void cmd_memory(void) {
      
            MMPrintString("\r\nLibrary:\r\n");
         
-           IntToStrPad(inpbuf, LibrarySizeK, ' ', 4, 10); strcat(inpbuf, "K (");
-	       //IntToStrPad(inpbuf, (128*1024  + 512)/1024  - LibrarySizeK, ' ', 4, 10); strcat(inpbuf, "K (");
-	       IntToStrPad(inpbuf + strlen(inpbuf), LibraryPercent, ' ', 2, 10); strcat(inpbuf, "%) "); strcat(inpbuf, "Library\r\n");
-	       IntToStrPad(inpbuf + strlen(inpbuf), LibraryMaxK-LibrarySizeK, ' ', 4, 10); strcat(inpbuf, "K (");
-	       IntToStrPad(inpbuf + strlen(inpbuf), 100 - LibraryPercent, ' ', 2, 10); strcat(inpbuf, "%) Free\r\n");
-	       MMPrintString(inpbuf);
+           IntToStrPad((char *)inpbuf, LibrarySizeK, ' ', 4, 10); strcat((char *)inpbuf, "K (");
+	       //IntToStrPad(inpbuf, (128*1024  + 512)/1024  - LibrarySizeK, ' ', 4, 10); strcat((char *)inpbuf, "K (");
+	       IntToStrPad((char *)inpbuf + strlen((char *)inpbuf), LibraryPercent, ' ', 2, 10); strcat((char *)inpbuf, "%) "); strcat((char *)inpbuf, "Library\r\n");
+	       IntToStrPad((char *)inpbuf + strlen((char *)inpbuf), LibraryMaxK-LibrarySizeK, ' ', 4, 10); strcat((char *)inpbuf, "K (");
+	       IntToStrPad((char *)inpbuf + strlen((char *)inpbuf), 100 - LibraryPercent, ' ', 2, 10); strcat((char *)inpbuf, "%) Free\r\n");
+	       MMPrintString((char *)inpbuf);
        }
    
 
      MMPrintString("\r\nSaved Variables:\r\n");
 	 if(SavedVarCnt) {
-	        IntToStrPad(inpbuf, SavedVarSizeK, ' ', 4, 10); strcat(inpbuf, "K (");
-	        IntToStrPad(inpbuf + strlen(inpbuf), SavedVarPercent, ' ', 2, 10); strcat(inpbuf, "%)");
-	        IntToStrPad(inpbuf + strlen(inpbuf), SavedVarCnt, ' ', 2, 10); strcat(inpbuf, " Saved Variable"); strcat(inpbuf, SavedVarCnt == 1 ? " (":"s (");
-	        IntToStr(inpbuf + strlen(inpbuf), SavedVarSize, 10); strcat(inpbuf, " bytes)\r\n");
-	        MMPrintString(inpbuf);
+	        IntToStrPad((char *)inpbuf, SavedVarSizeK, ' ', 4, 10); strcat((char *)inpbuf, "K (");
+	        IntToStrPad((char *)inpbuf + strlen((char *)inpbuf), SavedVarPercent, ' ', 2, 10); strcat((char *)inpbuf, "%)");
+	        IntToStrPad((char *)inpbuf + strlen((char *)inpbuf), SavedVarCnt, ' ', 2, 10); strcat((char *)inpbuf, " Saved Variable"); strcat((char *)inpbuf, SavedVarCnt == 1 ? " (":"s (");
+	        IntToStr((char *)inpbuf + strlen((char *)inpbuf), SavedVarSize, 10); strcat((char *)inpbuf, " bytes)\r\n");
+	        MMPrintString((char *)inpbuf);
 	 }
-	 IntToStrPad(inpbuf, (( SAVEDVARS_FLASH_SIZE) + 512)/1024 - SavedVarSizeK, ' ', 4, 10); strcat(inpbuf, "K (");
-	 IntToStrPad(inpbuf + strlen(inpbuf), 100 -  SavedVarPercent, ' ', 2, 10); strcat(inpbuf, "%) Free\r\n");
-	 MMPrintString(inpbuf);
+	 IntToStrPad((char *)inpbuf, (( SAVEDVARS_FLASH_SIZE) + 512)/1024 - SavedVarSizeK, ' ', 4, 10); strcat((char *)inpbuf, "K (");
+	 IntToStrPad((char *)inpbuf + strlen((char *)inpbuf), 100 -  SavedVarPercent, ' ', 2, 10); strcat((char *)inpbuf, "%) Free\r\n");
+	 MMPrintString((char *)inpbuf);
 
 
     MMPrintString("\r\nRAM:\r\n");
-    IntToStrPad(inpbuf, VarSize, ' ', 4, 10); strcat(inpbuf, "K (");
-    IntToStrPad(inpbuf + strlen(inpbuf), VarPercent, ' ', 2, 10); strcat(inpbuf, "%) ");
-    IntToStr(inpbuf + strlen(inpbuf), VarCnt, 10); strcat(inpbuf, " Variable"); strcat(inpbuf, VarCnt == 1 ? "\r\n":"s\r\n");
-	MMPrintString(inpbuf);
+    IntToStrPad((char *)inpbuf, VarSize, ' ', 4, 10); strcat((char *)inpbuf, "K (");
+    IntToStrPad((char *)inpbuf + strlen((char *)inpbuf), VarPercent, ' ', 2, 10); strcat((char *)inpbuf, "%) ");
+    IntToStr((char *)inpbuf + strlen((char *)inpbuf), VarCnt, 10); strcat((char *)inpbuf, " Variable"); strcat((char *)inpbuf, VarCnt == 1 ? "\r\n":"s\r\n");
+	MMPrintString((char *)inpbuf);
 
-    IntToStrPad(inpbuf, GeneralSize, ' ', 4, 10); strcat(inpbuf, "K (");
-    IntToStrPad(inpbuf + strlen(inpbuf), GeneralPercent, ' ', 2, 10); strcat(inpbuf, "%) General\r\n");
-	MMPrintString(inpbuf);
+    IntToStrPad((char *)inpbuf, GeneralSize, ' ', 4, 10); strcat((char *)inpbuf, "K (");
+    IntToStrPad((char *)inpbuf + strlen((char *)inpbuf), GeneralPercent, ' ', 2, 10); strcat((char *)inpbuf, "%) General\r\n");
+	MMPrintString((char *)inpbuf);
 
-    IntToStrPad(inpbuf, (CurrentRAM + 512)/1024 - VarSize - GeneralSize, ' ', 4, 10); strcat(inpbuf, "K (");
-    IntToStrPad(inpbuf + strlen(inpbuf), 100 - VarPercent - GeneralPercent, ' ', 2, 10); strcat(inpbuf, "%) Free\r\n");
-	MMPrintString(inpbuf);
+    IntToStrPad((char *)inpbuf, (CurrentRAM + 512)/1024 - VarSize - GeneralSize, ' ', 4, 10); strcat((char *)inpbuf, "K (");
+    IntToStrPad((char *)inpbuf + strlen((char *)inpbuf), 100 - VarPercent - GeneralPercent, ' ', 2, 10); strcat((char *)inpbuf, "%) Free\r\n");
+	MMPrintString((char *)inpbuf);
 }
 
 
@@ -684,7 +725,7 @@ void __not_in_flash_func(ClearTempMemory)(void) {
     while(StrTmpIndex > 0) {
         if(StrTmpLocalIndex[StrTmpIndex - 1] >= LocalIndex) {
             StrTmpIndex--;
-            FreeMemory((char *)StrTmp[StrTmpIndex]);
+            FreeMemory((void *)StrTmp[StrTmpIndex]);
             StrTmp[StrTmpIndex] = NULL;
             TempMemoryIsChanged = false;
         } else
@@ -741,10 +782,10 @@ void InitHeap(void) {
     for(i = 0; i < (HEAP_MEMORY_SIZE/PAGESIZE) / PAGESPERWORD; i++) mmap[i] = 0;
     for(i = 0; i < MAXTEMPSTRINGS; i++) StrTmp[i] = NULL;
 #ifdef PICOMITEVGA
-    WriteBuf=FRAMEBUFFER;
-    DisplayBuf=FRAMEBUFFER;
-    LayerBuf=FRAMEBUFFER;
-    FrameBuf=FRAMEBUFFER;
+    WriteBuf=(unsigned char *)FRAMEBUFFER;
+    DisplayBuf=(unsigned char *)FRAMEBUFFER;
+    LayerBuf=(unsigned char *)FRAMEBUFFER;
+    FrameBuf=(unsigned char *)FRAMEBUFFER;
 #else
     FrameBuf=NULL;
     WriteBuf=NULL;

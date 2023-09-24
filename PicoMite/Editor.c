@@ -37,9 +37,6 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 #define SCROLL_DOWN             6
 #define DRAW_LINE               7
 
-//#if defined(MX470)
-//#define GUI_C_NORMAL            Option.DefaultFC
-//#else
 #define GUI_C_NORMAL            WHITE
 #define GUI_C_BCOLOUR           BLACK
 #define GUI_C_COMMENT           YELLOW
@@ -64,11 +61,13 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 // these two are the only global variables, the default place for the cursor when the editor opens
 unsigned char *StartEditPoint = NULL;
 int StartEditChar = 0;
-static int r_on=0, markmode=0;
+static int markmode=0;
 extern void routinechecks(void);
+int optioncolourcodesave;
 #if !defined(LITE)
 #ifdef PICOMITEVGA
 int editactive=0;
+static int r_on=0;
 void DisplayPutClever(char c){
     if(DISPLAY_TYPE==MONOVGA && markmode && Option.ColourCode && ytilecount==12 && gui_font==1){
     if(c >= FontTable[gui_font >> 4][2] && c < FontTable[gui_font >> 4][2] + FontTable[gui_font >> 4][3]) {
@@ -203,7 +202,7 @@ int TextChanged;                  // true if the program has been modified and t
 #define EDIT  1                   // used to select the status line string
 #define MARK  2
 
-void FullScreenEditor(int x, int y);
+void FullScreenEditor(int x, int y, char *fname);
 char *findLine(int ln, int *inmulti);
 void printLine(int ln); 
 void printScreen(void);
@@ -220,27 +219,21 @@ void MarkMode(unsigned char *cb, unsigned char *buf);
 void PositionCursor(unsigned char *curp);
 extern void setterminal(void);
 
-#define MAXCLIP 512
+#define MAXCLIP 1024
 // edit command:
 //  EDIT              Will run the full screen editor on the current program memory, if run after an error will place the cursor on the error line
 void cmd_edit(void) {
-    unsigned char *fromp, *p;
+    unsigned char *fromp, *p=NULL;
     int y, x;
+    char name[FF_MAX_LFN] ;   
+    getargs(&cmdline,1,(unsigned char *)",");
+    optioncolourcodesave=Option.ColourCode;
 #ifdef PICOMITEVGA
     editactive=1;
     int mode = DISPLAY_TYPE;
-    if(*cmdline){
-        mode = getint(cmdline,1,2);
-        if(mode==2){
-            DISPLAY_TYPE=COLOURVGA; 
-        } else {
-            DISPLAY_TYPE=MONOVGA;
-        }
-        memset(WriteBuf, 0, 38400);
-        ResetDisplay();
-    }
-#else
-    checkend(cmdline);
+    DISPLAY_TYPE=MONOVGA;
+    memset(WriteBuf, 0, 38400);
+    ResetDisplay();
 #endif
     if(CurrentLinePtr) error("Invalid in a program");
     if(Option.ColourCode) {
@@ -255,7 +248,7 @@ void cmd_edit(void) {
     cleanserver();
 #endif
 #ifdef PICOMITEVGA
-    if(mode==1) SetFont(1) ;
+    if(mode==COLOURVGA) SetFont(1) ;
 #endif
     EdBuff = GetTempMemory(EDIT_BUFFER_SIZE);
     *EdBuff = 0;
@@ -265,34 +258,61 @@ void cmd_edit(void) {
     edx = edy = curx = cury = y = x = tempx = 0;
     txtp = EdBuff;
     *tknbuf = 0;
-
-    fromp  = ProgMemory;
-    p = EdBuff;
-    nbrlines = 0;
-    while(*fromp != 0xff) {
-        if(*fromp == T_NEWLINE) {
-            if(StartEditPoint >= ProgMemory) {
-                if(StartEditPoint == fromp) {
-                    y = nbrlines;                                   // we will start editing at this line
-                    tempx = x = StartEditChar;
-                    txtp = p + StartEditChar;
+    if(argc==0){
+        fromp  = ProgMemory;
+        p = EdBuff;
+        nbrlines = 0;
+        while(*fromp != 0xff) {
+            if(*fromp == T_NEWLINE) {
+                if(StartEditPoint >= ProgMemory) {
+                    if(StartEditPoint == fromp) {
+                        y = nbrlines;                                   // we will start editing at this line
+                        tempx = x = StartEditChar;
+                        txtp = p + StartEditChar;
+                    }
+                } else {
+                    if(StartEditPoint == (unsigned char *)nbrlines) {
+                        y = nbrlines;
+                        tempx = x = StartEditChar;
+                        txtp = p + StartEditChar;
+                    }
                 }
-            } else {
-                if(StartEditPoint == (unsigned char *)nbrlines) {
-                    y = nbrlines;
-                    tempx = x = StartEditChar;
-                    txtp = p + StartEditChar;
+                nbrlines++;
+                fromp = llist(p, fromp);                                // otherwise expand the line
+                if(!(nbrlines==1 && p[0]=='\'' && p[1]=='#')){
+                    p += strlen((char *)p);
+                    *p++ = '\n'; *p = 0;
                 }
             }
-            nbrlines++;
-            fromp = llist(p, fromp);                                // otherwise expand the line
-            if(!(nbrlines==1 && p[0]=='\'' && p[1]=='#')){
-                p += strlen(p);
-                *p++ = '\n'; *p = 0;
-            }
+            // finally, is it the end of the program?
+            if(fromp[0] == 0 || fromp[0] == 0xff) break;
         }
-        // finally, is it the end of the program?
-        if(fromp[0] == 0 || fromp[0] == 0xff) break;
+    } else {
+        char *fname = (char *)getFstring(argv[0]);
+        char c;
+        if(ExistsFile(fname)){
+            strcpy(name,fname);
+            if (strchr(name, '.') == NULL) strcat(name, ".bas");
+            if(!fstrstr(name,".bas"))Option.ColourCode=0;
+            int fnbr1;
+            fnbr1 = FindFreeFileNbr();
+            BasicFileOpen(fname, fnbr1, FA_READ);
+            p=EdBuff;
+            while (!FileEOF(fnbr1))
+            { // while waiting for the end of file
+                c = FileGetChar(fnbr1);
+                if(c=='\n')nbrlines++;
+                if(c=='\r')continue;
+                *p++=c;
+            }
+            FileClose(fnbr1);
+        } else {
+            strcpy(name,fname);
+            if (strchr(name, '.') == NULL) strcat(name, ".bas");
+            if(!fstrstr(name,".bas"))Option.ColourCode=0;
+        }
+        txtp=EdBuff;
+        tempx=x=0;
     }
     if(nbrlines == 0) nbrlines++;
     if(p > EdBuff) --p;
@@ -311,14 +331,14 @@ void cmd_edit(void) {
         y = y - edy;                                                // y is the line on the screen
     }
     m_alloc(M_VAR);                                                 //clean up clipboard usage
-    FullScreenEditor(x,y);
+    FullScreenEditor(x,y, argc==1 ? name: NULL);
     memset(tknbuf, 0, STRINGSIZE);                                  // zero this so that nextstmt is pointing to the end of program
     MMCharPos = 0;
 }
 
 
 
-void FullScreenEditor(int xx, int yy) {
+void FullScreenEditor(int xx, int yy, char *fname) {
   int c, i;
   unsigned char buf[MAXCLIP+2], clipboard[MAXCLIP+2];
   unsigned char *p, *tp, BreakKeySave;
@@ -357,7 +377,7 @@ void FullScreenEditor(int xx, int yy) {
       if(drawstatusline) PrintFunctKeys(EDIT);
       drawstatusline = false;
       if(c == TAB) {
-            strcpy(buf, "        ");
+            strcpy((char *)buf, "        ");
             buf[Option.Tab - ((edx + curx) % Option.Tab)] = 0;
       } else {
           buf[0] = c;
@@ -451,7 +471,7 @@ void FullScreenEditor(int xx, int yy) {
                               break;
                           }
                           if(curx >= VWidth) {
-                              editDisplayMsg(" LINE IS TOO LONG ");
+                              editDisplayMsg((unsigned char *)" LINE IS TOO LONG ");
                               break;
                           }
 
@@ -566,7 +586,7 @@ void FullScreenEditor(int xx, int yy) {
                               txtp++;
                               PositionCursor(txtp);
                           }
-                          if(curx > VWidth) editDisplayMsg(" LINE IS TOO LONG ");
+                          if(curx > VWidth) editDisplayMsg((unsigned char *)" LINE IS TOO LONG ");
                           break;
 
               case CTRLKEY('P'):
@@ -646,7 +666,7 @@ void FullScreenEditor(int xx, int yy) {
                             }
                             // this must be an ordinary escape (not part of an escape code)
                             if(TextChanged) {
-                                GetInputString("Exit and discard all changes (Y/N): ");
+                                GetInputString((unsigned char *)"Exit and discard all changes (Y/N): ");
                                 if(toupper(*inpbuf) != 'Y') break;
                             }
                             // fall through to the normal exit
@@ -665,19 +685,48 @@ void FullScreenEditor(int xx, int yy) {
                             MX470Cursor(0, 0);                                // home the cursor
                             MX470Display(DISPLAY_CLS);                        // clear screen on the MX470 display only
                             BreakKey = BreakKeySave;
+                            Option.ColourCode=optioncolourcodesave;
 #ifdef PICOMITEVGA
                             editactive=0;
                             Y_TILE=OptionY_TILESave;
                             ytilecount=ytilecountsave;
 #endif                          
-                            if(c != ESC && TextChanged) SaveToProgMemory();
-                            if(c == ESC || c == CTRLKEY('Q') || c == F1) cmd_end();
+                            if(c != ESC && TextChanged && fname==NULL) SaveToProgMemory();
+                            if(c != ESC && TextChanged && fname) {
+                                int fnbr1;
+                                if(ExistsFile(fname)){
+                                    char backup[FF_MAX_LFN];
+                                    strcpy(backup,fname);
+                                    strcat(backup,".bak");
+                                    fnbr1 = FindFreeFileNbr();
+                                    BasicFileOpen(fname, fnbr1, FA_READ);
+                                    int fnbr2 = FindFreeFileNbr();
+                                    BasicFileOpen(backup, fnbr2, FA_WRITE | FA_CREATE_ALWAYS);
+                                    while (!FileEOF(fnbr1))
+                                    { // while waiting for the end of file
+                                        FilePutChar(FileGetChar(fnbr1),fnbr2);
+                                    }
+                                    FileClose(fnbr1);
+                                    FileClose(fnbr2);
+                                }
+                                fnbr1=FindFreeFileNbr();
+                                BasicFileOpen(fname, fnbr1, FA_WRITE | FA_CREATE_ALWAYS);
+                                p=EdBuff;
+                                while (*p)
+                                { // while waiting for the end of file
+                                    c = *p++;
+                                    if(c=='\n')FilePutChar('\r',fnbr1);
+                                    FilePutChar(c,fnbr1);
+                                }
+                                FileClose(fnbr1);
+                            }
+                            if(c == ESC || c == CTRLKEY('Q') || c == F1 || fname) cmd_end();
                             // this must be save, exit and run.  We have done the first two, now do the run part.
                             ClearRuntime();
 //                            WatchdogSet = false;
                             PrepareProgram(true);
                             // Create a global constant MM.CMDLINE$ containing the empty string.
-                            (void) findvar("MM.CMDLINE$", V_FIND | V_DIM_VAR | T_CONST);
+                            (void) findvar((unsigned char *)"MM.CMDLINE$", V_FIND | V_DIM_VAR | T_CONST);
                             if(Option.LIBRARY_FLASH_SIZE == MAX_PROG_SIZE) ExecuteProgram(LibMemory );       // run anything that might be in the library
                             if(*ProgMemory != T_NEWLINE) return;                             // no program to run
                         #ifdef PICOMITEWEB
@@ -688,16 +737,16 @@ void FullScreenEditor(int xx, int yy) {
 
               // Search
               case CTRLKEY('R'):
-              case F3:    GetInputString("Find (Use SHIFT-F3 to repeat): ");
+              case F3:    GetInputString((unsigned char *)"Find (Use SHIFT-F3 to repeat): ");
                           if(*inpbuf == 0 || *inpbuf == ESC) break;
-                          if(!(*inpbuf == 0xb3 || *inpbuf == F3)) strcpy(tknbuf, inpbuf);
+                          if(!(*inpbuf == 0xb3 || *inpbuf == F3)) strcpy((char *)tknbuf, (char *)inpbuf);
                           // fall through
 
               case CTRLKEY('G'):
               case 0xB3:  // SHIFT-F3
                           p = txtp;
                           if(*p == 0) p = EdBuff - 1;
-                          i = strlen(tknbuf);
+                          i = strlen((char *)tknbuf);
                           while(1) {
                               p++;
                               if(p == txtp) break;
@@ -706,7 +755,7 @@ void FullScreenEditor(int xx, int yy) {
                               if(mem_equal(p, tknbuf, i)) break;
                           }
                           if(p == txtp) {
-                              editDisplayMsg(" NOT FOUND ");
+                              editDisplayMsg((unsigned char *)" NOT FOUND ");
                               break;
                           }
                           for(y = 0, txtp = EdBuff; txtp != p; txtp++) {          // find the line and column of the string
@@ -732,7 +781,7 @@ void FullScreenEditor(int xx, int yy) {
               case CTRLKEY('Y'):
               case CTRLKEY('V'):
               case F5:    if(*clipboard == 0) {
-                              editDisplayMsg(" CLIPBOARD IS EMPTY ");
+                              editDisplayMsg((unsigned char *)" CLIPBOARD IS EMPTY ");
                               break;
                           }
                           for(i = 0; clipboard[i]; i++) buf[i + 1] = clipboard[i];
@@ -740,11 +789,7 @@ void FullScreenEditor(int xx, int yy) {
                           break;
 
               // F6 to F12 - Normal function keys
-              case CTRLKEY('B'):
               case F6:
-                          printScreen();
-                          break;
-
               case F7:
               case F8:
               case F9:
@@ -757,7 +802,7 @@ void FullScreenEditor(int xx, int yy) {
               default:    c = buf[0];
                           if(c < ' ' || c > '~') break;                           // make sure that this is valid
                           if(curx >= VWidth) {
-                              editDisplayMsg(" LINE IS TOO LONG ");
+                              editDisplayMsg((unsigned char *)" LINE IS TOO LONG ");
                               break;
                           }
                           TextChanged = true;
@@ -770,7 +815,6 @@ void FullScreenEditor(int xx, int yy) {
                           // SCursor(x, cury);
                           tempx = cury;                                           // used to track the preferred cursor position
                           if(multi && Option.ColourCode)printScreen();
-//                          lastchar=c;
                           break;
 
             }
@@ -840,7 +884,7 @@ void MarkMode(unsigned char *cb, unsigned char *buf) {
                           for(i = 0; p != EdBuff && *p != '\n'; p--, i++);    // move to the beginning of that line
                           if(*p == '\n') p++;                                 // and position at the start
                           if(i >= VWidth) {
-                              editDisplayMsg(" LINE IS TOO LONG ");
+                              editDisplayMsg((unsigned char *)" LINE IS TOO LONG ");
                               errmsg = true;
                               continue;
                           }
@@ -855,7 +899,7 @@ void MarkMode(unsigned char *cb, unsigned char *buf) {
                       for(p = mark, i = curx; *p != 0 && *p != '\n'; p++, i++);// move to the end of this line
                       if(*p == 0) continue;                                    // skip if it is at the end of the file
                       if(i >= VWidth) {
-                          editDisplayMsg(" LINE IS TOO LONG ");
+                          editDisplayMsg((unsigned char *)" LINE IS TOO LONG ");
                           errmsg = true;
                           continue;
                       }
@@ -887,7 +931,7 @@ void MarkMode(unsigned char *cb, unsigned char *buf) {
             case END: if(*mark == 0) break;
                       for(p = mark, i = curx; *p != 0 && *p != '\n'; p++, i++);// move to the end of this line
                       if(i >= VWidth) {
-                          editDisplayMsg(" LINE IS TOO LONG ");
+                          editDisplayMsg((unsigned char *)" LINE IS TOO LONG ");
                           errmsg = true;
                           continue;
                       }
@@ -898,7 +942,7 @@ void MarkMode(unsigned char *cb, unsigned char *buf) {
             case CTRLKEY('T'):
             case F5:
             case F4:  if(txtp - mark > MAXCLIP || mark - txtp > MAXCLIP) {
-                          editDisplayMsg(" MARKED TEXT EXCEEDS CLIPBOARD BUFFER SIZE");
+                          editDisplayMsg((unsigned char *)" MARKED TEXT EXCEEDS CLIPBOARD BUFFER SIZE");
                           errmsg = true;
                           break;
                       }
@@ -1014,7 +1058,7 @@ char *findLine(int ln, int *inmulti) {
         }
         p++;
     }
-    return p;
+    return (char *)p;
 }
 
 
@@ -1051,7 +1095,7 @@ void SetColour(unsigned char *p, int DoVT100) {
 
     // this is a list of keywords that can come after the OPTION and GUI commands
     // the list must be terminated with a NULL
-    unsigned char *twokeywordtbl[] = {
+    char *twokeywordtbl[] = {
         "BASE", "EXPLICIT", "DEFAULT", "BREAK", "AUTORUN", "BAUDRATE", "DISPLAY",
 #if defined(PICOMITE)
         "BUTTON", "SWITCH", "CHECKBOX", "RADIO", "LED", "FRAME", "NUMBERBOX", "SPINBOX", "TEXTBOX", "DISPLAYBOX", "CAPTION", "DELETE",
@@ -1062,7 +1106,7 @@ void SetColour(unsigned char *p, int DoVT100) {
 
     // this is a list of common keywords that should be highlighted as such
     // the list must be terminated with a NULL
-    unsigned char *specialkeywords[] = {
+    char *specialkeywords[] = {
         "SELECT", "INTEGER", "FLOAT", "STRING", "DISPLAY", "SDCARD", "OUTPUT", "APPEND", "WRITE", "SLAVE",
         NULL
     };
@@ -1162,8 +1206,8 @@ void SetColour(unsigned char *p, int DoVT100) {
     // check if this is the start of a keyword
     if(isnamestart(*p) && !intext) {
         for(i = 0; i < CommandTableSize - 1; i++) {                 // check the command table for a match
-            if(EditCompStr(p, commandtbl[i].name) != 0) {
-                if(EditCompStr(p, "REM") != 0) {                 // special case, REM is a comment
+            if(EditCompStr((char *)p, (char *)commandtbl[i].name) != 0) {
+                if(EditCompStr((char *)p, "REM") != 0) {                 // special case, REM is a comment
                     gui_fcolour = GUI_C_COMMENT;
                     if(DoVT100) MMPrintString(VT100_C_COMMENT);
                     incomment = true;
@@ -1171,7 +1215,7 @@ void SetColour(unsigned char *p, int DoVT100) {
                     gui_fcolour = GUI_C_KEYWORD;
                     if(DoVT100) MMPrintString(VT100_C_KEYWORD);
                     inkeyword = true;
-                    if(EditCompStr(p, "GUI") || EditCompStr(p, "OPTION")) {
+                    if(EditCompStr((char *)p, "GUI") || EditCompStr((char *)p, "OPTION")) {
                         twokeyword = p;
                         while(isalnum(*twokeyword)) twokeyword++;
                         while(*twokeyword == ' ') twokeyword++;
@@ -1181,7 +1225,7 @@ void SetColour(unsigned char *p, int DoVT100) {
             }
         }
         for(i = 0; i < TokenTableSize - 1; i++) {                   // check the token table for a match
-            if(EditCompStr(p, tokentbl[i].name) != 0) {
+            if(EditCompStr((char *)p, (char *)tokentbl[i].name) != 0) {
                 gui_fcolour = GUI_C_KEYWORD;
                 if(DoVT100) MMPrintString(VT100_C_KEYWORD);
                 inkeyword = true;
@@ -1191,8 +1235,8 @@ void SetColour(unsigned char *p, int DoVT100) {
 
         // check for the second keyword in two keyword commands
         if(p == twokeyword) {
-            for(pp = twokeywordtbl; *pp; pp++)
-                if(EditCompStr(p, *pp)) break;
+            for(pp = (unsigned char **)twokeywordtbl; *pp; pp++)
+                if(EditCompStr((char *)p, (char *)*pp)) break;
             if(*pp) {
                 gui_fcolour = GUI_C_KEYWORD;
                 if(DoVT100) MMPrintString(VT100_C_KEYWORD);
@@ -1203,8 +1247,8 @@ void SetColour(unsigned char *p, int DoVT100) {
         if(p >= twokeyword) twokeyword = NULL;
 
         // check for a range of common keywords
-        for(pp = specialkeywords; *pp; pp++)
-            if(EditCompStr(p, *pp)) break;
+        for(pp = (unsigned char **)specialkeywords; *pp; pp++)
+            if(EditCompStr((char *)p, (char *)*pp)) break;
         if(*pp) {
             gui_fcolour = GUI_C_KEYWORD;
             if(DoVT100) MMPrintString(VT100_C_KEYWORD);
@@ -1239,7 +1283,7 @@ void printLine(int ln) {
         p = findLine(ln, &inmulti);
         i = VWidth - 1;
         while(i && *p && *p != '\n') {
-            if(!inmulti)SetColour(p, false);                                    // set the colour for the LCD display only
+            if(!inmulti)SetColour((unsigned char *)p, false);                                    // set the colour for the LCD display only
             else gui_fcolour = GUI_C_COMMENT;
             MX470PutC(*p++);                                        // print on the MX470 display
             i--;
@@ -1262,7 +1306,7 @@ void printLine(int ln) {
 
     while(i && *p && *p != '\n') {
         if(Option.ColourCode) {
-            if(!inmulti)SetColour(p, true);                   // if colour coding is used set the colour for the VT100 emulator
+            if(!inmulti)SetColour((unsigned char *)p, true);                   // if colour coding is used set the colour for the VT100 emulator
             else {
                 gui_fcolour = GUI_C_COMMENT;
                 MMPrintString(VT100_C_COMMENT);
@@ -1318,7 +1362,7 @@ int editInsertChar(unsigned char c, char *multi) {
 
     for(p = EdBuff; *p; p++);                                         // find the end of the text in memory
     if(p >= EdBuff + EDIT_BUFFER_SIZE - 10) {                         // and check that we have the space (allow 10 bytes for slack)
-        editDisplayMsg(" OUT OF MEMORY ");
+        editDisplayMsg((unsigned char *)" OUT OF MEMORY ");
         return false;
     }
     for(; p >= txtp; p--) *(p + 1) = *p;                              // shift everything down
@@ -1403,8 +1447,8 @@ void editDisplayMsg(unsigned char *msg) {
     if(Option.ColourCode) MMPrintString(VT100_C_ERROR);
     MMPrintString("\033[7m");
     MX470Cursor(0, VRes - gui_font_height);
-    MMPrintString(msg);
-    MX470PutS(msg, BLACK, RED);
+    MMPrintString((char *)msg);
+    MX470PutS((char *)msg, BLACK, RED);
     if(Option.ColourCode) MMPrintString(VT100_C_NORMAL);
     MMPrintString("\033[0m");
     MMPrintString("\033[K");                                        // clear to the end of the line on a vt100 emulator
@@ -1419,7 +1463,7 @@ void editDisplayMsg(unsigned char *msg) {
 void SaveToProgMemory(void) {
     SaveProgramToFlash(EdBuff, true);
     ClearProgram();
-    StartEditPoint = (char *)(edy + cury);                            // record out position in case the editor is invoked again
+    StartEditPoint = (unsigned char *)(edy + cury);                            // record out position in case the editor is invoked again
     StartEditChar = edx + curx;
     // bugfix for when the edit point is a space
     // the space could be at the end of a line which will be trimmed in SaveProgramToFlash() leaving StartEditChar referring to something not there
@@ -1437,15 +1481,15 @@ void GetInputString(unsigned char *prompt) {
     unsigned char *p;
 
     SCursor(0, VHeight + 1);
-    MMPrintString(prompt);
+    MMPrintString((char *)prompt);
     MX470Cursor(0, VRes - gui_font_height);
-    MX470PutS(prompt, gui_fcolour, gui_bcolour);
-    for(i = 0; i < VWidth - strlen(prompt); i++) {
+    MX470PutS((char *)prompt, gui_fcolour, gui_bcolour);
+    for(i = 0; i < VWidth - strlen((char *)prompt); i++) {
         MMputchar(' ',1);
         MX470PutC(' ');
     }
-    SCursor(strlen(prompt), VHeight + 1);
-    MX470Cursor(strlen(prompt) * gui_font_width, VRes - gui_font_height);
+    SCursor(strlen((char *)prompt), VHeight + 1);
+    MX470Cursor(strlen((char *)prompt) * gui_font_width, VRes - gui_font_height);
     for(p = inpbuf; (*p = MMgetchar()) != '\r'; p++) {              // get the input
         if(*p == 0xb3 || *p == F3 || *p == ESC) { p++; break; }     // return if it is SHIFT-F3, F3 or ESC
         if(isprint(*p)) {

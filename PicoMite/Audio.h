@@ -46,7 +46,7 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  All command tokens tokens (eg, PRINT, FOR, etc) should be inserted in this table
 **********************************************************************************/
 #ifdef INCLUDE_COMMAND_TABLE
-	{ "Play",        	T_CMD,				0, cmd_play	    },
+	{ (unsigned char *)"Play",        	T_CMD,				0, cmd_play	    },
 //	{ "TTS",        	T_CMD,				0, cmd_tts	    },
 #endif
 

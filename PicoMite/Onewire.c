@@ -115,13 +115,13 @@ void ow_skipFamily(void);
 
 // the main OneWire command
 void cmd_onewire(void) {
-    char *p;
+    unsigned char *p;
 
-    if((p = checkstring(cmdline, "RESET")) != NULL)
+    if((p = checkstring(cmdline, (unsigned char *)"RESET")) != NULL)
         owReset(p);
-    else if((p = checkstring(cmdline, "WRITE")) != NULL)
+    else if((p = checkstring(cmdline, (unsigned char *)"WRITE")) != NULL)
         owWrite(p);
-    else if((p = checkstring(cmdline, "READ")) != NULL)
+    else if((p = checkstring(cmdline, (unsigned char *)"READ")) != NULL)
         owRead(p);
 #ifdef INCLUDE_1WIRE_SEARCH
 //    else if((p = checkstring(cmdline, "SEARCH")) != NULL)
@@ -167,7 +167,7 @@ void Init_ds18b20(int pin, int precision) {
 
 void cmd_ds18b20(void) {
     int pin, precision;
-	getargs(&cmdline, 3,",");
+	getargs(&cmdline, 3,(unsigned char *)",");
     if(argc < 1) error("Argument count");
 	char code;
 	if(!(code=codecheck(argv[0])))argv[0]+=2;
@@ -274,7 +274,7 @@ void owWrite(unsigned char *p) {
 	int pin, flag, len, i, buf[255];
 	unsigned char *cp;
 
-	getargs(&p, MAX_ARG_COUNT*2,",");
+	getargs(&p, MAX_ARG_COUNT*2,(unsigned char *)",");
 	if (!(argc & 0x01) || (argc < 7)) error("Argument count");
 	char code;
 	if(!(code=codecheck(argv[0])))argv[0]+=2;
@@ -329,7 +329,7 @@ void owRead(unsigned char *p) {
 	int pin, flag, len, i, buf[255];
 	void *ptr = NULL;
 
-	getargs(&p, MAX_ARG_COUNT*2,",");
+	getargs(&p, MAX_ARG_COUNT*2,(unsigned char *)",");
 	if (!(argc & 0x01) || (argc < 7)) error("Argument count");
 	char code;
 	if(!(code=codecheck(argv[0])))argv[0]+=2;
@@ -391,7 +391,7 @@ void fun_owSearch(void) {
     } buf,inp;
     unsigned char filter=0;
 
-	getargs(&ep, MAX_ARG_COUNT*2,",");
+	getargs(&ep, MAX_ARG_COUNT*2,(unsigned char *)",");
 	if (!(argc & 0x01) || (argc < 3)) error("Argument count");
 	char code;
 	if(!(code=codecheck(argv[0])))argv[0]+=2;
