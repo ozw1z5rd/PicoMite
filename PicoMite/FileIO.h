@@ -193,10 +193,10 @@ extern void getfullfilename(char *fname, char *q);
 extern int FSerror;
 extern int lfs_FileFnbr;
 extern struct lfs_config pico_lfs_cfg;
-#define SAVED_OPTIONS_FLASH 4
-#define LIBRARY_FLASH 5
-#define SAVED_VARS_FLASH 2
-#define PROGRAM_FLASH 1
+#define SAVED_OPTIONS_FLASH 5
+#define LIBRARY_FLASH 6
+#define SAVED_VARS_FLASH 7
+#define PROGRAM_FLASH 8
 typedef union uFileTable
 {
     unsigned int com;
