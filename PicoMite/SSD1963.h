@@ -34,6 +34,7 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 
     // define global functions
     extern void InitSSD1963(void);
+    extern void InitILI9341(void);
     extern void SetBacklightSSD1963(int intensity);
     extern void SetTearingCfg(int state, int mode);
     extern void DrawBitmapSSD1963(int x1, int y1, int width, int height, int scale, int fg, int bg, unsigned char *bitmap);
@@ -45,13 +46,17 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
     extern void DrawRectangleSSD1963(int x1, int y1, int x2, int y2, int c);
     extern void InitDisplaySSD(void) ;
     extern void ConfigDisplaySSD(unsigned char *p);
+    extern void SetAreaSSD1963(int x1, int y1, int x2, int y2);
+    extern void SetAreaILI9341(int xstart, int ystart, int xend, int yend, int rw);
+    extern void WriteColor(unsigned int c);
+    extern void WriteComand(int cmd);
     extern int display_backlight;
     // cursor definition
     extern void ShowCursor(int show);
     extern volatile int CursorTimer;                                // used to time the flashing cursor
     extern volatile int ClickTimer;                                 // used to time the click when touch occurs
     extern volatile int TouchTimer;                                 // used to time the response to touch
-
+    extern void ScrollSSD1963(int lines);
     #define GPIO3       3
     #define GPIO2       2
     #define GPIO1       1
@@ -185,6 +190,34 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
     #define SSD1963_GPDAT8    7
 
     #define nop asm("NOP")
+#define ILI9341_PWCTR1  0xC0
+#define ILI9341_PWCTR2  0xC1
+#define ILI9341_PWCTR3  0xC2
+#define ILI9341_PWCTR4  0xC3
+#define ILI9341_PWCTR5  0xC4
+#define ILI9341_VMCTR1  0xC5
+#define ILI9341_VMCTR2  0xC7
+#define ILI9341_PTLAR   0x30
+#define ILI9341_VSCRDEF 0x33
+#define ILI9341_MADCTL  0x36
+#define ILI9341_VSCRSADD 0x37
+#define ILI9341_PIXFMT  0x3A
+#define ILI9341_FRMCTR1 0xB1
+#define ILI9341_FRMCTR2 0xB2
+#define ILI9341_FRMCTR3 0xB3
+#define ILI9341_INVCTR  0xB4
+#define ILI9341_DFUNCTR 0xB6
+#define ILI9341_GMCTRP1 0xE0
+#define ILI9341_GMCTRN1 0xE1
+#define ILI9341_SLPIN   0x10
+#define ILI9341_SLPOUT  0x11
+#define ILI9341_PTLON   0x12
+#define ILI9341_NORON   0x13
+#define ILI9341_INVOFF  0x20
+#define ILI9341_INVON   0x21
+#define ILI9341_GAMMASET 0x26
+#define ILI9341_DISPOFF 0x28
+#define ILI9341_DISPON  0x29
 
 
 #endif

@@ -228,7 +228,7 @@ void ReadBufferColour(int x1, int y1, int x2, int y2, unsigned char *c);
 void ReadBufferColourFast(int x1, int y1, int x2, int y2, unsigned char *c);
 void DrawPixelNormal(int x, int y, int c) ;
 void ReadBufferMono(int x1, int y1, int x2, int y2, unsigned char *c);
-void restoreSPIpanel(void);
+void restorepanel(void);
 #define FONT_BUILTIN_NBR     8
 #define FONT_TABLE_SIZE      16
 extern void (*DrawPixel)(int x1, int y1, int c);

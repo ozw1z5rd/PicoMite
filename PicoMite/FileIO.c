@@ -484,6 +484,40 @@ void cmd_flash(void)
             }
         }
     }
+    else if ((p = checkstring(cmdline, (unsigned char *)"DISK LOAD")))
+    {
+        int fsize,overwrite=0;
+        getargs(&p,5,(unsigned char *)",");
+        if(!(argc==3 || argc==5))error("Syntax");
+        int i = getint(argv[0], 1, MAXFLASHSLOTS);
+        if(argc==5){
+            if(checkstring(argv[4],(unsigned char *)"O") || checkstring(argv[4],(unsigned char *)"OVERWRITE"))overwrite=1;
+            else error("Syntax");
+        }
+        if(Option.LIBRARY_FLASH_SIZE==MAX_PROG_SIZE && i==MAXFLASHSLOTS) error("Library is using Slot % ",MAXFLASHSLOTS);
+        uint32_t *c = (uint32_t *)(flash_target_contents + (i - 1) * MAX_PROG_SIZE);
+        if (*c != 0xFFFFFFFF && overwrite==0) error("Already programmed");
+        int fnbr = FindFreeFileNbr();
+        if (!InitSDCard())  return;
+        char *pp = (char *)getFstring(argv[2]);
+        if (!BasicFileOpen((char *)pp, fnbr, FA_READ)) return;
+		if(filesource[fnbr]!=FLASHFILE)  fsize = f_size(FileTable[fnbr].fptr);
+		else fsize = lfs_file_size(&lfs,FileTable[fnbr].lfsptr);
+        if(fsize>MAX_PROG_SIZE)error("File size % cannot exceed %",fsize,MAX_PROG_SIZE);
+        FlashWriteInit(i);
+        flash_range_erase(realflashpointer, MAX_PROG_SIZE);
+        int j=MAX_PROG_SIZE/4;
+        int *ppp=(int *)(flash_target_contents + (i - 1) * MAX_PROG_SIZE);
+        while(j--)if(*ppp++ != 0xFFFFFFFF){
+            enable_interrupts();
+            error("Flash erase problem");
+        }
+        for(int k = 0; k < fsize; k++){        // write to the flash byte by byte
+           FlashWriteByte(FileGetChar(fnbr));
+        }
+        FileClose(fnbr);
+        FlashWriteClose();
+    }
     else if ((p = checkstring(cmdline, (unsigned char *)"SAVE")))
     {
         if (CurrentLinePtr)
@@ -3618,6 +3652,8 @@ void FlashWriteInit(int region)
         realflashpointer = (uint32_t)(FLASH_TARGET_OFFSET + FLASH_ERASE_SIZE);
     else if (region == LIBRARY_FLASH)
         realflashpointer = (uint32_t)(PROGSTART - MAX_PROG_SIZE);  //i.e the last slot  
+    else 
+        realflashpointer = (uint32_t)PROGSTART - MAX_PROG_SIZE*(MAXFLASHSLOTS-region+1);
     disable_interrupts();
 }
 void FlashWriteBlock(void)

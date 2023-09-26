@@ -1666,6 +1666,101 @@ void __not_in_flash_func(QVgaCore)()
     }
 }
 uint32_t core1stack[64];
+#else
+#ifdef PICOMITE
+#include "pico/multicore.h"
+void __not_in_flash_func(UpdateCore)()
+{
+    static int framemap[16]={
+        BLACK,BLUE,MYRTLE,COBALT,MIDGREEN,CERULEAN,GREEN,CYAN,RED,MAGENTA,RUST,FUCHSIA,BROWN,LILAC,YELLOW,WHITE
+    };
+	while (true)
+	{
+		// data memory barrier
+		__dmb();
+        if (multicore_fifo_rvalid()) {
+            int command=multicore_fifo_pop_blocking();
+            if(command==1){ 
+                char *s=(char *)multicore_fifo_pop_blocking();
+                if(Option.DISPLAY_TYPE>I2C_PANEL && Option.DISPLAY_TYPE<BufferedPanel)DefineRegionSPI(0,0,HRes-1,VRes-1, 1);
+                else if(Option.DISPLAY_TYPE>=SSDPANEL && Option.DISPLAY_TYPE<VIRTUAL && Option.DISPLAY_TYPE!=ILI9341_8){
+                    SetAreaSSD1963(0,0,HRes-1,VRes-1);
+                    WriteComand(CMD_WR_MEMSTART);
+                } else SetAreaILI9341(0,0,HRes-1,VRes-1,1);
+                int map[16];
+                int i;
+                int cnt=2;
+	            unsigned char col[3]={0};
+                int c;
+                    for(i=0;i<16;i++){
+                        if(Option.DISPLAY_TYPE==ILI9488 || Option.DISPLAY_TYPE==ILI9481IPS){
+                            col[0]=(framemap[i]>>16);
+                            col[1]=(framemap[i]>>8) & 0xFF;
+                            col[2]=(framemap[i] & 0xFF);
+                            cnt=3;
+                        } else if(Option.DISPLAY_TYPE>=SSDPANEL && Option.DISPLAY_TYPE<VIRTUAL){
+                            col[2]=(framemap[i]>>16);
+                            col[1]=(framemap[i]>>8) & 0xFF;
+                            col[0]=(framemap[i] & 0xFF);
+                            cnt=3;
+                        } else {
+                            col[0]= ((framemap[i] >> 16) & 0b11111000) | ((framemap[i] >> 13) & 0b00000111);
+                            col[1] = ((framemap[i] >>  5) & 0b11100000) | ((framemap[i] >>  3) & 0b00011111);
+                        }
+                        if(Option.DISPLAY_TYPE == GC9A01){
+                            col[0]=~col[0];
+                            col[1]=~col[1];
+                        }
+                        map[i]=col[0]|(col[1]<<8)|(col[2]<<16);
+                    }
+                i=HRes*VRes/2;
+                if(Option.DISPLAY_TYPE>I2C_PANEL && Option.DISPLAY_TYPE<BufferedPanel ){
+                    if(PinDef[Option.SYSTEM_CLK].mode & SPI0SCK){
+                        while(i--){
+                            c=map[*s & 0xF];
+                            spi_write_fast(spi0,(uint8_t *)&c,cnt);
+                            c=map[(*s & 0xF0)>>4];
+                            spi_write_fast(spi0,(uint8_t *)&c,cnt);
+                        s++;
+                        }
+                    } else {
+                        while(i--){
+                            c=map[*s & 0xF];
+                            spi_write_fast(spi1,(uint8_t *)&c,cnt);
+                            c=map[(*s & 0xF0)>>4];
+                            spi_write_fast(spi1,(uint8_t *)&c,cnt);
+                        s++;
+                        }
+                    }
+                    if(PinDef[Option.SYSTEM_CLK].mode & SPI0SCK)spi_finish(spi0);
+                    else spi_finish(spi1);
+                    ClearCS(Option.LCD_CS);                  //set CS high
+                } else {
+                    while(i--){
+                        c=map[*s & 0xF];
+                        gpio_put_masked(0b11111111,(c >> 16));
+                        nop;gpio_put(SSD1963_WR_GPPIN,0);nop;nop;gpio_put(SSD1963_WR_GPPIN,1);
+                        gpio_put_masked(0b11111111,(c >> 8));
+                        nop;gpio_put(SSD1963_WR_GPPIN,0);nop;nop;gpio_put(SSD1963_WR_GPPIN,1);
+                        nop;gpio_put_masked(0b11111111,c);
+                        gpio_put(SSD1963_WR_GPPIN,0);nop;nop;gpio_put(SSD1963_WR_GPPIN,1);
+                        c=map[(*s & 0xF0)>>4];
+                        gpio_put_masked(0b11111111,(c >> 16));
+                        nop;gpio_put(SSD1963_WR_GPPIN,0);nop;nop;gpio_put(SSD1963_WR_GPPIN,1);
+                        gpio_put_masked(0b11111111,(c >> 8));
+                        nop;gpio_put(SSD1963_WR_GPPIN,0);nop;nop;gpio_put(SSD1963_WR_GPPIN,1);
+                        nop;gpio_put_masked(0b11111111,c);
+                        gpio_put(SSD1963_WR_GPPIN,0);nop;nop;gpio_put(SSD1963_WR_GPPIN,1);
+                        s++;
+                    }
+                }
+            }
+        } 
+    }
+
+}
+uint32_t updatestack[64];
+#endif
 #endif
 void __no_inline_not_in_flash_func(modclock)(uint16_t speed){
        ssi_hw->ssienr=0;
@@ -1911,6 +2006,11 @@ int main(){
     bus_ctrl_hw->priority=0x100;
     multicore_launch_core1_with_stack(QVgaCore,core1stack,256);
 	memset(WriteBuf, 0, 38400);
+#else
+#ifdef PICOMITE
+    bus_ctrl_hw->priority=0x100;
+    multicore_launch_core1_with_stack(UpdateCore,updatestack,256);
+#endif
 #endif
     ResetDisplay();
     if(!(_excep_code == RESTART_NOAUTORUN || _excep_code == WATCHDOG_TIMEOUT || (_excep_code==POSSIBLE_WATCHDOG && watchdog_caused_reboot()))){

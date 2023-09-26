@@ -1499,7 +1499,7 @@ void PWMoff(int slice){
 }
 #ifndef PICOMITEVGA
 void cmd_backlight(void){
-    if(!(Option.DISPLAY_TYPE<=I2C_PANEL || Option.DISPLAY_TYPE>=BufferedPanel ) && Option.DISPLAY_BL){
+    if(((Option.DISPLAY_TYPE>I2C_PANEL && Option.DISPLAY_TYPE<BufferedPanel ) || (Option.DISPLAY_TYPE>=SSDPANEL && Option.DISPLAY_TYPE<VIRTUAL)) && Option.DISPLAY_BL){
         MMFLOAT frequency=1000.0;
         getargs(&cmdline,1,(unsigned char *)",");
         MMFLOAT duty=getint(argv[0],0,100);

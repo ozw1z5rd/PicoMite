@@ -2662,7 +2662,7 @@ void error(char *msg, ...) {
             WriteBuf=(unsigned char *)FRAMEBUFFER;
             DisplayBuf=(unsigned char *)FRAMEBUFFER;
         #else
-            restoreSPIpanel();            
+            restorepanel();            
         #endif       // we now have CurrentLinePtr pointing to the start of the line
         SetFont(PromptFont);
         gui_fcolour = PromptFC;

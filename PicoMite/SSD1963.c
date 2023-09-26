@@ -34,7 +34,7 @@ int SSD1963VertPulseWidth, SSD1963VertBackPorch, SSD1963VertFrontPorch;
 int SSD1963PClock1, SSD1963PClock2, SSD1963PClock3;
 int SSD1963Mode1, SSD1963Mode2;
 unsigned int RDpin, RDport;
-void ScrollSSD1963(int lines);
+
 
 //#define dx(...) {char s[140];sprintf(s,  __VA_ARGS__); SerUSBPutS(s); SerUSBPutS("\r\n");}
 
@@ -62,6 +62,8 @@ void MIPS16 ConfigDisplaySSD(unsigned char *p) {
         Option.DISPLAY_TYPE = SSD1963_7A;
     } else if(checkstring(argv[0], (unsigned char *)"SSD1963_8")) {                  // this is the 8" glass (EastRising)
         Option.DISPLAY_TYPE = SSD1963_8;
+    } else if(checkstring(argv[0], (unsigned char *)"ILI9341_8")) {                  // this is the 8" glass (EastRising)
+        Option.DISPLAY_TYPE = ILI9341_8;
     } else
         return;
 
@@ -92,11 +94,14 @@ void MIPS16 ConfigDisplaySSD(unsigned char *p) {
     CheckPin(SSD1963_DAT8, OptionErrorCheck);
 
     if(argc > 3 && *argv[4]) {
-        Option.DISPLAY_BL = getinteger(argv[4]);
-        CheckPin(Option.DISPLAY_BL, OptionErrorCheck);
-    }
-    else
-        Option.DISPLAY_BL = 0;
+        char code;
+        if(!(code=codecheck(argv[4])))argv[4]+=2;
+        int pin = getinteger(argv[4]);
+        if(!code)pin=codemap(pin);
+        if(IsInvalidPin(pin)) error("Invalid pin");
+        if(ExtCurrentConfig[pin] != EXT_NOT_CONFIG)  error("Pin %/| is in use",pin,pin);
+        Option.DISPLAY_BL = pin;
+    } else Option.DISPLAY_BL = 0;
 
 
 
@@ -212,6 +217,9 @@ void MIPS16 InitDisplaySSD(void) {
                         SSD1963Mode1 = 0x20;
                         SSD1963Mode2 = 0x00;
                         break;
+        case ILI9341_8: DisplayHRes = 320;                          // this is the 8" glass (not documented because the 40 pin connector is non standard)
+                        DisplayVRes = 240;
+                        break;
     }
 
     if(DISPLAY_LANDSCAPE) {
@@ -223,13 +231,15 @@ void MIPS16 InitDisplaySSD(void) {
     }
 
     // setup the pointers to the drawing primitives
-    DrawRectangle = DrawRectangleSSD1963;
+    DrawRectangle= DrawRectangleSSD1963;
     DrawBitmap = DrawBitmapSSD1963;
-    ScrollLCD = ScrollSSD1963;
+    if(Option .DISPLAY_TYPE != ILI9341_8)ScrollLCD = ScrollSSD1963;
+    else ScrollLCD=ScrollLCDSPI;
     DrawBuffer = DrawBufferSSD1963;
     ReadBuffer = ReadBufferSSD1963;
     DrawPixel = DrawPixelNormal;
-    InitSSD1963();
+    if(!(Option.DISPLAY_TYPE==ILI9341_8))InitSSD1963();
+    else InitILI9341();
     SetFont(Option.DefaultFont);
     PromptFont = gui_font;
     PromptFC = gui_fcolour = Option.DefaultFC;
@@ -246,7 +256,7 @@ void MIPS16 InitDisplaySSD(void) {
 
 
 // Write a command byte to the SSD1963
-void WriteCommand(int cmd) {
+void WriteComand(int cmd) {
     gpio_put_masked(0b11111111,cmd);
     gpio_put(SSD1963_DC_GPPIN,0);
     gpio_put(SSD1963_WR_GPPIN,0);nop;gpio_put(SSD1963_WR_GPPIN,1);
@@ -256,25 +266,25 @@ void WriteCommand(int cmd) {
 
 // Write an 8 bit data word to the SSD1963
 void WriteData(int data) {
-    gpio_put_masked(0b1111111111,data | 0b1100000000);
+    gpio_put_masked(0b11111111,data);
     gpio_put(SSD1963_WR_GPPIN,0);nop;gpio_put(SSD1963_WR_GPPIN,1);
 }
 
 
 // For the 100 pin chip write RGB colour over an 8 bit bus
-static inline void WriteColor(unsigned int c) {
+void WriteColor(unsigned int c) {
     gpio_put_masked(0b11111111,(c >> 16));
-    gpio_put(SSD1963_WR_GPPIN,0);nop;gpio_put(SSD1963_WR_GPPIN,1);
+    nop;gpio_put(SSD1963_WR_GPPIN,0);nop;nop;gpio_put(SSD1963_WR_GPPIN,1);
     gpio_put_masked(0b11111111,(c >> 8));
-    gpio_put(SSD1963_WR_GPPIN,0);nop;gpio_put(SSD1963_WR_GPPIN,1);
-    gpio_put_masked(0b11111111,c);
-    gpio_put(SSD1963_WR_GPPIN,0);nop;gpio_put(SSD1963_WR_GPPIN,1);
+    nop;gpio_put(SSD1963_WR_GPPIN,0);nop;nop;gpio_put(SSD1963_WR_GPPIN,1);
+    nop;gpio_put_masked(0b11111111,c);
+    gpio_put(SSD1963_WR_GPPIN,0);nop;nop;gpio_put(SSD1963_WR_GPPIN,1);
 }
 
 // The next two functions are used in the initial setup where the SSD1963 cannot respond to fast signals
 
 // Slowly write a command byte to the SSD1963
-static void WriteCommandSlow(int cmd) {
+static void WriteComandSlow(int cmd) {
     gpio_put_masked(0b11111111,cmd);
     gpio_put(SSD1963_DC_GPPIN,0);
     gpio_put(SSD1963_WR_GPPIN,0);uSec(5);gpio_put(SSD1963_WR_GPPIN,1);
@@ -291,7 +301,8 @@ void WriteDataSlow(int data) {
 
 // Read a byte from the SSD1963
 unsigned char ReadData(void) {
-    gpio_put(SSD1963_RD_GPPIN,0);nop;nop;nop;nop;gpio_put(SSD1963_RD_GPPIN,1);
+    gpio_put(SSD1963_RD_GPPIN,0);nop;nop;nop;nop;nop;nop;gpio_put(SSD1963_RD_GPPIN,1);
+    nop;nop;nop;nop;nop;
     return (gpio_get_all() & 0xFF);
 }
 
@@ -329,12 +340,12 @@ void SetAreaSSD1963(int x1, int y1, int x2, int y2) {
         default: return;
     }
 
-  WriteCommand(CMD_SET_COLUMN);
+  WriteComand(CMD_SET_COLUMN);
   WriteData(start_x>>8);
   WriteData(start_x);
   WriteData(end_x>>8);
   WriteData(end_x);
-  WriteCommand(CMD_SET_PAGE);
+  WriteComand(CMD_SET_PAGE);
   WriteData(start_y>>8);
   WriteData(start_y);
   WriteData(end_y>>8);
@@ -363,7 +374,7 @@ static void GPIO_WR(int pin, int state) {
   else
       _gpioStatus = _gpioStatus&(~pin);
 
-  WriteCommand(CMD_SET_GPIO_VAL);                                 // Set GPIO value
+  WriteComand(CMD_SET_GPIO_VAL);                                 // Set GPIO value
   WriteData(_gpioStatus);
 }
 
@@ -381,7 +392,7 @@ static void GPIO_WR(int pin, int state) {
 *     This parameter is hardware dependent
 ********************************************************************/
 void SetBacklightSSD1963(int intensity) {
-  WriteCommand(CMD_SET_PWM_CONF);                                   // Set PWM configuration for backlight control
+  WriteComand(CMD_SET_PWM_CONF);                                   // Set PWM configuration for backlight control
 
   WriteData(0x0E);                                                  // PWMF[7:0] = 2, PWM base freq = PLL/(256*(1+5))/256 = 300Hz for a PLL freq = 120MHz
   WriteData((intensity * 255)/100);                                 // Set duty cycle, from 0x00 (total pull-down) to 0xFF (99% pull-up , 255/256)
@@ -407,10 +418,10 @@ void SetBacklightSSD1963(int intensity) {
 void SetTearingCfg(int state, int mode)
 {
   if(state == 1) {
-      WriteCommand(CMD_SET_TEAR_ON);
+      WriteComand(CMD_SET_TEAR_ON);
       WriteData(mode&0x01);
   } else {
-      WriteCommand(0x34);
+      WriteComand(0x34);
   }
 
 }
@@ -420,6 +431,125 @@ void SetTearingCfg(int state, int mode)
 * Function:  void InitSSD1963()
 * Initialise SSD1963 for PCLK,    HSYNC, VSYNC etc
 ***********************************************************************************************************************************/
+void InitILI9341(void){
+    PinSetBit(SSD1963_RESET_PIN, LATCLR);                             // reset the SSD1963
+    uSec(10000);
+    PinSetBit(SSD1963_RESET_PIN, LATSET);                           // release from reset state to sleep state
+    uSec(10000);
+  WriteComand(0xEF);
+  WriteData(0x03);
+  WriteData(0x80);
+  WriteData(0x02);
+
+  WriteComand(0xCF);
+  WriteData(0x00);
+  WriteData(0XC1);
+  WriteData(0X30);
+
+  WriteComand(0xED);
+  WriteData(0x64);
+  WriteData(0x03);
+  WriteData(0X12);
+  WriteData(0X81);
+
+  WriteComand(0xE8);
+  WriteData(0x85);
+  WriteData(0x00);
+  WriteData(0x78);
+
+  WriteComand(0xCB);
+  WriteData(0x39);
+  WriteData(0x2C);
+  WriteData(0x00);
+  WriteData(0x34);
+  WriteData(0x02);
+
+  WriteComand(0xF7);
+  WriteData(0x20);
+
+  WriteComand(0xEA);
+  WriteData(0x00);
+  WriteData(0x00);
+
+  WriteComand(ILI9341_PWCTR1);    //Power control
+  WriteData(0x23);   //VRH[5:0]
+
+  WriteComand(ILI9341_PWCTR2);    //Power control
+  WriteData(0x10);   //SAP[2:0];BT[3:0]
+
+  WriteComand(ILI9341_VMCTR1);    //VCM control
+  WriteData(0x3e);
+  WriteData(0x28);
+
+  WriteComand(ILI9341_VMCTR2);    //VCM control2
+  WriteData(0x86);  //--
+
+  WriteComand(ILI9341_PIXFMT);
+  WriteData(0x66);
+
+  WriteComand(ILI9341_FRMCTR1);
+  WriteData(0x00);
+  WriteData(0x13); // 0x18 79Hz, 0x1B default 70Hz, 0x13 100Hz
+
+  WriteComand(ILI9341_DFUNCTR);    // Display Function Control
+  WriteData(0x08);
+  WriteData(0x82);
+  WriteData(0x27);
+
+  WriteComand(0xF2);    // 3Gamma Function Disable
+  WriteData(0x00);
+
+  WriteComand(ILI9341_GAMMASET);    //Gamma curve selected
+  WriteData(0x01);
+
+  WriteComand(ILI9341_GMCTRP1);    //Set Gamma
+  WriteData(0x0F);
+  WriteData(0x31);
+  WriteData(0x2B);
+  WriteData(0x0C);
+  WriteData(0x0E);
+  WriteData(0x08);
+  WriteData(0x4E);
+  WriteData(0xF1);
+  WriteData(0x37);
+  WriteData(0x07);
+  WriteData(0x10);
+  WriteData(0x03);
+  WriteData(0x0E);
+  WriteData(0x09);
+  WriteData(0x00);
+
+  WriteComand(ILI9341_GMCTRN1);    //Set Gamma
+  WriteData(0x00);
+  WriteData(0x0E);
+  WriteData(0x14);
+  WriteData(0x03);
+  WriteData(0x11);
+  WriteData(0x07);
+  WriteData(0x31);
+  WriteData(0xC1);
+  WriteData(0x48);
+  WriteData(0x08);
+  WriteData(0x0F);
+  WriteData(0x0C);
+  WriteData(0x31);
+  WriteData(0x36);
+  WriteData(0x0F);
+
+  WriteComand(ILI9341_SLPOUT);    //Exit Sleep
+  WriteComand(ILI9341_MADCTL);    // Memory Access Control
+         switch(Option.DISPLAY_ORIENTATION) {
+             case LANDSCAPE:     WriteData(ILI9341_Landscape); break;
+             case PORTRAIT:      WriteData(ILI9341_Portrait); break;
+             case RLANDSCAPE:    WriteData(ILI9341_Landscape180); break;
+             case RPORTRAIT:     WriteData(ILI9341_Portrait180); break;
+         }
+
+    WriteComand(ILI9341_DISPON);    //Display on
+    uSec(100000);
+    ClearScreen(Option.DefaultBC);
+}
+
 void InitSSD1963(void) {
 
     PinSetBit(SSD1963_RESET_PIN, LATCLR);                             // reset the SSD1963
@@ -427,32 +557,32 @@ void InitSSD1963(void) {
     PinSetBit(SSD1963_RESET_PIN, LATSET);                           // release from reset state to sleep state
 
     // IMPORTANT: At this stage the SSD1963 is running at a slow speed and cannot respond to high speed commands
-    //            So we use slow speed versions of WriteCommand/WriteData with a 3 uS delay between each control signal change
+    //            So we use slow speed versions of WriteComand/WriteData with a 3 uS delay between each control signal change
 
   // Set MN(multipliers) of PLL, VCO = crystal freq * (N+1)
   // PLL freq = VCO/M with 250MHz < VCO < 800MHz
   // The max PLL freq is around 120MHz. To obtain 120MHz as the PLL freq
 
-  WriteCommandSlow(CMD_SET_PLL_MN);                                 // Set PLL with OSC = 10MHz (hardware), command is 0xE3
+  WriteComandSlow(CMD_SET_PLL_MN);                                 // Set PLL with OSC = 10MHz (hardware), command is 0xE3
   WriteDataSlow(0x23);                                              // Multiplier N = 35, VCO (>250MHz)= OSC*(N+1), VCO = 360MHz
   WriteDataSlow(0x02);                                              // Divider M = 2, PLL = 360/(M+1) = 120MHz
   WriteDataSlow(0x54);                                              // Validate M and N values
 
-  WriteCommandSlow(CMD_PLL_START);                                  // Start PLL command
+  WriteComandSlow(CMD_PLL_START);                                  // Start PLL command
   WriteDataSlow(0x01);                                              // enable PLL
 
   uSec(1000);                                                       // wait for it to stabilise
-  WriteCommandSlow(CMD_PLL_START);                                  // Start PLL command again
+  WriteComandSlow(CMD_PLL_START);                                  // Start PLL command again
   WriteDataSlow(0x03);                                              // now, use PLL output as system clock
 
-  WriteCommandSlow(CMD_SOFT_RESET);                                 // Soft reset
+  WriteComandSlow(CMD_SOFT_RESET);                                 // Soft reset
   uSec(10000);
 
 #define parallel_write_data WriteData
 #define TFT_Write_Data WriteData
 
   // Configure for the TFT panel, varies from individual manufacturer
-  WriteCommandSlow(CMD_SET_PCLK);                                   // set pixel clock (LSHIFT signal) frequency
+  WriteComandSlow(CMD_SET_PCLK);                                   // set pixel clock (LSHIFT signal) frequency
   WriteDataSlow(SSD1963PClock1);                                    // paramaters set by DISPLAY INIT
   WriteDataSlow(SSD1963PClock2);
   WriteDataSlow(SSD1963PClock3);
@@ -460,7 +590,7 @@ void InitSSD1963(void) {
 
 
   // Set panel mode, varies from individual manufacturer
-  WriteCommand(CMD_SET_PANEL_MODE);
+  WriteComand(CMD_SET_PANEL_MODE);
   WriteData(SSD1963Mode1);                                          // parameters set by DISPLAY INIT
   WriteData(SSD1963Mode2);
   WriteData((DisplayHRes - 1) >> 8);                                // Set panel size
@@ -471,7 +601,7 @@ void InitSSD1963(void) {
 
 
   // Set horizontal period
-  WriteCommand(CMD_SET_HOR_PERIOD);
+  WriteComand(CMD_SET_HOR_PERIOD);
   #define HT (DisplayHRes + SSD1963HorizPulseWidth + SSD1963HorizBackPorch + SSD1963HorizFrontPorch)
   WriteData((HT - 1) >> 8);
   WriteData(HT - 1);
@@ -484,7 +614,7 @@ void InitSSD1963(void) {
   WriteData(0x00);
 
   // Set vertical period
-  WriteCommand(CMD_SET_VER_PERIOD);
+  WriteComand(CMD_SET_VER_PERIOD);
   #define VT (SSD1963VertPulseWidth + SSD1963VertBackPorch + SSD1963VertFrontPorch + DisplayVRes)
   WriteData((VT - 1) >> 8);
   WriteData(VT - 1);
@@ -496,11 +626,11 @@ void InitSSD1963(void) {
   WriteData(0x00);
 
   // Set pixel data interface
-  WriteCommand(CMD_SET_DATA_INTERFACE);
+  WriteComand(CMD_SET_DATA_INTERFACE);
     WriteData(0x00);                                                // 8-bit colour format
 
     // initialise the GPIOs
-  WriteCommand(CMD_SET_GPIO_CONF);                                  // Set all GPIOs to output, controlled by host
+  WriteComand(CMD_SET_GPIO_CONF);                                  // Set all GPIOs to output, controlled by host
   WriteData(0x0f);                                                  // Set GPIO0 as output
   WriteData(0x01);                                                  // GPIO[3:0] used as normal GPIOs
 
@@ -516,7 +646,7 @@ void InitSSD1963(void) {
 
 
     // setup the pixel write order
-    WriteCommand(CMD_SET_ADDR_MODE);
+    WriteComand(CMD_SET_ADDR_MODE);
     switch(Option.DISPLAY_ORIENTATION) {
         case LANDSCAPE:     WriteData(SSD1963_LANDSCAPE); break;
         case PORTRAIT:      WriteData(SSD1963_PORTRAIT); break;
@@ -525,7 +655,7 @@ void InitSSD1963(void) {
     }
 
     // Set the scrolling area
-  WriteCommand(CMD_SET_SCROLL_AREA);
+  WriteComand(CMD_SET_SCROLL_AREA);
   WriteData(0);
   WriteData(0);
   WriteData(DisplayVRes >> 8);
@@ -536,11 +666,28 @@ void InitSSD1963(void) {
 
   ClearScreen(Option.DefaultBC);
     SetBacklightSSD1963(Option.DefaultBrightness);
-  WriteCommand(CMD_ON_DISPLAY);                                     // Turn on display; show the image on display
+  WriteComand(CMD_ON_DISPLAY);                                     // Turn on display; show the image on display
 
 }
 
-
+void  SetAreaILI9341(int xstart, int ystart, int xend, int yend, int rw) {
+    if(HRes == 0) error("Display not configured");
+    WriteComand(ILI9341_COLADDRSET);
+    WriteData(xstart >> 8);
+    WriteData(xstart);
+    WriteData(xend >> 8);
+    WriteData(xend);
+    WriteComand(ILI9341_PAGEADDRSET);
+    WriteData(ystart >> 8);
+    WriteData(ystart);
+    WriteData(yend >> 8);
+    WriteData(yend);
+    if(rw){
+    	WriteComand(ILI9341_MEMORYWRITE);
+    } else {
+    	WriteComand(ILI9341_RAMRD);
+    }
+}
 /**********************************************************************************************
 Draw a filled rectangle on the video output with physical frame buffer coordinates
      x1, y1 - the start physical frame buffer coordinate
@@ -550,8 +697,12 @@ Draw a filled rectangle on the video output with physical frame buffer coordinat
 ***********************************************************************************************/
 void PhysicalDrawRect(int x1, int y1, int x2, int y2, int c) {
     int i;
-    SetAreaSSD1963(x1, y1 , x2, y2);                                // setup the area to be filled
-    WriteCommand(CMD_WR_MEMSTART);
+    if(Option.DISPLAY_TYPE == ILI9341_8){
+        SetAreaILI9341(x1, y1 , x2, y2, 1);
+    } else {
+        SetAreaSSD1963(x1, y1 , x2, y2);                                // setup the area to be filled
+        WriteComand(CMD_WR_MEMSTART);
+    }
     for(i = (x2 - x1 + 1) * (y2 - y1 + 1); i > 0; i--)
     WriteColor(c);
 }
@@ -623,15 +774,19 @@ void DrawBufferSSD1963(int x1, int y1, int x2, int y2, unsigned char* p) {
     if(y2 >= VRes) y2 = VRes - 1;
 
     t = y2 - y1;                                                    // get the distance between the top and bottom
-
-    if(Option.DISPLAY_ORIENTATION == RLANDSCAPE)
-        y1 = (y1 + (VRes - ScrollStart)) % VRes;
-    else
-        y1 = (y1 + ScrollStart) % VRes;
-    y2 = y1 + t;                                                    // and set y2 to the same
+    if(Option.DISPLAY_TYPE!=ILI9341_8){
+        if(Option.DISPLAY_ORIENTATION == RLANDSCAPE)
+            y1 = (y1 + (VRes - ScrollStart)) % VRes;
+        else
+            y1 = (y1 + ScrollStart) % VRes;
+        y2 = y1 + t; 
+    }                                                   // and set y2 to the same
     if(y2 >= VRes) {
-        SetAreaSSD1963(x1, y1, x2, VRes - 1);                       // if the box splits over the frame buffer boundary
-        WriteCommand(CMD_WR_MEMSTART);
+        if(Option.DISPLAY_TYPE==ILI9341_8) SetAreaILI9341(x1, y1 , x2, y2, 1);
+        else {
+            SetAreaSSD1963(x1, y1, x2, VRes - 1);                       // if the box splits over the frame buffer boundary
+            WriteComand(CMD_WR_MEMSTART);
+        }
         for(i = (x2 - x1 + 1) * ((VRes - 1) - y1 + 1); i > 0; i--){
             c.rgbbytes[0] = *p++;                                   // this order swaps the bytes to match the .BMP file
             c.rgbbytes[1] = *p++;
@@ -639,7 +794,7 @@ void DrawBufferSSD1963(int x1, int y1, int x2, int y2, unsigned char* p) {
             WriteColor(c.rgb);
         }
         SetAreaSSD1963(x1, 0, x2, y2 - VRes );
-        WriteCommand(CMD_WR_MEMSTART);
+        WriteComand(CMD_WR_MEMSTART);
         for(i = (x2 - x1 + 1) * (y2 - VRes + 1); i > 0; i--) {
             c.rgbbytes[0] = *p++;                                   // this order swaps the bytes to match the .BMP file
             c.rgbbytes[1] = *p++;
@@ -648,8 +803,12 @@ void DrawBufferSSD1963(int x1, int y1, int x2, int y2, unsigned char* p) {
         }
     } else {
         // the whole box is within the frame buffer - much easier
-        SetAreaSSD1963(x1, y1, x2, y2);                             // setup the area to be filled
-        WriteCommand(CMD_WR_MEMSTART);
+    	if(Option.DISPLAY_TYPE == ILI9341_8) {
+    		SetAreaILI9341(x1, y1 , x2, y2, 1);
+        } else {
+            SetAreaSSD1963(x1, y1 , x2, y2);                            // setup the area to be filled
+            WriteComand(CMD_RD_MEMSTART);
+        }
         for(i = (x2 - x1 + 1) * (y2 - y1 + 1); i > 0; i--){
             c.rgbbytes[0] = *p++;                                   // this order swaps the bytes to match the .BMP file
             c.rgbbytes[1] = *p++;
@@ -694,15 +853,17 @@ void ReadBufferSSD1963(int x1, int y1, int x2, int y2, unsigned char* p) {
     if(y2 >= VRes) y2 = VRes - 1;
 
     t = y2 - y1;                                                    // get the distance between the top and bottom
-    if(Option.DISPLAY_ORIENTATION == RLANDSCAPE)
-        y1 = (y1 + (VRes - ScrollStart)) % VRes;
-    else
-        y1 = (y1 + ScrollStart) % VRes;
-    y2 = y1 + t;                                                    // and set y2 to the same
+    if(Option.DISPLAY_TYPE!=ILI9341_8){
+        if(Option.DISPLAY_ORIENTATION == RLANDSCAPE)
+            y1 = (y1 + (VRes - ScrollStart)) % VRes;
+        else
+            y1 = (y1 + ScrollStart) % VRes;
+        y2 = y1 + t;  
+    }                                                  // and set y2 to the same
 
     if(y2 >= VRes) {
         SetAreaSSD1963(x1, y1, x2, VRes - 1);                       // if the box splits over the frame buffer boundary
-        WriteCommand(CMD_RD_MEMSTART);
+        WriteComand(CMD_RD_MEMSTART);
         gpio_set_dir_in_masked(0xFF);
         i=(x2 - x1 + 1) * ((VRes - 1) - y1 + 1);
         uSec(10);
@@ -715,7 +876,7 @@ void ReadBufferSSD1963(int x1, int y1, int x2, int y2, unsigned char* p) {
         gpio_set_dir_out_masked(0xFF);
         uSec(10);
         SetAreaSSD1963(x1, 0, x2, y2 - VRes );
-        WriteCommand(CMD_RD_MEMSTART);
+        WriteComand(CMD_RD_MEMSTART);
         gpio_set_dir_in_masked(0xFF);
         uSec(10);
          for(i = (x2 - x1 + 1) * (y2 - VRes + 1); i > 1; i--) {     // NB loop counter terminates 1 pixel earlier
@@ -727,10 +888,15 @@ void ReadBufferSSD1963(int x1, int y1, int x2, int y2, unsigned char* p) {
         gpio_set_dir_out_masked(0xFF);
         uSec(10);
     } else {
-        SetAreaSSD1963(x1, y1 , x2, y2);                            // setup the area to be filled
-        WriteCommand(CMD_RD_MEMSTART);
+    	if(Option.DISPLAY_TYPE == ILI9341_8) {
+    		SetAreaILI9341(x1, y1 , x2, y2, 0);
+        } else {
+            SetAreaSSD1963(x1, y1 , x2, y2);                            // setup the area to be filled
+            WriteComand(CMD_RD_MEMSTART);
+        }
         gpio_set_dir_in_masked(0xFF);
         uSec(10);
+        if(Option.DISPLAY_TYPE==ILI9341_8)ReadDataSlow();
         for(i = (x2 - x1 + 1) * (y2 - y1 + 1); i > 0; i--){
             c.rgb=ReadColor();
             *p++=c.rgbbytes[0];                                     // this order swaps the bytes to match the .BMP file
@@ -745,7 +911,7 @@ void ReadBufferSSD1963(int x1, int y1, int x2, int y2, unsigned char* p) {
 void fun_getscanline(void){
     if(Option.DISPLAY_TYPE < SSDPANEL) error("Invalid on this display");
 
-    WriteCommand(CMD_GET_SCANLINE);
+    WriteComand(CMD_GET_SCANLINE);
     gpio_set_dir_in_masked(0xFF);
     iret = (ReadData() << 8) | ReadData();                          // get the scan line
     gpio_set_dir_out_masked(0xFF);
@@ -789,9 +955,11 @@ void DrawBitmapSSD1963(int x1, int y1, int width, int height, int scale, int fg,
     else
         yt = y = (y1 + ScrollStart) % VRes;
 
-    SetAreaSSD1963(XStart, y, XEnd, (y + (height * scale) - 1)  % VRes);
-
-  WriteCommand(CMD_WR_MEMSTART);
+    if(Option.DISPLAY_TYPE==ILI9341_8) SetAreaILI9341(XStart, y, XEnd, (y + (height * scale) - 1)  % VRes, 1);
+    else {
+        SetAreaSSD1963(XStart, y, XEnd, (y + (height * scale) - 1)  % VRes);
+        WriteComand(CMD_WR_MEMSTART);
+    }
     for(i = 0; i < height; i++) {                                   // step thru the font scan line by line
         for(j = 0; j < scale; j++) {                                // repeat lines to scale the font
             if(vertCoord++ < 0) continue;                           // we are above the top of the screen
@@ -802,8 +970,11 @@ void DrawBitmapSSD1963(int x1, int y1, int width, int height, int scale, int fg,
             // if we have scrolling in action we could run over the end of the frame buffer
             // if so, terminate this area and start a new one at the top of the frame buffer
             if(y++ == VRes) {
-                SetAreaSSD1963(XStart, 0, XEnd, ((yt + (height * scale) - 1)  % VRes) - y);
-                WriteCommand(CMD_WR_MEMSTART);
+                if(Option.DISPLAY_TYPE==ILI9341_8) SetAreaILI9341(XStart, 0, XEnd, ((yt + (height * scale) - 1)  % VRes) - y, 1);
+                else {
+                    SetAreaSSD1963(XStart, 0, XEnd, ((yt + (height * scale) - 1)  % VRes) - y);
+                    WriteComand(CMD_WR_MEMSTART);
+                }
             }
             horizCoord = x1;
                 // optimise by dedicating the code to just writing to the 100 pin chip
@@ -865,7 +1036,7 @@ void ScrollSSD1963(int lines) {
         DrawRectangleSSD1963(0, 0, HRes - 1, lines - 1, gui_bcolour); // erase the line introduced at the top
     }
 
-  WriteCommand(CMD_SET_SCROLL_START);
+  WriteComand(CMD_SET_SCROLL_START);
   WriteData(t >> 8);
   WriteData(t);
 

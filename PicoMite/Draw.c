@@ -27,6 +27,9 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 #include "MMBasic_Includes.h"
 #include "Hardware_Includes.h"
 #include "hardware/spi.h"
+#ifndef PICOMITEWEB
+#include "pico/multicore.h"
+#endif
 #ifdef PICOMITEWEB
 #include "pico/cyw43_arch.h"
 #endif
@@ -4383,7 +4386,7 @@ void fun_sprite(void) {
 }
 
 #else
-void restoreSPIpanel(void){
+void restorepanel(void){
     if(Option.DISPLAY_TYPE>I2C_PANEL && Option.DISPLAY_TYPE < BufferedPanel){
         DrawRectangle = DrawRectangleSPI;
         DrawBitmap = DrawBitmapSPI;
@@ -4393,10 +4396,18 @@ void restoreSPIpanel(void){
             ReadBuffer = ReadBufferSPI;
             ScrollLCD = ScrollLCDSPI;
         }
+    } else if(Option.DISPLAY_TYPE>=SSDPANEL && Option.DISPLAY_TYPE < VIRTUAL){
+        DrawRectangle= DrawRectangleSSD1963;
+        DrawBitmap = DrawBitmapSSD1963;
+        if(Option .DISPLAY_TYPE != ILI9341_8)ScrollLCD = ScrollSSD1963;
+        else ScrollLCD=ScrollLCDSPI;
+        DrawBuffer = DrawBufferSSD1963;
+        ReadBuffer = ReadBufferSSD1963;
+        DrawPixel = DrawPixelNormal;
     }
 }
 void setframebuffer(void){
-    if(!(Option.DISPLAY_TYPE>I2C_PANEL && Option.DISPLAY_TYPE < BufferedPanel))return;
+    if(!((Option.DISPLAY_TYPE>I2C_PANEL && Option.DISPLAY_TYPE < BufferedPanel) || (Option.DISPLAY_TYPE>=SSDPANEL && Option.DISPLAY_TYPE<VIRTUAL)))return;
     DrawRectangle=DrawRectangleColour;
     DrawBitmap= DrawBitmapColour;
     ScrollLCD=ScrollLCDColour;
@@ -4411,13 +4422,12 @@ void closeframebuffer(void){
     if(LayerBuf)FreeMemory(LayerBuf);
     FrameBuf=NULL;
     WriteBuf=NULL;
-    restoreSPIpanel();
+    restorepanel();
 }
 void cmd_framebuffer(void){
     static int framemap[16]={
         BLACK,BLUE,MYRTLE,COBALT,MIDGREEN,CERULEAN,GREEN,CYAN,RED,MAGENTA,RUST,FUCHSIA,BROWN,LILAC,YELLOW,WHITE
     };
-    if(!(Option.DISPLAY_TYPE>I2C_PANEL && Option.DISPLAY_TYPE < BufferedPanel))error("SPI colour displays only");
     unsigned char *p;
     if((p=checkstring(cmdline, (unsigned char *)"CREATE"))) {
         if(FrameBuf==NULL){
@@ -4426,7 +4436,7 @@ void cmd_framebuffer(void){
         else error("Framebuffer already exists");
     } else if((p=checkstring(cmdline, (unsigned char *)"WRITE"))) {
         if(checkstring(p, (unsigned char *)"N")){
-            restoreSPIpanel();            
+            restorepanel();            
         }
         else if(checkstring(p, (unsigned char *)"L")){
             if(!LayerBuf)error("Layer buffer not created");
@@ -4445,11 +4455,11 @@ void cmd_framebuffer(void){
         } else error("Layer already exists");
     } else if((p=checkstring(cmdline, (unsigned char *)"CLOSE"))) {
         if(checkstring(p, (unsigned char *)"F")){
-            if(WriteBuf!=LayerBuf)restoreSPIpanel();            
+            if(WriteBuf!=LayerBuf)restorepanel();         
             if(FrameBuf)FreeMemory(FrameBuf);
             FrameBuf=NULL;
         } else if(checkstring(p, (unsigned char *)"L")){
-            if(WriteBuf!=FrameBuf)restoreSPIpanel();            
+            if(WriteBuf!=FrameBuf)restorepanel();            
             if(LayerBuf)FreeMemory(LayerBuf);
             LayerBuf=NULL;
         } else  closeframebuffer();
@@ -4457,11 +4467,11 @@ void cmd_framebuffer(void){
         unsigned char *buff = WriteBuf;
         getargs(&p,15,(unsigned char *)",");
         if(!(argc==15))error("Syntax");
-        int SPImode=0;
-        if(DrawBufferSPI==DrawBuffer) SPImode=1;
+        int DisplayMode=0;
+        if(DrawBufferSPI==DrawBuffer || DrawBufferSSD1963==DrawBuffer) DisplayMode=1;
         uint8_t *s=NULL,*d=NULL;
         if(checkstring(argv[0],(unsigned char *)"N")){
-            restoreSPIpanel();
+            restorepanel();
             if((void *)ReadBuffer == (void *)DisplayNotSet) error("Invalid on this display");
         }
         else if(checkstring(argv[0],(unsigned char *)"L"))s=LayerBuf;
@@ -4491,13 +4501,13 @@ void cmd_framebuffer(void){
         int step=sizeof(1440)/3/w;
         int y_top=(h/step)*step;
         for(int y=0;y<y_top;y+=step){
-            if(s==NULL)restoreSPIpanel();
+            if(s==NULL)restorepanel();
             else {
                 setframebuffer();
                 WriteBuf=s;
             }
             ReadBuffer(x1, y1+y, x1+w-1, y1+y+step-1, LCDBuffer);
-            if(d==NULL)restoreSPIpanel();
+            if(d==NULL)restorepanel();
             else {
                 setframebuffer();
                 WriteBuf=d;
@@ -4505,30 +4515,41 @@ void cmd_framebuffer(void){
             DrawBuffer(x2, y2+y, x2+w-1, y2+y+step-1, LCDBuffer);
         }
         for(int y=y_top;y<h;y++){
-            if(s==NULL)restoreSPIpanel();
+            if(s==NULL)restorepanel();
             else {
                 setframebuffer();
                 WriteBuf=s;
             }
             ReadBuffer(x1, y1+y, x1+w-1, y1+y, LCDBuffer);
-            if(d==NULL)restoreSPIpanel();
+            if(d==NULL)restorepanel();
             else {
                 setframebuffer();
                 WriteBuf=d;
             }
             DrawBuffer(x2, y2+y, x2+w-1, y2+y, LCDBuffer);
         }
-        if(SPImode) restoreSPIpanel();  
+        if(DisplayMode) restorepanel();  
         else {
             setframebuffer();
             WriteBuf=buff;
         }
         return;
     } else if((p=checkstring(cmdline, (unsigned char *)"COPY"))) {
+#ifdef PICOMITE
+        int complex=0, background=0;
+        unsigned char *buff = WriteBuf;
+        getargs(&p,5,(unsigned char *)",");
+        if(!(argc==3 || argc==5))error("Syntax");
+        if(argc==5){
+            if(checkstring(argv[4],(unsigned char *)"B"))background=1;
+            else error("Syntax");
+        }
+#else 
         int complex=0;
         unsigned char *buff = WriteBuf;
         getargs(&p,3,(unsigned char *)",");
         if(!(argc==3))error("Syntax");
+#endif
         uint8_t *s=NULL,*d=NULL;
         if(checkstring(argv[0],(unsigned char *)"N")){
             complex=1;
@@ -4551,59 +4572,98 @@ void cmd_framebuffer(void){
                 int c;
                 if(complex==1){//copying from the real display
                     char *LCDBuffer=GetTempMemory(1440);
-                    int SPImode=0;
-                    if(DrawBufferSPI==DrawBuffer) SPImode=1;
+                    int DisplayMode=0;
+                    if(DrawBufferSPI==DrawBuffer || DrawBufferSSD1963==DrawBuffer) DisplayMode=1;
                     WriteBuf=d;
                     for(int y=0;y<VRes;y++){
-                        restoreSPIpanel();   
+                        restorepanel();   
                         ReadBuffer(0,y,HRes-1,y,(unsigned char *)LCDBuffer);
                         WriteBuf=d;
                         setframebuffer();
                         DrawBuffer(0,y,HRes-1,y,(unsigned char *)LCDBuffer);
                     }
-                    if(SPImode) restoreSPIpanel();  
+                    if(DisplayMode) restorepanel();  
                 } else { //copying to the real display
-                    DefineRegionSPI(0,0,HRes-1,VRes-1, 1);
-                    int map[16];
-                    int i;
-                    int cnt=2;
-                    for(i=0;i<16;i++){
-                        if(Option.DISPLAY_TYPE==ILI9488 || Option.DISPLAY_TYPE==ILI9481IPS ){
-                            col[0]=(framemap[i]>>16);
-                            col[1]=(framemap[i]>>8) & 0xFF;
-                            col[2]=(framemap[i] & 0xFF);
-                            cnt=3;
-                        } else {
-                            col[0]= ((framemap[i] >> 16) & 0b11111000) | ((framemap[i] >> 13) & 0b00000111);
-                            col[1] = ((framemap[i] >>  5) & 0b11100000) | ((framemap[i] >>  3) & 0b00011111);
-                        }
-                        if(Option.DISPLAY_TYPE == GC9A01){
-                            col[0]=~col[0];
-                            col[1]=~col[1];
-                        }
-                        map[i]=col[0]|(col[1]<<8)|(col[2]<<16);
-                    }
-                    i=HRes*VRes/2;
-                    if(PinDef[Option.SYSTEM_CLK].mode & SPI0SCK){
-                        while(i--){
-                            c=map[*s & 0xF];
-                            spi_write_fast(spi0,(uint8_t *)&c,cnt);
-                            c=map[(*s & 0xF0)>>4];
-                            spi_write_fast(spi0,(uint8_t *)&c,cnt);
-                           s++;
-                        }
+#ifdef PICOMITE
+                    if(background){
+                        if(!(((Option.DISPLAY_TYPE>I2C_PANEL && Option.DISPLAY_TYPE<BufferedPanel ) || (Option.DISPLAY_TYPE>=SSDPANEL && Option.DISPLAY_TYPE<VIRTUAL))))error("Not available on this display");
+                        multicore_fifo_push_blocking(1);
+                        multicore_fifo_push_blocking((uint32_t)s);
                     } else {
-                        while(i--){
-                            c=map[*s & 0xF];
-                            spi_write_fast(spi1,(uint8_t *)&c,cnt);
-                            c=map[(*s & 0xF0)>>4];
-                            spi_write_fast(spi1,(uint8_t *)&c,cnt);
-                           s++;
+#endif
+                        if(Option.DISPLAY_TYPE>I2C_PANEL && Option.DISPLAY_TYPE<BufferedPanel)DefineRegionSPI(0,0,HRes-1,VRes-1, 1);
+                        else if(Option.DISPLAY_TYPE>=SSDPANEL && Option.DISPLAY_TYPE<VIRTUAL && Option.DISPLAY_TYPE!=ILI9341_8){
+                            SetAreaSSD1963(0,0,HRes-1,VRes-1);
+                            WriteComand(CMD_WR_MEMSTART);
+                        } else SetAreaILI9341(0,0,HRes-1,VRes-1,1);
+                        int map[16];
+                        int i;
+                        int cnt=2;
+                        for(i=0;i<16;i++){
+                            if(Option.DISPLAY_TYPE==ILI9488 || Option.DISPLAY_TYPE==ILI9481IPS){
+                                col[0]=(framemap[i]>>16);
+                                col[1]=(framemap[i]>>8) & 0xFF;
+                                col[2]=(framemap[i] & 0xFF);
+                                cnt=3;
+                            } else if(Option.DISPLAY_TYPE>=SSDPANEL && Option.DISPLAY_TYPE<VIRTUAL){
+                                col[2]=(framemap[i]>>16);
+                                col[1]=(framemap[i]>>8) & 0xFF;
+                                col[0]=(framemap[i] & 0xFF);
+                                cnt=3;
+                            } else {
+                                col[0]= ((framemap[i] >> 16) & 0b11111000) | ((framemap[i] >> 13) & 0b00000111);
+                                col[1] = ((framemap[i] >>  5) & 0b11100000) | ((framemap[i] >>  3) & 0b00011111);
+                            }
+                            if(Option.DISPLAY_TYPE == GC9A01){
+                                col[0]=~col[0];
+                                col[1]=~col[1];
+                            }
+                            map[i]=col[0]|(col[1]<<8)|(col[2]<<16);
                         }
+                        i=HRes*VRes/2;
+                        if(Option.DISPLAY_TYPE>I2C_PANEL && Option.DISPLAY_TYPE<BufferedPanel ){
+                            if(PinDef[Option.SYSTEM_CLK].mode & SPI0SCK){
+                                while(i--){
+                                    c=map[*s & 0xF];
+                                    spi_write_fast(spi0,(uint8_t *)&c,cnt);
+                                    c=map[(*s & 0xF0)>>4];
+                                    spi_write_fast(spi0,(uint8_t *)&c,cnt);
+                                    s++;
+                                }
+                            } else {
+                                while(i--){
+                                    c=map[*s & 0xF];
+                                    spi_write_fast(spi1,(uint8_t *)&c,cnt);
+                                    c=map[(*s & 0xF0)>>4];
+                                    spi_write_fast(spi1,(uint8_t *)&c,cnt);
+                                    s++;
+                                }
+                            }
+                            if(PinDef[Option.SYSTEM_CLK].mode & SPI0SCK)spi_finish(spi0);
+                            else spi_finish(spi1);
+                            ClearCS(Option.LCD_CS);                  //set CS high
+                        } else {
+                            while(i--){
+                                c=map[*s & 0xF];
+                                gpio_put_masked(0b11111111,(c >> 16));
+                                nop;gpio_put(SSD1963_WR_GPPIN,0);nop;nop;gpio_put(SSD1963_WR_GPPIN,1);
+                                gpio_put_masked(0b11111111,(c >> 8));
+                                nop;gpio_put(SSD1963_WR_GPPIN,0);nop;nop;gpio_put(SSD1963_WR_GPPIN,1);
+                                nop;gpio_put_masked(0b11111111,c);
+                                gpio_put(SSD1963_WR_GPPIN,0);nop;nop;gpio_put(SSD1963_WR_GPPIN,1);
+                                c=map[(*s & 0xF0)>>4];
+                                gpio_put_masked(0b11111111,(c >> 16));
+                                nop;gpio_put(SSD1963_WR_GPPIN,0);nop;nop;gpio_put(SSD1963_WR_GPPIN,1);
+                                gpio_put_masked(0b11111111,(c >> 8));
+                                nop;gpio_put(SSD1963_WR_GPPIN,0);nop;nop;gpio_put(SSD1963_WR_GPPIN,1);
+                                nop;gpio_put_masked(0b11111111,c);
+                                gpio_put(SSD1963_WR_GPPIN,0);nop;nop;gpio_put(SSD1963_WR_GPPIN,1);
+                                s++;
+                            }
+                        }
+#ifdef PICOMITE
                     }
-                    if(PinDef[Option.SYSTEM_CLK].mode & SPI0SCK)spi_finish(spi0);
-                    else spi_finish(spi1);
-                    ClearCS(Option.LCD_CS);                  //set CS high
+#endif
                 }
             }
         }

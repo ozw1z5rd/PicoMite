@@ -103,7 +103,7 @@ extern volatile BYTE SDCardStat;
 extern volatile int keyboardseen;
 extern uint64_t TIM12count;
 extern char id_out[12];
-extern void WriteCommand(int cmd);
+extern void WriteComand(int cmd);
 extern void WriteData(int data);
 char *CSubInterrupt;
 MMFLOAT optionangle=1.0;
@@ -1355,11 +1355,10 @@ void cmd_ireturn(void){
 }
 
 void cmd_library(void) {  
-            
+    unsigned char *tp;
     /********************************************************************************************************************
      ******* LIBRARY SAVE **********************************************************************************************/
     if(checkstring(cmdline, (unsigned char *)"SAVE")) {  
-//        int pageno=0;  
         unsigned char *p=NULL,  *pp , *m, *MemBuff, *TempPtr, rem;
         int i, j, k, InCFun, InQuote, CmdExpected;
         unsigned int CFunDefAddr[100], *CFunHexAddr[100] ;
@@ -1617,6 +1616,56 @@ void cmd_library(void) {
         ListProgram(ProgMemory - Option.LIBRARY_FLASH_SIZE, false);
         return;
      }
+     if((tp=checkstring(cmdline, (unsigned char *)"DISK SAVE"))) {
+        getargs(&tp,1,(unsigned char *)",");
+        if(!(argc==1))error("Syntax");
+        if(CurrentLinePtr) error("Invalid in a program");
+        int fnbr = FindFreeFileNbr();
+        if (!InitSDCard())  return;
+        if(Option.LIBRARY_FLASH_SIZE != MAX_PROG_SIZE) error("No library to store");
+        char *pp = (char *)getFstring(argv[0]);
+        if (strchr((char *)pp, '.') == NULL)
+            strcat((char *)pp, ".lib");
+        if (!BasicFileOpen((char *)pp, fnbr, FA_WRITE | FA_CREATE_ALWAYS)) return;
+        char *s = (char *)LibMemory;
+        int i=MAX_PROG_SIZE;
+        while(i--){
+            FilePutChar(*s++,fnbr);
+        }
+        FileClose(fnbr);
+        return;
+     }
+     if((tp=checkstring(cmdline, (unsigned char *)"DISK LOAD"))) {
+        int fsize;
+        getargs(&tp,1,(unsigned char *)",");
+        if(!(argc==1))error("Syntax");
+        if(CurrentLinePtr) error("Invalid in a program");
+        int fnbr = FindFreeFileNbr();
+        if (!InitSDCard())  return;
+        char *pp = (char *)getFstring(argv[0]);
+        if (strchr((char *)pp, '.') == NULL)
+            strcat((char *)pp, ".lib");
+        if (!BasicFileOpen((char *)pp, fnbr, FA_READ)) return;
+		if(filesource[fnbr]!=FLASHFILE)  fsize = f_size(FileTable[fnbr].fptr);
+		else fsize = lfs_file_size(&lfs,FileTable[fnbr].lfsptr);
+        if(fsize!=MAX_PROG_SIZE)error("File size % should be %",fsize,MAX_PROG_SIZE);
+        FlashWriteInit(LIBRARY_FLASH);
+        flash_range_erase(realflashpointer, MAX_PROG_SIZE);
+        int i=MAX_PROG_SIZE/4;
+        int *ppp=(int *)(flash_progmemory - MAX_PROG_SIZE);
+        while(i--)if(*ppp++ != 0xFFFFFFFF){
+            enable_interrupts();
+            error("Flash erase problem");
+        }
+        for(int k = 0; k < fsize; k++){        // write to the flash byte by byte
+           FlashWriteByte(FileGetChar(fnbr));
+        }
+        FlashWriteClose();
+        Option.LIBRARY_FLASH_SIZE = MAX_PROG_SIZE;
+        SaveOptions();
+        FileClose(fnbr);
+        return;
+    }
   
      error("Invalid syntax");
     }
@@ -3192,6 +3241,10 @@ void fun_info(void){
             iret=(int64_t)((uint32_t)FontTable[getint(tp,1,FONT_TABLE_SIZE)-1]);
             targ=T_INT;
             return;
+        } else if((tp=checkstring(ep, (unsigned char *)"FLASH ADDRESS"))){
+            iret=(int64_t)(unsigned int)(flash_target_contents + (getint(tp,1,MAXFLASHSLOTS) - 1) * MAX_PROG_SIZE);
+            targ=T_INT;
+            return;
         } else if((tp=checkstring(ep, (unsigned char *)"FILESIZE"))){
             DIR djd;
             FILINFO fnod;
@@ -3718,7 +3771,7 @@ void cmd_poke(void) {
             getargs(&p,(MAX_ARG_COUNT * 2) - 3,(unsigned char *)",");
             if(!argc)return;
             if(Option.DISPLAY_TYPE>=SSDPANEL && Option.DISPLAY_TYPE<VIRTUAL){
-                WriteCommand(getinteger(argv[0]));
+                WriteComand(getinteger(argv[0]));
                 for(int i = 2; i < argc; i += 2) {
                     WriteData(getinteger(argv[i]));
                 }
