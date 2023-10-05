@@ -46,6 +46,7 @@ extern const uint8_t *flash_progmemory;
 //LIBRARY
 extern const uint8_t *flash_libgmemory;
 extern void routinechecks(void);
+extern int mergedread;
 struct option_s __attribute__ ((aligned (256))) Option;
 int dirflags;
 int GPSfnbr = 0;
@@ -1461,6 +1462,9 @@ void cmd_save(void)
         flinebuf = GetTempMemory(maxW * 4);
         outbuf=GetTempMemory(maxW/2);
         char *foutbuf=GetTempMemory(maxW);
+#ifdef PICOMITEVGA
+        mergedread=1;
+#endif
         for (i = y + h - 1; i >= y; i--)
         {
             ReadBuffer(x, i, x + w - 1, i, flinebuf);
@@ -1501,6 +1505,9 @@ void cmd_save(void)
             if(FSerror>0)FSerror=0;
             ErrorCheck(fnbr);
         }
+#ifdef PICOMITEVGA
+        mergedread=0;
+#endif
         foutbuf[0]=0;foutbuf[1]=1;
         if(filesource[fnbr]==FATFSFILE) f_write(FileTable[fnbr].fptr, foutbuf, 2, &nbr);
         else {
@@ -1608,6 +1615,9 @@ void cmd_save(void)
 	        }
 	        flinebuf = GetTempMemory(maxW * 4);
 	        outbuf=GetTempMemory(maxW/2);
+#ifdef PICOMITEVGA
+            mergedread=1;
+#endif
 	        for (i = y + h - 1; i >= y; i--)
 	        {
 	            ReadBuffer(x, i, x + w - 1, i, flinebuf);
@@ -1640,6 +1650,9 @@ void cmd_save(void)
 	                ErrorCheck(fnbr);
                 }
 	        }
+#ifdef PICOMITEVGA
+            mergedread=0;
+#endif
 	        FileClose(fnbr);
 	        return;
         }

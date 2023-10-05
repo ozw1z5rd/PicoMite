@@ -273,7 +273,7 @@ int  hxcmod_setcfg( modcontext * modctx, int samplerate, int stereo_separation, 
 int  hxcmod_load( modcontext * modctx, void * mod_data, int mod_data_size );
 void hxcmod_playsoundeffect( modcontext * modctx, unsigned short sampnum, unsigned short seffectnum, unsigned char volume, unsigned int period );
 extern int hxcmod_effectplaying( modcontext * modctx, unsigned short seffectnum);
-void hxcmod_fillbuffer( modcontext * modctx, msample * outbuffer, unsigned long nbsample, tracker_buffer_state * trkbuf );
+int hxcmod_fillbuffer( modcontext * modctx, msample * outbuffer, unsigned long nbsample, tracker_buffer_state * trkbuf, int noloop );
 void hxcmod_unload( modcontext * modctx );
 
 #endif

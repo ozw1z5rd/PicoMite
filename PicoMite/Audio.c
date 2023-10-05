@@ -138,7 +138,7 @@ int trackplaying=0, trackstoplay=0;
 unsigned short *noisetable=NULL;
 unsigned short *usertable=NULL;
 const unsigned short whitenoise[2]={0};
-
+int noloop=0;
 
 void* my_malloc(size_t sz, void* pUserData)
 {
@@ -1226,7 +1226,6 @@ void flaccallback(char *p){
     sbuff2 = GetMemory(WAV_BUFFER_SIZE*2);
     ibuff1 = (uint16_t *)sbuff1;
     ibuff2 = (uint16_t *)sbuff2;
-	mono=(myflac->channels == 1 ? 1 : 0);
     bcount[1]=drflac_read_pcm_frames_s16(myflac, WAV_BUFFER_SIZE/2, (drwav_int16*)sbuff1) * myflac->channels;
 //    bcount[2]=drwav_read_pcm_frames_s16(&mywav, WAV_BUFFER_SIZE/4, (drwav_int16*)sbuff2) * mywav.channels;
 	iconvert(ibuff1, (int16_t *)sbuff1, bcount[1]);
@@ -1417,6 +1416,7 @@ void cmd_play(void) {
 				PlayDuration=(uint64_t)duration;
 			} else duration=1;
 			if(argc == 7) {
+				if(!CurrentLinePtr)error("No program running");
 				WAVInterrupt = (char *)GetIntAddress(argv[6]);					// get the interrupt location
 				WAVcomplete=false;
 				InterruptUsed = true;
@@ -1592,6 +1592,7 @@ void cmd_play(void) {
 
         WAVcomplete = 0;
         if(argc == 3) {
+			if(!CurrentLinePtr)error("No program running");
             WAVInterrupt = (char *)GetIntAddress(argv[2]);					// get the interrupt location
             InterruptUsed = true;
         }
@@ -1642,6 +1643,7 @@ void cmd_play(void) {
 
         WAVcomplete = 0;
         if(argc == 3) {
+			if(!CurrentLinePtr)error("No program running");
             WAVInterrupt = (char *)GetIntAddress(argv[2]);					// get the interrupt location
             InterruptUsed = true;
         }
@@ -1679,7 +1681,7 @@ void cmd_play(void) {
         return;
 	}
     if((tp = checkstring(cmdline, (unsigned char *)"MODFILE"))) {
-        getargs(&tp, 1,(unsigned char *)",");                                  // this MUST be the first executable line in the function
+        getargs(&tp, 3,(unsigned char *)",");                                  // this MUST be the first executable line in the function
         char *p, *r;
         int i __attribute((unused))=0,fsize;
         modfilesamplerate=16000;
@@ -1697,6 +1699,12 @@ void cmd_play(void) {
         if(strchr((char *)p, '.') == NULL) strcat((char *)p, ".MOD");
         WAV_fnbr = FindFreeFileNbr();
         if(!BasicFileOpen(p, WAV_fnbr, FA_READ)) return;
+		if(argc==3){
+			if(!CurrentLinePtr)error("No program running");
+            WAVInterrupt = (char *)GetIntAddress(argv[2]);					// get the interrupt location
+            InterruptUsed = true;
+			noloop=1;
+        } else noloop=0;
         i=0;
 		if(filesource[WAV_fnbr]!=FLASHFILE)  fsize = f_size(FileTable[WAV_fnbr].fptr);
 		else fsize = lfs_file_size(&lfs,FileTable[WAV_fnbr].lfsptr);
@@ -1727,7 +1735,7 @@ void cmd_play(void) {
 		if(!CurrentLinePtr){
 			MMPrintString("Playing ");MMPrintString((char *)mcontext->song.title);PRet();
 		}
-        hxcmod_fillbuffer( mcontext, (msample*)sbuff1, WAV_BUFFER_SIZE/4, NULL );
+        hxcmod_fillbuffer( mcontext, (msample*)sbuff1, WAV_BUFFER_SIZE/4, NULL, noloop );
         wav_filesize=WAV_BUFFER_SIZE/2;
         bcount[1]=WAV_BUFFER_SIZE/2;
         bcount[2]=0;
@@ -1832,12 +1840,12 @@ void checkWAVinput(void){
             nextbuf=swingbuf;
 	} else if(CurrentlyPlaying == P_MOD){
 			if(swingbuf==2){
-				hxcmod_fillbuffer( mcontext, (msample*)sbuff1, WAV_BUFFER_SIZE/4, NULL );
+				if(hxcmod_fillbuffer( mcontext, (msample*)sbuff1, WAV_BUFFER_SIZE/4,NULL, noloop ))playreadcomplete = 1;
 				wav_filesize=WAV_BUFFER_SIZE/2;
 				bcount[1]=WAV_BUFFER_SIZE/2;
 				iconvert((uint16_t *)ibuff1, (int16_t *)sbuff1, bcount[1]);
 			} else {
-				hxcmod_fillbuffer( mcontext, (msample*)sbuff2, WAV_BUFFER_SIZE/4, NULL );
+				if(hxcmod_fillbuffer( mcontext, (msample*)sbuff2, WAV_BUFFER_SIZE/4,NULL, noloop ))playreadcomplete = 1;
 				wav_filesize=WAV_BUFFER_SIZE/2;
 				bcount[2]=WAV_BUFFER_SIZE/2;
 				iconvert((uint16_t *)ibuff2, (int16_t *)sbuff2, bcount[2]);
@@ -1875,6 +1883,7 @@ void audio_checks(void){
     if(playreadcomplete == 1) {
     	if(!(bcount[1] || bcount[2]) ){
             if(CurrentlyPlaying == P_FLAC)drflac_close(myflac);
+			if(CurrentlyPlaying == P_MOD)FreeMemory((void *)mcontext);
             FreeMemorySafe((void **)&sbuff1);
             FreeMemorySafe((void **)&sbuff2);
             FreeMemorySafe((void **)&alist);

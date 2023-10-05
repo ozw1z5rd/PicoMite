@@ -193,7 +193,7 @@ void __not_in_flash_func(on_pwm_wrap)(void) {
         if(swingbuf){ //buffer is primed
         	if(swingbuf==1)playbuff=(uint16_t *)sbuff1;
         	else playbuff=(uint16_t *)sbuff2;
-        	if(CurrentlyPlaying == P_WAV && mono){
+        	if((CurrentlyPlaying == P_WAV || CurrentlyPlaying == P_FLAC) && mono){
 				left=right=playbuff[ppos];
 				ppos++;
         	} else {
@@ -1401,7 +1401,7 @@ void InitReservedIO(void) {
 		pwm_set_enabled(AUDIO_SLICE, true);
 	}
 #ifndef PICOMITEWEB
-	if(!Option.AUDIO_CS_PIN){
+	if(!Option.AllPins){
 		if(Option.PWM){
 			if(CheckPin(41, CP_NOABORT | CP_IGNORE_INUSE | CP_IGNORE_RESERVED)){
 				gpio_init(23);

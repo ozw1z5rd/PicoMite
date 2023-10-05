@@ -1432,7 +1432,7 @@ void cmd_web(void){
         if(cmd_mqtt())return;
         if(cmd_tcpclient())return;
         if(cmd_tcpserver())return;
-        if(cmd_tls())return;
+//        if(cmd_tls())return;
         error("Syntax");
 }
 

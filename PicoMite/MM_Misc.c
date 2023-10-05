@@ -1627,8 +1627,33 @@ void cmd_library(void) {
         if (strchr((char *)pp, '.') == NULL)
             strcat((char *)pp, ".lib");
         if (!BasicFileOpen((char *)pp, fnbr, FA_WRITE | FA_CREATE_ALWAYS)) return;
+        int i = 0;
+        // first count the normal program code residing in the Library
+        char *p = (char *)LibMemory;
+        while(!(p[0] == 0 && p[1] == 0)) {
+            p++; i++;
+        }
+        while(*p == 0){ // the end of the program can have multiple zeros -count them
+            p++;i++;
+        }
+        p++; i++;    //get 0xFF that ends the program and count it
+        while((unsigned int)p & 0b11) { //count to the next word boundary
+        p++;i++;
+        }
+            
+        //Now add the binary used for CSUB and Fonts
+        if(CFunctionLibrary != NULL) {
+            int j=0;
+            unsigned int *pint = (unsigned int *)CFunctionLibrary;
+            while(*pint != 0xffffffff) {
+                pint++;                                      //step over the address or Font No.
+                j += *pint + 8;                              //Read the size
+                pint += (*pint + 4) / sizeof(unsigned int);  //set pointer to start of next CSUB/Font
+            }
+            i=i+j;
+        }
         char *s = (char *)LibMemory;
-        int i=MAX_PROG_SIZE;
+//        int i=MAX_PROG_SIZE;
         while(i--){
             FilePutChar(*s++,fnbr);
         }
@@ -1648,7 +1673,7 @@ void cmd_library(void) {
         if (!BasicFileOpen((char *)pp, fnbr, FA_READ)) return;
 		if(filesource[fnbr]!=FLASHFILE)  fsize = f_size(FileTable[fnbr].fptr);
 		else fsize = lfs_file_size(&lfs,FileTable[fnbr].lfsptr);
-        if(fsize!=MAX_PROG_SIZE)error("File size % should be %",fsize,MAX_PROG_SIZE);
+        if(fsize>MAX_PROG_SIZE)error("File size % should be % or less",fsize,MAX_PROG_SIZE);
         FlashWriteInit(LIBRARY_FLASH);
         flash_range_erase(realflashpointer, MAX_PROG_SIZE);
         int i=MAX_PROG_SIZE/4;
@@ -1787,6 +1812,7 @@ void printoptions(void){
     } 
     if(Option.KeyboardConfig == CONFIG_I2C)PO2Str("KEYBOARD", "I2C");
     if(Option.NoHeartbeat)PO2Str("HEARTBEAT", "OFF");
+    if(Option.AllPins)PO2Str("PICO", "OFF");
 #ifdef PICOMITEVGA
     if(Option.CPU_Speed!=126000)PO2Int("CPUSPEED (KHz)", Option.CPU_Speed);
     if(Option.DISPLAY_TYPE==COLOURVGA)PO2Str("DEFAULT MODE", "2");
@@ -2242,10 +2268,30 @@ void cmd_option(void) {
         Option.Autorun=getint(tp,0,MAXFLASHSLOTS);
         SaveOptions(); return; 
     } 
+#ifndef PICOMITEWEB
+    tp = checkstring(cmdline, (unsigned char *)"PICO");
+    if(tp) {
+        if(checkstring(tp, (unsigned char *)"OFF") || checkstring(tp, (unsigned char *)"DISABLE"))      Option.AllPins = 1; 
+        else if(checkstring(tp, (unsigned char *)"ON") || checkstring(tp, (unsigned char *)"ENABLE"))      Option.AllPins = 0; 
+        else error("Syntax");
+        SaveOptions();
+        if(Option.AllPins==0){
+            if(CheckPin(41, CP_NOABORT | CP_IGNORE_INUSE | CP_IGNORE_RESERVED))ExtCfg(41,EXT_DIG_OUT,Option.PWM);
+            if(CheckPin(42, CP_NOABORT | CP_IGNORE_INUSE | CP_IGNORE_RESERVED))ExtCfg(42,EXT_DIG_IN,0);
+            if(CheckPin(44, CP_NOABORT | CP_IGNORE_INUSE | CP_IGNORE_RESERVED))ExtCfg(44,EXT_ANA_IN,0);
+        } else {
+            if(CheckPin(41, CP_NOABORT | CP_IGNORE_INUSE | CP_IGNORE_RESERVED))ExtCfg(41, EXT_NOT_CONFIG, 0); 
+            if(CheckPin(42, CP_NOABORT | CP_IGNORE_INUSE | CP_IGNORE_RESERVED))ExtCfg(42, EXT_NOT_CONFIG, 0); 
+            if(CheckPin(44, CP_NOABORT | CP_IGNORE_INUSE | CP_IGNORE_RESERVED))ExtCfg(44, EXT_NOT_CONFIG, 0); 
+        }
+        return;
+    }
+#endif
     tp = checkstring(cmdline, (unsigned char *)"HEARTBEAT");
     if(tp) {
-        if(checkstring(tp, (unsigned char *)"OFF"))      Option.NoHeartbeat = 1; 
-        if(checkstring(tp, (unsigned char *)"ON"))      Option.NoHeartbeat = 0; 
+        if(checkstring(tp, (unsigned char *)"OFF") || checkstring(tp, (unsigned char *)"DISABLE"))      Option.NoHeartbeat = 1; 
+        else if(checkstring(tp, (unsigned char *)"ON") || checkstring(tp, (unsigned char *)"ENABLE"))      Option.NoHeartbeat = 0; 
+        else error("Syntax");
         SaveOptions();
 #ifndef PICOMITEWEB
         if(CheckPin(43, CP_NOABORT | CP_IGNORE_INUSE | CP_IGNORE_RESERVED)){

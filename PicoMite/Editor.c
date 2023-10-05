@@ -290,13 +290,13 @@ void cmd_edit(void) {
     } else {
         char *fname = (char *)getFstring(argv[0]);
         char c;
-        if(ExistsFile(fname)){
-            strcpy(name,fname);
-            if (strchr(name, '.') == NULL) strcat(name, ".bas");
-            if(!fstrstr(name,".bas"))Option.ColourCode=0;
+        strcpy(name,fname);
+        if (strchr(name, '.') == NULL) strcat(name, ".bas");
+        if(!fstrstr(name,".bas"))Option.ColourCode=0;
+        if(ExistsFile(name)){
             int fnbr1;
             fnbr1 = FindFreeFileNbr();
-            BasicFileOpen(fname, fnbr1, FA_READ);
+            BasicFileOpen(name, fnbr1, FA_READ);
             p=EdBuff;
             while (!FileEOF(fnbr1))
             { // while waiting for the end of file
@@ -306,10 +306,6 @@ void cmd_edit(void) {
                 *p++=c;
             }
             FileClose(fnbr1);
-        } else {
-            strcpy(name,fname);
-            if (strchr(name, '.') == NULL) strcat(name, ".bas");
-            if(!fstrstr(name,".bas"))Option.ColourCode=0;
         }
         txtp=EdBuff;
         tempx=x=0;

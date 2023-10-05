@@ -132,6 +132,7 @@ char* COLLISIONInterrupt = NULL;
 int CollisionFound = false;
 int sprite_which_collided = -1;
 static int hideall = 0;
+int mergedread=0;
 #else
     #ifdef PICOMITEWEB
     int gui_font_width, gui_font_height, last_bcolour, last_fcolour;
@@ -2625,6 +2626,58 @@ static inline char getnextnibble(char **fc, int reset){
     if(!reset)available--;
     return out;
 }
+void docompressed(char *fc,int x1, int y1, int w, int h, int8_t blank){
+    if(x1 %2 == 0 && w % 2 == 0 && blank==-1){
+        char c, *to;
+        c=getnextnibble(&fc,1); //reset the decoder
+        for(int y=y1;y<y1+h;y++){
+            to=(char *)WriteBuf+y*(HRes>>1)+(x1>>1);
+            for(int x=x1;x<x1+w;x+=2){
+                c=getnextnibble(&fc,0);
+                c|=(getnextnibble(&fc,0)<<4);
+                if(y<0 || y>=VRes)continue;
+                if(x>=0 && x<HRes)*to=c;
+                to++;
+            }               
+        }
+    } else { 
+        int otoggle=0,itoggle=0; //input will always start on a byte boundary
+        char c,*to;
+        c=getnextnibble(&fc,1); //reset the decoder
+        for(int y=y1;y<y1+h;y++){ //loop though all of the output lines
+            to=(char *)WriteBuf+y*(HRes>>1)+(x1>>1); //get the byte that will start the output
+            if(x1 & 1)otoggle=1; // if x1 is odd then we will start on the high nibble
+            else otoggle=0;
+        for(int x=x1;x<x1+w;x++){
+                if(itoggle==0){
+                    c=getnextnibble(&fc,0);
+                    itoggle=1;
+                } else {
+                    c=getnextnibble(&fc,0);
+                    itoggle=0;
+                }
+                if(y<0 || y>=VRes)continue;
+                if(otoggle==0){
+                    if(x>=0 && x<HRes){
+                        if(c!=blank){
+                            *to &= 0xF0;
+                            *to |=c;
+                        }
+                    }
+                } else {
+                    if(x>=0 && x<HRes){
+                        if(c!=blank){
+                            *to &=0x0f;
+                            *to |= (c<<4);
+                        }
+                    }
+                    to++;
+                }
+                otoggle^=1;
+            }
+        }
+    }
+}
 
 int blitother(void){
     int x1, y1, x2, y2, w, h;
@@ -2638,56 +2691,59 @@ int blitother(void){
         x1 = (int)getinteger(argv[2]);
         y1 = (int)getinteger(argv[4]);
         uint16_t *size=(uint16_t *)from;
-        w=size[0];
-        h=size[1];
-        if(w>HRes || h>VRes)error("Invalid dimensions, w=%, h=%",w,h);
+        w=(size[0] & 0x7FFF);
+        h=(size[1] & 0x7FFF);
         from+=4;
         if(argc==7)blank=getint(argv[6],-1,15);
-        if(x1 %2 == 0 && w % 2 == 0 && blank==-1){
-            char c, *to;
-            for(int y=y1;y<y1+h;y++){
-                to=(char *)WriteBuf+y*(HRes>>1)+(x1>>1);
-                for(int x=x1;x<x1+w;x+=2){
-                    c=*from++;
-                    if(y<0 || y>=VRes)continue;
-                    if(x>=0 && x<HRes)*to=c;
-                    to++;
-                }               
-            }
-        } else { 
-            int otoggle=0,itoggle=0; //input will always start on a byte boundary
-            char c,*to;
-            for(int y=y1;y<y1+h;y++){ //loop though all of the output lines
-                to=(char *)WriteBuf+y*(HRes>>1)+(x1>>1); //get the byte that will start the output
-                if(x1 & 1)otoggle=1; // if x1 is odd then we will start on the high nibble
-                else otoggle=0;
-                for(int x=x1;x<x1+w;x++){
-                    if(itoggle==0){
-                        c=*from & 0x0f;
-                        itoggle=1;
-                    } else {
-                        c= *from >>4;
-                        from++;
-                        itoggle=0;
-                    }
-                    if(y<0 || y>=VRes)continue;
-                    if(otoggle==0){
-                        if(x>=0 && x<HRes){
-                            if(c!=blank){
-                                *to &= 0xF0;
-                                *to |=c;
-                            }
-                        }
-                    } else {
-                        if(x>=0 && x<HRes){
-                            if(c!=blank){
-                                *to &=0x0f;
-                                *to |= (c<<4);
-                            }
-                        }
+        if(size[0] & 0x8000 || size[1] &  0x8000) {
+            docompressed(from, x1, y1, w, h, blank);
+        } else {
+            if(x1 %2 == 0 && w % 2 == 0 && blank==-1){
+                char c, *to;
+                for(int y=y1;y<y1+h;y++){
+                    to=(char *)WriteBuf+y*(HRes>>1)+(x1>>1);
+                    for(int x=x1;x<x1+w;x+=2){
+                        c=*from++;
+                        if(y<0 || y>=VRes)continue;
+                        if(x>=0 && x<HRes)*to=c;
                         to++;
+                    }               
+                }
+            } else { 
+                int otoggle=0,itoggle=0; //input will always start on a byte boundary
+                char c,*to;
+                for(int y=y1;y<y1+h;y++){ //loop though all of the output lines
+                    to=(char *)WriteBuf+y*(HRes>>1)+(x1>>1); //get the byte that will start the output
+                    if(x1 & 1)otoggle=1; // if x1 is odd then we will start on the high nibble
+                    else otoggle=0;
+                    for(int x=x1;x<x1+w;x++){
+                        if(itoggle==0){
+                            c=*from & 0x0f;
+                            itoggle=1;
+                        } else {
+                            c= *from >>4;
+                            from++;
+                            itoggle=0;
+                        }
+                        if(y<0 || y>=VRes)continue;
+                        if(otoggle==0){
+                            if(x>=0 && x<HRes){
+                                if(c!=blank){
+                                    *to &= 0xF0;
+                                    *to |=c;
+                                }
+                            }
+                        } else {
+                            if(x>=0 && x<HRes){
+                                if(c!=blank){
+                                    *to &=0x0f;
+                                    *to |= (c<<4);
+                                }
+                            }
+                            to++;
+                        }
+                        otoggle^=1;
                     }
-                    otoggle^=1;
                 }
             }
         }
@@ -2706,56 +2762,7 @@ int blitother(void){
         if(w>HRes || h>VRes)error("Invalid dimensions, w=%, h=%",w,h);
         fc+=4;
         if(argc==7)blank=getint(argv[6],-1,15);
-        if(x1 %2 == 0 && w % 2 == 0 && blank==-1){
-            char c, *to;
-            c=getnextnibble(&fc,1); //reset the decoder
-            for(int y=y1;y<y1+h;y++){
-                to=(char *)WriteBuf+y*(HRes>>1)+(x1>>1);
-                for(int x=x1;x<x1+w;x+=2){
-                    c=getnextnibble(&fc,0);
-                    c|=(getnextnibble(&fc,0)<<4);
-                    if(y<0 || y>=VRes)continue;
-                    if(x>=0 && x<HRes)*to=c;
-                    to++;
-                }               
-            }
-        } else { 
-            int otoggle=0,itoggle=0; //input will always start on a byte boundary
-            char c,*to;
-            c=getnextnibble(&fc,1); //reset the decoder
-             for(int y=y1;y<y1+h;y++){ //loop though all of the output lines
-                to=(char *)WriteBuf+y*(HRes>>1)+(x1>>1); //get the byte that will start the output
-                if(x1 & 1)otoggle=1; // if x1 is odd then we will start on the high nibble
-                else otoggle=0;
-               for(int x=x1;x<x1+w;x++){
-                    if(itoggle==0){
-                        c=getnextnibble(&fc,0);
-                        itoggle=1;
-                    } else {
-                        c=getnextnibble(&fc,0);
-                        itoggle=0;
-                    }
-                    if(y<0 || y>=VRes)continue;
-                    if(otoggle==0){
-                        if(x>=0 && x<HRes){
-                            if(c!=blank){
-                                *to &= 0xF0;
-                                *to |=c;
-                            }
-                        }
-                    } else {
-                        if(x>=0 && x<HRes){
-                            if(c!=blank){
-                                *to &=0x0f;
-                                *to |= (c<<4);
-                            }
-                        }
-                        to++;
-                    }
-                    otoggle^=1;
-                }
-            }
-        }
+        docompressed(fc, x1, y1, w, h, blank);
         return 1;
     }  else if ((p = checkstring(cmdline, (unsigned char*)"FRAMEBUFFER"))) {
         int8_t blank=-1;
@@ -4587,6 +4594,7 @@ void cmd_framebuffer(void){
 #ifdef PICOMITE
                     if(background){
                         if(!(((Option.DISPLAY_TYPE>I2C_PANEL && Option.DISPLAY_TYPE<BufferedPanel ) || (Option.DISPLAY_TYPE>=SSDPANEL && Option.DISPLAY_TYPE<VIRTUAL))))error("Not available on this display");
+                        if(diskchecktimer<200)diskchecktimer = 200;
                         multicore_fifo_push_blocking(1);
                         multicore_fifo_push_blocking((uint32_t)s);
                     } else {
@@ -5227,8 +5235,8 @@ void DrawBufferColourFast(int x1, int y1, int x2, int y2, int blank, unsigned ch
     }
 }
 void ReadBufferColour(int x1, int y1, int x2, int y2, unsigned char *c){
-    int x,y,t,q;
-    uint8_t *pp, *qq=WriteBuf;
+    int x,y,t;
+    uint8_t *pp;
     if(Option.DISPLAY_TYPE>=VIRTUAL && WriteBuf==NULL) WriteBuf=GetMemory(640*480/8);
     if(x2 <= x1) { t = x1; x1 = x2; x2 = t; }
     if(y2 <= y1) { t = y1; y1 = y2; y2 = t; }
@@ -5243,18 +5251,24 @@ void ReadBufferColour(int x1, int y1, int x2, int y2, unsigned char *c){
     if(y2 >= VRes) yy2 = VRes - 1;
 	for(y=yy1;y<=yy2;y++){
     	for(x=xx1;x<=xx2;x++){
-	        qq=pp=(uint8_t *)(((uint32_t) WriteBuf)+(y*(HRes>>1))+(x>>1));
+	        pp=(uint8_t *)(((uint32_t) WriteBuf)+(y*(HRes>>1))+(x>>1));
 #ifdef PICOMITEVGA
+            int q;
+            uint8_t *qq=pp;
             if(WriteBuf==DisplayBuf && LayerBuf != DisplayBuf && LayerBuf !=NULL)qq=(uint8_t *)(((uint32_t) LayerBuf)+(y*(HRes>>1))+(x>>1));
 #endif
             if(x & 1){
                 t=colours[(*pp)>>4];
+#ifdef PICOMITEVGA
                 q=colours[(*qq)>>4];
-                if(q)t=q;
+                if(q && mergedread)t=q;
+#endif
             } else {
                 t=colours[(*pp)&0x0F];
+#ifdef PICOMITEVGA
                 q=colours[(*qq)&0x0F];
-                if(q)t=q;
+                if(q && mergedread)t=q;
+#endif
             }
             *c++=(t&0xFF);
             *c++=(t>>8)&0xFF;

@@ -35,9 +35,9 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 #include "lwip/mem.h"
 #include "lwip/err.h"
 #include "lwip/pbuf.h"
-#include "lwip/altcp.h"
-#include "lwip/altcp_tcp.h"
-#include "lwip/altcp_tls.h"
+//#include "lwip/altcp.h"
+//#include "lwip/altcp_tcp.h"
+//#include "lwip/altcp_tls.h"
 #include "lwip/pbuf.h"
 #endif
 

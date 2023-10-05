@@ -1297,7 +1297,7 @@ int hxcmod_effectplaying( modcontext * modctx, unsigned short seffectnum)
     return effectptr -> active;
 }
 
-void hxcmod_fillbuffer( modcontext * modctx, msample * outbuffer, unsigned long nbsample, tracker_buffer_state * trkbuf )
+int hxcmod_fillbuffer( modcontext * modctx, msample * outbuffer, unsigned long nbsample, tracker_buffer_state * trkbuf, int noloop )
 {
 	unsigned long i, j;
 	unsigned long k;
@@ -1366,8 +1366,10 @@ void hxcmod_fillbuffer( modcontext * modctx, msample * outbuffer, unsigned long 
 						{
 							modctx->tablepos++;
 							modctx->patternpos = 0;
-							if(modctx->tablepos >= modctx->song.length)
-								modctx->tablepos = 0;
+							if(modctx->tablepos >= modctx->song.length){
+								if(noloop) return 1;
+								else modctx->tablepos = 0;
+							}
 						}
 					}
 					else
@@ -1675,6 +1677,7 @@ void hxcmod_fillbuffer( modcontext * modctx, msample * outbuffer, unsigned long 
 			}
 		}
 	}
+	return 0;
 }
 
 void hxcmod_unload( modcontext * modctx )
