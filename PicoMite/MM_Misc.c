@@ -1791,8 +1791,17 @@ void printoptions(void){
         if(Option.SYSTEM_I2C_SLOW)MMPrintString(", SLOW\r\n");
         else PRet();
     }
-    if(Option.Autorun>0 && Option.Autorun<=MAXFLASHSLOTS) PO2Int("AUTORUN", Option.Autorun);
-    if(Option.Autorun==MAXFLASHSLOTS+1)PO2Str("AUTORUN", "ON");
+    if(Option.Autorun){
+        MMPrintString("AUTORUN "); 
+        if(Option.Autorun>0 && Option.Autorun<=MAXFLASHSLOTS)PInt(Option.Autorun);
+        else MMPrintString("ON");
+        if(Option.NoReset){
+            MMPrintString(",NORESET");
+        }
+        PRet();
+    }
+//    if(Option.Autorun>0 && Option.Autorun<=MAXFLASHSLOTS) PO2Int("AUTORUN", Option.Autorun);
+//    if(Option.Autorun==MAXFLASHSLOTS+1)PO2Str("AUTORUN", "ON");
     if(Option.Baudrate != CONSOLE_BAUDRATE) PO2Int("BAUDRATE", Option.Baudrate);
     if(Option.FlashSize !=2048*1024) PO2Int("FLASH SIZE", Option.FlashSize);
     if(MAX_PROG_SIZE == Option.LIBRARY_FLASH_SIZE) PO2IntH("LIBRARY_FLASH_SIZE ", Option.LIBRARY_FLASH_SIZE);
@@ -2263,9 +2272,15 @@ void cmd_option(void) {
 
     tp = checkstring(cmdline, (unsigned char *)"AUTORUN");
     if(tp) {
-        if(checkstring(tp, (unsigned char *)"OFF"))      { Option.Autorun = 0; SaveOptions(); return;  }
-        if(checkstring(tp, (unsigned char *)"ON"))      { Option.Autorun = MAXFLASHSLOTS+1; SaveOptions(); return;  }
-        Option.Autorun=getint(tp,0,MAXFLASHSLOTS);
+        getargs(&tp,3,(unsigned char *)",");
+		Option.NoReset=0;
+        if(argc==3){
+            if(checkstring(argv[2], (unsigned char *)"NORESET"))Option.NoReset=1;
+            else error("Syntax");
+        }
+        if(checkstring(argv[0], (unsigned char *)"OFF"))      { Option.Autorun = 0; SaveOptions(); return;  }
+        if(checkstring(argv[0], (unsigned char *)"ON"))      { Option.Autorun = MAXFLASHSLOTS+1; SaveOptions(); return;  }
+        Option.Autorun=getint(argv[0],0,MAXFLASHSLOTS);
         SaveOptions(); return; 
     } 
 #ifndef PICOMITEWEB

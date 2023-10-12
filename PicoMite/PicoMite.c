@@ -1122,8 +1122,11 @@ void sigbus(void){
 	uSec(250000);
 	disable_interrupts();
 //	flash_range_erase(PROGSTART, MAX_PROG_SIZE);
-    Option.Autorun=0;
-    SaveOptions();
+    LoadOptions();
+    if(Option.NoReset==0){
+        Option.Autorun=0;
+        SaveOptions();
+    }
 	enable_interrupts();
     memset(inpbuf,0,STRINGSIZE);
     SoftReset();

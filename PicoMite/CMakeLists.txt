@@ -63,7 +63,7 @@ target_compile_options(PicoMite PRIVATE 	-DPICOMITE
 	                                        -DPICO_FLASH_SIZE_BYTES=16777216 
 	                                        -DPICO_STDIO_USB_ENABLE_RESET_VIA_VENDOR_INTERFACE=0 
 	                                        -DPICO_STACK_SIZE=0x1000 
-	                                        -DPICO_CORE1_STACK_SIZE=0x0 
+	                                        -DPICO_CORE1_STACK_SIZE=0x00 
 	                                        -DPICO_HEAP_SIZE=0x600 
                                         	-O2 
                                             -Wall)

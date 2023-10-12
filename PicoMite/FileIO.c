@@ -2023,8 +2023,8 @@ void CloseAllFiles(void)
 #ifdef PICOMITEVGA
     closeall3d();
     closeallsprites();
-    closeframebuffer();
 #endif
+    closeframebuffer();
     for (i = 1; i <= MAXOPENFILES; i++)
     {
         if (FileTable[i].com != 0)

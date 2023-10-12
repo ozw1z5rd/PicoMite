@@ -4508,6 +4508,7 @@ void cmd_framebuffer(void){
         int step=sizeof(1440)/3/w;
         int y_top=(h/step)*step;
         for(int y=0;y<y_top;y+=step){
+            CheckSDCard();
             if(s==NULL)restorepanel();
             else {
                 setframebuffer();
@@ -4522,6 +4523,7 @@ void cmd_framebuffer(void){
             DrawBuffer(x2, y2+y, x2+w-1, y2+y+step-1, LCDBuffer);
         }
         for(int y=y_top;y<h;y++){
+            CheckSDCard();
             if(s==NULL)restorepanel();
             else {
                 setframebuffer();
