@@ -1417,7 +1417,7 @@ void __not_in_flash_func(cmd_exit)(void) {
  
 
 
-void cmd_error(void) {
+/*void cmd_error(void) {
 	unsigned char *s;
 	if(*cmdline && *cmdline != '\'') {
 		s = getCstring(cmdline);
@@ -1433,7 +1433,18 @@ void cmd_error(void) {
 	}
 	else
 		error("");
+}*/
+void cmd_error(void) {
+	unsigned char *s;
+	if(*cmdline && *cmdline != '\'') {
+		s = getCstring(cmdline);
+		// CurrentLinePtr = NULL;                                      // suppress printing the line that caused the issue
+		error((char *) s);
+	}
+	else
+		error("");
 }
+
 
 
 

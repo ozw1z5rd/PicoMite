@@ -2615,6 +2615,87 @@ void __not_in_flash_func(makeargs)(unsigned char **p, int maxargs, unsigned char
 }
 
 
+static void display_string(const char *s, bool fill) {
+    // Indent each line by one space.
+    if (CurrentX == 0) DisplayPutC(' ');
+
+    // Display characters one at a time,
+    for (const char *p = s; *p; ++p) {
+        if (CurrentX + gui_font_width >= HRes) {
+            DisplayPutC(' '); // Leave one space at the end of each line and wrap to the next.
+            DisplayPutC(' '); // Indent each new line by one space.
+            if (*p == ' ') continue; // Skip first space on each new line.
+        }
+        DisplayPutC(*p);
+    }
+
+    // Fill to the end of the line with spaces.
+    if (fill) {
+        while (CurrentX + gui_font_width <= HRes) DisplayPutC(' ');
+        CurrentX = 0;
+        CurrentY += gui_font_height;
+    }
+}
+
+/**
+ * Displays an error message with context on the display.
+ *
+ * @param  line_num   The error line,
+ *                    -1 for the LIBRARY,
+ *                    -2 when error occurs at the prompt.
+ * @param  line_txt   The text of the line that caused the error.
+ * @param  error_msg  The error message.
+ */
+void LCD_error(int line_num, const char *line_txt, const char* error_msg) {
+    if (HRes == 0) return; // No display configured.
+
+    // Always write error to the actual display.
+    restorepanel();
+
+    // Store current property display values.
+    const unsigned char old_console = Option.DISPLAY_CONSOLE;
+    const int old_font = gui_font;
+    // const int old_fcolour = gui_fcolour;
+    // const int old_bcolour = gui_bcolour;
+
+    // Override properties required by DisplayPutC.
+    const int font = 1;
+    Option.DISPLAY_CONSOLE = 1;
+    SetFont(font);
+    gui_fcolour = 0xEE4B2B; // Bright Red.
+    gui_bcolour = 0x0;
+
+    // Display the error message halfway down the display (approx.)
+    const int chars_per_line = (HRes / gui_font_width) - 2;
+    int num_lines = 2;
+    num_lines += strlen(error_msg) / chars_per_line;
+    if (strlen(error_msg) % chars_per_line > 0) num_lines++;
+    num_lines += strlen(line_txt) / chars_per_line;
+    if (strlen(line_txt) % chars_per_line > 0) num_lines++;
+    CurrentX = 0;
+    CurrentY = (VRes / 2) - (num_lines * gui_font_height / 2);
+
+    display_string("", true);
+    display_string("ERROR: ", false);
+    display_string(error_msg, true);
+    if (*line_txt) {
+        char buf[32];
+        if (line_num == -1) {
+            sprintf(buf, "[LIBRARY] ");
+        } else {
+            sprintf(buf, "[%d] ", line_num);
+        }
+        display_string(buf, false);
+        display_string(line_txt, true);
+    }
+    display_string("", true);
+
+    // Restore display property values.
+    SetFont(old_font);
+    Option.DISPLAY_CONSOLE = old_console;
+    gui_fcolour = gui_fcolour;
+    gui_bcolour = gui_bcolour;
+}
 // throw an error
 // displays the error message and aborts the program
 // the message can contain variable text which is indicated by a special character in the message string
@@ -2670,6 +2751,7 @@ void error(char *msg, ...) {
         if(CurrentX != 0) MMPrintString("\r\n");                   // error message should be on a new line
     }
     if(MMCharPos > 1) MMPrintString("\r\n");
+    int line_num = -2;
     if(CurrentLinePtr) {
         tp = p = (char *)ProgMemory;
         if (Option.LIBRARY_FLASH_SIZE==MAX_PROG_SIZE && CurrentLinePtr < LibMemory+MAX_PROG_SIZE)
@@ -2696,41 +2778,39 @@ void error(char *msg, ...) {
        // we now have CurrentLinePtr pointing to the start of the line
 //        dump(CurrentLinePtr, 80);
         llist(tknbuf, CurrentLinePtr);
-        p = (char *)tknbuf; skipspace(p);
-        MMPrintString(MMCharPos > 1 ? "\r\n[" : "[");
-        if(CurrentLinePtr >= ProgMemory && CurrentLinePtr < ProgMemory + MAX_PROG_SIZE ){
-            IntToStr((char *)inpbuf, CountLines(CurrentLinePtr), 10);
-            MMPrintString((char *)inpbuf);
+        p = (char *) tknbuf;
+        skipspace(p);
+        if(CurrentLinePtr >= ProgMemory && CurrentLinePtr < ProgMemory + MAX_PROG_SIZE){
+            line_num = CountLines(CurrentLinePtr);
             StartEditPoint = CurrentLinePtr;
             StartEditChar = 0;
-        } else
-            MMPrintString("LIBRARY");
-        MMPrintString("] ");
-        MMPrintString(p);
-        MMPrintString("\r\n");
-    }
-    char *q=NULL;
-    if(*MMErrMsg=='['){
-        q=MMErrMsg;
-        while((*q)!=' ') {
-            MMputchar(*q,0);
-            q++;
+        } else {
+            line_num = -1;
         }
-        q++;
-        MMputchar(' ',0);
     }
-    MMPrintString("Error");
-    if(q){
-        MMPrintString(" : ");
-        MMPrintString(q);
-        memmove(MMErrMsg,&MMErrMsg[(uint32_t)q-(uint32_t)MMErrMsg],strlen(q)+1);
-        StartEditPoint = SaveCurrentLinePtr;
-        StartEditChar = 0;
-    } else if(*MMErrMsg) {
-        MMPrintString(" : ");
-        MMPrintString(MMErrMsg);
+
+    // Print the line.
+    if (line_num != -2) {
+        if (line_num == -1) {
+            sprintf(tstr, "[LIBRARY] %s\r\n", p);
+        } else {
+            sprintf(tstr, "[%d] %s\r\n", line_num, p);
+        }
+        MMPrintString(tstr);
     }
-    MMPrintString("\r\n");
+
+    // Print the error message.
+    if (*MMErrMsg) {
+        sprintf(tstr, "Error : %s\r\n", MMErrMsg);
+    } else {
+        sprintf(tstr, "Error");
+    }
+    MMPrintString(tstr);
+    #ifndef PICOMITEVGA
+    if (!Option.DISPLAY_CONSOLE && Option.DISPLAY_TYPE) {
+        LCD_error(line_num, p, MMErrMsg);
+    }
+    #endif
     cmd_end();
 }
 
