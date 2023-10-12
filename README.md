@@ -8,7 +8,7 @@ anything/pico-sdk
 
 anything/PicoMite/all source and header files
 
-The code is developed under VSCODE on W11 using GCC 12.2.1 arm-none-eabi
+The code is developed under VSCODE on W11 using GCC 12.3.1 arm-none-eabi
 
 Compiled version and documentation is available on https://geoffg.net/picomite.html
 
