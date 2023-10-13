@@ -23,65 +23,6 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 
 ************************************************************************************************************************/
 
-
-
-/**********************************************************************************
- the C language function associated with commands, functions or operators should be
- declared here
-**********************************************************************************/
-#if !defined(INCLUDE_COMMAND_TABLE) && !defined(INCLUDE_TOKEN_TABLE)
-// format:
-//      void cmd_???(void)
-//      void fun_???(void)
-//      void op_???(void)
-
-int getinttblpos(int tbl[],int pin);
-void cmd_setpin(void);
-void cmd_pulse(void);
-void cmd_pwm(void);
-void cmd_pin(void);
-void fun_pin(void);
-
-void cmd_port(void);
-void fun_port(void);
-void cmd_adc(void);
-void cmd_ir(void);
-void cmd_lcd(unsigned char *p);
-void cmd_keypad(void);
-void fun_distance(void);
-void fun_pulsin(void);
-void cmd_backlight(void);
-void cmd_bitbang(void);
-void cmd_sync(void);
-#endif
-
-
-
-/**********************************************************************************
- All command tokens tokens (eg, PRINT, FOR, etc) should be inserted in this table
-**********************************************************************************/
-#ifdef INCLUDE_COMMAND_TABLE
-// the format is:
-//    TEXT      	TYPE                P  FUNCTION TO CALL
-// where type is always T_CMD
-// and P is the precedence (which is only used for operators and not commands)
-
-  { (unsigned char *)"ADC",		T_CMD,			0, cmd_adc        },
-  { (unsigned char *)"Pin(",		T_CMD | T_FUN,		0, cmd_pin          },
-	{ (unsigned char *)"SetPin",		T_CMD,			0, cmd_setpin       },
-	{ (unsigned char *)"Pulse",		T_CMD,			0, cmd_pulse        },
-	{ (unsigned char *)"Port(",		T_CMD | T_FUN,		0, cmd_port	    },
-	{ (unsigned char *)"IR",                 T_CMD,			0, cmd_ir           },
-	{ (unsigned char *)"KeyPad",             T_CMD,			0, cmd_keypad       },
-	{ (unsigned char *)"Bitbang",              T_CMD,			0, cmd_bitbang        },
-	{ (unsigned char *)"PWM",		T_CMD,		0, cmd_pwm		},
-	{ (unsigned char *)"SYNC",              T_CMD,			0, cmd_sync        },
-#ifndef PICOMITEVGA
-	{ (unsigned char *)"Backlight",		T_CMD,		0, cmd_backlight		},
-#endif
-#endif
-
-
 /**********************************************************************************
  All other tokens (keywords, functions, operators) should be inserted in this table
 **********************************************************************************/
@@ -90,10 +31,6 @@ void cmd_sync(void);
 //    TEXT      	TYPE                P  FUNCTION TO CALL
 // where type is T_NA, T_FUN, T_FNA or T_OPER argumented by the types T_STR and/or T_NBR
 // and P is the precedence (which is only used for operators)
-	{ (unsigned char *)"Pin(",		T_FUN | T_NBR | T_INT,	0, fun_pin		},
-	{ (unsigned char *)"Port(",		T_FUN | T_INT,		0, fun_port		},
-	{ (unsigned char *)"Distance(",		T_FUN | T_NBR,		0, fun_distance		},
-	{ (unsigned char *)"Pulsin(",		T_FUN | T_INT,		0, fun_pulsin		},
 
 #endif
 

@@ -27,37 +27,6 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 #include "configuration.h"
 
 /**********************************************************************************
- the C language function associated with commands, functions or operators should be
- declared here
-**********************************************************************************/
-#if !defined(INCLUDE_COMMAND_TABLE) && !defined(INCLUDE_TOKEN_TABLE)
-// format:
-//      void cmd_???(void)
-//      void fun_???(void)
-//      void op_???(void)
-
-void cmd_memory(void);
-
-#endif
-
-
-
-
-/**********************************************************************************
- All command tokens tokens (eg, PRINT, FOR, etc) should be inserted in this table
-**********************************************************************************/
-#ifdef INCLUDE_COMMAND_TABLE
-// the format is:
-//    TEXT      	TYPE                P  FUNCTION TO CALL
-// where type is always T_CMD
-// and P is the precedence (which is only used for operators and not commands)
-
-	{ (unsigned char *)"Memory",		T_CMD,				0, cmd_memory	},
-
-#endif
-
-
-/**********************************************************************************
  All other tokens (keywords, functions, operators) should be inserted in this table
 **********************************************************************************/
 #ifdef INCLUDE_TOKEN_TABLE

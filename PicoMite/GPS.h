@@ -24,16 +24,8 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 ************************************************************************************************************************/
 #include "configuration.h"
 #if !defined(INCLUDE_COMMAND_TABLE) && !defined(INCLUDE_TOKEN_TABLE)
-void fun_GPS(void);
 #endif
-/**********************************************************************************
- All other tokens (keywords, functions, operators) should be inserted in this table
-**********************************************************************************/
-#ifdef INCLUDE_TOKEN_TABLE
 
-	{ (unsigned char *)"GPS(",	    T_FUN | T_NBR | T_INT| T_STR,		0, fun_GPS	},
-
-#endif
 #if !defined(INCLUDE_COMMAND_TABLE) && !defined(INCLUDE_TOKEN_TABLE)
 // General definitions used by other modules        
 #ifndef MINMEA_H

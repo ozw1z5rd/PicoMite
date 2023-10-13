@@ -23,108 +23,10 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 
 ************************************************************************************************************************/
 
-
-
-/**********************************************************************************
- the C language function associated with commands, functions or operators should be
- declared here
-**********************************************************************************/
-#if !defined(INCLUDE_COMMAND_TABLE) && !defined(INCLUDE_TOKEN_TABLE)
-// format:
-//      void cmd_???(void)
-//      void fun_???(void)
-//      void op_???(void)
-void cmd_text(void);
-void cmd_pixel(void);
-void cmd_circle(void);
-void cmd_line(void);
-void cmd_box(void);
-void cmd_rbox(void);
-void cmd_arc(void) ;
-void cmd_triangle(void);
-void cmd_blit(void);
-void fun_pixel(void);
-void fun_getscanline(void);
-void cmd_cls(void);
-void cmd_font(void);
-void cmd_colour(void);
-void cmd_refresh(void);
-void cmd_polygon(void);
-void cmd_gui(void);
-void cmd_tile(void);
-void cmd_mode(void);
-void cmd_3D(void);
-void cmd_framebuffer(void);
-
-void fun_rgb(void);
-void fun_mmhres(void);
-void fun_mmvres(void);
-void fun_mmcharwidth(void);
-void fun_mmcharheight(void);
-void fun_at(void);
-void fun_pixel(void);
-void fun_getscanline(void);
-void fun_3D(void);
-void fun_sprite(void);
-#endif
-
-
-
-
-/**********************************************************************************
- All command tokens tokens (eg, PRINT, FOR, etc) should be inserted in this table
-**********************************************************************************/
-#ifdef INCLUDE_COMMAND_TABLE
-// the format is:
-//    TEXT      	TYPE                P  FUNCTION TO CALL
-// where type is always T_CMD
-// and P is the precedence (which is only used for operators and not commands)
-	{ (unsigned char *)"Text",           T_CMD,                      0, cmd_text	},
-	{ (unsigned char *)"Pixel",          T_CMD,                      0, cmd_pixel	},
-	{ (unsigned char *)"Circle",         T_CMD,                      0, cmd_circle	},
-	{ (unsigned char *)"Line",           T_CMD,                      0, cmd_line	},
-	{ (unsigned char *)"Box",            T_CMD,                      0, cmd_box	},
-	{ (unsigned char *)"RBox",           T_CMD,                      0, cmd_rbox	},
-	{ (unsigned char *)"CLS",            T_CMD,                      0, cmd_cls	},
-	{ (unsigned char *)"Font",           T_CMD,                      0, cmd_font	},
-	{ (unsigned char *)"Colour",         T_CMD,                      0, cmd_colour	},
-  	{ (unsigned char *)"Triangle",       T_CMD,                      0, cmd_triangle   },
-	{ (unsigned char *)"Arc",            T_CMD,                      0, cmd_arc	},
-	{ (unsigned char *)"Polygon",        T_CMD,                  	0, cmd_polygon	},
-  	{ (unsigned char *)"FRAMEBUFFER",     T_CMD,                     0, cmd_framebuffer   },
-#ifdef PICOMITEVGA
-  	{ (unsigned char *)"GUI",            T_CMD,                      0, cmd_guiMX170   },
-  	{ (unsigned char *)"TILE",            T_CMD,                     0, cmd_tile   },
-  	{ (unsigned char *)"MODE",            T_CMD,                     0, cmd_mode   },
-    { (unsigned char *)"Draw3D",         T_CMD,                      0, cmd_3D },
-	{ (unsigned char *)"Sprite",           T_CMD,                      0, cmd_blit	},
-#else
-#ifndef PICOMITEWEB
-  	{ (unsigned char *)"GUI",            T_CMD,                      0, cmd_gui   },
-#else
-  	{ (unsigned char *)"GUI",            T_CMD,                      0, cmd_guiMX170   },
-#endif
-	{ (unsigned char *)"Refresh",        T_CMD,                      0, cmd_refresh	},
-	{ (unsigned char *)"Blit",           T_CMD,                      0, cmd_blit	},
-#endif
-
-#endif
-
-
 /**********************************************************************************
  All other tokens (keywords, functions, operators) should be inserted in this table
 **********************************************************************************/
 #ifdef INCLUDE_TOKEN_TABLE
-	{ (unsigned char *)"RGB(",           	T_FUN | T_INT,		0, fun_rgb	        },
-	{ (unsigned char *)"Pixel(",           	T_FUN | T_INT,		0, fun_pixel	        },
-	{ (unsigned char *)"MM.HRes",	    	T_FNA | T_INT,		0, fun_mmhres 	    },
-	{ (unsigned char *)"MM.VRes",	    	T_FNA | T_INT,		0, fun_mmvres 	    },
-	{ (unsigned char *)"@(",				T_FUN | T_STR,		0, fun_at		},
-#ifdef PICOMITEVGA
-	{ (unsigned char*)"DRAW3D(",	    T_FUN | T_INT,		0, fun_3D, },
-	{ (unsigned char *)"GetScanLine",	    	T_FNA | T_INT,		0, fun_getscanline 	    },
-	{ (unsigned char*)"sprite(",	    T_FUN | T_INT | T_NBR,		0, fun_sprite },
-#endif
 //	{ (unsigned char *)"MM.FontWidth",   T_FNA | T_INT,		0, fun_mmcharwidth 	},
 //	{ (unsigned char *)"MM.FontHeight",  T_FNA | T_INT,		0, fun_mmcharheight },
 // the format is:

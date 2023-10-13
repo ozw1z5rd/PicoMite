@@ -80,7 +80,7 @@ void __not_in_flash_func(cmd_null)(void) {
 	// do nothing (this is just a placeholder for commands that have no action)
 }
 
-void cmd_inc(void){
+void __not_in_flash_func(cmd_inc)(void){
 	unsigned char *p, *q;
     int vtype;
 	getargs(&cmdline,3,(unsigned char *)",");

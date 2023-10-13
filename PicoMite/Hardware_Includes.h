@@ -22,7 +22,7 @@ LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON A
 OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. 
 
 ************************************************************************************************************************/
-
+#include "AllCommands.h"
 #include "Memory.h"
 #include "hardware/watchdog.h"
 #include "pico/stdlib.h"
@@ -43,39 +43,6 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 #include "configuration.h"
 #include "FileIO.h"
 #include "ff.h"
-void cmd_open(void);
-void cmd_close(void);
-void cmd_files(void);
-void cmd_mkdir(void);
-void cmd_rmdir(void);
-void cmd_chdir(void);
-void cmd_kill(void);
-void cmd_copy(void);
-void cmd_name(void);
-void cmd_exitmmb(void);
-void cmd_pause(void);
-void cmd_timer(void);
-void cmd_copyright(void);
-void cmd_seek(void);
-void cmd_library(void);
-
-void fun_eof(void);
-void fun_loc(void);
-void fun_lof(void);
-void fun_cwd(void);
-void fun_inputstr(void);
-void fun_mmfname(void);
-void fun_dir(void);
-void fun_date(void);
-void fun_time(void);
-void fun_timer(void);
-void fun_device(void);
-void cmd_date(void);
-void cmd_time(void);
-void cmd_flash(void);
-void cmd_var(void);
-void cmd_flush(void);
-void cmd_disk(void);
 // global variables used in MMBasic but must be maintained outside of the interpreter
 extern int MMerrno;
 extern int ListCnt;
@@ -155,6 +122,8 @@ extern void PInt(int64_t n);
 extern void PIntComma(int64_t n);
 extern void SRet(void);
 extern void SInt(int64_t n);
+extern void SPIClose(void);
+extern void SPI2Close(void);
 extern void SIntComma(int64_t n);
 extern void PIntH(unsigned long long int n);
 extern void PIntB(unsigned long long int n);
@@ -301,54 +270,6 @@ extern struct tagMTRand *g_myrand;
 #define ALARM_NUM 0
 #define ALARM_IRQ TIMER_IRQ_0
 
-
-/**********************************************************************************
- All command tokens tokens (eg, PRINT, FOR, etc) should be inserted in this table
-**********************************************************************************/
-#ifdef INCLUDE_COMMAND_TABLE
-// the format is:
-//    TEXT      	TYPE                P  FUNCTION TO CALL
-// where type is always T_CMD
-// and P is the precedence (which is only used for operators and not commands)
-
-
-	{ (unsigned char *)"Open",		T_CMD,				0, cmd_open		},
-	{ (unsigned char *)"Close",		T_CMD,				0, cmd_close	},
-	{ (unsigned char *)"Kill",		T_CMD,				0, cmd_kill		},
-	{ (unsigned char *)"Rmdir",		T_CMD,				0, cmd_rmdir	},
-	{ (unsigned char *)"Chdir",		T_CMD,				0, cmd_chdir	},
-	{ (unsigned char *)"Mkdir",		T_CMD,				0, cmd_mkdir	},
-	{ (unsigned char *)"Copy",		T_CMD,				0, cmd_copy		},
-	{ (unsigned char *)"Rename",	T_CMD,				0, cmd_name		},
-	{ (unsigned char *)"Seek",		T_CMD,				0, cmd_seek     },
-//	{ (unsigned char *)"Files",		T_CMD,				0, cmd_files    },
-	{ (unsigned char *)"Flash",		T_CMD,				0, cmd_flash    },
-	{ (unsigned char *)"VAR",		T_CMD,				0, cmd_var     	},
-	{ (unsigned char *)"Flush",		T_CMD,				0, cmd_flush    },
-	{ (unsigned char *)"Drive",		T_CMD,				0, cmd_disk     },
-
-
-#endif
-
-
-/**********************************************************************************
- All other tokens (keywords, functions, operators) should be inserted in this table
-**********************************************************************************/
-#ifdef INCLUDE_TOKEN_TABLE
-// the format is:
-//    TEXT      	TYPE                P  FUNCTION TO CALL
-// where type is T_NA, T_FUN, T_FNA or T_OPER argumented by the types T_STR and/or T_NBR
-// and P is the precedence (which is only used for operators)
-  	{ (unsigned char *)"Eof(",   T_FUN | T_INT,      0, fun_eof      },
-  	{ (unsigned char *)"Loc(",   T_FUN | T_INT,      0, fun_loc      },
-  	{ (unsigned char *)"Lof(",   T_FUN | T_INT,      0, fun_lof      },
-	{ (unsigned char *)"Cwd$",		T_FNA | T_STR,		0, fun_cwd		},
-	{ (unsigned char *)"As",			T_NA,			0, op_invalid	},
-	{ (unsigned char *)"Input$(",	T_FUN | T_STR,		0, fun_inputstr	},
-	{ (unsigned char *)"Dir$(",		T_FUN | T_STR,		0, fun_dir		},
-
-
-#endif
 #include "External.h"
 #include "MM_Misc.h"
 #include "Editor.h"

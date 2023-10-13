@@ -3454,7 +3454,7 @@ void fun_info(void){
         targ=T_STR; 
 		memset(&djd,0,sizeof(DIR));
 		memset(&fnod,0,sizeof(FILINFO));
-		char *p = (char *)getCstring(tp);
+		char *p = (char *)getFstring(tp);
         char q[FF_MAX_LFN]={0};
         int waste=0, t=FatFSFileSystem+1;
         t = drivecheck(p,&waste);
@@ -3932,7 +3932,7 @@ unsigned int GetCFunAddr(int *ip, int i,unsigned char *offset) {
 
 
 // utility function used by fun_peek() to validate an address
-unsigned int GetPeekAddr(unsigned char *p) {
+unsigned int __not_in_flash_func(GetPeekAddr)(unsigned char *p) {
     unsigned int i;
     i = getinteger(p);
 //    if(!PEEKRANGE(i)) error("Address");
@@ -3947,6 +3947,21 @@ void fun_peek(void) {
     unsigned char *p;
     void *pp;
     getargs(&ep, 3, (unsigned char *)",");
+    if((p = checkstring(argv[0], (unsigned char *)"BYTE"))){
+        if(argc != 1) error("Syntax");
+        iret = *(unsigned char *)GetPeekAddr(p);
+        targ = T_INT;
+        return;
+    }
+
+    if((p = checkstring(argv[0], (unsigned char *)"VARADDR"))){
+        if(argc != 1) error("Syntax");
+        pp = findvar(p, V_FIND | V_EMPTY_OK | V_NOFIND_ERR);
+        iret = (unsigned int)pp;
+        targ = T_INT;
+        return;
+        }
+
     if((p = checkstring(argv[0], (unsigned char *)"BP"))){
         if(argc != 1) error("Syntax");
         findvar(p, V_FIND  | V_NOFIND_ERR);
@@ -3976,13 +3991,6 @@ void fun_peek(void) {
         targ = T_INT;
         return;
     }
-    if((p = checkstring(argv[0], (unsigned char *)"BYTE"))){
-        if(argc != 1) error("Syntax");
-        iret = *(unsigned char *)GetPeekAddr(p);
-        targ = T_INT;
-        return;
-        }
-
     if((p = checkstring(argv[0], (unsigned char *)"VAR"))){
         pp = findvar(p, V_FIND | V_EMPTY_OK | V_NOFIND_ERR);
         iret = *((char *)pp + (int)getinteger(argv[2]));
@@ -3990,14 +3998,6 @@ void fun_peek(void) {
         return;
     }
     
-    if((p = checkstring(argv[0], (unsigned char *)"VARADDR"))){
-        if(argc != 1) error("Syntax");
-        pp = findvar(p, V_FIND | V_EMPTY_OK | V_NOFIND_ERR);
-        iret = (unsigned int)pp;
-        targ = T_INT;
-        return;
-        }
-
     if((p = checkstring(argv[0], (unsigned char *)"VARHEADER"))){
         if(argc != 1) error("Syntax");
         pp = findvar(p, V_FIND | V_EMPTY_OK | V_NOFIND_ERR);

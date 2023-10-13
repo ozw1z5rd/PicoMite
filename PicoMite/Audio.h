@@ -30,7 +30,6 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  declared here
 **********************************************************************************/
 #if !defined(INCLUDE_COMMAND_TABLE) && !defined(INCLUDE_TOKEN_TABLE)
-    void cmd_play(void);
 //    void cmd_tts(void);
     void CloseAudio(int all);
     void StopAudio(void);
@@ -40,27 +39,6 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 #endif
 
 
-
-
-/**********************************************************************************
- All command tokens tokens (eg, PRINT, FOR, etc) should be inserted in this table
-**********************************************************************************/
-#ifdef INCLUDE_COMMAND_TABLE
-	{ (unsigned char *)"Play",        	T_CMD,				0, cmd_play	    },
-//	{ "TTS",        	T_CMD,				0, cmd_tts	    },
-#endif
-
-
-/**********************************************************************************
- All other tokens (keywords, functions, operators) should be inserted in this table
-**********************************************************************************/
-#ifdef INCLUDE_TOKEN_TABLE
-// the format is:
-//    TEXT      	TYPE                P  FUNCTION TO CALL
-// where type is T_NA, T_FUN, T_FNA or T_OPER augmented by the types T_STR and/or T_NBR
-// and P is the precedence (which is only used for operators)
-
-#endif
 #if !defined(INCLUDE_COMMAND_TABLE) && !defined(INCLUDE_TOKEN_TABLE)
 // General definitions used by other modules
 

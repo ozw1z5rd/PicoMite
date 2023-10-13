@@ -23,45 +23,6 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 
 ************************************************************************************************************************/
 
-//#define INCLUDE_I2C_SLAVE                                           // uncomment this to include i2c slave functions
-
-/**********************************************************************************
- the C language function associated with commands, functions or operators should be
- declared here
-**********************************************************************************/
-#if !defined(INCLUDE_COMMAND_TABLE) && !defined(INCLUDE_TOKEN_TABLE)
-
-
-void cmd_i2c(void);
-void cmd_i2c2(void);
-void cmd_rtc(void);
-void fun_mmi2c(void);
-
-#endif
-
-
-
-
-/**********************************************************************************
- All command tokens tokens (eg, PRINT, FOR, etc) should be inserted in this table
-**********************************************************************************/
-#ifdef INCLUDE_COMMAND_TABLE
-
-	{ (unsigned char *)"I2C",	T_CMD,		0, cmd_i2c              },
-	{ (unsigned char *)"I2C2",	T_CMD,		0, cmd_i2c2              },
-  	{ (unsigned char *)"RTC",    T_CMD,      0, cmd_rtc              },
-#endif
-
-
-/**********************************************************************************
- All other tokens (keywords, functions, operators) should be inserted in this table
-**********************************************************************************/
-#ifdef INCLUDE_TOKEN_TABLE
-
-	{ (unsigned char *)"MM.I2C",	T_FNA | T_INT,	0, fun_mmi2c		},
-#endif
-
-
 
 #if !defined(INCLUDE_COMMAND_TABLE) && !defined(INCLUDE_TOKEN_TABLE)
 #ifndef I2C_HEADER

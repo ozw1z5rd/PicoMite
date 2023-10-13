@@ -50,8 +50,6 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 //      void cmd_???(void)
 //      void fun_???(void)
 //      void op_???(void)
-void cmd_pio(void);
-void fun_pio(void);
 #ifdef PICOMITE
 extern uint8_t pioTXlast[4][2];
 extern char *pioRXinterrupts[4][2];
@@ -68,9 +66,7 @@ extern char *pioTXinterrupts[4];
     extern void open_udp_server(void);
     extern volatile int TCPreceived;
     extern char *TCPreceiveInterrupt;
-    extern void fun_json(void);
     extern void TelnetPutC(int c,int flush);
-    void cmd_web(void);
     extern int cmd_mqtt(void);
     extern void cmd_ntp(unsigned char *tp);
     extern void cmd_udp(unsigned char *tp);
@@ -142,35 +138,4 @@ extern int dirOK;
 
 #endif
 
-
-
-
-/**********************************************************************************
- All command tokens tokens (eg, PRINT, FOR, etc) should be inserted in this table
-**********************************************************************************/
-#ifdef INCLUDE_COMMAND_TABLE
-// the format is:
-//    TEXT      	TYPE                P  FUNCTION TO CALL
-// where type is always T_CMD
-// and P is the precedence (which is only used for operators and not commands)
-{ (unsigned char *)"PIO",            T_CMD,                      0, cmd_pio	},
-#ifdef PICOMITEWEB
-{ (unsigned char *)"WEB",            T_CMD,                      0, cmd_web	},
-#endif
-#endif
-
-
-/**********************************************************************************
- All other tokens (keywords, functions, operators) should be inserted in this table
-**********************************************************************************/
-#ifdef INCLUDE_TOKEN_TABLE
-// the format is:
-//    TEXT      	TYPE                P  FUNCTION TO CALL
-// where type is T_NA, T_FUN, T_FNA or T_OPER augmented by the types T_STR and/or T_NBR
-// and P is the precedence (which is only used for operators)
-	{ (unsigned char *)"Pio(",		T_FUN  | T_INT,			0, fun_pio		},
-#ifdef PICOMITEWEB
-	{ (unsigned char *)"Json$(",		T_FUN | T_STR,          0, fun_json		},
-#endif
-#endif
 

@@ -24,48 +24,11 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 ************************************************************************************************************************/
 
 
-
-/**********************************************************************************
- the C language function associated with commands, functions or operators should be
- declared here
-**********************************************************************************/
-#if !defined(INCLUDE_COMMAND_TABLE) && !defined(INCLUDE_TOKEN_TABLE)
-
-void cmd_backlight(void);
-void cmd_ctrlval(void);
-void cmd_GUIpage(unsigned char *p);
-
-void fun_msgbox(void);
-void fun_ctrlval(void);
-void fun_mmhpos(void);
-void fun_mmvpos(void);
-
-
-#endif
-
-
-
-
-/**********************************************************************************
- All command tokens tokens (eg, PRINT, FOR, etc) should be inserted in this table
-**********************************************************************************/
-#ifdef INCLUDE_COMMAND_TABLE
-
-//  { "BackLight",      T_CMD,                      0, cmd_backlight  },
-  { (unsigned char *)"CtrlVal(",       T_CMD | T_FUN,              0, cmd_ctrlval    },
-
-#endif
-
-
 /**********************************************************************************
  All other tokens (keywords, functions, operators) should be inserted in this table
 **********************************************************************************/
 #ifdef INCLUDE_TOKEN_TABLE
 
-  { (unsigned char *)"MsgBox(",        T_FUN | T_INT,              0, fun_msgbox     },
-  { (unsigned char *)"CtrlVal(",       T_FUN | T_NBR | T_STR,      0, fun_ctrlval    },
-  { (unsigned char *)"MM.HPos",        T_FNA | T_INT,              0, fun_mmhpos     },
-  { (unsigned char *)"MM.VPos",        T_FNA | T_INT,              0, fun_mmvpos     },
 
 #endif
 

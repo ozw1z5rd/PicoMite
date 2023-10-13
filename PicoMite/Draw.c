@@ -44,6 +44,7 @@ void SaveTriangle(int bnbr, char *buff);
 void RestoreTriangle(int bnbr, char *buff);
 void ReadLine(int x1,int y1,int x2,int y2, char *buff);
 void cmd_RestoreTriangle(unsigned char *p);
+void copyframetoscreen(uint8_t *s,int xstart, int xend, int ystart, int yend, int odd);
 typedef struct _BMPDECODER
 {
         LONG lWidth;
@@ -2628,6 +2629,23 @@ static inline char getnextnibble(char **fc, int reset){
     return out;
 }
 void docompressed(char *fc,int x1, int y1, int w, int h, int8_t blank){
+#ifndef PICOMITEVGA
+    if(!WriteBuf){ //direct to screen
+        char c, tobuff[w/2], *to;
+        c=getnextnibble(&fc,1); //reset the decoder
+        for(int y=y1;y<y1+h;y++){
+            to=tobuff;
+            for(int x=x1;x<x1+w;x+=2){
+                c=getnextnibble(&fc,0);
+                c|=(getnextnibble(&fc,0)<<4);
+                if(y<0 || y>=VRes)continue;
+                if(x>=0 && x<HRes)*to=c;
+                to++;
+            }
+            copyframetoscreen((unsigned char *)tobuff,x1, x1+w-1, y, y, 0);            
+        }
+    } else 
+#endif
     if(x1 %2 == 0 && w % 2 == 0 && blank==-1){
         char c, *to;
         c=getnextnibble(&fc,1); //reset the decoder
@@ -2687,7 +2705,7 @@ int blitother(void){
         int8_t blank=-1;
         getargs(&p, 7, (unsigned char*)",");
         if(argc<5)error("Syntax");
-        if(!WriteBuf)error("Must operate on framebuffer or VGA colour display");
+        if(!WriteBuf && argc==7)error("Must operate on framebuffer or VGA colour display");
         char *from=(char *)GetPeekAddr(argv[0]);
         x1 = (int)getinteger(argv[2]);
         y1 = (int)getinteger(argv[4]);
@@ -2699,6 +2717,21 @@ int blitother(void){
         if(size[0] & 0x8000 || size[1] &  0x8000) {
             docompressed(from, x1, y1, w, h, blank);
         } else {
+#ifndef PICOMITEVGA
+            if(!WriteBuf){
+                char c, *to, tobuff[w/2];
+                for(int y=y1;y<y1+h;y++){
+                    to=tobuff;
+                    for(int x=x1;x<x1+w;x+=2){
+                        c=*from++;
+                        if(y<0 || y>=VRes)continue;
+                        if(x>=0 && x<HRes)*to=c;
+                        to++;
+                    }               
+                    copyframetoscreen((unsigned char *)tobuff,x1, x1+w-1, y, y, 0);            
+                }
+            } else 
+#endif
             if(x1 %2 == 0 && w % 2 == 0 && blank==-1){
                 char c, *to;
                 for(int y=y1;y<y1+h;y++){
@@ -2753,7 +2786,7 @@ int blitother(void){
         int8_t blank=-1;
         getargs(&p, 7, (unsigned char*)",");
         if(argc<5)error("Syntax");
-        if(!WriteBuf)error("Must operate on framebuffer or VGA colour display");
+        if(!WriteBuf && argc==7)error("Must operate on framebuffer or VGA colour display");
         char *fc=(char *)GetPeekAddr(argv[0]);
         x1 = (int)getinteger(argv[2]);
         y1 = (int)getinteger(argv[4]);
@@ -4432,7 +4465,7 @@ void closeframebuffer(void){
     WriteBuf=NULL;
     restorepanel();
 }
-void copyframetoscreen(uint8_t *s,int xstart, int xend, int ystart, int yend){
+void copyframetoscreen(uint8_t *s,int xstart, int xend, int ystart, int yend, int odd){
     static const int framemap[16]={
         BLACK,BLUE,MYRTLE,COBALT,MIDGREEN,CERULEAN,GREEN,CYAN,RED,MAGENTA,RUST,FUCHSIA,BROWN,LILAC,YELLOW,WHITE
     };
@@ -4471,6 +4504,12 @@ void copyframetoscreen(uint8_t *s,int xstart, int xend, int ystart, int yend){
     i=(xend-xstart+1)*(yend-ystart+1);
     if(Option.DISPLAY_TYPE>I2C_PANEL && Option.DISPLAY_TYPE<BufferedPanel ){
         if(PinDef[Option.SYSTEM_CLK].mode & SPI0SCK){
+            if(odd){
+                c=map[(*s & 0xF0)>>4];
+                spi_write_fast(spi0,(uint8_t *)&c,cnt);
+                s++;
+                i--;
+            }
             while(i>0){
                 c=map[*s & 0xF];
                 spi_write_fast(spi0,(uint8_t *)&c,cnt);
@@ -4482,6 +4521,12 @@ void copyframetoscreen(uint8_t *s,int xstart, int xend, int ystart, int yend){
                 i-=2;
             }
         } else {
+            if(odd){
+                c=map[(*s & 0xF0)>>4];
+                spi_write_fast(spi1,(uint8_t *)&c,cnt);
+                s++;
+                i--;
+            }
             while(i>0){
                 c=map[*s & 0xF];
                 spi_write_fast(spi1,(uint8_t *)&c,cnt);
@@ -4497,6 +4542,17 @@ void copyframetoscreen(uint8_t *s,int xstart, int xend, int ystart, int yend){
         else spi_finish(spi1);
         ClearCS(Option.LCD_CS);                  //set CS high
     } else {
+        if(odd){
+            c=map[(*s & 0xF0)>>4];
+            gpio_put_masked(0b11111111,(c >> 16));
+            nop;gpio_put(SSD1963_WR_GPPIN,0);nop;nop;gpio_put(SSD1963_WR_GPPIN,1);
+            gpio_put_masked(0b11111111,(c >> 8));
+            nop;gpio_put(SSD1963_WR_GPPIN,0);nop;nop;gpio_put(SSD1963_WR_GPPIN,1);
+            nop;gpio_put_masked(0b11111111,c);
+            gpio_put(SSD1963_WR_GPPIN,0);nop;nop;gpio_put(SSD1963_WR_GPPIN,1);
+            s++;
+            i--;
+        }
         while(i>0){
             c=map[*s & 0xF];
             gpio_put_masked(0b11111111,(c >> 16));
@@ -4541,6 +4597,71 @@ void cmd_framebuffer(void){
             setframebuffer();
         }
         else error("Syntax");
+#ifndef PICOMITEVGA
+    } else if((p=checkstring(cmdline, (unsigned char *)"MERGE"))) { //merge the layer onto the physical display
+        if(!LayerBuf)error("Layer not created");
+        uint8_t *s=LayerBuf;
+        uint8_t *ss=s,*sss;
+        int w=0, singlepixel=0;
+        for(int y=0;y<VRes;y++){
+            ss=s+y*HRes/2;
+            int x1=0;
+            while(x1<HRes){
+                while(1){ // skip empty pixels
+                    if(*ss & 0xf){
+                        sss=ss;
+                        singlepixel=0;
+                        w=1;
+                        if(*ss & 0xf0){
+                            sss=ss;
+                            w++;
+                            ss++;
+                        } else {
+                            singlepixel=1;
+                            ss++;
+                        }
+                        break;
+                    } else if(*ss & 0xF0){
+                        sss=ss;
+                        singlepixel=0;
+                        w=1;
+                        x1++;
+                        ss++;
+                        break;
+                    } else {
+                        ss++;
+                        x1+=2;
+                    }
+                    if(x1>=HRes)break;
+                }
+                if(x1>=HRes)continue;
+    // ss now points to next location and x to where on screen the data starts
+    // w is set to 1 or 2 depending on which is the first pixel (odd or even x)
+    // singlepixel is set if x is even and x+1 is blank
+                if(singlepixel){
+                    copyframetoscreen(sss,x1,x1,y,y,0);
+                    x1+=2;
+                } else {
+                    while(1){ 
+                        if(*ss & 0xf){ //first nibble populated
+                            w++;
+                            if(*ss & 0xf0){ //second nibble also populated
+                                w++;
+                            } 
+                            ss++;
+                            if((x1+w)>=HRes)break;
+                        } else {
+                            ss++;
+                            break;
+                        }
+                    }
+                    copyframetoscreen(sss,x1,x1+w-1,y,y,(x1 & 1));
+                    x1+=(w+2);
+                    if(x1&1)x1++;
+                }
+            }
+        }
+#endif
     } else if((p=checkstring(cmdline, (unsigned char *)"LAYER"))) {
         if(LayerBuf==NULL){
             LayerBuf=GetMemory(HRes*VRes/2);
@@ -4591,16 +4712,16 @@ void cmd_framebuffer(void){
         if(w < 1 || h < 1 || x1 < 0 || x1 + w > HRes || x2 < 0 || x2 + w > HRes || y1 < 0 || y1 + h > VRes || y2 < 0 || y2 + h > VRes) return;
         if(x1==0 && x2==0 && w==HRes && d==NULL && (s==LayerBuf || s==FrameBuf)){
             s+=y1*HRes/2;
-            copyframetoscreen(s,0,HRes-1,y2,y2+h-1);
+            copyframetoscreen(s,0,HRes-1,y2,y2+h-1,0);
         } else if(x1==0 && x2==0 && w==HRes && d!=NULL && s!=NULL){
             s+=y1*HRes/2;
             d+=y2*HRes/2;
             memmove(d,s,h*HRes/2);
-        } else if((x1 & 1) == 0 && d==NULL /*&& (w & 1)==0 */&& (s==LayerBuf || s==FrameBuf)){
+        } else if(d==NULL && (s==LayerBuf || s==FrameBuf)){
             uint8_t *ss;
             for(int yi=y1,yo=y2;yi<y1+h;yi++,yo++){
                 ss=s+x1/2+yi*HRes/2;
-                copyframetoscreen(ss,x2,x2+w-1,yo,yo);
+                copyframetoscreen(ss,x2,x2+w-1,yo,yo,(x1 & 1));
             }
         } else {
             unsigned char *LCDBuffer=GetTempMemory(1440);
@@ -4699,7 +4820,7 @@ void cmd_framebuffer(void){
                         multicore_fifo_push_blocking((uint32_t)s);
                     } else {
 #endif
-                        copyframetoscreen(s,0,HRes-1,0,VRes-1);
+                        copyframetoscreen(s,0,HRes-1,0,VRes-1,0);
 #ifdef PICOMITE
                     }
 #endif

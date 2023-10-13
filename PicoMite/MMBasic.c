@@ -2655,8 +2655,8 @@ void LCD_error(int line_num, const char *line_txt, const char* error_msg) {
     // Store current property display values.
     const unsigned char old_console = Option.DISPLAY_CONSOLE;
     const int old_font = gui_font;
-    // const int old_fcolour = gui_fcolour;
-    // const int old_bcolour = gui_bcolour;
+    const int old_fcolour = gui_fcolour;
+    const int old_bcolour = gui_bcolour;
 
     // Override properties required by DisplayPutC.
     const int font = 1;
@@ -2693,8 +2693,8 @@ void LCD_error(int line_num, const char *line_txt, const char* error_msg) {
     // Restore display property values.
     SetFont(old_font);
     Option.DISPLAY_CONSOLE = old_console;
-    gui_fcolour = gui_fcolour;
-    gui_bcolour = gui_bcolour;
+    gui_fcolour = old_fcolour;
+    gui_bcolour = old_bcolour;
 }
 // throw an error
 // displays the error message and aborts the program

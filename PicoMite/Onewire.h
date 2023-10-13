@@ -17,56 +17,12 @@ option) any later version.
 #define INCLUDE_1WIRE_SEARCH
 
 /**********************************************************************************
- the C language function associated with commands, functions or operators should be
- declared here
-**********************************************************************************/
-#if !defined(INCLUDE_COMMAND_TABLE) && !defined(INCLUDE_TOKEN_TABLE)
-
-void cmd_onewire(void);
-void fun_mmOW(void);
-void fun_ds18b20(void);
-void cmd_ds18b20(void);
-#if defined(INCLUDE_CRC)
-void fun_owCRC8(void);
-void fun_owCRC16(void);
-#endif
-#endif
-
-/**********************************************************************************
- All command tokens tokens (eg, PRINT, FOR, etc) should be inserted in this table
-**********************************************************************************/
-#ifdef INCLUDE_COMMAND_TABLE
-
-	{ (unsigned char *)"OneWire",	T_CMD,		0, cmd_onewire      },
-	{ (unsigned char *)"TEMPR START", T_CMD,	0, cmd_ds18b20      },
-
-#endif
-
-
-/**********************************************************************************
- All other tokens (keywords, functions, operators) should be inserted in this table
-**********************************************************************************/
-#ifdef INCLUDE_TOKEN_TABLE
-
-#if defined(INCLUDE_CRC)
-//	{ (unsigned char *)"OWCRC8(",	T_FUN | T_NBR,	0, fun_owCRC8       },
-	{ (unsigned char *)"OWCRC16(",	T_FUN | T_NBR,	0, fun_owCRC16      },
-#endif
-
-	{ (unsigned char *)"MM.OneWire",	T_FNA | T_INT,	0, fun_mmOW         },
-	{ (unsigned char *)"TEMPR(",	T_FUN | T_NBR,	0, fun_ds18b20      },
-
-#endif
-
-
-/**********************************************************************************
  All other required definitions and global variables should be define here
 **********************************************************************************/
 #if !defined(INCLUDE_COMMAND_TABLE) && !defined(INCLUDE_TOKEN_TABLE)
 #ifndef ONEWIRE_HEADER
 #define ONEWIRE_HEADER
 extern long long int *ds18b20Timers;
-//#define INCLUDE_1WIRE_SEARCH
 
 #endif
 #endif
