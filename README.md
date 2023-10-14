@@ -19,7 +19,7 @@ PicoMite V5.07.08RC8
 SDK reverted to 1.5 as 1.5.1 giving errors. -Wall enabled and all warnings in PicoMite code fixed (not sdk)
 Various bug fixes and addition of support for regular expressions, continous operation of PIO DMA and ADC DMA. Play MODFILE. Support for hardware watchdog.
  Support for SK6812 RGBW leds. OPTION WEB MESSAGES ON/OFF. MATH WINDOW. Multiline comments. BLIT FRAMEBUFFER, BLIT MEMORY, BLIT COMPRESSED, ILI9341_8. 
- LIBRARY DISK SAVE, LIBRARY DISK LOAD, FLASK DISK LOAD, MM.INFO(FLASH ADDRESS n), FRAMEBUFFER MERGE
+ LIBRARY DISK SAVE, LIBRARY DISK LOAD, FLASK DISK LOAD, MM.INFO(FLASH ADDRESS n), FRAMEBUFFER MERGE, BACKLIGHT level [,DEFAULT]
 
 PicoMite V5.07.07
 
