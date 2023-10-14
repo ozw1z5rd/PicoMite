@@ -1994,6 +1994,7 @@ int main(){
     InitDisplayI2C(0);
     InitDisplayVirtual();
     InitTouch();
+    if(Option.BackLightLevel)setBacklight(Option.BackLightLevel);
 #endif
     ErrorInPrompt = false;
     exception_set_exclusive_handler(HARDFAULT_EXCEPTION,sigbus);

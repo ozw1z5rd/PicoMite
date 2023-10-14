@@ -1498,17 +1498,15 @@ void PWMoff(int slice){
     pwm_set_enabled(slice, false);
 }
 #ifndef PICOMITEVGA
-void cmd_backlight(void){
+void setBacklight(int level){
     if(((Option.DISPLAY_TYPE>I2C_PANEL && Option.DISPLAY_TYPE<BufferedPanel ) || (Option.DISPLAY_TYPE>=SSDPANEL && Option.DISPLAY_TYPE<VIRTUAL)) && Option.DISPLAY_BL){
         MMFLOAT frequency=1000.0;
-        getargs(&cmdline,1,(unsigned char *)",");
-        MMFLOAT duty=getint(argv[0],0,100);
         int wrap=(Option.CPU_Speed*1000)/frequency;
-        int high=(int)((MMFLOAT)Option.CPU_Speed/frequency*duty*10.0);
+        int high=(int)((MMFLOAT)Option.CPU_Speed/frequency*level*10.0);
         int div=1;
         while(wrap>65535){
             wrap>>=1;
-            if(duty>=0.0)high>>=1;
+            if(level>=0.0)high>>=1;
             div<<=1;
         }
         wrap--;
@@ -1516,8 +1514,6 @@ void cmd_backlight(void){
         pwm_set_wrap(BacklightSlice, wrap);
         pwm_set_chan_level(BacklightSlice, BacklightChannel, high);
     } else if(Option.DISPLAY_TYPE<=I2C_PANEL){
-        getargs(&cmdline,1,(unsigned char *)",");
-        int level=getint(argv[0],0,100);
         level*=255;
         level/=100;
         I2C_Send_Command(0x81);//SETCONTRAST
@@ -1525,13 +1521,27 @@ void cmd_backlight(void){
     } else if(Option.DISPLAY_TYPE>=SSDPANEL && Option.DISPLAY_TYPE<VIRTUAL){
         SetBacklightSSD1963(getint(cmdline, 0, 100));
     } else if(Option.DISPLAY_TYPE==SSD1306SPI){
-        getargs(&cmdline,1,(unsigned char *)",");
-        int level=getint(argv[0],0,100);
         level*=255;
         level/=100;
         spi_write_command(0x81);//SETCONTRAST
         spi_write_command((uint8_t)level);
+    } 
+}
+void cmd_backlight(void){
+    getargs(&cmdline,3,(unsigned char *)",");
+    int level=getint(argv[0],0,100);
+    if(((Option.DISPLAY_TYPE>I2C_PANEL && Option.DISPLAY_TYPE<BufferedPanel ) || (Option.DISPLAY_TYPE>=SSDPANEL && Option.DISPLAY_TYPE<VIRTUAL)) && Option.DISPLAY_BL){
+    } else if(Option.DISPLAY_TYPE<=I2C_PANEL){
+    } else if(Option.DISPLAY_TYPE>=SSDPANEL && Option.DISPLAY_TYPE<VIRTUAL){
+    } else if(Option.DISPLAY_TYPE==SSD1306SPI){
     } else error("Backlight not set up");
+    setBacklight(level);
+    if(argc==3){
+        if(checkstring(argv[2],(unsigned char *)"DEFAULT")){
+            Option.BackLightLevel=level;
+            SaveOptions();
+        }
+    }
 }
 #endif
 
