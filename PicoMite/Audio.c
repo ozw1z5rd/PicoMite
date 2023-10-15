@@ -1588,6 +1588,8 @@ void cmd_play(void) {
 
         if(!InitSDCard()) return;
         p = (char *)getFstring(argv[0]);                                    // get the file name
+		char q[FF_MAX_LFN]={0};
+		getfullfilename(p,q);
         WAVInterrupt = NULL;
 
         WAVcomplete = 0;
@@ -1599,22 +1601,30 @@ void cmd_play(void) {
 		if(FatFSFileSystem){
 			FRESULT fr;
 			FILINFO fno;
-			fr = f_stat(p, &fno);
-			if(fno.fattrib==AM_DIR || p[0]==0){
+			int i;
+			if(ExistsDir(q,q,&i)){
 				alist=GetMemory(sizeof(a_flist)*MAXALBUM);
 				trackstoplay=0;
 				trackplaying=0;
 				DIR djd;
 				djd.pat="*.wav";
 				if(!CurrentLinePtr)MMPrintString("Directory found - commencing player\r\n");
-				FSerror = f_opendir(&djd, p);
+				FSerror = f_opendir(&djd, q);
 				for(;;){
 					fr=f_readdir(&djd, &fno);
 					if (fr != FR_OK || fno.fname[0] == 0) break;  /* Break on error or end of dir */
 					// Get a directory item
 					if (pattern_matching(djd.pat, fno.fname, 0, 0)){
-						if(!CurrentLinePtr){MMPrintString(fno.fname);PRet();}
-						strcpy(alist[trackstoplay++].fn,fno.fname);
+					// Get a directory item
+						strcpy(alist[trackstoplay].fn,"B:");
+						strcat(alist[trackstoplay].fn,q);
+						strcat(alist[trackstoplay].fn,"/");
+						strcat(alist[trackstoplay].fn,fno.fname);
+						if(!CurrentLinePtr){
+							MMPrintString(fno.fname);
+							PRet();
+						}
+						trackstoplay++;
 					}
 				}
 				trackstoplay--;
@@ -1639,6 +1649,8 @@ void cmd_play(void) {
 
         if(!InitSDCard()) return;
         p = (char *)getFstring(argv[0]);                                    // get the file name
+		char q[FF_MAX_LFN]={0};
+		getfullfilename(p,q);
         WAVInterrupt = NULL;
 
         WAVcomplete = 0;
@@ -1650,22 +1662,30 @@ void cmd_play(void) {
 		if(FatFSFileSystem){
 			FRESULT fr;
 			FILINFO fno;
-			fr = f_stat(p, &fno);
-			if(fno.fattrib==AM_DIR || p[0]==0){
+			int i;
+			if(ExistsDir(q,q,&i)){
 				alist=GetMemory(sizeof(a_flist)*MAXALBUM);
 				trackstoplay=0;
 				trackplaying=0;
 				DIR djd;
 				djd.pat="*.flac";
 				if(!CurrentLinePtr)MMPrintString("Directory found - commencing player\r\n");
-				FSerror = f_opendir(&djd, p);
+				FSerror = f_opendir(&djd, q);
 				for(;;){
 					fr=f_readdir(&djd, &fno);
 					if (fr != FR_OK || fno.fname[0] == 0) break;  /* Break on error or end of dir */
 					// Get a directory item
 					if (pattern_matching(djd.pat, fno.fname, 0, 0)){
-						if(!CurrentLinePtr){MMPrintString(fno.fname);PRet();}
-						strcpy(alist[trackstoplay++].fn,fno.fname);
+					// Get a directory item
+						strcpy(alist[trackstoplay].fn,"B:");
+						strcat(alist[trackstoplay].fn,q);
+						strcat(alist[trackstoplay].fn,"/");
+						strcat(alist[trackstoplay].fn,fno.fname);
+						if(!CurrentLinePtr){
+							MMPrintString(fno.fname);
+							PRet();
+						}
+						trackstoplay++;
 					}
 				}
 				trackstoplay--;
