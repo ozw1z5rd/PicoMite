@@ -130,6 +130,9 @@ int GetTouch(int y) {
 
     if(Option.TOUCH_CS == 0) error("Touch option not set");
     if(!Option.TOUCH_XZERO && !Option.TOUCH_YZERO) error("Touch not calibrated");
+#ifdef PICOMITE
+    if(mergerunning && (Option.DISPLAY_TYPE>I2C_PANEL && Option.DISPLAY_TYPE<=BufferedPanel))error("SPI bus in use for display");
+#endif
     do {
         if(PinRead(Option.TOUCH_IRQ)) return TOUCH_ERROR;
         if(y) {

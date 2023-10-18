@@ -93,7 +93,7 @@ extern datetime_t rtc_t;
 extern uint16_t tilefcols[];
 extern uint16_t tilebcols[];
 extern void __not_in_flash_func(QVgaCore)(void);
-extern uint32_t core1stack[64];
+extern uint32_t core1stack[];
 extern int QVGA_CLKDIV;
 struct s_PinDef {
 	int pin;

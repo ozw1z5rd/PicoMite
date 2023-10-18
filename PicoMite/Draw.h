@@ -150,6 +150,7 @@ extern unsigned char *FontTable[16];
 extern int CurrentX, CurrentY;
 extern int PrintPixelMode;
 extern int CMM1;
+extern int transparenthigh,transparentlow;
 typedef struct SVD {
 	FLOAT3D x;
 	FLOAT3D y;
@@ -231,5 +232,8 @@ extern char* COLLISIONInterrupt;
 extern int CollisionFound;
 extern void InitDisplayVirtual(void);
 extern void ConfigDisplayVirtual(unsigned char *p);
+extern void merge(uint8_t colour);
+extern int mergerunning;
+extern uint32_t mergetimer;
 #endif
 #endif

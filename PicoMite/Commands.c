@@ -30,6 +30,9 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 #include "hardware/flash.h"
 #include "hardware/dma.h"
 #include "hardware/structs/watchdog.h"
+#ifdef PICOMITE
+#include "pico/multicore.h"
+#endif
 
 #include <math.h>
 void flist(int, int, int);
@@ -778,6 +781,13 @@ void __not_in_flash_func(cmd_else)(void) {
 
 
 void cmd_end(void) {
+#ifdef PICOMITE
+    if(mergerunning){
+        multicore_fifo_push_blocking(2);
+        mergerunning=0;
+        busy_wait_ms(100);
+    }
+#endif
     hw_clear_bits(&watchdog_hw->ctrl, WATCHDOG_CTRL_ENABLE_BITS);
     irq_set_enabled(DMA_IRQ_1, false);
     dma_hw->abort = ((1u << dma_rx_chan2) | (1u << dma_rx_chan));

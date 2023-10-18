@@ -34,6 +34,9 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 #include "Custom.h"
 #include "Hardware_Includes.h"
 #include "hardware/flash.h"
+#ifndef PICOMITEWEB
+#include "pico/multicore.h"
+#endif
 
 // this is the command table that defines the various tokens for commands in the source code
 // most of them are listed in the .h files so you should not add your own here but instead add
@@ -72,7 +75,7 @@ struct s_hash {
 
 // these are initialised at startup
 int CommandTableSize, TokenTableSize;
-#ifdef PICOMITE
+#ifdef PICOMITEXXX
 struct s_funtbl funtbl[MAXSUBFUN];
 //void hashlabels(int errabort);
 void hashlabels(unsigned char *p,int ErrAbort);
@@ -113,6 +116,7 @@ int OptionBase;                                                     // track the
 //int NbrModules;                                                     // the number of libraries/modules currently loaded
 //#endif
     int  PrepareProgramExt(unsigned char *, int, unsigned char **, int);
+extern uint32_t core1stack[];;
 
 #if defined(MMFAMILY)
 unsigned char FunKey[NBRPROGKEYS][MAXKEYLEN + 1];                            // data storage for the programmable function keys
@@ -376,6 +380,9 @@ void __not_in_flash_func(ExecuteProgram)(unsigned char *p) {
                 }
                 if(OptionErrorSkip > 0) OptionErrorSkip--;        // if OPTION ERROR SKIP decrement the count - we do not error if it is greater than zero
                 if(TempMemoryIsChanged) ClearTempMemory();          // at the end of each command we need to clear any temporary string vars
+#ifndef PICOMITEWEB
+                if(core1stack[0]!=0x12345678)error("CPU2 Stack overflow");
+#endif
                 CheckAbort();
                 check_interrupt();                                  // check for an MMBasic interrupt or touch event and handle it
             }
@@ -396,7 +403,7 @@ void __not_in_flash_func(ExecuteProgram)(unsigned char *p) {
 // this routine also looks for embedded fonts and adds them to the font table
 void   MIPS16 PrepareProgram(int ErrAbort) {
     int i, j, NbrFuncts;
-#ifdef PICOMITE
+#ifdef PICOMITEXXX
     int u, namelen;
     uint32_t hash=FNV_offset_basis;
     char printvar[MAXVARLEN+1];
@@ -413,7 +420,7 @@ void   MIPS16 PrepareProgram(int ErrAbort) {
     PrepareProgramExt(ProgMemory, NbrFuncts,&CFunctionFlash, ErrAbort);
     
     // check the sub/fun table for duplicates
-#ifdef PICOMITE
+#ifdef PICOMITEXXX
     memset(funtbl,0,sizeof(struct s_funtbl)*MAXSUBFUN);
     for(i = 0; i < MAXSUBFUN && subfun[i] != NULL; i++) {
     	// First we will hash the function name and add it to the function table
@@ -533,7 +540,7 @@ int   MIPS16 PrepareProgramExt(unsigned char *p, int i, unsigned char **CFunPtr,
 // searches the subfun[] table to locate a defined sub or fun
 // returns with the index of the sub/function in the table or -1 if not found
 // if type = 0 then look for a sub otherwise a function
-#ifdef PICOMITE
+#ifdef PICOMITEXXX
 int __not_in_flash_func(FindSubFun)(unsigned char *p, int type) {
     unsigned char *s;
     unsigned char name[MAXVARLEN + 1];
@@ -1797,7 +1804,7 @@ unsigned char *findline(int nbr, int mustfind) {
         error("Line number");
     return p;
 }
-#ifdef PICOMITE
+#ifdef PICOMITEXXX
 void hashlabels(unsigned char *p,int ErrAbort){   
     //unsigned char *p = (unsigned char *)ProgMemory;
     int j, u, namelen;
@@ -2056,7 +2063,7 @@ void __not_in_flash_func(*findvar)(unsigned char *p, int action) {
     int GlobalhashIndex, OriginalGlobalHash;
     int LocalhashIndex, OriginalLocalHash;
     uint32_t hash=FNV_offset_basis;
-#ifdef PICOMITE
+#ifdef PICOMITEXXX
 	uint32_t funhash;
 #endif
 	char  *tp, *ip;
@@ -2082,7 +2089,7 @@ void __not_in_flash_func(*findvar)(unsigned char *p, int action) {
 		*s++ = u;
 		if(++namelen > MAXVARLEN) error("Variable name too long");
 	} while(isnamechar(*p));
-#ifdef PICOMITE
+#ifdef PICOMITEXXX
     funhash=hash % MAXSUBHASH;
 #endif
 	hash %= MAXVARHASH; //scale 0-255
@@ -2334,7 +2341,7 @@ void __not_in_flash_func(*findvar)(unsigned char *p, int action) {
             vtype = DefaultType;
     }
     // now scan the sub/fun table to make sure that there is not a sub/fun with the same name
-#ifdef PICOMITE
+#ifdef PICOMITEXXX
     if(!(action & V_FUNCT) && (funtbl[funhash].name[0])) {                                       // don't do this if we are defining the local variable for a function name
 		while(funtbl[funhash].name[0]!=0){
 			ip=(char *)name;
@@ -2735,6 +2742,14 @@ void error(char *msg, ...) {
     *p = 0;
     
     if(OptionErrorSkip) longjmp(ErrNext, 1);                       // if OPTION ERROR SKIP/IGNORE is in force
+#ifdef PICOMITE
+        multicore_fifo_push_blocking(2);
+        busy_wait_ms(mergetimer+200);
+        if(mergerunning){
+            _excep_code = RESET_COMMAND;
+            SoftReset();
+        }
+#endif
 
     LoadOptions();                                                  // make sure that the option struct is in a clean state
 

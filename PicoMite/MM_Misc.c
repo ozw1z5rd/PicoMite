@@ -4392,7 +4392,7 @@ GotAnInterrupt:
 int __not_in_flash_func(check_interrupt)(void) {
 #ifdef PICOMITE
     if(Ctrl!=NULL){
-        if(!(DelayedDrawKeyboard || DelayedDrawFmtBox || calibrate) )ProcessTouch();
+        if(!(DelayedDrawKeyboard || DelayedDrawFmtBox || calibrate || (mergerunning && (Option.DISPLAY_TYPE>I2C_PANEL && Option.DISPLAY_TYPE<=BufferedPanel))))ProcessTouch();
         if(CheckGuiFlag) CheckGui();                                    // This implements a LED flash
     }
 #endif

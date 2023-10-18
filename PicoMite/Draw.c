@@ -134,6 +134,7 @@ int CollisionFound = false;
 int sprite_which_collided = -1;
 static int hideall = 0;
 int mergedread=0;
+int transparenthigh=0,transparentlow=0;
 #else
     int map[16]={0};
     #ifdef PICOMITEWEB
@@ -142,6 +143,9 @@ int mergedread=0;
     int display_backlight;                  // the brightness of the backlight (1 to 100)
     #else
     extern int InvokingCtrl;
+    int mergerunning=0;
+    volatile int mergedone=0;
+    uint32_t mergetimer=0;
     #endif
 #endif
 void cmd_ReadTriangle(unsigned char *p);
@@ -230,6 +234,16 @@ void cmd_guiMX170(void) {
 #endif
     if((p = checkstring(cmdline, (unsigned char *)"RESET"))) {
         if((checkstring(p, (unsigned char *)"LCDPANEL"))) {
+#ifdef PICOMITE
+            if(mergerunning){
+                multicore_fifo_push_blocking(2);
+                busy_wait_ms(mergetimer+200);
+                if(mergerunning){
+                    _excep_code = RESET_COMMAND;
+                    SoftReset();
+                }
+            }
+#endif
             InitDisplaySPI(true);
             InitDisplayI2C(true);
             if(Option.TOUCH_CS) {
@@ -2614,6 +2628,23 @@ void cmd_triangle(void) {                                           // thanks to
     }
     if(Option.Refresh)Display_Refresh();
 }
+char getnextuncompressednibble(char **s, int reset){
+    static int toggle=0;
+    if(reset){
+        toggle=reset-1;
+        return 0;
+    }
+    if(!toggle){
+        toggle ^=1;
+        return **s & 0x0f;
+    } else {
+        toggle ^=1;
+        char r=(**s & 0xf0)>>4;
+        (*s)++;
+        return r;
+    }
+
+}
 static inline char getnextnibble(char **fc, int reset){
     static uint8_t available;
     static char out;
@@ -2631,18 +2662,88 @@ static inline char getnextnibble(char **fc, int reset){
 void docompressed(char *fc,int x1, int y1, int w, int h, int8_t blank){
 #ifndef PICOMITEVGA
     if(!WriteBuf){ //direct to screen
-        char c, tobuff[w/2], *to;
-        c=getnextnibble(&fc,1); //reset the decoder
-        for(int y=y1;y<y1+h;y++){
-            to=tobuff;
-            for(int x=x1;x<x1+w;x+=2){
-                c=getnextnibble(&fc,0);
-                c|=(getnextnibble(&fc,0)<<4);
-                if(y<0 || y>=VRes)continue;
-                if(x>=0 && x<HRes)*to=c;
-                to++;
+        if(blank==-1){
+            char tobuff[w/2], *to;
+            int ww=w;
+            int xx1=x1;
+            if(x1<0){
+                ww+=x1;
+                xx1=0;
             }
-            copyframetoscreen((unsigned char *)tobuff,x1, x1+w-1, y, y, 0);            
+            if(x1+w>HRes){
+                ww=HRes-x1;
+            }
+            getnextnibble(&fc,1); //reset the decoder
+            for(int y=y1;y<y1+h;y++){
+                to=tobuff;
+                int otoggle=0;
+                for(int x=x1;x<x1+w;x++){
+                    if(y<0 || y>=VRes){
+                        getnextnibble(&fc,0);
+                        continue;
+                    }
+                    if(x>=0 && x<HRes){
+                        if(otoggle==0){
+                            *to=getnextnibble(&fc,0);
+                            otoggle ^=1;
+                        } else {
+                            *to|=(getnextnibble(&fc,0)<<4);
+                            otoggle^=1;
+                            to++;
+                        }
+                    } else getnextnibble(&fc,0);
+                }
+                if(ww>0 && xx1<HRes)copyframetoscreen((unsigned char *)tobuff,xx1, xx1+ww-1, y, y, 0);            
+            }
+        } else {
+            char tobuff[w/2], *to;
+            getnextnibble(&fc,1); //reset the decoder
+            for(int y=y1;y<y1+h;y++){
+                int x=x1;
+                while(1){
+                    to=tobuff;
+                    int otoggle=0;
+                    char c;
+                    int ww=0;
+                    int xx=-1;
+                    while((c=getnextnibble(&fc,0))==blank){
+                        x++;
+                        if(x==x1+w)break;
+                    }
+                    if(x==x1+w)break; //nothing found so exit
+                    *to=c;
+                    otoggle ^=1;
+                    xx=x;
+                    x++;
+                    ww=1;
+                    if(xx!=x1+w-1){
+                        while((c=getnextnibble(&fc,0))!=blank){
+                            x++;
+                            ww++;
+                            if(otoggle==0){
+                                *to=c;
+                                otoggle ^=1;
+                            } else {
+                                *to|=(c<<4);
+                                otoggle^=1;
+                                to++;
+                            }
+                            if(x==x1+w)break;
+                        }
+                    }
+                    x++;
+                    if(xx+ww>HRes){
+                        ww=HRes-xx;
+                    }
+                    if(xx>=0 && ww>0 && y>=0 && y<VRes)copyframetoscreen((unsigned char *)tobuff,xx, xx+ww-1, y, y, 0);
+                    if(xx<0 && xx+ww>=0){
+                        char *t=tobuff-(xx/2)-(xx&1);
+                        ww+=xx;
+                        if(ww>0)copyframetoscreen((unsigned char *)t,0, ww-1, y, y, xx&1);
+                    }
+                    if(x>=x1+w)break;
+                }           
+            }
         }
     } else 
 #endif
@@ -2705,7 +2806,6 @@ int blitother(void){
         int8_t blank=-1;
         getargs(&p, 7, (unsigned char*)",");
         if(argc<5)error("Syntax");
-        if(!WriteBuf && argc==7)error("Must operate on framebuffer or VGA colour display");
         char *from=(char *)GetPeekAddr(argv[0]);
         x1 = (int)getinteger(argv[2]);
         y1 = (int)getinteger(argv[4]);
@@ -2719,16 +2819,90 @@ int blitother(void){
         } else {
 #ifndef PICOMITEVGA
             if(!WriteBuf){
-                char c, *to, tobuff[w/2];
-                for(int y=y1;y<y1+h;y++){
-                    to=tobuff;
-                    for(int x=x1;x<x1+w;x+=2){
-                        c=*from++;
-                        if(y<0 || y>=VRes)continue;
-                        if(x>=0 && x<HRes)*to=c;
-                        to++;
-                    }               
-                    copyframetoscreen((unsigned char *)tobuff,x1, x1+w-1, y, y, 0);            
+                if(blank==-1){
+                    char *fc=from;
+                    char tobuff[w/2], *to;
+                    int ww=w;
+                    int xx1=x1;
+                    if(x1<0){
+                        ww+=x1;
+                        xx1=0;
+                    }
+                    if(x1+w>HRes){
+                        ww=HRes-x1;
+                    }
+                    getnextuncompressednibble(&fc,1); //reset the decoder
+                    for(int y=y1;y<y1+h;y++){
+                        to=tobuff;
+                        int otoggle=0;
+                        for(int x=x1;x<x1+w;x++){
+                            if(y<0 || y>=VRes){
+                                getnextuncompressednibble(&fc,0);
+                                continue;
+                            }
+                            if(x>=0 && x<HRes){
+                                if(otoggle==0){
+                                    *to=getnextuncompressednibble(&fc,0);
+                                    otoggle ^=1;
+                                } else {
+                                    *to|=(getnextuncompressednibble(&fc,0)<<4);
+                                    otoggle^=1;
+                                    to++;
+                                }
+                            } else getnextuncompressednibble(&fc,0);
+                        }
+                        if(ww>0 && xx1<HRes)copyframetoscreen((unsigned char *)tobuff,xx1, xx1+ww-1, y, y, 0);            
+                    }
+                } else {
+                    char *fc=from;
+                    char tobuff[w/2], *to;
+                    getnextuncompressednibble(&fc,1); //reset the decoder
+                    for(int y=y1;y<y1+h;y++){
+                        int x=x1;
+                        while(1){
+                            to=tobuff;
+                            int otoggle=0;
+                            char c;
+                            int ww=0;
+                            int xx=-1;
+                            while((c=getnextuncompressednibble(&fc,0))==blank){
+                                x++;
+                                if(x==x1+w)break;
+                            }
+                            if(x==x1+w)break; //nothing found so exit
+                            *to=c;
+                            otoggle ^=1;
+                            xx=x;
+                            x++;
+                            ww=1;
+                            if(xx!=x1+w-1){
+                                while((c=getnextuncompressednibble(&fc,0))!=blank){
+                                    x++;
+                                    ww++;
+                                    if(otoggle==0){
+                                        *to=c;
+                                        otoggle ^=1;
+                                    } else {
+                                        *to|=(c<<4);
+                                        otoggle^=1;
+                                        to++;
+                                    }
+                                    if(x==x1+w)break;
+                                }
+                            }
+                            x++;
+                            if(xx+ww>HRes){
+                                ww=HRes-xx;
+                            }
+                            if(xx>=0 && ww>0 && y>=0 && y<VRes)copyframetoscreen((unsigned char *)tobuff,xx, xx+ww-1, y, y, 0);
+                            if(xx<0 && xx+ww>=0){
+                                char *t=tobuff-(xx/2)-(xx&1);
+                                ww+=xx;
+                                if(ww>0)copyframetoscreen((unsigned char *)t,0, ww-1, y, y, xx&1);
+                            }
+                            if(x>=x1+w)break;
+                       }           
+                    }
                 }
             } else 
 #endif
@@ -2786,7 +2960,6 @@ int blitother(void){
         int8_t blank=-1;
         getargs(&p, 7, (unsigned char*)",");
         if(argc<5)error("Syntax");
-        if(!WriteBuf && argc==7)error("Must operate on framebuffer or VGA colour display");
         char *fc=(char *)GetPeekAddr(argv[0]);
         x1 = (int)getinteger(argv[2]);
         y1 = (int)getinteger(argv[4]);
@@ -2804,17 +2977,20 @@ int blitother(void){
         unsigned char *s=NULL, *d=NULL;
         getargs(&p, 17, (unsigned char*)",");
         if(argc<15)error("Syntax");
-        if(!WriteBuf)error("Must operate on framebuffer or VGA colour display");
         if(checkstring(argv[0],(unsigned char*)"L"))s=LayerBuf;
         else if(checkstring(argv[0],(unsigned char*)"F"))s=FrameBuf;
 #ifdef PICOMITEVGA
         else if(checkstring(argv[0],(unsigned char*)"N"))s=DisplayBuf;
+#else
+        else if(checkstring(argv[0],(unsigned char*)"N"))s=NULL;
 #endif
         else error("Syntax");
         if(checkstring(argv[2],(unsigned char*)"L"))d=LayerBuf;
         else if(checkstring(argv[2],(unsigned char*)"F"))d=FrameBuf;
 #ifdef PICOMITEVGA
         else if(checkstring(argv[2],(unsigned char*)"N"))d=DisplayBuf;
+#else
+        else if(checkstring(argv[2],(unsigned char*)"N"))d=NULL;
 #endif
         else error("Syntax");
         if(s==d)error("Same framebuffer");
@@ -2826,45 +3002,164 @@ int blitother(void){
         h = (int)getinteger(argv[14]);
         if(argc==17)blank=getint(argv[16],-1,15);
         unsigned char c,*to, *from;
-        for(int y=y1,toy=y2;y<y1+h;y++,toy++){ //loop though all of the output lines
-            from=s+y*(HRes>>1)+(x1>>1); //get the byte that will start the output
-            to=d+toy*(HRes>>1)+(x2>>1); //get the byte that will start the output
-            if(x1 & 1)itoggle=1; // if x1 is odd then we will start on the high nibble
-            else itoggle=0;
-            if(x2 & 1)otoggle=1; // if x1 is odd then we will start on the high nibble
-            else otoggle=0;
-            for(int x=x1,tox=x2;x<x1+w;x++,tox++){
-                if(itoggle==0){
-                    if(tox>=0 && tox<HRes)c=*from & 0x0f;
-                    else c=0;
-                    itoggle=1;
-                } else {
-                    if(tox>=0 && tox<HRes)c= *from >>4;
-                    else c=0;
-                    from++;
-                    itoggle=0;
-                }
-                if(y<0 || y>=VRes)continue;
-                if(otoggle==0){
-                    if(tox>=0 && tox<HRes){
-                        if(c!=blank){
-                            *to &= 0xF0;
-                            *to |=c;
-                        }
+        if(d!=NULL && s!=NULL){
+            for(int y=y1,toy=y2;y<y1+h;y++,toy++){ //loop though all of the output lines
+                from=s+y*(HRes>>1)+(x1>>1); //get the byte that will start the output
+                to=d+toy*(HRes>>1)+(x2>>1); //get the byte that will start the output
+                if(x1 & 1)itoggle=1; // if x1 is odd then we will start on the high nibble
+                else itoggle=0;
+                if(x2 & 1)otoggle=1; // if x1 is odd then we will start on the high nibble
+                else otoggle=0;
+                for(int x=x1,tox=x2;x<x1+w;x++,tox++){
+                    if(itoggle==0){
+                        if(tox>=0 && tox<HRes)c=*from & 0x0f;
+                        else c=0;
+                        itoggle=1;
+                    } else {
+                        if(tox>=0 && tox<HRes)c= *from >>4;
+                        else c=0;
+                        from++;
+                        itoggle=0;
                     }
-                } else {
-                    if(tox>=0 && tox<HRes){
-                        if(c!=blank){
-                            *to &=0x0f;
-                            *to |= (c<<4);
+                    if(y<0 || y>=VRes)continue;
+                    if(otoggle==0){
+                        if(tox>=0 && tox<HRes){
+                            if(c!=blank){
+                                *to &= 0xF0;
+                                *to |=c;
+                            }
                         }
+                    } else {
+                        if(tox>=0 && tox<HRes){
+                            if(c!=blank){
+                                *to &=0x0f;
+                                *to |= (c<<4);
+                            }
+                        }
+                        to++;
                     }
-                    to++;
+                    otoggle^=1;
                 }
-                otoggle^=1;
             }
+            return 1;
+        } 
+#ifndef PICOMITEVGA
+        else if(s!=NULL){ //writing to a physical LCD display
+            char tobuff[w/2], *to;
+            for(int y=y1;y<y1+h;y++){
+                char *fc=(char *)s+y*HRes/2+x1/2;
+                getnextuncompressednibble(&fc,1+(x1&1)); //reset the decoder
+                int x=x1;
+                while(1){
+                    to=tobuff;
+                    int otoggle=0;
+                    char c;
+                    int ww=0;
+                    int xx=-1;
+                    while((c=getnextuncompressednibble(&fc,0))==blank){
+                        x++;
+                        if(x==x1+w)break;
+                    }
+                    if(x==x1+w)break; //nothing found so exit
+                    *to=c;
+                    otoggle ^=1;
+                    xx=x;
+                    x++;
+                    ww=1;
+                    if(xx!=x1+w-1){
+                        while((c=getnextuncompressednibble(&fc,0))!=blank){
+                            x++;
+                            ww++;
+                            if(otoggle==0){
+                                *to=c;
+                                otoggle ^=1;
+                            } else {
+                                *to|=(c<<4);
+                                otoggle^=1;
+                                to++;
+                            }
+                            if(x==x1+w)break;
+                        }
+                    }
+                    x++;
+                    if(xx+ww>HRes){
+                        ww=HRes-xx;
+                    }
+                    if(xx>=0 && ww>0 && y>=0 && y<VRes)copyframetoscreen((unsigned char *)tobuff,xx, xx+ww-1, y, y, 0);
+                    if(xx<0 && xx+ww>=0){
+                        char *t=tobuff-(xx/2)-(xx&1);
+                        ww+=xx;
+                        if(ww>0)copyframetoscreen((unsigned char *)t,0, ww-1, y, y, xx&1);
+                    }
+                    if(x>=x1+w)break;
+                }           
+            }
+	        return 1;
+        } else if(d!=NULL){ //reading from a physical LCD display
+            union colourmap
+            {
+            char rgbbytes[4];
+            unsigned int rgb;
+            } cb;
+            unsigned char *rbuff=(unsigned char *)GetTempMemory(w*4);
+            char *from=GetTempMemory((w+1)/2);
+            for(int y=y1,toy=y2;y<y1+h;y++,toy++){ //loop though all of the output lines
+                ReadBuffer(x1,y,x1+w-1,y,rbuff);
+                uint8_t *p=rbuff;
+                char *pp=from;
+                for(int x=x1;x<x1+w;x++){
+                    cb.rgbbytes[0]=*p++; //this order swaps the bytes to match the .BMP file
+                    cb.rgbbytes[1]=*p++;
+                    cb.rgbbytes[2]=*p++;
+                    int fcolour = ((cb.rgb & 0x800000)>> 20) | ((cb.rgb & 0xC000)>>13) | ((cb.rgb & 0x80)>>7);
+                    if(x & 1){
+                        *pp &=0x0F;
+                        *pp |=(fcolour<<4);
+                        pp++;
+                    } else {
+                        *pp &=0xF0;
+                        *pp |= fcolour;
+                    }
+                } 
+                to=d+toy*(HRes>>1)+(x2>>1); //get the byte that will start the output
+                itoggle=0;
+                pp=from;
+                if(x2 & 1)otoggle=1; // if x1 is odd then we will start on the high nibble
+                else otoggle=0;
+                for(int x=x1,tox=x2;x<x1+w;x++,tox++){
+                    if(itoggle==0){
+                        if(tox>=0 && tox<HRes)c=*pp & 0x0f;
+                        else c=0;
+                        itoggle=1;
+                    } else {
+                        if(tox>=0 && tox<HRes)c= *pp >>4;
+                        else c=0;
+                        pp++;
+                        itoggle=0;
+                    }
+                    if(y<0 || y>=VRes)continue;
+                    if(otoggle==0){
+                        if(tox>=0 && tox<HRes){
+                            if(c!=blank){
+                                *to &= 0xF0;
+                                *to |=c;
+                            }
+                        }
+                    } else {
+                        if(tox>=0 && tox<HRes){
+                            if(c!=blank){
+                                *to &=0x0f;
+                                *to |= (c<<4);
+                            }
+                        }
+                        to++;
+                    }
+                    otoggle^=1;
+                }
+            }
+	        return 1;
         }
-        return 1;
+#endif
     }
     return 0;
 }
@@ -2874,10 +3169,28 @@ void cmd_cls(void) {
     HideAllControls();
 #endif
     skipspace(cmdline);
-    if(!(*cmdline == 0 || *cmdline == '\''))
+    if(!(*cmdline == 0 || *cmdline == '\'')){
+#ifdef PICOMITEVGA
+        if(DISPLAY_TYPE==COLOURVGA){
+            int fc=getint(cmdline, 0, WHITE);
+            unsigned char fcolour = ((fc & 0x800000)>> 20) | ((fc & 0xC000)>>13) | ((fc & 0x80)>>7);
+            fcolour|=(fcolour<<4);
+            memset(WriteBuf,fcolour,HRes*VRes/2);
+        } else {
+            ClearScreen(getint(cmdline, 0, WHITE));
+        }
+#else
         ClearScreen(getint(cmdline, 0, WHITE));
-    else
+#endif
+    } else {
+#ifdef PICOMITEVGA
+        if(WriteBuf==LayerBuf && DISPLAY_TYPE==COLOURVGA){
+            uint8_t colour=transparentlow|transparenthigh;
+            memset(WriteBuf,colour,HRes*VRes/2);
+        } else
+#endif
         ClearScreen(gui_bcolour);
+    }
     CurrentX = CurrentY = 0;
     if(Option.Refresh)Display_Refresh();
 }
@@ -4446,6 +4759,7 @@ void restorepanel(void){
         ReadBuffer = ReadBufferSSD1963;
         DrawPixel = DrawPixelNormal;
     }
+    WriteBuf=NULL;
 }
 void setframebuffer(void){
     if(!((Option.DISPLAY_TYPE>I2C_PANEL && Option.DISPLAY_TYPE < BufferedPanel) || (Option.DISPLAY_TYPE>=SSDPANEL && Option.DISPLAY_TYPE<VIRTUAL)))return;
@@ -4459,6 +4773,16 @@ void setframebuffer(void){
     DrawPixel=DrawPixelColour;
 }
 void closeframebuffer(void){
+#ifdef PICOMITE
+    if(mergerunning){
+        multicore_fifo_push_blocking(2);
+        busy_wait_ms(mergetimer+200);
+        if(mergerunning){
+            _excep_code = RESET_COMMAND;
+            SoftReset();
+        }
+    }
+#endif
     if(FrameBuf)FreeMemory(FrameBuf);
     if(LayerBuf)FreeMemory(LayerBuf);
     FrameBuf=NULL;
@@ -4575,6 +4899,35 @@ void copyframetoscreen(uint8_t *s,int xstart, int xend, int ystart, int yend, in
         }
     }
 }
+void merge(uint8_t colour){
+    if(LayerBuf==NULL || FrameBuf==NULL)return;
+    uint8_t *ss,*s=LayerBuf;
+    uint8_t *d=FrameBuf;
+    uint8_t LineBuf[HRes/2];
+    uint8_t highcolour=colour<<4;
+    for(int y=0;y<VRes;y++){
+        memcpy(LineBuf,d+y*HRes/2,HRes/2);
+        ss=s+y*HRes/2;
+        for(int x=0;x<HRes/2;x++){
+            uint8_t top=*ss & 0xF0;
+            uint8_t bottom=*ss++ &0x0f;
+            if(top==highcolour && bottom==colour)continue;
+            if(top!=highcolour && bottom!=colour)LineBuf[x]=(top|bottom);
+            else if(top!=highcolour){
+                LineBuf[x]&=0x0F;
+                LineBuf[x]|=top;
+            } else {
+                LineBuf[x]&=0xF0;
+                LineBuf[x]|=bottom;
+            }
+        }
+        copyframetoscreen(LineBuf,0,HRes-1,y,y,0);
+    }
+#ifdef PICOMITE
+    mergedone=1;
+    __dmb();
+#endif
+}
 void cmd_framebuffer(void){
     unsigned char *p;
     if((p=checkstring(cmdline, (unsigned char *)"CREATE"))) {
@@ -4584,6 +4937,9 @@ void cmd_framebuffer(void){
         else error("Framebuffer already exists");
     } else if((p=checkstring(cmdline, (unsigned char *)"WRITE"))) {
         if(checkstring(p, (unsigned char *)"N")){
+#ifdef PICOMITE
+            if(mergerunning)error("Display in use for merged operation");
+#endif
             restorepanel();            
         }
         else if(checkstring(p, (unsigned char *)"L")){
@@ -4598,69 +4954,57 @@ void cmd_framebuffer(void){
         }
         else error("Syntax");
 #ifndef PICOMITEVGA
+#ifdef PICOMITE
+    } else if((p=checkstring(cmdline, (unsigned char *)"SYNC"))) { //merge the layer onto the physical display
+        if(!mergerunning)return;
+        mergedone=0;
+        while(mergedone==0){CheckAbort();}
+#endif
     } else if((p=checkstring(cmdline, (unsigned char *)"MERGE"))) { //merge the layer onto the physical display
         if(!LayerBuf)error("Layer not created");
-        uint8_t *s=LayerBuf;
-        uint8_t *ss=s,*sss;
-        int w=0, singlepixel=0;
-        for(int y=0;y<VRes;y++){
-            ss=s+y*HRes/2;
-            int x1=0;
-            while(x1<HRes){
-                while(1){ // skip empty pixels
-                    if(*ss & 0xf){
-                        sss=ss;
-                        singlepixel=0;
-                        w=1;
-                        if(*ss & 0xf0){
-                            sss=ss;
-                            w++;
-                            ss++;
-                        } else {
-                            singlepixel=1;
-                            ss++;
-                        }
-                        break;
-                    } else if(*ss & 0xF0){
-                        sss=ss;
-                        singlepixel=0;
-                        w=1;
-                        x1++;
-                        ss++;
-                        break;
-                    } else {
-                        ss++;
-                        x1+=2;
-                    }
-                    if(x1>=HRes)break;
-                }
-                if(x1>=HRes)continue;
-    // ss now points to next location and x to where on screen the data starts
-    // w is set to 1 or 2 depending on which is the first pixel (odd or even x)
-    // singlepixel is set if x is even and x+1 is blank
-                if(singlepixel){
-                    copyframetoscreen(sss,x1,x1,y,y,0);
-                    x1+=2;
-                } else {
-                    while(1){ 
-                        if(*ss & 0xf){ //first nibble populated
-                            w++;
-                            if(*ss & 0xf0){ //second nibble also populated
-                                w++;
-                            } 
-                            ss++;
-                            if((x1+w)>=HRes)break;
-                        } else {
-                            ss++;
-                            break;
-                        }
-                    }
-                    copyframetoscreen(sss,x1,x1+w-1,y,y,(x1 & 1));
-                    x1+=(w+2);
-                    if(x1&1)x1++;
+        if(!FrameBuf)error("Framebuffer not created");
+        uint8_t colour=0;
+        getargs(&p,5,(unsigned char *)",");
+        if(argc>=1 && *argv[0]){
+            colour=getint(argv[0],0,15);
+        }
+#ifdef PICOMITE
+        uint8_t background=0;
+        if(argc>=3 && *argv[2]){
+            if(checkstring(argv[2],(unsigned char *)"B"))background=1;
+            else if(checkstring(argv[2],(unsigned char *)"R"))background=2;
+            else if(checkstring(argv[2],(unsigned char *)"A"))background=3;
+            else error("Syntax");
+        }
+        if(background==1){
+            if(!(((Option.DISPLAY_TYPE>I2C_PANEL && Option.DISPLAY_TYPE<BufferedPanel ) || (Option.DISPLAY_TYPE>=SSDPANEL && Option.DISPLAY_TYPE<VIRTUAL))))error("Not available on this display");
+            if(diskchecktimer<200)diskchecktimer = 200;
+            multicore_fifo_push_blocking(2);
+            multicore_fifo_push_blocking((uint32_t)colour);
+        } else if(background==2){
+//			if(!CurrentLinePtr)error("No program running");
+            mergetimer=0;
+            if(argc==5)mergetimer=getint(argv[4],0,60*10*1000);
+            if(!(((Option.DISPLAY_TYPE>I2C_PANEL && Option.DISPLAY_TYPE<BufferedPanel ) || (Option.DISPLAY_TYPE>=SSDPANEL && Option.DISPLAY_TYPE<VIRTUAL))))error("Not available on this display");
+            if(diskchecktimer<200)diskchecktimer = 200;
+            mergerunning=1;
+            if(WriteBuf==NULL)WriteBuf=FrameBuf;
+            setframebuffer();
+            multicore_fifo_push_blocking(3);
+            multicore_fifo_push_blocking((uint32_t)colour);
+            multicore_fifo_push_blocking((uint32_t)mergetimer*1000);
+        } else if(background==3){
+            if(mergerunning){
+                multicore_fifo_push_blocking(2);
+                busy_wait_ms(mergetimer+200);
+                if(mergerunning){
+                    _excep_code = RESET_COMMAND;
+                    SoftReset();
                 }
             }
-        }
+        } else 
+#endif
+        merge(colour);
 #endif
     } else if((p=checkstring(cmdline, (unsigned char *)"LAYER"))) {
         if(LayerBuf==NULL){
@@ -4668,10 +5012,30 @@ void cmd_framebuffer(void){
         } else error("Layer already exists");
     } else if((p=checkstring(cmdline, (unsigned char *)"CLOSE"))) {
         if(checkstring(p, (unsigned char *)"F")){
+#ifdef PICOMITE
+            if(mergerunning){
+                multicore_fifo_push_blocking(2);
+                busy_wait_ms(mergetimer+200);
+                if(mergerunning){
+                    _excep_code = RESET_COMMAND;
+                    SoftReset();
+                }
+            }
+#endif
             if(WriteBuf!=LayerBuf)restorepanel();         
             if(FrameBuf)FreeMemory(FrameBuf);
             FrameBuf=NULL;
         } else if(checkstring(p, (unsigned char *)"L")){
+#ifdef PICOMITE
+            if(mergerunning){
+                multicore_fifo_push_blocking(2);
+                busy_wait_ms(mergetimer+200);
+                if(mergerunning){
+                    _excep_code = RESET_COMMAND;
+                    SoftReset();
+                }
+            }
+#endif
             if(WriteBuf!=FrameBuf)restorepanel();            
             if(LayerBuf)FreeMemory(LayerBuf);
             LayerBuf=NULL;
@@ -6984,6 +7348,11 @@ void cmd_framebuffer(void){
             while(QVgaScanLine!=480){}
     } else if((p=checkstring(cmdline, (unsigned char *)"LAYER"))) {
         if(Option.CPU_Speed==126000)error("CPUSPEED >=252000 for layers");
+        getargs(&p,1,(unsigned char *)",");
+        int transparent=0;
+        if(argc==1)transparent=getint(argv[0],0,15);
+        transparentlow=transparent;
+        transparenthigh=transparent<<4;
         if(LayerBuf==DisplayBuf){
             LayerBuf=GetMemory(38400);
         } else error("Layer already exists");

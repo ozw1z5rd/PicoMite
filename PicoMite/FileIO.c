@@ -2080,6 +2080,9 @@ void MMfputs(unsigned char *p, int filenbr)
 int InitSDCard(void)
 {
     if(!FatFSFileSystem) return 1;
+#ifdef PICOMITE
+    if(mergerunning && (Option.DISPLAY_TYPE>I2C_PANEL && Option.DISPLAY_TYPE<=BufferedPanel) && !Option.SD_CLK_PIN)error("SPI bus in use for display");
+#endif
     int i;
     ErrorThrow(0,NONEFILE); // reset mm.errno to zero
     if ((IsInvalidPin(Option.SD_CS) || (IsInvalidPin(Option.SYSTEM_MOSI) && IsInvalidPin(Option.SD_MOSI_PIN)) || (IsInvalidPin(Option.SYSTEM_MISO) && IsInvalidPin(Option.SD_MISO_PIN)) || (IsInvalidPin(Option.SYSTEM_CLK) && IsInvalidPin(Option.SD_CLK_PIN))))
@@ -3553,6 +3556,13 @@ void cmd_close(void)
 }
 void __not_in_flash_func(CheckSDCard)(void)
 {
+#ifdef PICOMITE
+
+    if(mergerunning && (Option.DISPLAY_TYPE>I2C_PANEL && Option.DISPLAY_TYPE<=BufferedPanel)){
+        if (CurrentlyPlaying == P_MOD ) checkWAVinput();
+        return;
+    }
+#endif
     if (CurrentlyPlaying == P_NOTHING)
     {
         if (!(SDCardStat & STA_NOINIT))

@@ -75,6 +75,7 @@ void ProcessWeb(void);
 #define MES_SIGNON  "\rPicoMite MMBasic Version " VERSION "\r\n"\
 					"Copyright " YEAR " Geoff Graham\r\n"\
 					"Copyright " YEAR2 " Peter Mather\r\n\r\n"
+#include "pico/multicore.h"
 #endif
 
 #define KEYCHECKTIME 16
@@ -305,7 +306,7 @@ void __not_in_flash_func(routinechecks)(void){
 	if(GPSchannel)processgps();
     if(diskchecktimer== 0 || CurrentlyPlaying == P_WAV || CurrentlyPlaying == P_FLAC)CheckSDCard();
 #ifdef PICOMITE
-    if(Ctrl)ProcessTouch();
+    if(Ctrl && !(mergerunning && (Option.DISPLAY_TYPE>I2C_PANEL && Option.DISPLAY_TYPE<=BufferedPanel) && !Option.SD_CLK_PIN))ProcessTouch();
 #endif
 //        if(tud_cdc_connected() && KeyCheck==0){
 //            SSPrintString(alive);
@@ -1063,6 +1064,16 @@ void __not_in_flash_func(CheckAbort)(void) {
         WDTimer = 0;                                                // turn off the watchdog timer
         calibrate=0;
         ShowCursor(false);
+#ifdef PICOMITE
+        if(mergerunning){
+            multicore_fifo_push_blocking(2);
+            busy_wait_ms(mergetimer+200);
+            if(mergerunning){
+                _excep_code = RESET_COMMAND;
+                SoftReset();
+            }
+        }
+#endif
         cmd_end();
     }
 }
@@ -1420,12 +1431,12 @@ void __not_in_flash_func(QVgaLine1)()
                 register uint16_t *r=fbuff[nextbuf];
                 for(int i=0;i<160;i++){
                     register int low= *p & 0xF;
-                    register int high=*p++ >>4;
+                    register int high=*p++ & 0xF0;
                     register int low2= *q & 0xF;
-                    register int high2=*q++ >>4;
-                    if(low2)low=low2;
-                    if(high2)high=high2;
-                    *r++=(low | (low<<4) | (high<<8) | (high<<12));
+                    register int high2=*q++ &0xF0;
+                    if(low2!=transparentlow)low=low2;
+                    if(high2!=transparenthigh)high=high2;
+                    *r++=(low | (low<<4) | (high<<4) | (high<<8));
                 }
             }
             nextbuf ^=1;
@@ -1674,16 +1685,51 @@ uint32_t core1stack[64];
 #include "pico/multicore.h"
 void __not_in_flash_func(UpdateCore)()
 {
+    systick_hw->csr = 0x5;
+    systick_hw->rvr = 0x00FFFFFF;
+    int msec=0xFFFFFF+12-ticks_per_second/1000;
     static int framemap[16]={
         BLACK,BLUE,MYRTLE,COBALT,MIDGREEN,CERULEAN,GREEN,CYAN,RED,MAGENTA,RUST,FUCHSIA,BROWN,LILAC,YELLOW,WHITE
     };
+    while(multicore_fifo_rvalid()) {
+        multicore_fifo_pop_blocking();
+    }
+
 	while (true)
 	{
 		// data memory barrier
 		__dmb();
         if (multicore_fifo_rvalid()) {
             int command=multicore_fifo_pop_blocking();
-            if(command==1){ 
+			if(command==3){
+                uint8_t colour=(uint8_t)multicore_fifo_pop_blocking();
+                uint32_t timer=(uint32_t)multicore_fifo_pop_blocking();
+                uint64_t delaytime=0;
+                if(timer)delaytime=time_us_64()+timer;
+                while(1){
+                    if (multicore_fifo_rvalid()){
+                        int a=multicore_fifo_pop_blocking();
+                        if(a){
+                            mergerunning=0;
+                            __dmb();
+                            break;
+                        }
+                    }
+                    if(timer){
+                        int waitime=(int)(((int64_t)delaytime-(int64_t)time_us_64())/1000);
+                        while(waitime >0){
+                            systick_hw->cvr=0;
+                            while(systick_hw->cvr>msec){}; 
+                            waitime--;
+                        }
+                        delaytime=time_us_64()+timer;
+                    }
+                    merge(colour);
+                }
+            } else if(command==2){
+                uint8_t colour=(uint8_t)multicore_fifo_pop_blocking();
+                merge(colour);
+            } else if(command==1){ 
                 char *s=(char *)multicore_fifo_pop_blocking();
                 if(Option.DISPLAY_TYPE>I2C_PANEL && Option.DISPLAY_TYPE<BufferedPanel)DefineRegionSPI(0,0,HRes-1,VRes-1, 1);
                 else if(Option.DISPLAY_TYPE>=SSDPANEL && Option.DISPLAY_TYPE<VIRTUAL && Option.DISPLAY_TYPE!=ILI9341_8){
@@ -1762,7 +1808,7 @@ void __not_in_flash_func(UpdateCore)()
     }
 
 }
-uint32_t updatestack[64];
+uint32_t core1stack[512];
 #endif
 #endif
 void __no_inline_not_in_flash_func(modclock)(uint16_t speed){
@@ -2009,11 +2055,13 @@ int main(){
     ytilecount=X_TILE==80? 12 : 16;
     bus_ctrl_hw->priority=0x100;
     multicore_launch_core1_with_stack(QVgaCore,core1stack,256);
+    core1stack[0]=0x12345678;
 	memset(WriteBuf, 0, 38400);
 #else
 #ifdef PICOMITE
     bus_ctrl_hw->priority=0x100;
-    multicore_launch_core1_with_stack(UpdateCore,updatestack,256);
+    multicore_launch_core1_with_stack(UpdateCore,core1stack,2048);
+    core1stack[0]=0x12345678;
 #endif
 #endif
     ResetDisplay();

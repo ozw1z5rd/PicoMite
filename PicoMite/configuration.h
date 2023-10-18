@@ -52,8 +52,8 @@ extern "C" {
 #define MAXVARS             512                     // 8 + MAXVARLEN + MAXDIM * 2  (ie, 56 bytes) - these do not incl array members
 #define FLASH_TARGET_OFFSET (704 * 1024) 
 #define MagicKey 0x47421427
-#define HEAPTOP 0x2003c700
-#define HEAP_MEMORY_SIZE (124*1024) 
+#define HEAPTOP 0x2003e570
+#define HEAP_MEMORY_SIZE (132*1024) 
 #define MAX_CPU     378000
 #define MIN_CPU     48000
 #define MAXSUBFUN           256                     // each entry takes up 4 bytes
@@ -69,7 +69,7 @@ extern "C" {
 #define SAVEDVARS_FLASH_SIZE 16384
 #define FLASH_ERASE_SIZE 4096
 #define MAXFLASHSLOTS 4
-#define MAXVARHASH				MAXVARS/2
+#define MAXVARHASH				MAXVARS/2 
 
 // more static memory allocations (less important)
 #define MAXFORLOOPS         20                      // each entry uses 17 bytes
