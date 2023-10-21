@@ -94,7 +94,7 @@ extern "C" {
 #define MAXCOMPORTS 2
 #define MAXERRMSG           64                      // max error msg size (MM.ErrMsg$ is truncated to this)
 #define MAXSOUNDS           4
-#define MAXKEYLEN           64
+#define MAXKEYLEN           64 
 // define the maximum number of arguments to PRINT, INPUT, WRITE, ON, DIM, ERASE, DATA and READ
 // each entry uses zero bytes.  The number is limited by the length of a command line
 #define MAX_ARG_COUNT       50
@@ -113,7 +113,7 @@ extern "C" {
 #define FNV_prime           16777619
 #define FNV_offset_basis    2166136261
 #define use_hash
-#define DISKCHECKRATE       500                    //check for removal of SDcard every 500mSec
+#define DISKCHECKRATE       200                    //check for removal of SDcard every 200mSec
 #define EDIT_BUFFER_SIZE    HEAP_MEMORY_SIZE-2048-3*HRes// this is the maximum RAM that we can get
 #define SCREENWIDTH     80
 #define SCREENHEIGHT    24                          // this is the default and it can be changed using the OPTION command

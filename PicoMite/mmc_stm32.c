@@ -75,6 +75,7 @@ BYTE (*xchg_byte)(BYTE data_out)= NULL;
 void (*xmit_byte_multi)(const BYTE *buff, int cnt)= NULL;
 void (*rcvr_byte_multi)(BYTE *buff, int cnt)= NULL;
 int (*SET_SPI_CLK)(int speed, int polarity, int edge)=NULL;
+extern const uint8_t PINMAP[];
 const int mapping[101]={
 	0,4,11,18,25,33,41,49,57,66,75,
 	84,93,103,113,123,134,145,156,167,179,

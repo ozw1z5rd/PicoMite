@@ -2743,7 +2743,7 @@ void error(char *msg, ...) {
     
     if(OptionErrorSkip) longjmp(ErrNext, 1);                       // if OPTION ERROR SKIP/IGNORE is in force
 #ifdef PICOMITE
-        multicore_fifo_push_blocking(2);
+        multicore_fifo_push_blocking(0xFF);
         busy_wait_ms(mergetimer+200);
         if(mergerunning){
             _excep_code = RESET_COMMAND;

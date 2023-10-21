@@ -76,6 +76,7 @@ void ProcessWeb(void);
 					"Copyright " YEAR " Geoff Graham\r\n"\
 					"Copyright " YEAR2 " Peter Mather\r\n\r\n"
 #include "pico/multicore.h"
+mutex_t	frameBufferMutex;					// mutex to lock frame buffer
 #endif
 
 #define KEYCHECKTIME 16
@@ -304,9 +305,9 @@ void __not_in_flash_func(routinechecks)(void){
         }
     }
 	if(GPSchannel)processgps();
-    if(diskchecktimer== 0 || CurrentlyPlaying == P_WAV || CurrentlyPlaying == P_FLAC)CheckSDCard();
+    if(diskchecktimer== 0 || CurrentlyPlaying == P_WAV || CurrentlyPlaying == P_FLAC || CurrentlyPlaying == P_MOD)CheckSDCard();
 #ifdef PICOMITE
-    if(Ctrl && !(mergerunning && (Option.DISPLAY_TYPE>I2C_PANEL && Option.DISPLAY_TYPE<=BufferedPanel) && !Option.SD_CLK_PIN))ProcessTouch();
+    if(Ctrl)ProcessTouch();
 #endif
 //        if(tud_cdc_connected() && KeyCheck==0){
 //            SSPrintString(alive);
@@ -1066,7 +1067,7 @@ void __not_in_flash_func(CheckAbort)(void) {
         ShowCursor(false);
 #ifdef PICOMITE
         if(mergerunning){
-            multicore_fifo_push_blocking(2);
+            multicore_fifo_push_blocking(0xFF);
             busy_wait_ms(mergetimer+200);
             if(mergerunning){
                 _excep_code = RESET_COMMAND;
@@ -1687,10 +1688,6 @@ void __not_in_flash_func(UpdateCore)()
 {
     systick_hw->csr = 0x5;
     systick_hw->rvr = 0x00FFFFFF;
-    int msec=0xFFFFFF+12-ticks_per_second/1000;
-    static int framemap[16]={
-        BLACK,BLUE,MYRTLE,COBALT,MIDGREEN,CERULEAN,GREEN,CYAN,RED,MAGENTA,RUST,FUCHSIA,BROWN,LILAC,YELLOW,WHITE
-    };
     while(multicore_fifo_rvalid()) {
         multicore_fifo_pop_blocking();
     }
@@ -1706,23 +1703,17 @@ void __not_in_flash_func(UpdateCore)()
                 uint32_t timer=(uint32_t)multicore_fifo_pop_blocking();
                 uint64_t delaytime=0;
                 if(timer)delaytime=time_us_64()+timer;
+                mergerunning=1;
                 while(1){
                     if (multicore_fifo_rvalid()){
-                        int a=multicore_fifo_pop_blocking();
-                        if(a){
+                        int a;
+                        if(((a=multicore_fifo_pop_blocking())==0xff)){
                             mergerunning=0;
-                            __dmb();
                             break;
                         }
                     }
                     if(timer){
-                        int waitime=(int)(((int64_t)delaytime-(int64_t)time_us_64())/1000);
-                        while(waitime >0){
-                            systick_hw->cvr=0;
-                            while(systick_hw->cvr>msec){}; 
-                            waitime--;
-                        }
-                        delaytime=time_us_64()+timer;
+                        busy_wait_until(delaytime);
                     }
                     merge(colour);
                 }
@@ -1731,6 +1722,7 @@ void __not_in_flash_func(UpdateCore)()
                 merge(colour);
             } else if(command==1){ 
                 char *s=(char *)multicore_fifo_pop_blocking();
+                mutex_enter_blocking(&frameBufferMutex);			// lock the frame buffer
                 if(Option.DISPLAY_TYPE>I2C_PANEL && Option.DISPLAY_TYPE<BufferedPanel)DefineRegionSPI(0,0,HRes-1,VRes-1, 1);
                 else if(Option.DISPLAY_TYPE>=SSDPANEL && Option.DISPLAY_TYPE<VIRTUAL && Option.DISPLAY_TYPE!=ILI9341_8){
                     SetAreaSSD1963(0,0,HRes-1,VRes-1);
@@ -1743,18 +1735,18 @@ void __not_in_flash_func(UpdateCore)()
                 int c;
                     for(i=0;i<16;i++){
                         if(Option.DISPLAY_TYPE==ILI9488 || Option.DISPLAY_TYPE==ILI9481IPS){
-                            col[0]=(framemap[i]>>16);
-                            col[1]=(framemap[i]>>8) & 0xFF;
-                            col[2]=(framemap[i] & 0xFF);
+                            col[0]=(RGB121map[i]>>16);
+                            col[1]=(RGB121map[i]>>8) & 0xFF;
+                            col[2]=(RGB121map[i] & 0xFF);
                             cnt=3;
                         } else if(Option.DISPLAY_TYPE>=SSDPANEL && Option.DISPLAY_TYPE<VIRTUAL){
-                            col[2]=(framemap[i]>>16);
-                            col[1]=(framemap[i]>>8) & 0xFF;
-                            col[0]=(framemap[i] & 0xFF);
+                            col[2]=(RGB121map[i]>>16);
+                            col[1]=(RGB121map[i]>>8) & 0xFF;
+                            col[0]=(RGB121map[i] & 0xFF);
                             cnt=3;
                         } else {
-                            col[0]= ((framemap[i] >> 16) & 0b11111000) | ((framemap[i] >> 13) & 0b00000111);
-                            col[1] = ((framemap[i] >>  5) & 0b11100000) | ((framemap[i] >>  3) & 0b00011111);
+                            col[0]= ((RGB121map[i] >> 16) & 0b11111000) | ((RGB121map[i] >> 13) & 0b00000111);
+                            col[1] = ((RGB121map[i] >>  5) & 0b11100000) | ((RGB121map[i] >>  3) & 0b00011111);
                         }
                         if(Option.DISPLAY_TYPE == GC9A01){
                             col[0]=~col[0];
@@ -1803,6 +1795,7 @@ void __not_in_flash_func(UpdateCore)()
                         s++;
                     }
                 }
+                mutex_exit(&frameBufferMutex);
             }
         } 
     }
@@ -2006,6 +1999,9 @@ int main(){
     );
     systick_hw->csr = 0x5;
     systick_hw->rvr = 0x00FFFFFF;
+#ifdef PICOMITE
+	mutex_init( &frameBufferMutex );						// create a mutex to lock frame buffer
+#endif
     if(Option.CPU_Speed<=200000)modclock(2);
     uSec(100);
     if(Option.CPU_Speed==378000)QVGA_CLKDIV= 3;

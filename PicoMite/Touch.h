@@ -61,8 +61,8 @@ void fun_touch(void);
 
     #define CAL_ERROR_MARGIN        16
     #define TARGET_OFFSET           30
-    #define TOUCH_SAMPLES           16
-    #define TOUCH_DISCARD           6
+    #define TOUCH_SAMPLES           8
+    #define TOUCH_DISCARD           2
 
     #define GET_X_AXIS              0
     #define GET_Y_AXIS              1

@@ -30,6 +30,10 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 #ifdef PICOMITEWEB
 #include "pico/cyw43_arch.h"
 #endif
+#ifndef PICOMITEWEB
+#include "pico/multicore.h"
+extern mutex_t	frameBufferMutex;
+#endif
 
 int GetTouchValue(int cmd);
 void TDelay(void);
@@ -124,16 +128,12 @@ void MIPS16 GetCalibration(int x, int y, int *xval, int *yval) {
 // if y is true the y reading will be returned, otherwise the x reading
 // this function does noise reduction and scales the reading to pixels
 // a return of TOUCH_ERROR means that the pen is not down
-int GetTouch(int y) {
+int __not_in_flash_func(GetTouch)(int y) {
     int i;
     static int lastx, lasty;
 
     if(Option.TOUCH_CS == 0) error("Touch option not set");
     if(!Option.TOUCH_XZERO && !Option.TOUCH_YZERO) error("Touch not calibrated");
-#ifdef PICOMITE
-    if(mergerunning && (Option.DISPLAY_TYPE>I2C_PANEL && Option.DISPLAY_TYPE<=BufferedPanel))error("SPI bus in use for display");
-#endif
-    do {
         if(PinRead(Option.TOUCH_IRQ)) return TOUCH_ERROR;
         if(y) {
             i = ((MMFLOAT)(GetTouchAxis(Option.TOUCH_SWAPXY? CMD_MEASURE_X:CMD_MEASURE_Y) - Option.TOUCH_YZERO) * Option.TOUCH_YSCALE);
@@ -142,7 +142,7 @@ int GetTouch(int y) {
             i = ((MMFLOAT)(GetTouchAxis(Option.TOUCH_SWAPXY? CMD_MEASURE_Y:CMD_MEASURE_X) - Option.TOUCH_XZERO) * Option.TOUCH_XSCALE);
             if(i < lastx - CAL_ERROR_MARGIN || i > lastx + CAL_ERROR_MARGIN) { lastx = i; i = -1; }
         }
-    } while(i < 0 || i >= (y ? VRes : HRes));
+	if(i < 0 || i >= (y ? VRes : HRes))i=-1;
     return i;
 }
 
@@ -151,18 +151,18 @@ int GetTouch(int y) {
 // this will get a reading from a single axis
 // the returned value is not scaled, it is the raw number produced by the touch controller
 // it takes multiple readings, discards the outliers and returns the average of the medium values
-int GetTouchAxis(int cmd) {
+int __not_in_flash_func(GetTouchAxis)(int cmd) {
     int i, j, t, b[TOUCH_SAMPLES];
-
-//    PinSetBit(Option.TOUCH_IRQ, TRISCLR);                           // Set the PenIRQ to an output
-//    PinSetBit(Option.TOUCH_IRQ, LATCLR);                            // Drive the PenIRQ low so the diode is not forward biased
     TOUCH_GETIRQTRIS=0;
     PinSetBit(Option.TOUCH_IRQ, CNPDSET);                           // Set the PenIRQ to an output
-
+#ifdef PICOMITE
+    mutex_enter_blocking(&frameBufferMutex);			// lock the frame buffer
+#endif
     GetTouchValue(cmd);
     // we take TOUCH_SAMPLES readings and sort them into descending order in buffer b[].
     for(i = 0; i < TOUCH_SAMPLES; i++) {
         b[i] = GetTouchValue(cmd);                                  // get the value
+        CheckSDCard();
         for(j = i; j > 0; j--) {                                    // and sort into position
             if(b[j - 1] < b[j]) {
                 t = b[j - 1];
@@ -182,6 +182,9 @@ int GetTouchAxis(int cmd) {
     GetTouchValue(CMD_PENIRQ_ON);                                   // send the command to turn PenIRQ on
     PinSetBit(Option.TOUCH_IRQ, CNPUSET);                           // Set the PenIRQ to an input
     TOUCH_GETIRQTRIS=1;
+#ifdef PICOMITE
+    mutex_exit(&frameBufferMutex);
+#endif
     return i;
 }
 
@@ -193,7 +196,7 @@ int GetTouchAxis(int cmd) {
 // it assumes that PenIRQ line has been pulled low and that the SPI baudrate is correct
 // this takes 260uS at 120MHz
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-int GetTouchValue(int cmd) {
+int __not_in_flash_func(GetTouchValue)(int cmd) {
     int val;
     unsigned int lb, hb;
 	if(Option.DISPLAY_TYPE<SSDPANEL)SPISpeedSet(TOUCH);
@@ -213,7 +216,7 @@ int GetTouchValue(int cmd) {
 }
 
 
-void TDelay(void)     // provides a small (~200ns) delay for the touch screen controller.
+void __not_in_flash_func(TDelay)(void)     // provides a small (~200ns) delay for the touch screen controller.
 {
     int ticks_per_millisecond=ticks_per_second/1000;
    	int T=16777215 + setuptime-((4*ticks_per_millisecond)/20000) ;

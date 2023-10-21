@@ -39,6 +39,10 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 #include "hardware/structs/clocks.h"
 #include "sys/stat.h"
 #include "picojpeg.h"
+#ifdef PICOMITE
+	#include "pico/multicore.h"
+	extern mutex_t	frameBufferMutex;
+#endif
 extern const uint8_t *flash_target_contents;
 extern const uint8_t *flash_option_contents;
 extern const uint8_t *SavedVarsFlash;
@@ -2080,9 +2084,6 @@ void MMfputs(unsigned char *p, int filenbr)
 int InitSDCard(void)
 {
     if(!FatFSFileSystem) return 1;
-#ifdef PICOMITE
-    if(mergerunning && (Option.DISPLAY_TYPE>I2C_PANEL && Option.DISPLAY_TYPE<=BufferedPanel) && !Option.SD_CLK_PIN)error("SPI bus in use for display");
-#endif
     int i;
     ErrorThrow(0,NONEFILE); // reset mm.errno to zero
     if ((IsInvalidPin(Option.SD_CS) || (IsInvalidPin(Option.SYSTEM_MOSI) && IsInvalidPin(Option.SD_MOSI_PIN)) || (IsInvalidPin(Option.SYSTEM_MISO) && IsInvalidPin(Option.SD_MISO_PIN)) || (IsInvalidPin(Option.SYSTEM_CLK) && IsInvalidPin(Option.SD_CLK_PIN))))
@@ -3556,41 +3557,59 @@ void cmd_close(void)
 }
 void __not_in_flash_func(CheckSDCard)(void)
 {
+    if (CurrentlyPlaying == P_MOD ) checkWAVinput();
 #ifdef PICOMITE
-
-    if(mergerunning && (Option.DISPLAY_TYPE>I2C_PANEL && Option.DISPLAY_TYPE<=BufferedPanel)){
-        if (CurrentlyPlaying == P_MOD ) checkWAVinput();
+    if(mergerunning && !Option.SD_CLK_PIN &&(Option.DISPLAY_TYPE>I2C_PANEL && Option.DISPLAY_TYPE<=BufferedPanel)){
+        diskchecktimer=DISKCHECKRATE;
         return;
+    } else {
+#endif
+        if (CurrentlyPlaying == P_NOTHING)
+        {
+
+            if (!(SDCardStat & STA_NOINIT))
+            { // the card is supposed to be initialised - lets check
+                char buff[4];
+                if (disk_ioctl(0, MMC_GET_OCR, buff) != RES_OK)
+                {
+                    BYTE s;
+                    s = SDCardStat;
+                    s |= (STA_NODISK | STA_NOINIT);
+                    SDCardStat = s;
+                    ShowCursor(false);
+                    MMPrintString("Warning: SDcard Removed\r\n> ");
+                    FatFSFileSystem=0;
+                }
+            }
+            diskchecktimer = DISKCHECKRATE;
+        }
+        else if (CurrentlyPlaying == P_WAV || CurrentlyPlaying == P_FLAC) checkWAVinput();
+#ifdef PICOMITE
     }
 #endif
-    if (CurrentlyPlaying == P_NOTHING)
-    {
-        if (!(SDCardStat & STA_NOINIT))
-        { // the card is supposed to be initialised - lets check
-            char buff[4];
-            if (disk_ioctl(0, MMC_GET_OCR, buff) != RES_OK)
-            {
-                BYTE s;
-                s = SDCardStat;
-                s |= (STA_NODISK | STA_NOINIT);
-                SDCardStat = s;
-                ShowCursor(false);
-                MMPrintString("Warning: SDcard Removed\r\n> ");
-                FatFSFileSystem=0;
-            }
-        }
-        diskchecktimer = DISKCHECKRATE;
-    }
-    else if (CurrentlyPlaying == P_WAV || CurrentlyPlaying == P_FLAC || CurrentlyPlaying == P_MOD )
-        checkWAVinput();
 }
 void LoadOptions(void)
 {
     int i = sizeof(struct option_s);
     unsigned char *pp = (unsigned char *)flash_option_contents;
     unsigned char *qq = (unsigned char *)&Option;
-    while (i--)
-        *qq++ = *pp++;
+    while (i--) *qq++ = *pp++;
+    RGB121map[0] = BLACK;
+    RGB121map[1] = BLUE;
+    RGB121map[2] =  MYRTLE;
+    RGB121map[3] = COBALT;
+    RGB121map[4] = MIDGREEN;
+    RGB121map[5] = CERULEAN;
+    RGB121map[6] = GREEN;
+    RGB121map[7] = CYAN;
+    RGB121map[8] = RED;
+    RGB121map[9] = MAGENTA;
+    RGB121map[10] = RUST;
+    RGB121map[11] = FUCHSIA;
+    RGB121map[12] = BROWN;
+    RGB121map[13] = LILAC;
+    RGB121map[14] = YELLOW;
+    RGB121map[15] = WHITE;
 }
 
 void ResetOptions(void)

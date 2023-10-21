@@ -235,5 +235,6 @@ extern void ConfigDisplayVirtual(unsigned char *p);
 extern void merge(uint8_t colour);
 extern int mergerunning;
 extern uint32_t mergetimer;
+extern int RGB121map[16];
 #endif
 #endif

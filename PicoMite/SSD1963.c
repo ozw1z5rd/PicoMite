@@ -80,10 +80,6 @@ void MIPS16 ConfigDisplaySSD(unsigned char *p) {
     else
         error("Orientation");
 
-    CheckPin(SSD1963_DC_PIN, OptionErrorCheck);
-    CheckPin(SSD1963_RESET_PIN, OptionErrorCheck);
-    CheckPin(SSD1963_WR_PIN, OptionErrorCheck);
-    CheckPin(SSD1963_RD_PIN, OptionErrorCheck);
     CheckPin(SSD1963_DAT1, OptionErrorCheck);
     CheckPin(SSD1963_DAT2, OptionErrorCheck);
     CheckPin(SSD1963_DAT3, OptionErrorCheck);
@@ -102,7 +98,28 @@ void MIPS16 ConfigDisplaySSD(unsigned char *p) {
         if(ExtCurrentConfig[pin] != EXT_NOT_CONFIG)  error("Pin %/| is in use",pin,pin);
         Option.DISPLAY_BL = pin;
     } else Option.DISPLAY_BL = 0;
-
+    if(argc==7){
+        char code;
+        if(!(code=codecheck(argv[6])))argv[6]+=2;
+        int pin = getinteger(argv[6]);
+        if(!code)pin=codemap(pin);
+        if(IsInvalidPin(pin)) error("Invalid pin");
+        if(ExtCurrentConfig[pin] != EXT_NOT_CONFIG)  error("Pin %/| is in use",pin,pin);
+        Option.SSD_DC = PinDef[pin].GPno;
+        Option.SSD_WR=  Option.SSD_DC+1;
+        Option.SSD_RD=  Option.SSD_DC+2;
+        Option.SSD_RESET =  Option.SSD_DC+3;
+    } else {
+        Option.SSD_DC = 13;
+        Option.SSD_WR = 14;
+        Option.SSD_RD = 15;
+        Option.SSD_RESET = 16;
+    }
+    PInt(Option.SSD_DC);PIntComma(Option.SSD_WR);PIntComma(Option.SSD_RD);PIntComma(Option.SSD_RESET);PRet();
+    CheckPin(SSD1963_DC_PIN, OptionErrorCheck);
+    CheckPin(SSD1963_RESET_PIN, OptionErrorCheck);
+    CheckPin(SSD1963_WR_PIN, OptionErrorCheck);
+    CheckPin(SSD1963_RD_PIN, OptionErrorCheck);
 
 
     // disable the SPI LCD and touch

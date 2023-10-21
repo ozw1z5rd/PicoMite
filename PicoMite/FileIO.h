@@ -160,8 +160,12 @@ struct option_s {
         char gateway[16];
         unsigned char x[20]; //108=256
     #else
-        unsigned char x[104]; //112=256
+        unsigned char x[100]; //112=256
     #endif
+    unsigned char SSD_DC;
+    unsigned char SSD_WR;
+    unsigned char SSD_RD;
+    unsigned char SSD_RESET;
     unsigned char BackLightLevel;
     unsigned char NoReset;
     unsigned char AllPins;

@@ -783,7 +783,7 @@ void __not_in_flash_func(cmd_else)(void) {
 void cmd_end(void) {
 #ifdef PICOMITE
     if(mergerunning){
-        multicore_fifo_push_blocking(2);
+        multicore_fifo_push_blocking(0xFF);
         mergerunning=0;
         busy_wait_ms(100);
     }

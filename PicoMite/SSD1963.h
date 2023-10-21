@@ -57,6 +57,7 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
     extern volatile int ClickTimer;                                 // used to time the click when touch occurs
     extern volatile int TouchTimer;                                 // used to time the response to touch
     extern void ScrollSSD1963(int lines);
+    extern const uint8_t PINMAP[];
     #define GPIO3       3
     #define GPIO2       2
     #define GPIO1       1
@@ -164,10 +165,10 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
     #define CMD_GET_PCLK          0xE7    //get pixel clock (LSHIFT signal) freq. settings
     #define CMD_SET_DATA_INTERFACE    0xF0
     #define CMD_GET_DATA_INTERFACE    0xF1
-    #define SSD1963_DC_PIN  17
-    #define SSD1963_WR_PIN  19
-    #define SSD1963_RD_PIN  20
-    #define SSD1963_RESET_PIN 21
+    #define SSD1963_DC_PIN  PINMAP[Option.SSD_DC]
+    #define SSD1963_WR_PIN  PINMAP[Option.SSD_WR]
+    #define SSD1963_RD_PIN  PINMAP[Option.SSD_RD]
+    #define SSD1963_RESET_PIN PINMAP[Option.SSD_RESET]
     #define SSD1963_DAT1    1
     #define SSD1963_DAT2    2
     #define SSD1963_DAT3    4
@@ -176,10 +177,10 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
     #define SSD1963_DAT6    7
     #define SSD1963_DAT7    9
     #define SSD1963_DAT8    10
-    #define SSD1963_DC_GPPIN  13
-    #define SSD1963_WR_GPPIN  14
-    #define SSD1963_RD_GPPIN  15
-    #define SSD1963_RESET_GPPIN 16
+    #define SSD1963_DC_GPPIN  Option.SSD_DC
+    #define SSD1963_WR_GPPIN  Option.SSD_WR
+    #define SSD1963_RD_GPPIN  Option.SSD_RD
+    #define SSD1963_RESET_GPPIN Option.SSD_RESET
     #define SSD1963_GPDAT1    0
     #define SSD1963_GPDAT2    1
     #define SSD1963_GPDAT3    2

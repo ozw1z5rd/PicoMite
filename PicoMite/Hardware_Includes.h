@@ -82,7 +82,6 @@ extern int calibrate;
 extern volatile unsigned int InkeyTimer;                            // used to delay on an escape character
 extern volatile int DISPLAY_TYPE;
 extern void routinechecks(void);
-
 extern volatile char ConsoleRxBuf[CONSOLE_RX_BUF_SIZE];
 extern volatile int ConsoleRxBufHead;
 extern volatile int ConsoleRxBufTail;
