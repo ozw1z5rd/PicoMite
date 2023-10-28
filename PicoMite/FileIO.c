@@ -3557,36 +3557,21 @@ void cmd_close(void)
 }
 void __not_in_flash_func(CheckSDCard)(void)
 {
-    if (CurrentlyPlaying == P_MOD ) checkWAVinput();
-#ifdef PICOMITE
-    if(mergerunning && !Option.SD_CLK_PIN &&(Option.DISPLAY_TYPE>I2C_PANEL && Option.DISPLAY_TYPE<=BufferedPanel)){
-        diskchecktimer=DISKCHECKRATE;
-        return;
-    } else {
-#endif
-        if (CurrentlyPlaying == P_NOTHING)
+    if (!(SDCardStat & STA_NOINIT))
+    { // the card is supposed to be initialised - lets check
+        char buff[4];
+        if (disk_ioctl(0, MMC_GET_OCR, buff) != RES_OK)
         {
-
-            if (!(SDCardStat & STA_NOINIT))
-            { // the card is supposed to be initialised - lets check
-                char buff[4];
-                if (disk_ioctl(0, MMC_GET_OCR, buff) != RES_OK)
-                {
-                    BYTE s;
-                    s = SDCardStat;
-                    s |= (STA_NODISK | STA_NOINIT);
-                    SDCardStat = s;
-                    ShowCursor(false);
-                    MMPrintString("Warning: SDcard Removed\r\n> ");
-                    FatFSFileSystem=0;
-                }
-            }
-            diskchecktimer = DISKCHECKRATE;
+            BYTE s;
+            s = SDCardStat;
+            s |= (STA_NODISK | STA_NOINIT);
+            SDCardStat = s;
+            ShowCursor(false);
+            MMPrintString("Warning: SDcard Removed\r\n> ");
+            FatFSFileSystem=0;
         }
-        else if (CurrentlyPlaying == P_WAV || CurrentlyPlaying == P_FLAC) checkWAVinput();
-#ifdef PICOMITE
     }
-#endif
+    diskchecktimer = DISKCHECKRATE;
 }
 void LoadOptions(void)
 {

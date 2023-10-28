@@ -4966,7 +4966,7 @@ void merge(uint8_t colour){
 #endif
 }
 void cmd_framebuffer(void){
-    unsigned char *p;
+    unsigned char *p=NULL;
     if((p=checkstring(cmdline, (unsigned char *)"CREATE"))) {
         if(FrameBuf==NULL){
             FrameBuf=GetMemory(HRes*VRes/2);
@@ -4977,19 +4977,40 @@ void cmd_framebuffer(void){
 #ifdef PICOMITE
             if(mergerunning)error("Display in use for merged operation");
 #endif
-            restorepanel();            
+            restorepanel(); 
+            return;           
         }
         else if(checkstring(p, (unsigned char *)"L")){
             if(!LayerBuf)error("Layer buffer not created");
             WriteBuf=LayerBuf;
             setframebuffer();
+            return;           
             }
         else if(checkstring(p, (unsigned char *)"F")){
             if(!FrameBuf)error("Frame buffer not created");
             WriteBuf=FrameBuf;
             setframebuffer();
+            return;           
         }
-        else error("Syntax");
+        {
+            getargs(&p,1,(unsigned char *)",");
+            if(argc!=1)error("Syntax");
+            char *q=(char *)getCstring(argv[0]);
+            if(strcasecmp(q,"N")==0){
+    #ifdef PICOMITE
+                if(mergerunning)error("Display in use for merged operation");
+    #endif
+                restorepanel(); 
+            } else if(strcasecmp(q,"L")==0){
+                if(!LayerBuf)error("Layer buffer not created");
+                WriteBuf=LayerBuf;
+                setframebuffer();
+            } else if(strcasecmp(q,"F")==0){
+                if(!FrameBuf)error("Frame buffer not created");
+                WriteBuf=FrameBuf;
+                setframebuffer();
+            } else error("Syntax");
+        }
 #ifndef PICOMITEVGA
 #ifdef PICOMITE
     } else if((p=checkstring(cmdline, (unsigned char *)"SYNC"))) { //merge the layer onto the physical display
@@ -5014,7 +5035,7 @@ void cmd_framebuffer(void){
         }
         if(background==1){
             if(!(((Option.DISPLAY_TYPE>I2C_PANEL && Option.DISPLAY_TYPE<BufferedPanel ) || (Option.DISPLAY_TYPE>=SSDPANEL && Option.DISPLAY_TYPE<VIRTUAL))))error("Not available on this display");
-            if(diskchecktimer<200)diskchecktimer = 200;
+            if(diskchecktimer<200 && SPIatRisk)diskchecktimer = 200;
             multicore_fifo_push_blocking(2);
             multicore_fifo_push_blocking((uint32_t)colour);
         } else if(background==2){
@@ -5124,6 +5145,7 @@ void cmd_framebuffer(void){
 #ifdef PICOMITE
                     if(background){
                         if(!(((Option.DISPLAY_TYPE>I2C_PANEL && Option.DISPLAY_TYPE<BufferedPanel ) || (Option.DISPLAY_TYPE>=SSDPANEL && Option.DISPLAY_TYPE<VIRTUAL))))error("Not available on this display");
+                        if(diskchecktimer<100 && SPIatRisk) diskchecktimer=100;
                         multicore_fifo_push_blocking(1);
                         multicore_fifo_push_blocking((uint32_t)s);
                     } else {
@@ -7239,7 +7261,14 @@ void cmd_framebuffer(void){
         if(checkstring(p, (unsigned char *)"N"))WriteBuf=DisplayBuf;
         else if(checkstring(p, (unsigned char *)"L"))WriteBuf=LayerBuf;
         else if(checkstring(p, (unsigned char *)"F"))WriteBuf=FrameBuf;
-        else error("Syntax");
+        else {
+            getargs(&p,1,(unsigned char *)",");
+            char *q=(char *)getCstring(argv[0]);
+            if(strcasecmp(q,"N")==0)WriteBuf=DisplayBuf;
+            else if(strcasecmp(q,"L")==0)WriteBuf=LayerBuf;
+            else if(strcasecmp(q,"F")==0)WriteBuf=FrameBuf;
+            error("Syntax");
+        }
     } else if((p=checkstring(cmdline, (unsigned char *)"WAIT"))) {
             while(QVgaScanLine!=480){}
     } else if((p=checkstring(cmdline, (unsigned char *)"LAYER"))) {

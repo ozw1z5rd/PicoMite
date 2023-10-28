@@ -113,7 +113,7 @@ extern "C" {
 #define FNV_prime           16777619
 #define FNV_offset_basis    2166136261
 #define use_hash
-#define DISKCHECKRATE       200                    //check for removal of SDcard every 200mSec
+#define DISKCHECKRATE       500                    //check for removal of SDcard every 200mSec
 #define EDIT_BUFFER_SIZE    HEAP_MEMORY_SIZE-2048-3*HRes// this is the maximum RAM that we can get
 #define SCREENWIDTH     80
 #define SCREENHEIGHT    24                          // this is the default and it can be changed using the OPTION command

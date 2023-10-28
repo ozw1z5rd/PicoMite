@@ -104,7 +104,7 @@ volatile unsigned int diskchecktimer = DISKCHECKRATE;
 volatile unsigned int clocktimer=60*60*1000;
 volatile unsigned int PauseTimer = 0;
 volatile unsigned int IntPauseTimer = 0;
-volatile unsigned int Timer1=0, Timer2=0, Timer4=0;		                       //1000Hz decrement timer
+volatile unsigned int Timer1=0, Timer2=0, Timer3=0, Timer4=0;		                       //1000Hz decrement timer
 volatile unsigned int KeyCheck=2000;
 volatile int ds18b20Timer = -1;
 volatile unsigned int ScrewUpTimer = 0;
@@ -137,6 +137,7 @@ volatile int DISPLAY_TYPE;
 volatile int processtick = 1;
 unsigned char WatchdogSet = false;
 unsigned char IgnorePIN = false;
+unsigned char SPIatRisk = false;
 bool timer_callback(repeating_timer_t *rt);
 uint32_t __uninitialized_ram(_excep_code);
 unsigned char lastcmd[STRINGSIZE*2];                                           // used to store the last command in case it is needed by the EDIT command
@@ -305,7 +306,17 @@ void __not_in_flash_func(routinechecks)(void){
         }
     }
 	if(GPSchannel)processgps();
-    if(diskchecktimer== 0 || CurrentlyPlaying == P_WAV || CurrentlyPlaying == P_FLAC || CurrentlyPlaying == P_MOD)CheckSDCard();
+    if (CurrentlyPlaying == P_WAV || CurrentlyPlaying == P_FLAC){
+#ifdef PICOMITE
+        if(SPIatRisk)mutex_enter_blocking(&frameBufferMutex);			// lock the frame buffer
+#endif
+        checkWAVinput();
+#ifdef PICOMITE
+        if(SPIatRisk)mutex_exit(&frameBufferMutex);
+#endif
+    }
+    if(CurrentlyPlaying == P_MOD) checkWAVinput();
+    if(diskchecktimer == 0)CheckSDCard();
 #ifdef PICOMITE
     if(Ctrl)ProcessTouch();
 #endif
@@ -2119,6 +2130,9 @@ int main(){
         WebConnect();
     }
     #endif
+#ifdef PICOMITE
+    SPIatRisk=((Option.DISPLAY_TYPE>I2C_PANEL && Option.DISPLAY_TYPE<BufferedPanel) && Option.SD_CLK_PIN==0);
+#endif
         PrepareProgram(true);
         if(FindSubFun((unsigned char *)"MM.STARTUP", 0) >= 0) ExecuteProgram((unsigned char *)"MM.STARTUP\0");
         if(Option.Autorun && _excep_code != RESTART_DOAUTORUN) {

@@ -156,13 +156,22 @@ int __not_in_flash_func(GetTouchAxis)(int cmd) {
     TOUCH_GETIRQTRIS=0;
     PinSetBit(Option.TOUCH_IRQ, CNPDSET);                           // Set the PenIRQ to an output
 #ifdef PICOMITE
-    mutex_enter_blocking(&frameBufferMutex);			// lock the frame buffer
+    if(SPIatRisk)mutex_enter_blocking(&frameBufferMutex);			// lock the frame buffer
 #endif
     GetTouchValue(cmd);
     // we take TOUCH_SAMPLES readings and sort them into descending order in buffer b[].
     for(i = 0; i < TOUCH_SAMPLES; i++) {
         b[i] = GetTouchValue(cmd);                                  // get the value
-        CheckSDCard();
+        if (CurrentlyPlaying == P_WAV || CurrentlyPlaying == P_FLAC){
+#ifdef PICOMITE
+            if(SPIatRisk)mutex_enter_blocking(&frameBufferMutex);			// lock the frame buffer
+#endif
+            checkWAVinput();
+#ifdef PICOMITE
+            if(SPIatRisk)mutex_exit(&frameBufferMutex);
+#endif
+        }
+        if(CurrentlyPlaying == P_MOD) checkWAVinput();
         for(j = i; j > 0; j--) {                                    // and sort into position
             if(b[j - 1] < b[j]) {
                 t = b[j - 1];
@@ -183,7 +192,7 @@ int __not_in_flash_func(GetTouchAxis)(int cmd) {
     PinSetBit(Option.TOUCH_IRQ, CNPUSET);                           // Set the PenIRQ to an input
     TOUCH_GETIRQTRIS=1;
 #ifdef PICOMITE
-    mutex_exit(&frameBufferMutex);
+    if(SPIatRisk)mutex_exit(&frameBufferMutex);
 #endif
     return i;
 }

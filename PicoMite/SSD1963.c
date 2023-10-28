@@ -115,7 +115,6 @@ void MIPS16 ConfigDisplaySSD(unsigned char *p) {
         Option.SSD_RD = 15;
         Option.SSD_RESET = 16;
     }
-    PInt(Option.SSD_DC);PIntComma(Option.SSD_WR);PIntComma(Option.SSD_RD);PIntComma(Option.SSD_RESET);PRet();
     CheckPin(SSD1963_DC_PIN, OptionErrorCheck);
     CheckPin(SSD1963_RESET_PIN, OptionErrorCheck);
     CheckPin(SSD1963_WR_PIN, OptionErrorCheck);

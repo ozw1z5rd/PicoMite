@@ -88,6 +88,7 @@ extern volatile int ConsoleRxBufTail;
 extern volatile char ConsoleTxBuf[CONSOLE_TX_BUF_SIZE];
 extern volatile int ConsoleTxBufHead;
 extern volatile int ConsoleTxBufTail;
+extern unsigned char SPIatRisk;
 extern datetime_t rtc_t;
 extern uint16_t tilefcols[];
 extern uint16_t tilebcols[];

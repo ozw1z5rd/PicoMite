@@ -43,7 +43,6 @@ void sendCommand(int cmd);
 volatile char CapsLock;
 volatile char NumLock;
 volatile int setleds = 0;
-volatile unsigned int Timer3=0;
 // PS2 KBD state machine and buffer
 volatile int PS2State;
 unsigned char KBDBuf;

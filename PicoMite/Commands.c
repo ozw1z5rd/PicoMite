@@ -1675,6 +1675,7 @@ search_again:
 	                            i+=(*p2++)-48;
 	                            i*=10;
 	                            i+=(*p2++)-48;
+                                if(i==0)error("Null character \\000 in escape sequence - use CHR$(0)","$");
 	                            *p1++=i;
 	                        } else {
 	                            p2++;
@@ -1726,6 +1727,7 @@ search_again:
 	                                        i = (i << 4) | ((mytoupper(*p2) >= 'A') ? mytoupper(*p2) - 'A' + 10 : *p2 - '0');
 	                                        p++;
 	                                        i = (i << 4) | ((mytoupper(*p2) >= 'A') ? mytoupper(*p2) - 'A' + 10 : *p2 - '0');
+                                			if(i==0)error("Null character \\&00 in escape sequence - use CHR$(0)","$");
 	                                        p2++;
 	                                        *p1++=i;
 	                                    } else *p1++='x';

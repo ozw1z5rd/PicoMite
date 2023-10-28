@@ -1658,6 +1658,7 @@ unsigned char __not_in_flash_func(*getvalue)(unsigned char *p, MMFLOAT *fa, long
                             i+=(*p++)-48;
                             i*=10;
                             i+=(*p++)-48;
+                            if(i==0)error("Null character \\000 in escape sequence - use CHR$(0)","$");
                             *p1++=i;
                         } else {
                             p++;
@@ -1710,6 +1711,7 @@ unsigned char __not_in_flash_func(*getvalue)(unsigned char *p, MMFLOAT *fa, long
                                         p++;
                                         i = (i << 4) | ((mytoupper(*p) >= 'A') ? mytoupper(*p) - 'A' + 10 : *p - '0');
                                         p++;
+                                        if(i==0)error("Null character \\&00 in escape sequence - use CHR$(0)","$");
                                         *p1++=i;
                                     } else *p1++='x';
                                     break;
