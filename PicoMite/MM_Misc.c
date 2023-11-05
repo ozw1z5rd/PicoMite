@@ -1894,6 +1894,9 @@ void printoptions(void){
 		if(Option.DISPLAY_BL){
             MMputchar(',',1);MMPrintString((char *)PinDef[Option.DISPLAY_BL].pinname);
 		}
+		if(Option.SSD_DC!=13){
+            MMputchar(',',1);MMPrintString((char *)PinDef[PINMAP[Option.SSD_DC]].pinname);
+		}
         PRet();
     }
     if(Option.DISPLAY_TYPE >= VIRTUAL){
@@ -4011,7 +4014,14 @@ void fun_peek(void) {
         if(argc != 1) error("Syntax");
         i = FindSubFun(p, true);                                    // search for a function first
         if(i == -1) i = FindSubFun(p, false);                       // and if not found try for a subroutine
-        if(i == -1 || !(*subfun[i] == cmdCSUB)) error("Invalid argument");
+        if(i == -1){
+            skipspace(p);
+            getargs(&p,1,(unsigned char *)",");
+            if(argc!=1)error("Syntax");
+            unsigned char *q=getCstring(argv[0]);
+            i = FindSubFun(q, true);                                    // search for a function first
+            if(i == -1) i = FindSubFun(q, false);                       // and if not found try for a subroutine
+        } if(i == -1 || !(*subfun[i] == cmdCSUB)) error("Invalid argument");
         // search through program flash and the library looking for a match to the function being called
         j = GetCFunAddr((int *)CFunctionFlash, i,ProgMemory);
         if(!j) j = GetCFunAddr((int *)CFunctionLibrary, i,LibMemory);         //Check the library

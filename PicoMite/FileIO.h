@@ -56,7 +56,7 @@ void ErrorCheck(int fnbr);
 extern int OptionFileErrorAbort;
 extern unsigned char filesource[MAXOPENFILES + 1];
 extern int FatFSFileSystemSave;
-
+extern void positionfile(int fnbr, int idx);
 struct option_s {
     int  Magic;
     char Autorun;

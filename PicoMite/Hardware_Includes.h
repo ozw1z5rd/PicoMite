@@ -95,6 +95,8 @@ extern uint16_t tilebcols[];
 extern void __not_in_flash_func(QVgaCore)(void);
 extern uint32_t core1stack[];
 extern int QVGA_CLKDIV;
+extern int getslice(int pin);
+extern void setpwm(int pin, int *PWMChannel, int *PWMSlice, MMFLOAT frequency, MMFLOAT duty);
 struct s_PinDef {
 	int pin;
 	int GPno;
@@ -152,6 +154,8 @@ extern int FatFSFileSystem;
 extern void uSec(int us);
 extern int ytilecount;
 extern int X_TILE, Y_TILE;
+extern int CameraSlice;
+extern int CameraChannel;
 extern char id_out[];
 #ifdef PICOMITEVGA
 extern uint32_t __attribute__ ((aligned (256))) M_Foreground[16];

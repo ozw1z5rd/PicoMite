@@ -96,6 +96,7 @@ void MIPS16 ConfigDisplaySSD(unsigned char *p) {
         if(!code)pin=codemap(pin);
         if(IsInvalidPin(pin)) error("Invalid pin");
         if(ExtCurrentConfig[pin] != EXT_NOT_CONFIG)  error("Pin %/| is in use",pin,pin);
+        if((PinDef[pin].slice & 0x7f) == Option.AUDIO_SLICE) error("Channel in use for Audio");
         Option.DISPLAY_BL = pin;
     } else Option.DISPLAY_BL = 0;
     if(argc==7){

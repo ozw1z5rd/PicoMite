@@ -1291,25 +1291,8 @@ void cmd_kill(void)
     }
 }
 
-void cmd_seek(void)
-{
-    int fnbr, idx;
+void positionfile(int fnbr, int idx){
     char *buff;
-    getargs(&cmdline, 5, (unsigned char *)",");
-    if (argc != 3)
-        error("Syntax");
-    if (*argv[0] == '#')
-        argv[0]++;
-    fnbr = getinteger(argv[0]);
-    if (fnbr < 1 || fnbr > MAXOPENFILES || FileTable[fnbr].com <= MAXCOMPORTS)
-        error("File number");
-    if (FileTable[fnbr].com == 0)
-        error("File number #% is not open", fnbr);
-    if (!InitSDCard())
-        return;
-    idx = getint(argv[2], 1, 0x7FFFFFFF) - 1;
-    if (idx < 0)
-        idx = 0;
     if(filesource[fnbr]==FLASHFILE){
         if(idx>FileTable[fnbr].lfsptr->ctz.size)idx=FileTable[fnbr].lfsptr->ctz.size;
         FSerror = lfs_file_seek(&lfs, FileTable[fnbr].lfsptr, idx, LFS_SEEK_SET);
@@ -1331,6 +1314,27 @@ void cmd_seek(void)
             lastfptr[fnbr] = (uint32_t)FileTable[fnbr].fptr;
         }
     }
+
+}
+void cmd_seek(void)
+{
+    int fnbr, idx;
+    getargs(&cmdline, 5, (unsigned char *)",");
+    if (argc != 3)
+        error("Syntax");
+    if (*argv[0] == '#')
+        argv[0]++;
+    fnbr = getinteger(argv[0]);
+    if (fnbr < 1 || fnbr > MAXOPENFILES || FileTable[fnbr].com <= MAXCOMPORTS)
+        error("File number");
+    if (FileTable[fnbr].com == 0)
+        error("File number #% is not open", fnbr);
+    if (!InitSDCard())
+        return;
+    idx = getint(argv[2], 1, 0x7FFFFFFF) - 1;
+    if (idx < 0)
+        idx = 0;
+    positionfile(fnbr, idx);
 }
 
 void cmd_name(void)

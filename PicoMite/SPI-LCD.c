@@ -617,7 +617,7 @@ void MIPS16 InitDisplaySPI(int InitOnly) {
 			spi_write_command(GC9A01_DISPON);
          switch(Option.DISPLAY_ORIENTATION) {
              case LANDSCAPE:     spi_write_cd(GC9A01_MADCTL,1,0x08); break;
-             case PORTRAIT:      spi_write_cd(GC9A01_MADCTL,1,0x60); break;
+             case PORTRAIT:      spi_write_cd(GC9A01_MADCTL,1,0x68); break;
              case RLANDSCAPE:    spi_write_cd(GC9A01_MADCTL,1,0xc8); break;
              case RPORTRAIT:     spi_write_cd(GC9A01_MADCTL,1,0xa8); break;
          }

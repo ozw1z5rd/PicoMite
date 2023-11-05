@@ -1500,7 +1500,7 @@ void PWMoff(int slice){
 #ifndef PICOMITEVGA
 void setBacklight(int level){
     if(((Option.DISPLAY_TYPE>I2C_PANEL && Option.DISPLAY_TYPE<BufferedPanel ) || (Option.DISPLAY_TYPE>=SSDPANEL && Option.DISPLAY_TYPE<VIRTUAL)) && Option.DISPLAY_BL){
-        MMFLOAT frequency=1000.0;
+        MMFLOAT frequency=50000.0;
         int wrap=(Option.CPU_Speed*1000)/frequency;
         int high=(int)((MMFLOAT)Option.CPU_Speed/frequency*level*10.0);
         int div=1;
@@ -1568,65 +1568,65 @@ void cmd_pwm(void){
         if((count7<0.0 || count7>100.0) && count7!=-1.0)error("Syntax");}
         
         int enabled=0;
-        if(slice0 || Option.AUDIO_SLICE ==0 || BacklightSlice==0){
+        if(slice0 || Option.AUDIO_SLICE ==0 || BacklightSlice==0 || CameraSlice==0){
             enabled |=1;
-            if(!(Option.AUDIO_SLICE ==0 || BacklightSlice==0 || count0<0.0)){
+            if(!(Option.AUDIO_SLICE ==0 || BacklightSlice==0 || CameraSlice==0 || count0<0.0)){
                 pwm_set_enabled(0,false);
                 count0=(MMFLOAT)pwm_hw->slice[0].top * (100.0-count0) / 100.0;
                 pwm_set_counter(0,(int)count0);
             }
         }
-        if(slice1 || Option.AUDIO_SLICE ==1 || BacklightSlice==1){
+        if(slice1 || Option.AUDIO_SLICE ==1 || BacklightSlice==1 || CameraSlice==1){
             enabled |=2;
-            if(!(Option.AUDIO_SLICE ==1 || BacklightSlice==1 || count1<0.0)){
+            if(!(Option.AUDIO_SLICE ==1 || BacklightSlice==1 || CameraSlice==1 || count1<0.0)){
                 pwm_set_enabled(1,false);
                 count1=(MMFLOAT)pwm_hw->slice[1].top * (100.0-count1) / 100.0;
                 pwm_set_counter(1,count1);
             }
         }
-        if(slice2 || Option.AUDIO_SLICE ==2 || BacklightSlice==2){
+        if(slice2 || Option.AUDIO_SLICE ==2 || BacklightSlice==2 || CameraSlice==2){
             enabled |=4;
-            if(!(Option.AUDIO_SLICE ==2 || BacklightSlice==2 || count2<0.0)){
+            if(!(Option.AUDIO_SLICE ==2 || BacklightSlice==2 || CameraSlice==2 || count2<0.0)){
                 pwm_set_enabled(2,false);
                 count2=(MMFLOAT)pwm_hw->slice[2].top * (100.0-count2) / 100.0;
                 pwm_set_counter(2,count2);
             }
         }
-        if(slice3 || Option.AUDIO_SLICE ==3 || BacklightSlice==3){
+        if(slice3 || Option.AUDIO_SLICE ==3 || BacklightSlice==3 || CameraSlice==3){
             enabled |=8;
-            if(!(Option.AUDIO_SLICE ==3 || BacklightSlice==3 || count3<0.0)){
+            if(!(Option.AUDIO_SLICE ==3 || BacklightSlice==3 || CameraSlice==3 || count3<0.0)){
                 pwm_set_enabled(3,false);
                 count3=(MMFLOAT)pwm_hw->slice[3].top * (100.0-count3) / 100.0;
                 pwm_set_counter(3,count3);
             }
         }
-        if(slice4 || Option.AUDIO_SLICE ==4 || BacklightSlice==4){
+        if(slice4 || Option.AUDIO_SLICE ==4 || BacklightSlice==4 || CameraSlice==4){
             enabled |=16;
-            if(!(Option.AUDIO_SLICE ==4 || BacklightSlice==4 || count4<0.0)){
+            if(!(Option.AUDIO_SLICE ==4 || BacklightSlice==4 || CameraSlice==4 || count4<0.0)){
                 pwm_set_enabled(4,false);
                 count4=(MMFLOAT)pwm_hw->slice[4].top * (100.0-count4) / 100.0;
                 pwm_set_counter(4,count4);
             }
         }
-        if(slice5 || Option.AUDIO_SLICE ==5 || BacklightSlice==5){
+        if(slice5 || Option.AUDIO_SLICE ==5 || BacklightSlice==5 || CameraSlice==5){
             enabled |=32;
-            if(!(Option.AUDIO_SLICE ==5 || BacklightSlice==5 || count5<0.0)){
+            if(!(Option.AUDIO_SLICE ==5 || BacklightSlice==5 || CameraSlice==5 || count5<0.0)){
                 pwm_set_enabled(5,false);
                 count5=(MMFLOAT)pwm_hw->slice[5].top * (100.0-count5) / 100.0;
                 pwm_set_counter(5,count5);
             }
         }
-        if(slice6 || Option.AUDIO_SLICE ==6 || BacklightSlice==6){
+        if(slice6 || Option.AUDIO_SLICE ==6 || BacklightSlice==6 || CameraSlice==6){
             enabled |=64;
-            if(!(Option.AUDIO_SLICE ==6 || BacklightSlice==6 || count6<0.0)){
+            if(!(Option.AUDIO_SLICE ==6 || BacklightSlice==6 || CameraSlice==6 || count6<0.0)){
                 pwm_set_enabled(6,false);
                 count6=(MMFLOAT)pwm_hw->slice[6].top * (100.0-count6) / 100.0;
                 pwm_set_counter(6,count6);
             }
         }
-        if(slice7 || Option.AUDIO_SLICE ==7 || BacklightSlice==7){
+        if(slice7 || Option.AUDIO_SLICE ==7 || BacklightSlice==7 || CameraSlice==7){
             enabled |=128;
-            if(!(Option.AUDIO_SLICE ==7 || BacklightSlice==7 || count7<0.0)){
+            if(!(Option.AUDIO_SLICE ==7 || BacklightSlice==7 || CameraSlice==7 || count7<0.0)){
                 pwm_set_enabled(7,false);
                 count7=(MMFLOAT)pwm_hw->slice[7].top * (100.0-count7) / 100.0;
                 pwm_set_counter(7,count7);
@@ -1644,6 +1644,7 @@ void cmd_pwm(void){
     int slice=getint(argv[0],0,7);
     if(slice==BacklightSlice)error("Channel in use for backlight");
     if(slice==Option.AUDIO_SLICE)error("Channel in use for Audio");
+    if(slice==CameraSlice)error("Channel in use for Camera");
     if((tp=checkstring(argv[2],(unsigned char *)"OFF"))){
         PWMoff(slice);
         if(slice==0)slice0=0;
@@ -2061,7 +2062,7 @@ void DHT22(unsigned char *p) {
 	if(!(code=codecheck(argv[0])))argv[0]+=2;
 	pin = getinteger(argv[0]);
 	if(!code)pin=codemap(pin);
-    if(IsInvalidPin(pin)) error("Invalid pin");
+    if(IsInvalidPin(pin)) error("Invalid pin ");
     if(ExtCurrentConfig[pin] != EXT_NOT_CONFIG)  error("Pin %/| is in use",pin,pin);
     if(argc==7){
     	dht22=getint(argv[6],0,1);
@@ -2265,6 +2266,13 @@ void cmd_bitbang(void){
 		cmd_lcd(tp);
 		return;
 	}
+#ifndef PICOMITEVGA
+	tp = checkstring(cmdline, (unsigned char *)"CAMERA");
+	if(tp) {
+		cmd_camera(tp);
+		return;
+	}
+#endif
 	tp = checkstring(cmdline, (unsigned char *)"HUMID");
 	if(tp) {
 		DHT22(tp);
@@ -2662,6 +2670,9 @@ void cmd_adc(void){
 void ClearExternalIO(void) {
     int i;
   	CloseAudio(1);
+	#ifndef PICOMITEVGA
+        cameraclose();
+    #endif
     InterruptUsed = false;
 	InterruptReturn = NULL;
     irq_set_enabled(DMA_IRQ_1, false);

@@ -1730,22 +1730,34 @@ void cmd_play(void) {
 		else fsize = lfs_file_size(&lfs,FileTable[WAV_fnbr].lfsptr);
 		if(RoundUpK4(fsize)>1024*Option.modbuffsize)error("File too large for modbuffer");
         r = GetTempMemory(256);
-        uint32_t j = RoundUpK4(TOP_OF_SYSTEM_FLASH);
-        disable_interrupts();
-        flash_range_erase(j, RoundUpK4(fsize));
-        enable_interrupts();
+		char *check=modbuff;
+		int alreadythere=1;
         while(!FileEOF(WAV_fnbr)) { 
-			memset(r,0,256) ;
-			for(i=0;i<256;i++) {
-				if(FileEOF(WAV_fnbr))break;
-				r[i] = FileGetChar(WAV_fnbr);
-			}  
-			disable_interrupts();
-			flash_range_program(j, (uint8_t *)r, 256);
-			enable_interrupts();
-			routinechecks();
-			j+=256;
+			if(*check++ != FileGetChar(WAV_fnbr)){
+				alreadythere=0;
+				break;
+			}
         }
+		if(!alreadythere){
+			positionfile(WAV_fnbr,0);
+			uint32_t j = RoundUpK4(TOP_OF_SYSTEM_FLASH);
+			disable_interrupts();
+			flash_range_erase(j, RoundUpK4(fsize));
+			enable_interrupts();
+			while(!FileEOF(WAV_fnbr)) { 
+				memset(r,0,256) ;
+				for(i=0;i<256;i++) {
+					if(FileEOF(WAV_fnbr))break;
+					r[i] = FileGetChar(WAV_fnbr);
+				}  
+				disable_interrupts();
+				flash_range_program(j, (uint8_t *)r, 256);
+				enable_interrupts();
+				routinechecks();
+				j+=256;
+			}
+			FileClose(WAV_fnbr);
+		}
         FileClose(WAV_fnbr);
 		mcontext=GetMemory(sizeof(modcontext));
         hxcmod_init( mcontext );
