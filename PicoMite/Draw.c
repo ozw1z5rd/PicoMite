@@ -5735,7 +5735,7 @@ void ReadBufferColour(int x1, int y1, int x2, int y2, unsigned char *c){
     	for(x=xx1;x<=xx2;x++){
 	        pp=(uint8_t *)(((uint32_t) WriteBuf)+(y*(HRes>>1))+(x>>1));
 #ifdef PICOMITEVGA
-            int q;
+            unsigned int q;
             uint8_t *qq=pp;
             if(WriteBuf==DisplayBuf && LayerBuf != DisplayBuf && LayerBuf !=NULL)qq=(uint8_t *)(((uint32_t) LayerBuf)+(y*(HRes>>1))+(x>>1));
 #endif
@@ -5743,13 +5743,13 @@ void ReadBufferColour(int x1, int y1, int x2, int y2, unsigned char *c){
                 t=colours[(*pp)>>4];
 #ifdef PICOMITEVGA
                 q=colours[(*qq)>>4];
-                if(q && mergedread)t=q;
+                if(!(((*qq)>>4)==transparentlow) && mergedread)t=q;
 #endif
             } else {
                 t=colours[(*pp)&0x0F];
 #ifdef PICOMITEVGA
                 q=colours[(*qq)&0x0F];
-                if(q && mergedread)t=q;
+                 if(!(((*qq)&0x0F)==transparentlow) && mergedread)t=q;
 #endif
             }
             *c++=(t&0xFF);
@@ -7267,7 +7267,7 @@ void cmd_framebuffer(void){
             if(strcasecmp(q,"N")==0)WriteBuf=DisplayBuf;
             else if(strcasecmp(q,"L")==0)WriteBuf=LayerBuf;
             else if(strcasecmp(q,"F")==0)WriteBuf=FrameBuf;
-            error("Syntax");
+            else error("Syntax");
         }
     } else if((p=checkstring(cmdline, (unsigned char *)"WAIT"))) {
             while(QVgaScanLine!=480){}

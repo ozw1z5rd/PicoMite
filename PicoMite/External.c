@@ -2167,7 +2167,7 @@ void WS2812(unsigned char *q){
         if(!(ExtCurrentConfig[pin] == EXT_DIG_OUT || ExtCurrentConfig[pin] == EXT_NOT_CONFIG)) error("Pin %/| is not off or an output",pin,pin);
         if(ExtCurrentConfig[pin] == EXT_NOT_CONFIG)ExtCfg(pin, EXT_DIG_OUT, 0);
 		p=GetTempMemory((nbr+1)*colours);
-		int endreset=time_us_64()+TRST;
+		uint64_t endreset=time_us_64()+TRST;
     	for(i=0;i<nbr;i++){
     		green=(dest[i]>>8) & 0xFF;
     		red=(dest[i]>>16) & 0xFF;
