@@ -188,6 +188,7 @@ extern void SoftReset(void);
 extern volatile uint64_t IRoffset;
 extern int BacklightSlice,BacklightChannel;
 extern void setBacklight(int level);
+extern const uint8_t PINMAP[];
 void gpio_callback(uint gpio, uint32_t events);
 // for CheckPin() action can be set to:
 #define CP_CHECKALL          0b0000     // abort with an error if invalid, in use or reserved

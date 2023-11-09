@@ -297,6 +297,8 @@ extern void __not_in_flash_func(spi_finish)(spi_inst_t *spi);
 #define VIRTUAL_C       35
 #define VIRTUAL         VIRTUAL_C
 #define VIRTUAL_M       36
+#define VS1053slow      37
+#define VS1053fast      38
 #define TFT_NOP 0x00
 #define TFT_SWRST 0x01
 

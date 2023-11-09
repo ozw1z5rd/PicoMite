@@ -108,6 +108,8 @@ extern char *pioTXinterrupts[4];
         volatile bool connected;
         int BUF_SIZE;
         int TCP_PORT;
+        int *buffer_write;
+        int *buffer_read;
         char *hostname;
     } TCP_CLIENT_T;
     extern TCP_SERVER_T *TCPstate;

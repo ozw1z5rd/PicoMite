@@ -40,6 +40,7 @@ void MMgetline(int filenbr, char *p);
 void MMPrintString(char *s);
 void CheckAbort(void);
 char FileGetChar(int fnbr);
+void FilePutStr(int count, char *c, int fnbr);
 char FilePutChar(char c, int fnbr);
 void CheckSDCard(void);
 void LoadOptions(void);

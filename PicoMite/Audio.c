@@ -43,6 +43,7 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 #define DR_FLAC_NO_OGG
 #include "dr_flac.h"
 #include "hxcmod.h"
+#include "vs1053.h"
 extern BYTE MDD_SDSPI_CardDetectState(void);
 #define MAXALBUM 20
 extern int InitSDCard(void);
@@ -139,7 +140,12 @@ unsigned short *noisetable=NULL;
 unsigned short *usertable=NULL;
 const unsigned short whitenoise[2]={0};
 int noloop=0;
-
+int8_t XDCS=-1,XCS=-1,DREQ=-1,XRST=-1;
+int midienabled=0;
+int streamsize=0;
+int *streamwritepointer=NULL;
+int *streamreadpointer=NULL;
+char *streambuffer=NULL;
 void* my_malloc(size_t sz, void* pUserData)
 {
     return GetMemory(sz);
@@ -1093,6 +1099,7 @@ void CloseAudio(int all){
 	int was_playing=CurrentlyPlaying;
 	bcount[1] = bcount[2] = wav_filesize = 0;
 	swingbuf = nextbuf = playreadcomplete = 0;
+	if(CurrentlyPlaying==P_VS1053)stopSong();
 //	WAVInterrupt = NULL;
 	StopAudio();
 	ForceFileClose(WAV_fnbr);
@@ -1122,6 +1129,18 @@ void CloseAudio(int all){
     	sound_mode_left[i]=(uint16_t *)nulltable;
     	sound_mode_right[i]=(uint16_t *)nulltable;
     }
+	if(XDCS!=-1){
+		if(XCS>=0)ExtCfg(PINMAP[XCS], EXT_NOT_CONFIG, 0);
+		if(XDCS>=0)ExtCfg(PINMAP[XDCS], EXT_NOT_CONFIG, 0);
+		if(DREQ>=0)ExtCfg(PINMAP[DREQ], EXT_NOT_CONFIG, 0);
+		if(XRST>=0)ExtCfg(PINMAP[XRST], EXT_NOT_CONFIG, 0);
+		XDCS = XCS = DREQ = XRST = -1;
+		midienabled=0;
+		streamsize=0;
+		streamwritepointer=NULL;
+		streamreadpointer=NULL;
+		streambuffer=NULL;
+	}
     return;
 }
 void setrate(int rate){
@@ -1302,6 +1321,161 @@ void setnoise(void){
 // The MMBasic command:  PLAY
 void cmd_play(void) {
     unsigned char *tp;
+    if((tp = checkstring(cmdline, (unsigned char *)"NOTE"))) {
+		if(!midienabled)error("Midi output not enabled");
+		unsigned char *xp;
+		if((xp = checkstring(tp, (unsigned char *)"ON"))) {
+			getargs(&xp,5,(unsigned char *)",");
+			if(!(argc==5))error("Syntax");
+			uint8_t channel=getint(argv[0],0,15);
+			uint8_t note=getint(argv[2],0,127);
+			uint8_t velocity=getint(argv[4],0,127);
+			noteOn(channel,note,velocity);
+		} else if((xp = checkstring(tp, (unsigned char *)"OFF"))) {
+			getargs(&xp,5,(unsigned char *)",");
+			if(!(argc==5 || argc==3))error("Syntax");
+			uint8_t channel=getint(argv[0],0,15);
+			uint8_t note=getint(argv[2],0,127);
+			uint8_t velocity=0;
+			if(argc==5)velocity=getint(argv[4],0,127);
+			noteOff(channel,note,velocity);
+		} else error("Syntax");
+		return;
+	}
+    if((tp = checkstring(cmdline, (unsigned char *)"VS1053"))) {
+		char *p=NULL;
+		int pin1,pin2,pin3,pin4;
+		unsigned char *xp;
+		uint8_t stream=0;
+		if(Option.CPU_Speed>252000)error("Maximum CPU speed for VS1053 is 252MHz");
+		if((xp = checkstring(tp, (unsigned char *)"CMD"))) {
+			getargs(&xp,5,(unsigned char *)",");
+			if(!midienabled)error("Midi output not enabled");
+			if(!(argc==5 || argc==3))error("Syntax");
+			uint8_t cmd=getint(argv[0],128,255);
+			uint8_t data1=getint(argv[2],0,127);
+			uint8_t data2=0;
+			if(argc==5)data2=getint(argv[4],0,127);
+			talkMIDI(cmd, data1, data2);
+			return;
+		}
+		if((xp = checkstring(tp, (unsigned char *)"TEST"))) {
+			getargs(&xp,1,(unsigned char *)",");
+			if(!midienabled)error("Midi output not enabled");
+			miditest(getint(argv[0],1,3));	
+			return;
+		}
+		{
+			getargs(&tp,13,(unsigned char *)",");
+        	WAVInterrupt = NULL;
+        	WAVcomplete = 0;
+			if(!(argc==7 || argc==9 || argc==11|| argc==13))error("Syntax");
+			if(!Option.SYSTEM_CLK)error("System SPI not configured");
+			if(XDCS!=-1)error("VS1053 already open");
+			unsigned char code;
+			//XDSC pin
+			if(!(code=codecheck(argv[0])))argv[0]+=2;
+			pin1 = getinteger(argv[0]);
+			if(!code)pin1=codemap(pin1);
+			if(IsInvalidPin(pin1)) error("Invalid pin");
+			if(ExtCurrentConfig[pin1] != EXT_NOT_CONFIG)  error("Pin %/| is in use",pin1,pin1);
+			int slice=getslice(pin1);
+			if((PinDef[Option.DISPLAY_BL].slice & 0x7f) == slice) error("Channel in use for backlight");
+			if((PinDef[pin1].slice & 0x7f) == Option.AUDIO_SLICE) error("Channel in use for Audio");
+
+			//XCS pin
+			if(!(code=codecheck(argv[2])))argv[2]+=2;
+			pin2 = getinteger(argv[2]);
+			if(!code)pin2=codemap(pin2);
+			if(IsInvalidPin(pin2)) error("Invalid pin");
+			if(ExtCurrentConfig[pin2] != EXT_NOT_CONFIG)  error("Pin %/| is in use",pin2,pin2);
+
+			//DREQ pin
+			if(!(code=codecheck(argv[4])))argv[4]+=2;
+			pin3 = getinteger(argv[4]);
+			if(!code)pin3=codemap(pin3);
+			if(IsInvalidPin(pin3)) error("Invalid pin");
+			if(ExtCurrentConfig[pin3] != EXT_NOT_CONFIG)  error("Pin %/| is in use",pin3,pin3);
+
+			//XRST pin
+			if(!(code=codecheck(argv[6])))argv[6]+=2;
+			pin4 = getinteger(argv[6]);
+			if(!code)pin4=codemap(pin4);
+			if(IsInvalidPin(pin4)) error("Invalid pin");
+			if(ExtCurrentConfig[pin4] != EXT_NOT_CONFIG)  error("Pin %/| is in use",pin4,pin4);
+	//
+			if(argc>=9){
+				if(argc==13) { //must be stream syntax
+					stream=1;
+					void *ptr1 = NULL;
+					ptr1 = findvar(argv[8], V_FIND | V_EMPTY_OK | V_NOFIND_ERR);
+					if(vartbl[VarIndex].type & T_INT) {
+							if(vartbl[VarIndex].dims[1] != 0) error("Invalid variable");
+							if(vartbl[VarIndex].dims[0] <= 0) {      // Not an array
+									error("Argument 5 must be integer array");
+							}
+							streamsize=(vartbl[VarIndex].dims[0] - OptionBase + 1 ) * 8;
+							streambuffer=(char *)ptr1;
+					} else error("Argument 5 must be integer array");
+					ptr1 = findvar(argv[10], V_FIND | V_EMPTY_OK | V_NOFIND_ERR);
+					if(vartbl[VarIndex].type & T_INT) {
+							if(vartbl[VarIndex].dims[0] != 0) error("Argument 6 must be an integer");
+							streamreadpointer = (int *)ptr1;
+					} else error("Argument 6 must be an integer");
+					ptr1 = findvar(argv[12], V_FIND | V_EMPTY_OK | V_NOFIND_ERR);
+					if(vartbl[VarIndex].type & T_INT) {
+							if(vartbl[VarIndex].dims[0] != 0) error("Argument 7 must be an integer");
+							streamwritepointer = (int *)ptr1;
+					} else error("Argument 7 must be an integer");
+				} else { //file play syntax
+					p = (char *)getFstring(argv[8]);                                    // get the file name
+	//				if(strchr((char *)p, '.') == NULL) strcat((char *)p, ".MID");
+					WAV_fnbr = FindFreeFileNbr();
+					BasicFileOpen(p,WAV_fnbr, FA_READ);
+					if(argc == 11) {
+						if(!CurrentLinePtr)error("No program running");
+						WAVInterrupt = (char *)GetIntAddress(argv[10]);					// get the interrupt location
+						InterruptUsed = true;
+					}
+				}
+			}
+			XCS=PinDef[pin1].GPno;
+			XDCS=PinDef[pin2].GPno;
+			DREQ=PinDef[pin3].GPno;
+			XRST=PinDef[pin4].GPno;
+			VS1053(XCS,XDCS,DREQ,XRST);
+			if(argc==7){ //real-time midi syntax
+				setVolume(100);
+				midienabled=1;
+				miditest(0);
+				return;
+			}
+			switchToMp3Mode();
+			loadDefaultVs1053Patches(); 
+			setVolume(100);
+			if(stream){
+				CurrentlyPlaying=P_STREAM;
+				return;
+			}
+			char buff[64];
+			while(!FileEOF(WAV_fnbr)) { 
+				int nbr=onRead(NULL,buff,64);
+				uint64_t t=time_us_64();
+				playChunk((uint8_t *)buff,nbr);
+				if(time_us_64()-t>300){
+					CurrentlyPlaying=P_VS1053;
+					return;
+				}
+				if(nbr<64){
+//					if(fstrstr(p,".mid")==NULL)stopSong();
+					break;
+				}
+			}
+			FileClose(WAV_fnbr);
+			return;
+		}
+	}
+
 	if(!(Option.AUDIO_L || Option.AUDIO_CLK_PIN))error((char *)"Audio not enabled");
     if(checkstring(cmdline, (unsigned char *)"STOP")) {
 		if(CurrentlyPlaying == P_NOTHING)return;
@@ -1858,6 +2032,27 @@ void StopAudio(void) {
 void checkWAVinput(void){
     audio_checks();
 	if(playreadcomplete==1)return;
+	if(CurrentlyPlaying==P_STREAM){
+		if(!streamreadpointer)return;
+		if(*streamreadpointer==*streamwritepointer)return;
+		if(!(gpio_get(DREQ)))return;
+		char buff[64];
+		int i=0;
+		while(i<64 && *streamreadpointer!=*streamwritepointer){
+			buff[i++]=streambuffer[*streamreadpointer];
+			*streamreadpointer = (*streamreadpointer + 1) % streamsize;
+		}
+		playChunk((uint8_t *)buff,i);
+		return;
+	}
+	if(CurrentlyPlaying==P_VS1053){
+		if(!(gpio_get(DREQ)))return;
+		char buff[64];
+		int nbr=onRead(NULL,buff,64);
+		playChunk((uint8_t *)buff,nbr);
+		if(nbr<=0)playreadcomplete=1;
+		return;
+	}
     if(swingbuf != nextbuf){ //IR has moved to next buffer
         if(CurrentlyPlaying == P_FLAC){
             if(swingbuf==2){
@@ -1913,6 +2108,10 @@ void checkWAVinput(void){
 }
 void audio_checks(void){
     if(playreadcomplete == 1) {
+		if(CurrentlyPlaying==P_VS1053){
+			CloseAudio(1);
+			WAVcomplete = true;
+		}
     	if(!(bcount[1] || bcount[2]) ){
             if(CurrentlyPlaying == P_FLAC)drflac_close(myflac);
 			if(CurrentlyPlaying == P_MOD)FreeMemory((void *)mcontext);

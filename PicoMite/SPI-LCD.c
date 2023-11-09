@@ -66,6 +66,8 @@ const struct Displays display_details[]={
 		{34,"ILI9341_8", 0, 0, 0, 0, 0, 0 ,0},
 		{35,"VIRTUAL_C", 0, 320, 240, 0, 0, 0, 0},
 		{36,"VIRTUAL_M", 0, 640, 480, 0, 0, 0, 0},
+		{37,"VS1053slow", 200000, 0, 0, 0, 0, SPI_POLARITY_LOW, SPI_PHASE_1EDGE},
+		{38,"VS1053fast", 4000000, 0, 0, 0, 0, SPI_POLARITY_LOW, SPI_PHASE_1EDGE},
 
 };
 int LCD_CS_PIN=0;

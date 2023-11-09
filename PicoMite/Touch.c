@@ -53,6 +53,7 @@ int TOUCH_GETIRQTRIS=0;
 void MIPS16 ConfigTouch(unsigned char *p) {
     int pin1, pin2, pin3=0;
     getargs(&p, 5, (unsigned char *)",");
+    if(!Option.SYSTEM_CLK)error("System SPI not configured");
     if(!(argc == 3 || argc == 5)) error("Argument count");
 	unsigned char code;
 	if(!(code=codecheck(argv[0])))argv[0]+=2;
