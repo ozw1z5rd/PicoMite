@@ -80,18 +80,20 @@ commands and functions
 // define the PWM output frequency for making a tone
 const char* const PlayingStr[] = {"OFF",
                                 "PAUSED",
-                                "PAUSED",
+                                "TONE",
                                 "PAUSED",
                                 "SOUND",
                                 "WAV",
                                 "PAUSED",
                                 "FLAC",
                                 "MP3",
+								"MIDI",
                                 "PAUSED",
                                 "PAUSED",
                                 "STOP",
                                 "SYNC",
-								"MOD"
+								"MOD",
+								"STREAM"
 }  ;                              
 volatile unsigned char PWM_count = 0;
 volatile float PhaseM_left, PhaseM_right;
@@ -1070,6 +1072,10 @@ const unsigned short SineTable[4096] = {
 		1814,1817,1820,1822,1825,1828,1831,1834,1837,1840,1843,1846,1849,1852,1854,1857,1860,1863,1866,1869,1872,1875,1878,1881,1883,1886,1889,1892,1895,1898,1901,1904,
 		1907,1910,1913,1916,1918,1921,1924,1927,1930,1933,1936,1939,1942,1945,1948,1950,1953,1956,1959,1962,1965,1968,1971,1974,1977,1980,1983,1985,1988,1991,1994,1997
 };
+const char wavheader[44]={0x52,0x49,0x46,0x46,0xFF,0xFF,0xFF,0xFF,0x57,0x41,0x56,0x45,0x66,
+0x6d,0x74,0x20,0x10,0x00,0x00,0x00,0x01,0x00,0x02,0x00,0x80,0x3E,
+0x00,0x00,0x0,0xFA,0x00,0x00,0x04,0x00,0x10,0x00,0x64,0x61,0x74,0x61,
+0xFF,0xFF,0xFF,0xFF};
 size_t onRead(void  *userdata,  char  *pBufferOut,   size_t bytesToRead){
     unsigned int nbr;
 	if(filesource[WAV_fnbr]==FATFSFILE){
@@ -1099,11 +1105,10 @@ void CloseAudio(int all){
 	int was_playing=CurrentlyPlaying;
 	bcount[1] = bcount[2] = wav_filesize = 0;
 	swingbuf = nextbuf = playreadcomplete = 0;
-	if(CurrentlyPlaying==P_VS1053)stopSong();
+	if((CurrentlyPlaying == P_FLAC || CurrentlyPlaying == P_WAV ||CurrentlyPlaying == P_MP3 ||CurrentlyPlaying == P_MIDI || CurrentlyPlaying==P_MOD) && Option.AUDIO_MISO_PIN)stopSong();
 //	WAVInterrupt = NULL;
 	StopAudio();
 	ForceFileClose(WAV_fnbr);
-//	if(was_playing == P_MP3 || was_playing == P_PAUSE_MP3 )drmp3_uninit(&mymp3);
 	FreeMemorySafe((void **)&sbuff1);
 	FreeMemorySafe((void **)&sbuff2);
 	FreeMemorySafe((void **)&noisetable);
@@ -1130,10 +1135,6 @@ void CloseAudio(int all){
     	sound_mode_right[i]=(uint16_t *)nulltable;
     }
 	if(XDCS!=-1){
-		if(XCS>=0)ExtCfg(PINMAP[XCS], EXT_NOT_CONFIG, 0);
-		if(XDCS>=0)ExtCfg(PINMAP[XDCS], EXT_NOT_CONFIG, 0);
-		if(DREQ>=0)ExtCfg(PINMAP[DREQ], EXT_NOT_CONFIG, 0);
-		if(XRST>=0)ExtCfg(PINMAP[XRST], EXT_NOT_CONFIG, 0);
 		XDCS = XCS = DREQ = XRST = -1;
 		midienabled=0;
 		streamsize=0;
@@ -1159,6 +1160,40 @@ void iconvert(uint16_t *ibuff, int16_t *sbuff, int count){
 		ibuff[i+1]=(uint16_t)((((((int)sbuff[i+1]*mapping[vol_right]/2000+32768))>>4)));
 	}
 }
+void playvs1053(int mode){
+	XCS=PinDef[Option.AUDIO_CS_PIN].GPno;
+	XDCS=PinDef[Option.AUDIO_DCS_PIN].GPno;
+	DREQ=PinDef[Option.AUDIO_DREQ_PIN].GPno;
+	XRST=PinDef[Option.AUDIO_RESET_PIN].GPno;
+	VS1053(XCS,XDCS,DREQ,XRST);
+	switchToMp3Mode();
+	loadDefaultVs1053Patches(); 
+	setVolume(100);
+	//playing a file
+	setrate(16000); //16KHz should be fast enough
+	if(mode==P_MOD){
+		memcpy((char *)sbuff1,wavheader,sizeof(wavheader));
+//		hxcmod_fillbuffer( mcontext, (msample*)((char *)&sbuff1[44]), WAV_BUFFER_SIZE/4-11, NULL, noloop );
+		bcount[1]=44;
+		wav_filesize=bcount[1];
+	} else {
+		sbuff1 = GetMemory(WAV_BUFFER_SIZE);
+		sbuff2 = GetMemory(WAV_BUFFER_SIZE);
+		bcount[1]=onRead(NULL,sbuff1,WAV_BUFFER_SIZE);
+		wav_filesize=bcount[1];
+	}
+	CurrentlyPlaying = mode;
+	swingbuf=1;
+	nextbuf=2;
+	ppos=0;
+	playreadcomplete=0;
+	pwm_set_irq_enabled(AUDIO_SLICE, true);
+	uint64_t t=time_us_64();
+	while(1){ //read all the headers without stalling
+		checkWAVinput();
+		if(time_us_64()-t>500000)break;
+	}
+}
 void wavcallback(char *p){
 	int actualrate;
     if(strchr((char *)p, '.') == NULL) strcat((char *)p, ".wav");
@@ -1167,6 +1202,10 @@ void wavcallback(char *p){
     }
     WAV_fnbr = FindFreeFileNbr();
     if(!BasicFileOpen(p, WAV_fnbr, FA_READ)) return;
+	if(Option.AUDIO_MISO_PIN){
+		playvs1053(P_WAV);
+		return;
+	}
 	drwav_allocation_callbacks allocationCallbacks;
 	int myData;
     allocationCallbacks.pUserData = &myData;
@@ -1208,6 +1247,24 @@ void wavcallback(char *p){
     playreadcomplete=0;
 	pwm_set_irq_enabled(AUDIO_SLICE, true);
 }
+void mp3callback(char *p){
+    if(strchr((char *)p, '.') == NULL) strcat((char *)p, ".mp3");
+    if(CurrentlyPlaying == P_MP3){
+    	CloseAudio(0);
+    }
+    WAV_fnbr = FindFreeFileNbr();
+    if(!BasicFileOpen(p, WAV_fnbr, FA_READ)) return;
+	playvs1053(P_MP3);
+}
+void midicallback(char *p){
+    if(strchr((char *)p, '.') == NULL) strcat((char *)p, ".mid");
+    if(CurrentlyPlaying == P_MIDI){
+    	CloseAudio(0);
+    }
+    WAV_fnbr = FindFreeFileNbr();
+    if(!BasicFileOpen(p, WAV_fnbr, FA_READ)) return;
+	playvs1053(P_MIDI);
+}
 void flaccallback(char *p){
 	int actualrate;
     if(strchr((char *)p, '.') == NULL) strcat((char *)p, ".flac");
@@ -1216,6 +1273,10 @@ void flaccallback(char *p){
     }
     WAV_fnbr = FindFreeFileNbr();
     if(!BasicFileOpen(p, WAV_fnbr, FA_READ)) return;
+	if(Option.AUDIO_MISO_PIN){
+		playvs1053(P_FLAC);
+		return;
+	}
 	drflac_allocation_callbacks allocationCallbacks;
 //	int myData;
     allocationCallbacks.pUserData = NULL;
@@ -1317,172 +1378,18 @@ void setnoise(void){
     return;
 
 }
-
 // The MMBasic command:  PLAY
 void cmd_play(void) {
     unsigned char *tp;
-    if((tp = checkstring(cmdline, (unsigned char *)"NOTE"))) {
-		if(!midienabled)error("Midi output not enabled");
-		unsigned char *xp;
-		if((xp = checkstring(tp, (unsigned char *)"ON"))) {
-			getargs(&xp,5,(unsigned char *)",");
-			if(!(argc==5))error("Syntax");
-			uint8_t channel=getint(argv[0],0,15);
-			uint8_t note=getint(argv[2],0,127);
-			uint8_t velocity=getint(argv[4],0,127);
-			noteOn(channel,note,velocity);
-		} else if((xp = checkstring(tp, (unsigned char *)"OFF"))) {
-			getargs(&xp,5,(unsigned char *)",");
-			if(!(argc==5 || argc==3))error("Syntax");
-			uint8_t channel=getint(argv[0],0,15);
-			uint8_t note=getint(argv[2],0,127);
-			uint8_t velocity=0;
-			if(argc==5)velocity=getint(argv[4],0,127);
-			noteOff(channel,note,velocity);
-		} else error("Syntax");
-		return;
-	}
-    if((tp = checkstring(cmdline, (unsigned char *)"VS1053"))) {
-		char *p=NULL;
-		int pin1,pin2,pin3,pin4;
-		unsigned char *xp;
-		uint8_t stream=0;
-		if(Option.CPU_Speed>252000)error("Maximum CPU speed for VS1053 is 252MHz");
-		if((xp = checkstring(tp, (unsigned char *)"CMD"))) {
-			getargs(&xp,5,(unsigned char *)",");
-			if(!midienabled)error("Midi output not enabled");
-			if(!(argc==5 || argc==3))error("Syntax");
-			uint8_t cmd=getint(argv[0],128,255);
-			uint8_t data1=getint(argv[2],0,127);
-			uint8_t data2=0;
-			if(argc==5)data2=getint(argv[4],0,127);
-			talkMIDI(cmd, data1, data2);
-			return;
-		}
-		if((xp = checkstring(tp, (unsigned char *)"TEST"))) {
-			getargs(&xp,1,(unsigned char *)",");
-			if(!midienabled)error("Midi output not enabled");
-			miditest(getint(argv[0],1,3));	
-			return;
-		}
-		{
-			getargs(&tp,13,(unsigned char *)",");
-        	WAVInterrupt = NULL;
-        	WAVcomplete = 0;
-			if(!(argc==7 || argc==9 || argc==11|| argc==13))error("Syntax");
-			if(!Option.SYSTEM_CLK)error("System SPI not configured");
-			if(XDCS!=-1)error("VS1053 already open");
-			unsigned char code;
-			//XDSC pin
-			if(!(code=codecheck(argv[0])))argv[0]+=2;
-			pin1 = getinteger(argv[0]);
-			if(!code)pin1=codemap(pin1);
-			if(IsInvalidPin(pin1)) error("Invalid pin");
-			if(ExtCurrentConfig[pin1] != EXT_NOT_CONFIG)  error("Pin %/| is in use",pin1,pin1);
-			int slice=getslice(pin1);
-			if((PinDef[Option.DISPLAY_BL].slice & 0x7f) == slice) error("Channel in use for backlight");
-			if((PinDef[pin1].slice & 0x7f) == Option.AUDIO_SLICE) error("Channel in use for Audio");
-
-			//XCS pin
-			if(!(code=codecheck(argv[2])))argv[2]+=2;
-			pin2 = getinteger(argv[2]);
-			if(!code)pin2=codemap(pin2);
-			if(IsInvalidPin(pin2)) error("Invalid pin");
-			if(ExtCurrentConfig[pin2] != EXT_NOT_CONFIG)  error("Pin %/| is in use",pin2,pin2);
-
-			//DREQ pin
-			if(!(code=codecheck(argv[4])))argv[4]+=2;
-			pin3 = getinteger(argv[4]);
-			if(!code)pin3=codemap(pin3);
-			if(IsInvalidPin(pin3)) error("Invalid pin");
-			if(ExtCurrentConfig[pin3] != EXT_NOT_CONFIG)  error("Pin %/| is in use",pin3,pin3);
-
-			//XRST pin
-			if(!(code=codecheck(argv[6])))argv[6]+=2;
-			pin4 = getinteger(argv[6]);
-			if(!code)pin4=codemap(pin4);
-			if(IsInvalidPin(pin4)) error("Invalid pin");
-			if(ExtCurrentConfig[pin4] != EXT_NOT_CONFIG)  error("Pin %/| is in use",pin4,pin4);
-	//
-			if(argc>=9){
-				if(argc==13) { //must be stream syntax
-					stream=1;
-					void *ptr1 = NULL;
-					ptr1 = findvar(argv[8], V_FIND | V_EMPTY_OK | V_NOFIND_ERR);
-					if(vartbl[VarIndex].type & T_INT) {
-							if(vartbl[VarIndex].dims[1] != 0) error("Invalid variable");
-							if(vartbl[VarIndex].dims[0] <= 0) {      // Not an array
-									error("Argument 5 must be integer array");
-							}
-							streamsize=(vartbl[VarIndex].dims[0] - OptionBase + 1 ) * 8;
-							streambuffer=(char *)ptr1;
-					} else error("Argument 5 must be integer array");
-					ptr1 = findvar(argv[10], V_FIND | V_EMPTY_OK | V_NOFIND_ERR);
-					if(vartbl[VarIndex].type & T_INT) {
-							if(vartbl[VarIndex].dims[0] != 0) error("Argument 6 must be an integer");
-							streamreadpointer = (int *)ptr1;
-					} else error("Argument 6 must be an integer");
-					ptr1 = findvar(argv[12], V_FIND | V_EMPTY_OK | V_NOFIND_ERR);
-					if(vartbl[VarIndex].type & T_INT) {
-							if(vartbl[VarIndex].dims[0] != 0) error("Argument 7 must be an integer");
-							streamwritepointer = (int *)ptr1;
-					} else error("Argument 7 must be an integer");
-				} else { //file play syntax
-					p = (char *)getFstring(argv[8]);                                    // get the file name
-	//				if(strchr((char *)p, '.') == NULL) strcat((char *)p, ".MID");
-					WAV_fnbr = FindFreeFileNbr();
-					BasicFileOpen(p,WAV_fnbr, FA_READ);
-					if(argc == 11) {
-						if(!CurrentLinePtr)error("No program running");
-						WAVInterrupt = (char *)GetIntAddress(argv[10]);					// get the interrupt location
-						InterruptUsed = true;
-					}
-				}
-			}
-			XCS=PinDef[pin1].GPno;
-			XDCS=PinDef[pin2].GPno;
-			DREQ=PinDef[pin3].GPno;
-			XRST=PinDef[pin4].GPno;
-			VS1053(XCS,XDCS,DREQ,XRST);
-			if(argc==7){ //real-time midi syntax
-				setVolume(100);
-				midienabled=1;
-				miditest(0);
-				return;
-			}
-			switchToMp3Mode();
-			loadDefaultVs1053Patches(); 
-			setVolume(100);
-			if(stream){
-				CurrentlyPlaying=P_STREAM;
-				return;
-			}
-			char buff[64];
-			while(!FileEOF(WAV_fnbr)) { 
-				int nbr=onRead(NULL,buff,64);
-				uint64_t t=time_us_64();
-				playChunk((uint8_t *)buff,nbr);
-				if(time_us_64()-t>300){
-					CurrentlyPlaying=P_VS1053;
-					return;
-				}
-				if(nbr<64){
-//					if(fstrstr(p,".mid")==NULL)stopSong();
-					break;
-				}
-			}
-			FileClose(WAV_fnbr);
-			return;
-		}
-	}
-
-	if(!(Option.AUDIO_L || Option.AUDIO_CLK_PIN))error((char *)"Audio not enabled");
     if(checkstring(cmdline, (unsigned char *)"STOP")) {
 		if(CurrentlyPlaying == P_NOTHING)return;
         CloseAudio(1);
         return;
     }
+
+	if(!(Option.AUDIO_L || Option.AUDIO_CLK_PIN))error((char *)"Audio not enabled");
     if((tp=checkstring(cmdline, (unsigned char *)"LOAD SOUND"))) {
+		if(Option.AUDIO_MISO_PIN)error("Not available with VS1053 audio");
         if(usertable!=NULL)error("Already loaded");
 //        unsigned int nbr;
         uint16_t *dd;
@@ -1511,6 +1418,20 @@ void cmd_play(void) {
 			}
 			trackplaying++;
 			wavcallback(alist[trackplaying].fn);
+		} else if(CurrentlyPlaying == P_MP3){
+			if(trackplaying==trackstoplay){
+				if(!CurrentLinePtr)MMPrintString("Last track is playing\r\n");
+				return;
+			}
+			trackplaying++;
+			mp3callback(alist[trackplaying].fn);
+		} else if(CurrentlyPlaying == P_MIDI){
+			if(trackplaying==trackstoplay){
+				if(!CurrentLinePtr)MMPrintString("Last track is playing\r\n");
+				return;
+			}
+			trackplaying++;
+			midicallback(alist[trackplaying].fn);
 		} else error("Nothing to play");
 
     	return;
@@ -1530,6 +1451,20 @@ void cmd_play(void) {
 			}
 			trackplaying--;
 			wavcallback(alist[trackplaying].fn);
+		} else if(CurrentlyPlaying == P_MP3){
+			if(trackplaying==0){
+				if(!CurrentLinePtr)MMPrintString("First track is playing\r\n");
+				return;
+			}
+			trackplaying--;
+			mp3callback(alist[trackplaying].fn);
+		} else if(CurrentlyPlaying == P_MIDI){
+			if(trackplaying==0){
+				if(!CurrentLinePtr)MMPrintString("First track is playing\r\n");
+				return;
+			}
+			trackplaying--;
+			midicallback(alist[trackplaying].fn);
 		} else error("Nothing to play");
 
     	return;
@@ -1565,6 +1500,11 @@ void cmd_play(void) {
         if(*argv[0]) vol_left = getint(argv[0], 0, 100);
         if(argc == 3) vol_right = getint(argv[2], 0, 100);
 		if(CurrentlyPlaying==P_TONE && vol_left!=vol_right && mono)mono=0;
+		if(Option.AUDIO_MISO_PIN){
+			pwm_set_irq_enabled(AUDIO_SLICE, false);
+			setVolumes(vol_left, vol_right);
+			pwm_set_irq_enabled(AUDIO_SLICE, true);
+		}
         return;
     }
 
@@ -1578,6 +1518,7 @@ void cmd_play(void) {
         {// get the command line arguments
 			getargs(&tp, 7,(unsigned char *)","); 
 			if(!(argc == 3 || argc == 5 || argc == 7)) error("Argument count");
+			if(Option.AUDIO_MISO_PIN)error("Not available with VS1053 audio");
 			mono=0;
 			if(!(CurrentlyPlaying == P_NOTHING || CurrentlyPlaying == P_TONE || CurrentlyPlaying == P_PAUSE_TONE || CurrentlyPlaying == P_STOP)) error("Sound output in use for $",PlayingStr[CurrentlyPlaying]);
 			f_left = getnumber(argv[0]);                         // get the arguments
@@ -1627,6 +1568,7 @@ void cmd_play(void) {
         getargs(&tp, 9,(unsigned char *)",");                                       // this MUST be the first executable line in the function
         if(!(argc == 9 || argc == 7 || argc == 5)) error("Argument count");
         if(checkstring(argv[4],(unsigned char *)"O")==NULL && argc == 5) error("Argument count");
+		if(Option.AUDIO_MISO_PIN)error("Not available with VS1053 audio");
 		WAV_fnbr=0;
         channel=getint(argv[0],1,MAXSOUNDS)-1;
 		monosound[channel]=0;
@@ -1874,6 +1816,227 @@ void cmd_play(void) {
         flaccallback(p);
         return;
 	}
+	if((tp = checkstring(cmdline, (unsigned char *)"NOTE"))) {
+		if(!Option.AUDIO_MISO_PIN)error("Only available with VS1053 audio");
+		if(!midienabled)error("Midi output not enabled");
+		unsigned char *xp;
+		if((xp = checkstring(tp, (unsigned char *)"ON"))) {
+			getargs(&xp,5,(unsigned char *)",");
+			if(!(argc==5))error("Syntax");
+			uint8_t channel=getint(argv[0],0,15);
+			uint8_t note=getint(argv[2],0,127);
+			uint8_t velocity=getint(argv[4],0,127);
+			noteOn(channel,note,velocity);
+		} else if((xp = checkstring(tp, (unsigned char *)"OFF"))) {
+			getargs(&xp,5,(unsigned char *)",");
+			if(!(argc==5 || argc==3))error("Syntax");
+			uint8_t channel=getint(argv[0],0,15);
+			uint8_t note=getint(argv[2],0,127);
+			uint8_t velocity=0;
+			if(argc==5)velocity=getint(argv[4],0,127);
+			noteOff(channel,note,velocity);
+		} else error("Syntax");
+		return;
+	}
+    if((tp = checkstring(cmdline, (unsigned char *)"STREAM"))) {
+		getargs(&tp,5,(unsigned char *)",");
+        if(!(argc == 5 )) error("Syntax");
+		if(!Option.AUDIO_MISO_PIN)error("Only available with VS1053 audio");
+        if(CurrentlyPlaying != P_NOTHING) error("Sound output in use for $",PlayingStr[CurrentlyPlaying]);
+		WAVInterrupt = NULL;
+		WAVcomplete = 0;
+		if(XDCS!=-1)error("VS1053 already open");
+		void *ptr1 = NULL;
+		ptr1 = findvar(argv[0], V_FIND | V_EMPTY_OK | V_NOFIND_ERR);
+		if(vartbl[VarIndex].type & T_INT) {
+				if(vartbl[VarIndex].dims[1] != 0) error("Invalid variable");
+				if(vartbl[VarIndex].dims[0] <= 0) {      // Not an array
+						error("Argument 1 must be integer array");
+				}
+				streamsize=(vartbl[VarIndex].dims[0] - OptionBase + 1 ) * 8;
+				streambuffer=(char *)ptr1;
+		} else error("Argument 1 must be integer array");
+		ptr1 = findvar(argv[2], V_FIND | V_EMPTY_OK | V_NOFIND_ERR);
+		if(vartbl[VarIndex].type & T_INT) {
+				if(vartbl[VarIndex].dims[0] != 0) error("Argument 2 must be an integer");
+				streamreadpointer = (int *)ptr1;
+		} else error("Argument 2 must be an integer");
+		ptr1 = findvar(argv[4], V_FIND | V_EMPTY_OK | V_NOFIND_ERR);
+		if(vartbl[VarIndex].type & T_INT) {
+				if(vartbl[VarIndex].dims[0] != 0) error("Argument 3 must be an integer");
+				streamwritepointer = (int *)ptr1;
+		} else error("Argument 3 must be an integer");
+		XCS=PinDef[Option.AUDIO_CS_PIN].GPno;
+		XDCS=PinDef[Option.AUDIO_DCS_PIN].GPno;
+		DREQ=PinDef[Option.AUDIO_DREQ_PIN].GPno;
+		XRST=PinDef[Option.AUDIO_RESET_PIN].GPno;
+		VS1053(XCS,XDCS,DREQ,XRST);
+		switchToMp3Mode();
+		loadDefaultVs1053Patches(); 
+		setVolume(100);
+		MMPrintString("Stream output enabled\r\n");	
+		playreadcomplete=0;
+		CurrentlyPlaying=P_STREAM;
+		setrate(16000); //16KHz should be fast enough
+		pwm_set_irq_enabled(AUDIO_SLICE, true);
+		return;
+	}
+	if((tp = checkstring(cmdline, (unsigned char *)"MIDI"))) {
+		unsigned char *xp;
+		if((xp = checkstring(tp, (unsigned char *)"CMD"))) {
+			getargs(&xp,5,(unsigned char *)",");
+			if(!midienabled)error("Midi output not enabled");
+			if(!(argc==5 || argc==3))error("Syntax");
+			uint8_t cmd=getint(argv[0],128,255);
+			uint8_t data1=getint(argv[2],0,127);
+			uint8_t data2=0;
+			if(argc==5)data2=getint(argv[4],0,127);
+			talkMIDI(cmd, data1, data2);
+			return;
+		}
+		if((xp = checkstring(tp, (unsigned char *)"TEST"))) {
+			getargs(&xp,1,(unsigned char *)",");
+			if(!midienabled)error("Midi output not enabled");
+			miditest(getint(argv[0],1,3));	
+			return;
+		}
+		if(!Option.AUDIO_MISO_PIN)error("Only available with VS1053 audio");
+        if(CurrentlyPlaying != P_NOTHING) error("Sound output in use for $",PlayingStr[CurrentlyPlaying]);
+		WAVInterrupt = NULL;
+		WAVcomplete = 0;
+		XCS=PinDef[Option.AUDIO_CS_PIN].GPno;
+		XDCS=PinDef[Option.AUDIO_DCS_PIN].GPno;
+		DREQ=PinDef[Option.AUDIO_DREQ_PIN].GPno;
+		XRST=PinDef[Option.AUDIO_RESET_PIN].GPno;
+		VS1053(XCS,XDCS,DREQ,XRST);
+		setVolume(100);
+		midienabled=1;
+		miditest(0);
+		if(!CurrentLinePtr)MMPrintString("Real Time MIDI mode enabled\r\n");
+		return;
+	}
+	if((tp = checkstring(cmdline, (unsigned char *)"MIDIFILE"))) {
+        char *p;
+        int i __attribute((unused))=0;
+        getargs(&tp, 3,(unsigned char *)",");                                  // this MUST be the first executable line in the function
+        if(!(argc == 1 || argc == 3)) error("Argument count");
+		if(!Option.AUDIO_MISO_PIN)error("Only available with VS1053 audio");
+        if(CurrentlyPlaying != P_NOTHING) error("Sound output in use for $",PlayingStr[CurrentlyPlaying]);
+
+        if(!InitSDCard()) return;
+        p = (char *)getFstring(argv[0]);                                    // get the file name
+		char q[FF_MAX_LFN]={0};
+		getfullfilename(p,q);
+        WAVInterrupt = NULL;
+
+        WAVcomplete = 0;
+        if(argc == 3) {
+			if(!CurrentLinePtr)error("No program running");
+            WAVInterrupt = (char *)GetIntAddress(argv[2]);					// get the interrupt location
+            InterruptUsed = true;
+        }
+		if(FatFSFileSystem){
+			FRESULT fr;
+			FILINFO fno;
+			int i;
+			if(ExistsDir(q,q,&i)){
+				alist=GetMemory(sizeof(a_flist)*MAXALBUM);
+				trackstoplay=0;
+				trackplaying=0;
+				DIR djd;
+				djd.pat="*.mid";
+				if(!CurrentLinePtr)MMPrintString("Directory found - commencing player\r\n");
+				FSerror = f_opendir(&djd, q);
+				for(;;){
+					fr=f_readdir(&djd, &fno);
+					if (fr != FR_OK || fno.fname[0] == 0) break;  /* Break on error or end of dir */
+					// Get a directory item
+					if (pattern_matching(djd.pat, fno.fname, 0, 0)){
+					// Get a directory item
+						strcpy(alist[trackstoplay].fn,"B:");
+						strcat(alist[trackstoplay].fn,q);
+						strcat(alist[trackstoplay].fn,"/");
+						strcat(alist[trackstoplay].fn,fno.fname);
+						if(!CurrentLinePtr){
+							MMPrintString(fno.fname);
+							PRet();
+						}
+						trackstoplay++;
+					}
+				}
+				trackstoplay--;
+				f_closedir(&djd);
+				midicallback(alist[trackplaying].fn);
+				return;
+    	    }
+		}
+        // open the file
+        trackstoplay=0;
+        trackplaying=0;
+        midicallback(p);
+        return;
+	}
+	if((tp = checkstring(cmdline, (unsigned char *)"MP3"))) {
+        char *p;
+        int i __attribute((unused))=0;
+        getargs(&tp, 3,(unsigned char *)",");                                  // this MUST be the first executable line in the function
+        if(!(argc == 1 || argc == 3)) error("Argument count");
+		if(!Option.AUDIO_MISO_PIN)error("Only available with VS1053 audio");
+        if(CurrentlyPlaying != P_NOTHING) error("Sound output in use for $",PlayingStr[CurrentlyPlaying]);
+
+        if(!InitSDCard()) return;
+        p = (char *)getFstring(argv[0]);                                    // get the file name
+		char q[FF_MAX_LFN]={0};
+		getfullfilename(p,q);
+        WAVInterrupt = NULL;
+
+        WAVcomplete = 0;
+        if(argc == 3) {
+			if(!CurrentLinePtr)error("No program running");
+            WAVInterrupt = (char *)GetIntAddress(argv[2]);					// get the interrupt location
+            InterruptUsed = true;
+        }
+		if(FatFSFileSystem){
+			FRESULT fr;
+			FILINFO fno;
+			int i;
+			if(ExistsDir(q,q,&i)){
+				alist=GetMemory(sizeof(a_flist)*MAXALBUM);
+				trackstoplay=0;
+				trackplaying=0;
+				DIR djd;
+				djd.pat="*.mp3";
+				if(!CurrentLinePtr)MMPrintString("Directory found - commencing player\r\n");
+				FSerror = f_opendir(&djd, q);
+				for(;;){
+					fr=f_readdir(&djd, &fno);
+					if (fr != FR_OK || fno.fname[0] == 0) break;  /* Break on error or end of dir */
+					// Get a directory item
+					if (pattern_matching(djd.pat, fno.fname, 0, 0)){
+					// Get a directory item
+						strcpy(alist[trackstoplay].fn,"B:");
+						strcat(alist[trackstoplay].fn,q);
+						strcat(alist[trackstoplay].fn,"/");
+						strcat(alist[trackstoplay].fn,fno.fname);
+						if(!CurrentLinePtr){
+							MMPrintString(fno.fname);
+							PRet();
+						}
+						trackstoplay++;
+					}
+				}
+				trackstoplay--;
+				f_closedir(&djd);
+				mp3callback(alist[trackplaying].fn);
+				return;
+    	    }
+		}
+        // open the file
+        trackstoplay=0;
+        trackplaying=0;
+        mp3callback(p);
+        return;
+	}
     if((tp = checkstring(cmdline, (unsigned char *)"MODFILE"))) {
         getargs(&tp, 3,(unsigned char *)",");                                  // this MUST be the first executable line in the function
         char *p, *r;
@@ -1941,7 +2104,12 @@ void cmd_play(void) {
 		if(!CurrentLinePtr){
 			MMPrintString("Playing ");MMPrintString((char *)mcontext->song.title);PRet();
 		}
-        hxcmod_fillbuffer( mcontext, (msample*)sbuff1, WAV_BUFFER_SIZE/4, NULL, noloop );
+		if(Option.AUDIO_MISO_PIN){
+			playvs1053(P_MOD);
+			return;
+		} else {
+	        hxcmod_fillbuffer( mcontext, (msample*)sbuff1, WAV_BUFFER_SIZE/4, NULL, noloop );
+		}
         wav_filesize=WAV_BUFFER_SIZE/2;
         bcount[1]=WAV_BUFFER_SIZE/2;
         bcount[2]=0;
@@ -2024,75 +2192,77 @@ void StopAudio(void) {
     }
 	SoundPlay = 0;
 }
-
-
 /******************************************************************************************
  * Maintain the WAV sample buffer
 *******************************************************************************************/
 void checkWAVinput(void){
     audio_checks();
 	if(playreadcomplete==1)return;
-	if(CurrentlyPlaying==P_STREAM){
-		if(!streamreadpointer)return;
-		if(*streamreadpointer==*streamwritepointer)return;
-		if(!(gpio_get(DREQ)))return;
-		char buff[64];
-		int i=0;
-		while(i<64 && *streamreadpointer!=*streamwritepointer){
-			buff[i++]=streambuffer[*streamreadpointer];
-			*streamreadpointer = (*streamreadpointer + 1) % streamsize;
-		}
-		playChunk((uint8_t *)buff,i);
-		return;
-	}
-	if(CurrentlyPlaying==P_VS1053){
-		if(!(gpio_get(DREQ)))return;
-		char buff[64];
-		int nbr=onRead(NULL,buff,64);
-		playChunk((uint8_t *)buff,nbr);
-		if(nbr<=0)playreadcomplete=1;
-		return;
-	}
     if(swingbuf != nextbuf){ //IR has moved to next buffer
-        if(CurrentlyPlaying == P_FLAC){
-            if(swingbuf==2){
-                bcount[1]=(volatile unsigned int)drflac_read_pcm_frames_s16(myflac, WAV_BUFFER_SIZE/2, (drwav_int16*)sbuff1) * myflac->channels;
-                iconvert(ibuff1, (int16_t *)sbuff1, bcount[1]);
-                wav_filesize = bcount[1];
-            } else {
-                bcount[2]=(volatile unsigned int)drflac_read_pcm_frames_s16(myflac, WAV_BUFFER_SIZE/2, (drwav_int16*)sbuff2) * myflac->channels;
-                 iconvert(ibuff2, (int16_t *)sbuff2, bcount[2]);
-                wav_filesize = bcount[2];
-            }
-            nextbuf=swingbuf;
-	} else if(CurrentlyPlaying == P_MOD){
-			if(swingbuf==2){
-				if(hxcmod_fillbuffer( mcontext, (msample*)sbuff1, WAV_BUFFER_SIZE/4,NULL, noloop ))playreadcomplete = 1;
-				wav_filesize=WAV_BUFFER_SIZE/2;
-				bcount[1]=WAV_BUFFER_SIZE/2;
-				iconvert((uint16_t *)ibuff1, (int16_t *)sbuff1, bcount[1]);
-			} else {
-				if(hxcmod_fillbuffer( mcontext, (msample*)sbuff2, WAV_BUFFER_SIZE/4,NULL, noloop ))playreadcomplete = 1;
-				wav_filesize=WAV_BUFFER_SIZE/2;
-				bcount[2]=WAV_BUFFER_SIZE/2;
-				iconvert((uint16_t *)ibuff2, (int16_t *)sbuff2, bcount[2]);
+		if(Option.AUDIO_MISO_PIN){
+			if(CurrentlyPlaying == P_FLAC || CurrentlyPlaying == P_WAV || CurrentlyPlaying == P_MP3 ||CurrentlyPlaying == P_MIDI){
+				if(swingbuf==2){
+					bcount[1]=(volatile unsigned int)onRead(NULL,sbuff1,WAV_BUFFER_SIZE);
+					wav_filesize = bcount[1];
+				} else {
+					bcount[2]=(volatile unsigned int)onRead(NULL,sbuff2,WAV_BUFFER_SIZE);
+					wav_filesize = bcount[2];
+				}
+				nextbuf=swingbuf;
+				diskchecktimer=DISKCHECKRATE;
+			} else if(CurrentlyPlaying == P_MOD){
+				if(swingbuf==2){
+					if(hxcmod_fillbuffer( mcontext, (msample*)sbuff1, WAV_BUFFER_SIZE/4,NULL, noloop ))playreadcomplete = 1;
+					wav_filesize=WAV_BUFFER_SIZE;
+					bcount[1]=WAV_BUFFER_SIZE;
+				} else {
+					if(hxcmod_fillbuffer( mcontext, (msample*)sbuff2, WAV_BUFFER_SIZE/4,NULL, noloop ))playreadcomplete = 1;
+					wav_filesize=WAV_BUFFER_SIZE;
+					bcount[2]=WAV_BUFFER_SIZE;
+				}
+				nextbuf=swingbuf;
 			}
-        	nextbuf=swingbuf;
-	} else if(CurrentlyPlaying == P_WAV){
-			if(swingbuf==2){
-				bcount[1]=(volatile unsigned int)drwav_read_pcm_frames_s16(&mywav, WAV_BUFFER_SIZE/4, (drwav_int16*)sbuff1) * mywav.channels;
-				iconvert(ibuff1, (int16_t *)sbuff1, bcount[1]);
-				wav_filesize = bcount[1];
-			} else {
-				bcount[2]=(volatile unsigned int)drwav_read_pcm_frames_s16(&mywav, WAV_BUFFER_SIZE/4, (drwav_int16*)sbuff2) * mywav.channels;
-				iconvert(ibuff2, (int16_t *)sbuff2, bcount[2]);
-				wav_filesize = bcount[2];
-			}
-			nextbuf=swingbuf;
-			diskchecktimer=DISKCHECKRATE;
+		} else {
+			if(CurrentlyPlaying == P_FLAC){
+				if(swingbuf==2){
+					bcount[1]=(volatile unsigned int)drflac_read_pcm_frames_s16(myflac, WAV_BUFFER_SIZE/2, (drwav_int16*)sbuff1) * myflac->channels;
+					iconvert(ibuff1, (int16_t *)sbuff1, bcount[1]);
+					wav_filesize = bcount[1];
+				} else {
+					bcount[2]=(volatile unsigned int)drflac_read_pcm_frames_s16(myflac, WAV_BUFFER_SIZE/2, (drwav_int16*)sbuff2) * myflac->channels;
+					iconvert(ibuff2, (int16_t *)sbuff2, bcount[2]);
+					wav_filesize = bcount[2];
+				}
+				nextbuf=swingbuf;
+			} else if(CurrentlyPlaying == P_MOD){
+				if(swingbuf==2){
+					if(hxcmod_fillbuffer( mcontext, (msample*)sbuff1, WAV_BUFFER_SIZE/4,NULL, noloop ))playreadcomplete = 1;
+					wav_filesize=WAV_BUFFER_SIZE/2;
+					bcount[1]=WAV_BUFFER_SIZE/2;
+					iconvert((uint16_t *)ibuff1, (int16_t *)sbuff1, bcount[1]);
+				} else {
+					if(hxcmod_fillbuffer( mcontext, (msample*)sbuff2, WAV_BUFFER_SIZE/4,NULL, noloop ))playreadcomplete = 1;
+					wav_filesize=WAV_BUFFER_SIZE/2;
+					bcount[2]=WAV_BUFFER_SIZE/2;
+					iconvert((uint16_t *)ibuff2, (int16_t *)sbuff2, bcount[2]);
+				}
+				nextbuf=swingbuf;
+			} else if(CurrentlyPlaying == P_WAV){
+				if(swingbuf==2){
+					bcount[1]=(volatile unsigned int)drwav_read_pcm_frames_s16(&mywav, WAV_BUFFER_SIZE/4, (drwav_int16*)sbuff1) * mywav.channels;
+					iconvert(ibuff1, (int16_t *)sbuff1, bcount[1]);
+					wav_filesize = bcount[1];
+				} else {
+					bcount[2]=(volatile unsigned int)drwav_read_pcm_frames_s16(&mywav, WAV_BUFFER_SIZE/4, (drwav_int16*)sbuff2) * mywav.channels;
+					iconvert(ibuff2, (int16_t *)sbuff2, bcount[2]);
+					wav_filesize = bcount[2];
+				}
+				nextbuf=swingbuf;
+				diskchecktimer=DISKCHECKRATE;
+			} 
 		}
 	}
-    if(wav_filesize<=0 && (CurrentlyPlaying == P_WAV || (CurrentlyPlaying == P_FLAC))){
+    if(wav_filesize<=0 && (CurrentlyPlaying == P_WAV || (CurrentlyPlaying == P_FLAC)|| (CurrentlyPlaying == P_MP3)|| (CurrentlyPlaying == P_MIDI))){
     	if(trackplaying==trackstoplay) {
     		playreadcomplete=1;
     	} else {
@@ -2102,23 +2272,30 @@ void checkWAVinput(void){
     		} else if(CurrentlyPlaying == P_FLAC){
     			trackplaying++;
     			flaccallback(alist[trackplaying].fn);
+    		} else if(CurrentlyPlaying == P_MP3){
+    			trackplaying++;
+    			mp3callback(alist[trackplaying].fn);
+    		} else if(CurrentlyPlaying == P_MIDI){
+				if(Option.AUDIO_MISO_PIN && VSbuffer>32)return;
+    			trackplaying++;
+    			midicallback(alist[trackplaying].fn);
     		}
 		}
     }
 }
 void audio_checks(void){
     if(playreadcomplete == 1) {
-		if(CurrentlyPlaying==P_VS1053){
-			CloseAudio(1);
-			WAVcomplete = true;
-		}
     	if(!(bcount[1] || bcount[2]) ){
+			if(Option.AUDIO_MISO_PIN && VSbuffer>32)return;
             if(CurrentlyPlaying == P_FLAC)drflac_close(myflac);
 			if(CurrentlyPlaying == P_MOD)FreeMemory((void *)mcontext);
             FreeMemorySafe((void **)&sbuff1);
             FreeMemorySafe((void **)&sbuff2);
             FreeMemorySafe((void **)&alist);
-            StopAudio();
+            if(Option.AUDIO_MISO_PIN){
+    			pwm_set_irq_enabled(AUDIO_SLICE, false);
+				CurrentlyPlaying = P_NOTHING;
+			} else StopAudio();
             FileClose(WAV_fnbr);
             WAVcomplete = true;
 //            playreadcomplete = 0;

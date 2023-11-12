@@ -306,7 +306,7 @@ void __not_in_flash_func(routinechecks)(void){
         }
     }
 	if(GPSchannel)processgps();
-    if (CurrentlyPlaying == P_WAV || CurrentlyPlaying == P_FLAC || CurrentlyPlaying==P_VS1053 || CurrentlyPlaying==P_STREAM){
+    if (CurrentlyPlaying == P_WAV || CurrentlyPlaying == P_FLAC || CurrentlyPlaying==P_MP3 || CurrentlyPlaying==P_MIDI ){
 #ifdef PICOMITE
         if(SPIatRisk)mutex_enter_blocking(&frameBufferMutex);			// lock the frame buffer
 #endif

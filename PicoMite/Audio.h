@@ -44,7 +44,7 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 
 #ifndef AUDIO_HEADER
 #define AUDIO_HEADER
-typedef enum { P_NOTHING, P_PAUSE_TONE, P_TONE, P_PAUSE_SOUND, P_SOUND, P_WAV, P_PAUSE_WAV, P_FLAC, P_MP3, P_PAUSE_FLAC, P_PAUSE_MP3, P_STOP, P_SYNC, P_MOD, P_VS1053,P_STREAM} e_CurrentlyPlaying;
+typedef enum { P_NOTHING, P_PAUSE_TONE, P_TONE, P_PAUSE_SOUND, P_SOUND, P_WAV, P_PAUSE_WAV, P_FLAC, P_MP3, P_MIDI, P_PAUSE_FLAC, P_PAUSE_MP3, P_STOP, P_SYNC, P_MOD, P_STREAM} e_CurrentlyPlaying;
 extern const char* const PlayingStr[];
 extern volatile e_CurrentlyPlaying CurrentlyPlaying; 
 extern char *WAVInterrupt;
@@ -79,6 +79,12 @@ extern volatile int audiorepeat;
 extern int PWM_FREQ;
 extern void (*AudioOutput)(uint16_t left, uint16_t right);
 extern volatile int monosound[MAXSOUNDS];
+extern int AUDIO_SPI, AUDIO_CLK_PIN,AUDIO_MOSI_PIN,AUDIO_MISO_PIN, AUDIO_CS_PIN, AUDIO_RESET_PIN, AUDIO_DREQ_PIN, AUDIO_DCS_PIN, AUDIO_LDAC_PIN;
+extern int streamsize;
+extern int *streamwritepointer;
+extern int *streamreadpointer;
+extern char *streambuffer;
+
 typedef struct sa_flist {
     char fn[FF_MAX_LFN];
 } a_flist;

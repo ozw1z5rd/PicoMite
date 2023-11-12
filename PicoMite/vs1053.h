@@ -139,4 +139,8 @@ enum VS1053_I2S_RATE {
     void noteOff(uint8_t channel, uint8_t note, uint8_t release_velocity);
     void miditest(int test);
     void talkMIDI(uint8_t cmd, uint8_t data1, uint8_t data2);
+    uint16_t VS1053free(void);
+    extern volatile uint16_t VSbuffer;
+    void setVolumes(int valueL, int valueR);
+
 #endif

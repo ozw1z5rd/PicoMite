@@ -35,6 +35,7 @@
 #include "VS1053.h"
 #include "vs1053b-patches.h"
 #define LOG(...)
+//#define LOG printf
 #define _BV( bit ) ( 1<<(bit) )
 uint8_t cs_pin;                         // Pin where CS line is connected
 uint8_t dcs_pin;                        // Pin where DCS line is connected
@@ -65,20 +66,26 @@ const uint8_t SM_CANCEL = 3;            // Bitnumber in SCI_MODE cancel song
 const uint8_t SM_TESTS = 5;             // Bitnumber in SCI_MODE for tests
 const uint8_t SM_LINE1 = 14;            // Bitnumber in SCI_MODE for Line input
 const uint8_t SM_STREAM = 6;            // Bitnumber in SCI_MODE for Streaming Mode
-
+const uint8_t SM_LAYER12 = 1;
 const uint16_t ADDR_REG_GPIO_DDR_RW = 0xc017;
 const uint16_t ADDR_REG_GPIO_VAL_R = 0xc018;
 const uint16_t ADDR_REG_GPIO_ODATA_RW = 0xc019;
 const uint16_t ADDR_REG_I2S_CONFIG_RW = 0xc040;
+#define xmit_multi(a,b) spi_write_blocking((AUDIO_SPI==1 ? spi0 : spi1),a,b);
+static BYTE __not_in_flash_func(xchg)(BYTE data_out){
+	BYTE data_in=0;
+	spi_write_read_blocking((AUDIO_SPI==1 ? spi0 : spi1),&data_out,&data_in,1);
+	return data_in;
+}
 
 uint8_t stdmax(int a, int b){
     if(a>b)return a;
     return b;
 }
-uint8_t stdmap(int a,int l, int h,int nl, int nh){
-    float p=(float)(a-l)/(float)(h-l);
-    float q=p*(float)(nh-nl)+(float)nl;
-    return (uint8_t)q;
+int stdmap(int v){
+    v=(v*80)/100;
+    if(v==0)return 0xFE;
+    else return 100-v;
 }
 void await_data_request() {
     while (!(gpio_get(dreq_pin))) {
@@ -111,11 +118,11 @@ uint16_t read_register(uint8_t _reg){
     uint16_t result;
 
     control_mode_on();
-    xchg_byte(3);
-    xchg_byte(_reg);
+    xchg(3);
+    xchg(_reg);
     // Note: transfer16 does not seem to work
-    result = (xchg_byte(0xFF) << 8) | // Read 16 bits data
-             (xchg_byte(0xFF));
+    result = (xchg(0xFF) << 8) | // Read 16 bits data
+             (xchg(0xFF));
     await_data_request(); // Wait for DREQ to be HIGH again
     control_mode_off();
     return result;
@@ -123,10 +130,10 @@ uint16_t read_register(uint8_t _reg){
 
 void writeRegister(uint8_t _reg, uint16_t _value){
     control_mode_on();
-    xchg_byte(2);        // Write operation
-    xchg_byte(_reg);     // Register to write (0..0xF)
-    xchg_byte(_value>>8);
-    xchg_byte(_value & 0xFF);
+    xchg(2);        // Write operation
+    xchg(_reg);     // Register to write (0..0xF)
+    xchg(_value>>8);
+    xchg(_value & 0xFF);
 //    SPI.write16(_value); // Send 16 bits data
     await_data_request();
     control_mode_off();
@@ -144,7 +151,7 @@ void sdi_send_buffer(uint8_t *data, size_t len) {
             chunk_length = vs1053_chunk_size;
         }
         len -= chunk_length;
-        xmit_byte_multi(data, chunk_length);
+        xmit_multi(data, chunk_length);
         data += chunk_length;
     }
     data_mode_off();
@@ -163,7 +170,7 @@ void sdi_send_fillers(size_t len) {
         }
         len -= chunk_length;
         while (chunk_length--) {
-            xchg_byte(endFillByte);
+            xchg(endFillByte);
         }
     }
     data_mode_off();
@@ -178,7 +185,13 @@ uint16_t wram_read(uint16_t address) {
     writeRegister(SCI_WRAMADDR, address); // Start reading from WRAM
     return read_register(SCI_WRAM);        // Read back result
 }
-
+uint16_t VS1053free(void){
+    uint16_t wrp, rdp; // VS1053b read and write pointers
+    writeRegister(SCI_WRAMADDR, 0x5A7D); // Start reading from WRAM
+    wrp = read_register(SCI_WRAM);
+    rdp = read_register(SCI_WRAM);  
+    return (wrp-rdp) & 1023;    
+}
 bool testComm(const char *header) {
     // Test the communication with the VS1053 module.  The result wille be returned.
     // If DREQ is low, there is problably no VS1053 connected.  Pull the line HIGH
@@ -223,25 +236,21 @@ void VS1053(uint8_t _cs_pin, uint8_t _dcs_pin, uint8_t _dreq_pin, uint8_t _reset
     cs_pin=_cs_pin;
     dcs_pin=_dcs_pin;
     reset_pin=_reset_pin;
-    ExtCfg(PINMAP[dreq_pin], EXT_DIG_IN, 0);
-    ExtCfg(PINMAP[cs_pin], EXT_DIG_OUT, 1);
-    ExtCfg(PINMAP[dcs_pin], EXT_DIG_OUT, 1);
-    ExtCfg(PINMAP[reset_pin], EXT_DIG_OUT, 0);
+    PinSetBit(PINMAP[reset_pin],LATCLR);
     uSec(20000);
     PinSetBit(PINMAP[reset_pin],LATSET);
     PinSetBit(PINMAP[dreq_pin],CNPUSET);
     uSec(100000);
         LOG("\r\n");
     LOG("Reset VS1053...\r\n");
-//    gpio_put(cs_pin,GPIO_PIN_RESET);// Low & Low will bring reset pin low
-//    gpio_put(dcs_pin,GPIO_PIN_RESET);
-    uSec(500000);
     LOG("End reset VS1053...\r\n");
 //   gpio_put(cs_pin,GPIO_PIN_SET); // Back to normal again
 //    gpio_put(dcs_pin,GPIO_PIN_SET);
 //    uSec(500000);
     // Init SPI in slow mode ( 0.2 MHz )
-    SPISpeedSet(SDSLOW);
+//	SET_SPI_CLK(display_details[device].speed, display_details[device].CPOL, display_details[device].CPHASE);
+    spi_init((AUDIO_SPI==1 ? spi0 : spi1), 200000);
+	spi_set_format((AUDIO_SPI==1 ? spi0 : spi1), 8, 0,0, SPI_MSB_FIRST);
     // printDetails("Right after reset/startup");
     uSec(20000);
     // printDetails("20 msec after reset");
@@ -250,11 +259,12 @@ void VS1053(uint8_t _cs_pin, uint8_t _dcs_pin, uint8_t _dreq_pin, uint8_t _reset
         // Switch on the analog parts
         writeRegister(SCI_AUDATA, 44101); // 44.1kHz stereo
         // The next clocksetting allows SPI clocking at 5 MHz, 4 MHz is safe then.
-        writeRegister(SCI_CLOCKF, 0x9800); // Normal clock settings multiplyer 3.0 = 12.2 MHz
+        writeRegister(SCI_CLOCKF, 0xE000); // Normal clock settings multiplyer 3.0 = 12.2 MHz
         // SPI Clock to 4 MHz. Now you can set high speed SPI clock.
-        SPISpeedSet(VS1053fast);
+        spi_init((AUDIO_SPI==1 ? spi0 : spi1), 6000000);
+        spi_set_format((AUDIO_SPI==1 ? spi0 : spi1), 8, 0,0, SPI_MSB_FIRST);
         uSec(20000);
-        writeRegister(SCI_MODE, _BV(SM_SDINEW) | _BV(SM_LINE1));
+        writeRegister(SCI_MODE, _BV(SM_SDINEW) | _BV(SM_LINE1) | _BV(SM_LAYER12));
         testComm("Fast SPI, Testing VS1053 read/write registers again...\r\n");
         uSec(10000);
         await_data_request();
@@ -280,9 +290,15 @@ void setVolume(uint8_t vol) {
         valueL = stdmax(0, vol - curbalance);
     }
 
-    valueL = stdmap(valueL, 0, 100, 0xFE, 0x00); // 0..100% to left channel
-    valueR = stdmap(valueR, 0, 100, 0xFE, 0x00); // 0..100% to right channel
+    valueL = stdmap(valueL); // 0..100% to left channel
+    valueR = stdmap(valueR); // 0..100% to right channel
     writeRegister(SCI_VOL, (valueL << 8) | valueR); // Volume left and right
+}
+void setVolumes(int valueL, int valueR) {
+    valueL = stdmap(valueL); // 0..100% to left channel
+    valueR = stdmap(valueR); // 0..100% to right channel
+    int value=((valueL << 8) | valueR);
+    writeRegister(SCI_VOL, value); // Volume left and right
 }
 
 void setBalance(int8_t balance) {
@@ -319,7 +335,6 @@ void startSong() {
 }
 
 void playChunk(uint8_t *data, size_t len) {
-    SPISpeedSet( VS1053fast);
     sdi_send_buffer(data, len);
 }
 
@@ -528,8 +543,8 @@ void RTLoadUserCode(void) {
 
 void sendMIDI(uint8_t data)
 {
-  xchg_byte(0);
-  xchg_byte(data);
+  xchg(0);
+  xchg(data);
 }
 
 //Plays a MIDI note. Doesn't check to see that cmd is greater than 127, or that data values are less than 127
@@ -577,6 +592,7 @@ void miditest(int test) {
 
         //Change to different instrument
         for(int instrument = 0 ; instrument < 127 ; instrument++) {
+            CheckAbort();
 
             MMPrintString(" Instrument: ");
             PInt(instrument);PRet();
@@ -607,6 +623,7 @@ void miditest(int test) {
 
         //For this bank 0x78, the instrument does not matter, only the note
         for(int instrument = 30 ; instrument < 31 ; instrument++) {
+            CheckAbort();
 
             MMPrintString(" Instrument: ");
             PInt(instrument);PRet();
@@ -638,6 +655,7 @@ void miditest(int test) {
 
         //Change to different instrument
         for(int instrument = 27 ; instrument < 87 ; instrument++) {
+            CheckAbort();
 
             MMPrintString(" Instrument: ");
             PInt(instrument);PRet();

@@ -824,6 +824,9 @@ void cmd_end(void) {
 
 	if(g_myrand)FreeMemory((void *)g_myrand);
 	g_myrand=NULL;
+#ifdef PICOMITEWEB
+	close_tcpclient();
+#endif
 	longjmp(mark, 1);												// jump back to the input prompt
 }
 

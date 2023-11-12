@@ -163,7 +163,7 @@ int __not_in_flash_func(GetTouchAxis)(int cmd) {
     // we take TOUCH_SAMPLES readings and sort them into descending order in buffer b[].
     for(i = 0; i < TOUCH_SAMPLES; i++) {
         b[i] = GetTouchValue(cmd);                                  // get the value
-        if (CurrentlyPlaying == P_WAV || CurrentlyPlaying == P_FLAC){
+        if (CurrentlyPlaying == P_WAV || CurrentlyPlaying == P_FLAC || CurrentlyPlaying == P_MIDI || CurrentlyPlaying == P_MP3){
 #ifdef PICOMITE
             if(SPIatRisk)mutex_enter_blocking(&frameBufferMutex);			// lock the frame buffer
 #endif
@@ -172,7 +172,7 @@ int __not_in_flash_func(GetTouchAxis)(int cmd) {
             if(SPIatRisk)mutex_exit(&frameBufferMutex);
 #endif
         }
-        if(CurrentlyPlaying == P_MOD) checkWAVinput();
+        if(CurrentlyPlaying == P_MOD || CurrentlyPlaying == P_STREAM ) checkWAVinput();
         for(j = i; j > 0; j--) {                                    // and sort into position
             if(b[j - 1] < b[j]) {
                 t = b[j - 1];

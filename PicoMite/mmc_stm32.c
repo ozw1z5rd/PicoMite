@@ -48,6 +48,7 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 #ifdef PICOMITEWEB
 #include "pico/cyw43_arch.h"
 #endif
+#include "vs1053.h"
 //#include "integer.h"
 int SPISpeed=0xFF;
 //#define SD_CS_PIN Option.SD_CS
@@ -56,7 +57,7 @@ int SPISpeed=0xFF;
 //define SPI_MISO_PIN Option.SYSTEM_MISO
 int SPI_CLK_PIN,SPI_MOSI_PIN,SPI_MISO_PIN;
 int SD_CLK_PIN,SD_MOSI_PIN,SD_MISO_PIN, SD_CS_PIN;
-int AUDIO_CLK_PIN,AUDIO_MOSI_PIN,AUDIO_MISO_PIN, AUDIO_CS_PIN, AUDIO_LDAC_PIN;
+int AUDIO_CLK_PIN,AUDIO_MOSI_PIN,AUDIO_MISO_PIN, AUDIO_CS_PIN, AUDIO_RESET_PIN, AUDIO_DREQ_PIN, AUDIO_DCS_PIN, AUDIO_LDAC_PIN;
 #define CD	MDD_SDSPI_CardDetectState()	/* Card detected   (yes:true, no:false, default:true) */
 #define WP	MDD_SDSPI_WriteProtectState()		/* Write protected (yes:true, no:false, default:false) */
 /* SPI bit rate controls */
@@ -96,7 +97,7 @@ int BacklightSlice=-1;
 int BacklightChannel=-1;
 extern const unsigned short whitenoise[2];
 int AUDIO_SPI;
-
+volatile uint16_t VSbuffer=0;
 void __not_in_flash_func(DefaultAudio)(uint16_t left, uint16_t right){
 	pwm_set_both_levels(AUDIO_SLICE,(left*AUDIO_WRAP)>>12,(right*AUDIO_WRAP)>>12);
 }
@@ -165,139 +166,184 @@ void __not_in_flash_func(on_pwm_wrap)(void) {
 	uint16_t left=0,right=0;
     // play a tone
     pwm_clear_irq(AUDIO_SLICE);
-    if(CurrentlyPlaying == P_TONE){
-        if(!SoundPlay){
-    		StopAudio();
-            WAVcomplete = true;
-        } else {
-        	SoundPlay--;
-			if(mono){
-				left=(((((SineTable[(int)PhaseAC_left]-2000)  * mapping[vol_left]) / 2000)+2000));
-				PhaseAC_left = PhaseAC_left + PhaseM_left;
-				if(PhaseAC_left>=4096.0)PhaseAC_left-=4096.0;
-				right=left;
-			} else {
-				left=(((((SineTable[(int)PhaseAC_left]-2000)  * mapping[vol_left]) / 2000)+2000));
-				right=(((((SineTable[(int)PhaseAC_right]-2000)  * mapping[vol_right]) / 2000)+2000));
-				PhaseAC_left = PhaseAC_left + PhaseM_left;
-				PhaseAC_right = PhaseAC_right + PhaseM_right;
-				if(PhaseAC_left>=4096.0)PhaseAC_left-=4096.0;
-				if(PhaseAC_right>=4096.0)PhaseAC_right-=4096.0;
+	if(Option.AUDIO_MISO_PIN){
+		if(!(gpio_get(PinDef[Option.AUDIO_DREQ_PIN].GPno)))return;
+		VSbuffer=VS1053free();
+		if(VSbuffer>900)return;
+    	if(CurrentlyPlaying == P_FLAC || CurrentlyPlaying == P_WAV ||CurrentlyPlaying == P_MP3 || CurrentlyPlaying == P_MIDI || CurrentlyPlaying==P_MOD) {
+			if(bcount[1]==0 && bcount[2]==0 && playreadcomplete==1){
+//				pwm_set_irq_enabled(AUDIO_SLICE, false);
+				return;
 			}
-        }
-    } else if(CurrentlyPlaying == P_WAV  || CurrentlyPlaying == P_FLAC  || CurrentlyPlaying == P_MOD) {
-		if(--repeatcount)return;
-		repeatcount=audiorepeat;
-        if(bcount[1]==0 && bcount[2]==0 && playreadcomplete==1){
-    		pwm_set_irq_enabled(AUDIO_SLICE, false);
-       }
-        if(swingbuf){ //buffer is primed
-        	if(swingbuf==1)playbuff=(uint16_t *)sbuff1;
-        	else playbuff=(uint16_t *)sbuff2;
-        	if((CurrentlyPlaying == P_WAV || CurrentlyPlaying == P_FLAC) && mono){
-				left=right=playbuff[ppos];
-				ppos++;
-        	} else {
-				if(ppos<bcount[swingbuf]){
-					left=playbuff[ppos];
-					right=playbuff[ppos+1];
-					ppos+=2;
+			if(swingbuf){ //buffer is primed
+				int sendlen=((bcount[swingbuf]-ppos)>=32 ? 32 : bcount[swingbuf]-ppos);
+				if(swingbuf==1)playChunk((uint8_t *)&sbuff1[ppos],sendlen);
+				else playChunk((uint8_t *)&sbuff2[ppos],sendlen);
+				ppos+=sendlen;
+				if(ppos==bcount[swingbuf]){
+					bcount[swingbuf]=0;
+					ppos=0;
+					if(swingbuf==1)swingbuf=2;
+					else swingbuf=1;
 				}
-        	}
-        	if(ppos==bcount[swingbuf]){
-        		int psave=ppos;
-        		bcount[swingbuf]=0;
-        		ppos=0;
-        		if(swingbuf==1)swingbuf=2;
-        		else swingbuf=1;
-        		if(bcount[swingbuf]==0 && !playreadcomplete){ //nothing ready yet so flip back
-            		if(swingbuf==1){
-            			swingbuf=2;
-            			nextbuf=1;
-            		}
-            		else {
-            			swingbuf=1;
-            			nextbuf=2;
-            		}
-            		bcount[swingbuf]=psave;
-            		ppos=0;
-        		}
-        	}
-        }
-    } else if(CurrentlyPlaying == P_SOUND) {
-    	static int noisedwellleft[MAXSOUNDS]={0}, noisedwellright[MAXSOUNDS]={0};
-    	static uint32_t noiseleft[MAXSOUNDS]={0}, noiseright[MAXSOUNDS]={0};
-    	int i,j;
-    	int leftv=0, rightv=0;
-    	for(i=0;i<MAXSOUNDS;i++){ //first update the 8 sound pointers
-			if(monosound[i]){
-				if(sound_mode_left[i]!=nulltable){
-					if(sound_mode_left[i]!=whitenoise){
-						sound_PhaseAC_left[i] = sound_PhaseAC_left[i] + sound_PhaseM_left[i];
-						if(sound_PhaseAC_left[i]>=4096.0)sound_PhaseAC_left[i]-=4096.0;
-						j = (int)sound_mode_left[i][(int)sound_PhaseAC_left[i]];
-						j= (j-2000)*mapping[sound_v_left[i]]/2000;
-						leftv+=j;
-					} else {
-						if(noisedwellleft[i]<=0){
-							noisedwellleft[i]=sound_PhaseM_left[i];
-							noiseleft[i]=rand() % 3800+100;
-						}
-						if(noisedwellleft[i])noisedwellleft[i]--;
-						j = (int)noiseleft[i];
-						j= (j-2000)*mapping[sound_v_left[i]]/2000;
-						leftv+=j;
+			}
+		} else if(CurrentlyPlaying == P_STREAM){
+			int rp=*streamreadpointer,wp=*streamwritepointer;
+			if(rp==wp)return;
+			int i = wp - rp;
+			if(i < 0) i += streamsize;
+			if(i>32){
+				if(streamsize-rp>32){
+					playChunk((uint8_t *)&streambuffer[rp],32);
+					rp+=32;
+				} else {
+					char buff[32];
+					int j=0;
+					while(j<32){
+						buff[j++]=streambuffer[rp];
+						rp = (rp + 1) % streamsize;
 					}
-				if(monosound[i]==1)rightv+=j;
-				else rightv-=j;
+					playChunk((uint8_t *)buff,32);
 				}
+			}
+			*streamreadpointer=rp;
+		}
+	} else {
+		if(CurrentlyPlaying == P_TONE){
+			if(!SoundPlay){
+				StopAudio();
+				WAVcomplete = true;
 			} else {
-				if(sound_mode_left[i]!=nulltable){
-					if(sound_mode_left[i]!=whitenoise){
-						sound_PhaseAC_left[i] = sound_PhaseAC_left[i] + sound_PhaseM_left[i];
-						if(sound_PhaseAC_left[i]>=4096.0)sound_PhaseAC_left[i]-=4096.0;
-						j = (int)sound_mode_left[i][(int)sound_PhaseAC_left[i]];
-						j= (j-2000)*mapping[sound_v_left[i]]/2000;
-						leftv+=j;
-					} else {
-						if(noisedwellleft[i]<=0){
-							noisedwellleft[i]=sound_PhaseM_left[i];
-							noiseleft[i]=rand() % 3800+100;
-						}
-						if(noisedwellleft[i])noisedwellleft[i]--;
-						j = (int)noiseleft[i];
-						j= (j-2000)*mapping[sound_v_left[i]]/2000;
-						leftv+=j;
+				SoundPlay--;
+				if(mono){
+					left=(((((SineTable[(int)PhaseAC_left]-2000)  * mapping[vol_left]) / 2000)+2000));
+					PhaseAC_left = PhaseAC_left + PhaseM_left;
+					if(PhaseAC_left>=4096.0)PhaseAC_left-=4096.0;
+					right=left;
+				} else {
+					left=(((((SineTable[(int)PhaseAC_left]-2000)  * mapping[vol_left]) / 2000)+2000));
+					right=(((((SineTable[(int)PhaseAC_right]-2000)  * mapping[vol_right]) / 2000)+2000));
+					PhaseAC_left = PhaseAC_left + PhaseM_left;
+					PhaseAC_right = PhaseAC_right + PhaseM_right;
+					if(PhaseAC_left>=4096.0)PhaseAC_left-=4096.0;
+					if(PhaseAC_right>=4096.0)PhaseAC_right-=4096.0;
+				}
+			}
+		} else if(CurrentlyPlaying == P_WAV  || CurrentlyPlaying == P_FLAC  || CurrentlyPlaying == P_MOD) {
+			if(--repeatcount)return;
+			repeatcount=audiorepeat;
+			if(bcount[1]==0 && bcount[2]==0 && playreadcomplete==1){
+				pwm_set_irq_enabled(AUDIO_SLICE, false);
+			}
+			if(swingbuf){ //buffer is primed
+				if(swingbuf==1)playbuff=(uint16_t *)sbuff1;
+				else playbuff=(uint16_t *)sbuff2;
+				if((CurrentlyPlaying == P_WAV || CurrentlyPlaying == P_FLAC) && mono){
+					left=right=playbuff[ppos];
+					ppos++;
+				} else {
+					if(ppos<bcount[swingbuf]){
+						left=playbuff[ppos];
+						right=playbuff[ppos+1];
+						ppos+=2;
 					}
 				}
-				if(sound_mode_right[i]!=nulltable){
-					if(sound_mode_right[i]!=whitenoise){
-						sound_PhaseAC_right[i] = sound_PhaseAC_right[i] + sound_PhaseM_right[i];
-						if(sound_PhaseAC_right[i]>=4096.0)sound_PhaseAC_right[i]-=4096.0;
-						j = (int)sound_mode_right[i][(int)sound_PhaseAC_right[i]];
-						j= (j-2000)*mapping[sound_v_right[i]]/2000;
-						rightv += j;
-					}  else {
-						if(noisedwellright[i]<=0){
-							noisedwellright[i]=sound_PhaseM_right[i];
-							noiseright[i]=rand() % 3800+100;
+				if(ppos==bcount[swingbuf]){
+					int psave=ppos;
+					bcount[swingbuf]=0;
+					ppos=0;
+					if(swingbuf==1)swingbuf=2;
+					else swingbuf=1;
+					if(bcount[swingbuf]==0 && !playreadcomplete){ //nothing ready yet so flip back
+						if(swingbuf==1){
+							swingbuf=2;
+							nextbuf=1;
 						}
-						if(noisedwellright[i])noisedwellright[i]--;
-						j = (int)noiseright[i];
-						j= (j-2000)*mapping[sound_v_right[i]]/2000;
-						rightv+=j;
+						else {
+							swingbuf=1;
+							nextbuf=2;
+						}
+						bcount[swingbuf]=psave;
+						ppos=0;
 					}
 				}
 			}
-    	}
-		left=leftv+2000;
-		right=rightv+2000;
-    } else if(CurrentlyPlaying == P_STOP) {
-		return;
-    } else {
-		left=right=AUDIO_WRAP>>1;
-    }
+		} else if(CurrentlyPlaying == P_SOUND) {
+			static int noisedwellleft[MAXSOUNDS]={0}, noisedwellright[MAXSOUNDS]={0};
+			static uint32_t noiseleft[MAXSOUNDS]={0}, noiseright[MAXSOUNDS]={0};
+			int i,j;
+			int leftv=0, rightv=0;
+			for(i=0;i<MAXSOUNDS;i++){ //first update the 8 sound pointers
+				if(monosound[i]){
+					if(sound_mode_left[i]!=nulltable){
+						if(sound_mode_left[i]!=whitenoise){
+							sound_PhaseAC_left[i] = sound_PhaseAC_left[i] + sound_PhaseM_left[i];
+							if(sound_PhaseAC_left[i]>=4096.0)sound_PhaseAC_left[i]-=4096.0;
+							j = (int)sound_mode_left[i][(int)sound_PhaseAC_left[i]];
+							j= (j-2000)*mapping[sound_v_left[i]]/2000;
+							leftv+=j;
+						} else {
+							if(noisedwellleft[i]<=0){
+								noisedwellleft[i]=sound_PhaseM_left[i];
+								noiseleft[i]=rand() % 3800+100;
+							}
+							if(noisedwellleft[i])noisedwellleft[i]--;
+							j = (int)noiseleft[i];
+							j= (j-2000)*mapping[sound_v_left[i]]/2000;
+							leftv+=j;
+						}
+					if(monosound[i]==1)rightv+=j;
+					else rightv-=j;
+					}
+				} else {
+					if(sound_mode_left[i]!=nulltable){
+						if(sound_mode_left[i]!=whitenoise){
+							sound_PhaseAC_left[i] = sound_PhaseAC_left[i] + sound_PhaseM_left[i];
+							if(sound_PhaseAC_left[i]>=4096.0)sound_PhaseAC_left[i]-=4096.0;
+							j = (int)sound_mode_left[i][(int)sound_PhaseAC_left[i]];
+							j= (j-2000)*mapping[sound_v_left[i]]/2000;
+							leftv+=j;
+						} else {
+							if(noisedwellleft[i]<=0){
+								noisedwellleft[i]=sound_PhaseM_left[i];
+								noiseleft[i]=rand() % 3800+100;
+							}
+							if(noisedwellleft[i])noisedwellleft[i]--;
+							j = (int)noiseleft[i];
+							j= (j-2000)*mapping[sound_v_left[i]]/2000;
+							leftv+=j;
+						}
+					}
+					if(sound_mode_right[i]!=nulltable){
+						if(sound_mode_right[i]!=whitenoise){
+							sound_PhaseAC_right[i] = sound_PhaseAC_right[i] + sound_PhaseM_right[i];
+							if(sound_PhaseAC_right[i]>=4096.0)sound_PhaseAC_right[i]-=4096.0;
+							j = (int)sound_mode_right[i][(int)sound_PhaseAC_right[i]];
+							j= (j-2000)*mapping[sound_v_right[i]]/2000;
+							rightv += j;
+						}  else {
+							if(noisedwellright[i]<=0){
+								noisedwellright[i]=sound_PhaseM_right[i];
+								noiseright[i]=rand() % 3800+100;
+							}
+							if(noisedwellright[i])noisedwellright[i]--;
+							j = (int)noiseright[i];
+							j= (j-2000)*mapping[sound_v_right[i]]/2000;
+							rightv+=j;
+						}
+					}
+				}
+			}
+			left=leftv+2000;
+			right=rightv+2000;
+		} else if(CurrentlyPlaying == P_STOP) {
+			return;
+		} else {
+			if(Option.AUDIO_MISO_PIN)return;
+			left=right=AUDIO_WRAP>>1;
+		}
 	AudioOutput(left,right);
+	}
 }
 
 #ifdef PICOMITEVGA
@@ -1346,18 +1392,16 @@ void InitReservedIO(void) {
 		}
 	}
 	if(Option.AUDIO_L || Option.AUDIO_CLK_PIN){ //enable the audio system
-		if(Option.AUDIO_L){
+		if(Option.AUDIO_L){ // Normal PWM audio
 			ExtCfg(Option.AUDIO_L, EXT_BOOT_RESERVED, 0);
 			ExtCfg(Option.AUDIO_R, EXT_BOOT_RESERVED, 0);
 			AUDIO_L_PIN=PinDef[Option.AUDIO_L].GPno;
 			AUDIO_R_PIN=PinDef[Option.AUDIO_R].GPno;
-			AUDIO_SLICE=Option.AUDIO_SLICE;
 			gpio_set_function(AUDIO_L_PIN, GPIO_FUNC_PWM);
 			gpio_set_function(AUDIO_R_PIN, GPIO_FUNC_PWM);
 			gpio_set_slew_rate(AUDIO_L_PIN, GPIO_SLEW_RATE_SLOW);
 			gpio_set_slew_rate(AUDIO_R_PIN, GPIO_SLEW_RATE_SLOW);
-		} else {
-			AUDIO_SLICE=Option.AUDIO_SLICE;
+		} else { //SPI Audio (DAC or VS1053)
 			ExtCfg(Option.AUDIO_CS_PIN, EXT_BOOT_RESERVED, 0);
 			AUDIO_CS_PIN=PinDef[Option.AUDIO_CS_PIN].GPno;
 //
@@ -1368,8 +1412,8 @@ void InitReservedIO(void) {
 			gpio_set_slew_rate(AUDIO_CS_PIN, GPIO_SLEW_RATE_SLOW);
 //
 			AUDIO_CLK_PIN=PinDef[Option.AUDIO_CLK_PIN].GPno;
-			AUDIO_MOSI_PIN=PinDef[Option.AUDIO_MOSI_PIN].GPno;
 			ExtCfg(Option.AUDIO_CLK_PIN, EXT_BOOT_RESERVED, 0);
+			AUDIO_MOSI_PIN=PinDef[Option.AUDIO_MOSI_PIN].GPno;
 			ExtCfg(Option.AUDIO_MOSI_PIN, EXT_BOOT_RESERVED, 0);
 			if(PinDef[Option.AUDIO_CLK_PIN].mode & SPI0SCK && PinDef[Option.AUDIO_MOSI_PIN].mode & SPI0TX){
 				SPI0locked=1;
@@ -1389,26 +1433,68 @@ void InitReservedIO(void) {
 			gpio_set_dir(AUDIO_MOSI_PIN, GPIO_OUT);
 			gpio_set_slew_rate(AUDIO_MOSI_PIN, GPIO_SLEW_RATE_FAST);
 			gpio_set_function(AUDIO_MOSI_PIN, GPIO_FUNC_SPI);
-        	spi_init((AUDIO_SPI==1 ? spi0 : spi1), 16000000);
-        	spi_set_format((AUDIO_SPI==1 ? spi0 : spi1), 16, true, true, SPI_MSB_FIRST);
+			if(Option.AUDIO_MISO_PIN){ //VS1053 audio needs the MISO pin
+				AUDIO_MISO_PIN=PinDef[Option.AUDIO_MISO_PIN].GPno;
+				ExtCfg(Option.AUDIO_MISO_PIN, EXT_BOOT_RESERVED, 0);
+				gpio_set_function(AUDIO_MISO_PIN, GPIO_FUNC_SPI);
+				gpio_set_input_hysteresis_enabled(AUDIO_MISO_PIN,true);
+        		spi_init((AUDIO_SPI==1 ? spi0 : spi1), 200000);
+				spi_set_format((AUDIO_SPI==1 ? spi0 : spi1), 8, false, false, SPI_MSB_FIRST);
+			} else { //DAC audio
+				spi_init((AUDIO_SPI==1 ? spi0 : spi1), 16000000);
+				spi_set_format((AUDIO_SPI==1 ? spi0 : spi1), 16, true, true, SPI_MSB_FIRST);
+			}
 		}
-        AUDIO_WRAP=(Option.CPU_Speed*10)/441  - 1 ;
-		pwm_set_wrap(AUDIO_SLICE, AUDIO_WRAP);
-		if(Option.AUDIO_L){
-			pwm_set_chan_level(AUDIO_SLICE, PWM_CHAN_A, AUDIO_WRAP>>1);
-			pwm_set_chan_level(AUDIO_SLICE, PWM_CHAN_B, AUDIO_WRAP>>1);
-			AudioOutput=DefaultAudio;
-		} else {
-			AudioOutput=SPIAudio;
+		if(!Option.AUDIO_DCS_PIN){ //PWM or DAC audio
+			AUDIO_SLICE=Option.AUDIO_SLICE;
+			AUDIO_WRAP=(Option.CPU_Speed*10)/441  - 1 ;
+			pwm_set_wrap(AUDIO_SLICE, AUDIO_WRAP);
+			if(Option.AUDIO_L){
+				pwm_set_chan_level(AUDIO_SLICE, PWM_CHAN_A, AUDIO_WRAP>>1);
+				pwm_set_chan_level(AUDIO_SLICE, PWM_CHAN_B, AUDIO_WRAP>>1);
+				AudioOutput=DefaultAudio;
+			} else {
+				AudioOutput=SPIAudio;
+			}
+			AudioOutput(2000,2000);
+			pwm_clear_irq(AUDIO_SLICE);
+			irq_set_exclusive_handler(PWM_IRQ_WRAP, on_pwm_wrap);
+			irq_set_enabled(PWM_IRQ_WRAP, true);
+			irq_set_priority(PWM_IRQ_WRAP,255);
+			pwm_set_enabled(AUDIO_SLICE, true);
+		} else { //VS1053 audio
+			AUDIO_DREQ_PIN=PinDef[Option.AUDIO_DREQ_PIN].GPno;
+			ExtCfg(Option.AUDIO_DREQ_PIN, EXT_BOOT_RESERVED, 0);
+			gpio_init(AUDIO_DREQ_PIN); 
+			gpio_set_dir(AUDIO_DREQ_PIN, GPIO_IN);
+			gpio_set_input_hysteresis_enabled(AUDIO_DREQ_PIN,true);
+
+			AUDIO_DCS_PIN=PinDef[Option.AUDIO_DCS_PIN].GPno;
+			ExtCfg(Option.AUDIO_DCS_PIN, EXT_BOOT_RESERVED, 0);
+			gpio_init(AUDIO_DCS_PIN);
+			gpio_set_drive_strength(AUDIO_DCS_PIN,GPIO_DRIVE_STRENGTH_12MA);
+			gpio_put(AUDIO_DCS_PIN,GPIO_PIN_SET);
+			gpio_set_dir(AUDIO_DCS_PIN, GPIO_OUT);
+			gpio_set_slew_rate(AUDIO_DCS_PIN, GPIO_SLEW_RATE_SLOW);
+
+			AUDIO_RESET_PIN=PinDef[Option.AUDIO_RESET_PIN].GPno;
+			ExtCfg(Option.AUDIO_RESET_PIN, EXT_BOOT_RESERVED, 0);
+			gpio_init(AUDIO_RESET_PIN);
+			gpio_set_drive_strength(AUDIO_RESET_PIN,GPIO_DRIVE_STRENGTH_12MA);
+			gpio_put(AUDIO_RESET_PIN,GPIO_PIN_RESET);
+			gpio_set_dir(AUDIO_RESET_PIN, GPIO_OUT);
+			gpio_set_slew_rate(AUDIO_RESET_PIN, GPIO_SLEW_RATE_SLOW);
+			AUDIO_SLICE=Option.AUDIO_SLICE;
+			AUDIO_WRAP=(Option.CPU_Speed*10)/441  - 1 ;
+			pwm_set_wrap(AUDIO_SLICE, AUDIO_WRAP);
+			pwm_clear_irq(AUDIO_SLICE);
+			irq_set_exclusive_handler(PWM_IRQ_WRAP, on_pwm_wrap);
+			irq_set_enabled(PWM_IRQ_WRAP, true);
+			irq_set_priority(PWM_IRQ_WRAP,255);
+			pwm_set_enabled(AUDIO_SLICE, true);
 		}
-		AudioOutput(2000,2000);
-	    pwm_clear_irq(AUDIO_SLICE);
-//    	pwm_set_irq_enabled(AUDIO_SLICE, true);
-    	irq_set_exclusive_handler(PWM_IRQ_WRAP, on_pwm_wrap);
-    	irq_set_enabled(PWM_IRQ_WRAP, true);
-		irq_set_priority(PWM_IRQ_WRAP,255);
-		pwm_set_enabled(AUDIO_SLICE, true);
 	}
+
 #ifndef PICOMITEWEB
 	if(!Option.AllPins){
 		if(Option.PWM){

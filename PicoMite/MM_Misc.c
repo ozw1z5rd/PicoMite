@@ -1965,13 +1965,24 @@ void printoptions(void){
         if(Option.AUDIO_L){
             MMPrintString((char *)PinDef[Option.AUDIO_L].pinname);MMputchar(',',1);
             MMPrintString((char *)PinDef[Option.AUDIO_R].pinname);
-        } else {
+        } else if(!Option.AUDIO_DCS_PIN){
+            MMPrintString((char *)"SPI ");
             MMPrintString((char *)PinDef[Option.AUDIO_CS_PIN].pinname);MMputchar(',',1);
             MMPrintString((char *)PinDef[Option.AUDIO_CLK_PIN].pinname);MMputchar(',',1);
             MMPrintString((char *)PinDef[Option.AUDIO_MOSI_PIN].pinname);
+        } else {
+            MMPrintString((char *)"VS1053 ");
+            MMPrintString((char *)PinDef[Option.AUDIO_CLK_PIN].pinname);MMputchar(',',1);
+            MMPrintString((char *)PinDef[Option.AUDIO_MOSI_PIN].pinname);MMputchar(',',1);
+            MMPrintString((char *)PinDef[Option.AUDIO_MISO_PIN].pinname);MMputchar(',',1);
+            MMPrintString((char *)PinDef[Option.AUDIO_CS_PIN].pinname);MMputchar(',',1);
+            MMPrintString((char *)PinDef[Option.AUDIO_DCS_PIN].pinname);MMputchar(',',1);
+            MMPrintString((char *)PinDef[Option.AUDIO_DREQ_PIN].pinname);MMputchar(',',1);
+            MMPrintString((char *)PinDef[Option.AUDIO_RESET_PIN].pinname);
         }
         MMPrintString(", ON PWM CHANNEL ");
-        PInt(Option.AUDIO_SLICE);MMPrintString("\r\n");
+        PInt(Option.AUDIO_SLICE);
+        MMPrintString("\r\n");
     }
     if(Option.RTC)PO2Str("RTC AUTO", "ENABLE");
 
@@ -2050,19 +2061,40 @@ void disable_sd(void){
 void disable_audio(void){
     if(!IsInvalidPin(Option.AUDIO_L))ExtCurrentConfig[Option.AUDIO_L] = EXT_DIG_IN ;   
     if(!IsInvalidPin(Option.AUDIO_L))ExtCfg(Option.AUDIO_L, EXT_NOT_CONFIG, 0);
+
     if(!IsInvalidPin(Option.AUDIO_R))ExtCurrentConfig[Option.AUDIO_R] = EXT_DIG_IN ;   
     if(!IsInvalidPin(Option.AUDIO_R))ExtCfg(Option.AUDIO_R, EXT_NOT_CONFIG, 0);
+
     if(!IsInvalidPin(Option.AUDIO_CLK_PIN))ExtCurrentConfig[Option.AUDIO_CLK_PIN] = EXT_DIG_IN ;   
     if(!IsInvalidPin(Option.AUDIO_CLK_PIN))ExtCfg(Option.AUDIO_CLK_PIN, EXT_NOT_CONFIG, 0);
+
     if(!IsInvalidPin(Option.AUDIO_CS_PIN))ExtCurrentConfig[Option.AUDIO_CS_PIN] = EXT_DIG_IN ;   
     if(!IsInvalidPin(Option.AUDIO_CS_PIN))ExtCfg(Option.AUDIO_CS_PIN, EXT_NOT_CONFIG, 0);
+
+    if(!IsInvalidPin(Option.AUDIO_DCS_PIN))ExtCurrentConfig[Option.AUDIO_DCS_PIN] = EXT_DIG_IN ;   
+    if(!IsInvalidPin(Option.AUDIO_DCS_PIN))ExtCfg(Option.AUDIO_DCS_PIN, EXT_NOT_CONFIG, 0);
+
+    if(!IsInvalidPin(Option.AUDIO_DREQ_PIN))ExtCurrentConfig[Option.AUDIO_DREQ_PIN] = EXT_DIG_IN ;   
+    if(!IsInvalidPin(Option.AUDIO_DREQ_PIN))ExtCfg(Option.AUDIO_DREQ_PIN, EXT_NOT_CONFIG, 0);
+
     if(!IsInvalidPin(Option.AUDIO_MOSI_PIN))ExtCurrentConfig[Option.AUDIO_MOSI_PIN] = EXT_DIG_IN ;   
     if(!IsInvalidPin(Option.AUDIO_MOSI_PIN))ExtCfg(Option.AUDIO_MOSI_PIN, EXT_NOT_CONFIG, 0);
+
+    if(!IsInvalidPin(Option.AUDIO_MISO_PIN))ExtCurrentConfig[Option.AUDIO_MISO_PIN] = EXT_DIG_IN ;   
+    if(!IsInvalidPin(Option.AUDIO_MISO_PIN))ExtCfg(Option.AUDIO_MISO_PIN, EXT_NOT_CONFIG, 0);
+
+    if(!IsInvalidPin(Option.AUDIO_RESET_PIN))ExtCurrentConfig[Option.AUDIO_RESET_PIN] = EXT_DIG_IN ;   
+    if(!IsInvalidPin(Option.AUDIO_RESET_PIN))ExtCfg(Option.AUDIO_RESET_PIN, EXT_NOT_CONFIG, 0);
+
     Option.AUDIO_L=0;
     Option.AUDIO_R=0;
     Option.AUDIO_CLK_PIN=0;
     Option.AUDIO_CS_PIN=0;
+    Option.AUDIO_DCS_PIN=0;
+    Option.AUDIO_DREQ_PIN=0;
+    Option.AUDIO_RESET_PIN=0;
     Option.AUDIO_MOSI_PIN=0;
+    Option.AUDIO_MISO_PIN=0;
     Option.AUDIO_SLICE=99;
 }
 void cmd_option(void) {
@@ -2816,12 +2848,11 @@ void cmd_option(void) {
             SoftReset();
             return;                                // this will restart the processor ? only works when not in debug
         }
-        if((p=checkstring(tp, (unsigned char *)"SPI"))){
-            int pin1,pin2,pin3;
-            getargs(&p,5,(unsigned char *)",");
-            if(CurrentLinePtr) error("Invalid in a program");
-            if(argc!=5)error("Syntax");
-            if(Option.AUDIO_CLK_PIN)error("Audio SPI already configured");
+        if((p=checkstring(tp, (unsigned char *)"VS1053"))){
+            int pin1,pin2,pin3,pin4,pin5,pin6,pin7;
+            getargs(&p,13,(unsigned char *)",");
+            if(argc!=13)error("Syntax");
+            if(Option.AUDIO_CLK_PIN || Option.AUDIO_L)error("Audio already configured");
             unsigned char code;
 //
             if(!(code=codecheck(argv[0])))argv[0]+=2;
@@ -2842,11 +2873,74 @@ void cmd_option(void) {
             if(IsInvalidPin(pin3)) error("Invalid pin");
             if(ExtCurrentConfig[pin3] != EXT_NOT_CONFIG)  error("Pin %/| is in use",pin3,pin3);
 //
-/*            if(!(code=codecheck(argv[6])))argv[6]+=2;
-            pin2 = getinteger(argv[6]);
+            if(!(code=codecheck(argv[6])))argv[6]+=2;
+            pin4 = getinteger(argv[6]);
+            if(!code)pin4=codemap(pin4);
+            if(IsInvalidPin(pin4)) error("Invalid pin");
+            if(ExtCurrentConfig[pin4] != EXT_NOT_CONFIG)  error("Pin %/| is in use",pin4,pin4);
+//
+            if(!(code=codecheck(argv[8])))argv[8]+=2;
+            pin5 = getinteger(argv[8]);
+            if(!code)pin5=codemap(pin5);
+            if(IsInvalidPin(pin5)) error("Invalid pin");
+            if(ExtCurrentConfig[pin5] != EXT_NOT_CONFIG)  error("Pin %/| is in use",pin5,pin5);
+//
+            if(!(code=codecheck(argv[10])))argv[10]+=2;
+            pin6 = getinteger(argv[10]);
+            if(!code)pin6=codemap(pin6);
+            if(IsInvalidPin(pin6)) error("Invalid pin");
+            if(ExtCurrentConfig[pin6] != EXT_NOT_CONFIG)  error("Pin %/| is in use",pin6,pin6);
+//
+            if(!(code=codecheck(argv[12])))argv[12]+=2;
+            pin7 = getinteger(argv[12]);
+            if(!code)pin7=codemap(pin7);
+            if(IsInvalidPin(pin7)) error("Invalid pin");
+            if(ExtCurrentConfig[pin7] != EXT_NOT_CONFIG)  error("Pin %/| is in use",pin7,pin7);
+//
+            if(!(PinDef[pin1].mode & SPI0SCK && PinDef[pin2].mode & SPI0TX && PinDef[pin3].mode & SPI0RX) &&
+            !(PinDef[pin1].mode & SPI1SCK && PinDef[pin2].mode & SPI1TX && PinDef[pin3].mode & SPI1RX))error("Not valid SPI pins");
+            if(PinDef[pin1].mode & SPI0SCK && SPI0locked)error("SPI channel already configured for System SPI");
+            if(PinDef[pin1].mode & SPI1SCK && SPI1locked)error("SPI channel already configured for System SPI");
+            Option.AUDIO_CLK_PIN=pin1;
+            Option.AUDIO_MOSI_PIN=pin2;
+            Option.AUDIO_MISO_PIN=pin3;
+            Option.AUDIO_CS_PIN=pin4;
+            Option.AUDIO_DCS_PIN=pin5;
+            Option.AUDIO_DREQ_PIN=pin6;
+            Option.AUDIO_RESET_PIN=pin7;
+            slice=checkslice(pin2,pin2, 1);
+            if((PinDef[Option.DISPLAY_BL].slice & 0x7f) == slice) error("Channel in use for backlight");
+            Option.AUDIO_SLICE=slice;
+            SaveOptions();
+            _excep_code = RESET_COMMAND;
+            SoftReset();
+            return;
+        }
+        if((p=checkstring(tp, (unsigned char *)"SPI"))){
+            int pin1,pin2,pin3;
+            getargs(&p,5,(unsigned char *)",");
+            if(CurrentLinePtr) error("Invalid in a program");
+            if(argc!=5)error("Syntax");
+            if(Option.AUDIO_CLK_PIN || Option.AUDIO_L)error("Audio already configured");
+            unsigned char code;
+//
+            if(!(code=codecheck(argv[0])))argv[0]+=2;
+            pin1 = getinteger(argv[0]);
+            if(!code)pin1=codemap(pin1);
+            if(IsInvalidPin(pin1)) error("Invalid pin");
+            if(ExtCurrentConfig[pin1] != EXT_NOT_CONFIG)  error("Pin %/| is in use",pin1,pin1);
+//
+            if(!(code=codecheck(argv[2])))argv[2]+=2;
+            pin2 = getinteger(argv[2]);
             if(!code)pin2=codemap(pin2);
             if(IsInvalidPin(pin2)) error("Invalid pin");
-            if(ExtCurrentConfig[pin2] != EXT_NOT_CONFIG)  error("Pin %/| is in use",pin2,pin2);*/
+            if(ExtCurrentConfig[pin2] != EXT_NOT_CONFIG)  error("Pin %/| is in use",pin2,pin2);
+//
+            if(!(code=codecheck(argv[4])))argv[4]+=2;
+            pin3 = getinteger(argv[4]);
+            if(!code)pin3=codemap(pin3);
+            if(IsInvalidPin(pin3)) error("Invalid pin");
+            if(ExtCurrentConfig[pin3] != EXT_NOT_CONFIG)  error("Pin %/| is in use",pin3,pin3);
 //
             if(!(PinDef[pin2].mode & SPI0SCK && PinDef[pin3].mode & SPI0TX) &&
             !(PinDef[pin2].mode & SPI1SCK && PinDef[pin3].mode & SPI1TX))error("Not valid SPI pins");
@@ -2864,7 +2958,7 @@ void cmd_option(void) {
     	getargs(&tp,3,(unsigned char *)",");
    	    if(CurrentLinePtr) error("Invalid in a program");
          if(argc!=3)error("Syntax");
-        if(Option.AUDIO_L)error("Audio already configured");
+        if(Option.AUDIO_CLK_PIN || Option.AUDIO_L)error("Audio already configured");
         unsigned char code;
         if(!(code=codecheck(argv[0])))argv[0]+=2;
         pin1 = getinteger(argv[0]);
@@ -3022,6 +3116,8 @@ void cmd_option(void) {
         if(ExtCurrentConfig[pin3] != EXT_NOT_CONFIG)  error("Pin %/| is in use",pin3,pin3);
 		if(!(PinDef[pin1].mode & SPI0SCK && PinDef[pin2].mode & SPI0TX  && PinDef[pin3].mode & SPI0RX  ) &&
         !(PinDef[pin1].mode & SPI1SCK && PinDef[pin2].mode & SPI1TX  && PinDef[pin3].mode & SPI1RX  ))error("Not valid SPI pins");
+        if(PinDef[pin1].mode & SPI0SCK && SPI0locked)error("SPI channel already configured for audio");
+        if(PinDef[pin1].mode & SPI1SCK && SPI1locked)error("SPI channel already configured for audio");
         Option.SYSTEM_CLK=pin1;
         Option.SYSTEM_MOSI=pin2;
         Option.SYSTEM_MISO=pin3;
@@ -3692,7 +3788,7 @@ void fun_info(void){
     } 
 #endif
 	else if(checkstring(ep, (unsigned char *)"TRACK")){
-		if(CurrentlyPlaying == P_MP3 || CurrentlyPlaying == P_FLAC || CurrentlyPlaying == P_WAV) strcpy((char *)sret,alist[trackplaying].fn);
+		if(CurrentlyPlaying == P_MP3 || CurrentlyPlaying == P_FLAC || CurrentlyPlaying == P_WAV|| CurrentlyPlaying == P_MP3 || CurrentlyPlaying == P_MIDI) strcpy((char *)sret,alist[trackplaying].fn);
 		else strcpy((char *)sret,"OFF");
         CtoM(sret);
         targ=T_STR;
