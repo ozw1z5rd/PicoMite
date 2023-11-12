@@ -1792,7 +1792,7 @@ void printoptions(void){
         else PRet();
     }
     if(Option.Autorun){
-        MMPrintString("AUTORUN "); 
+        PO("AUTORUN "); 
         if(Option.Autorun>0 && Option.Autorun<=MAXFLASHSLOTS)PInt(Option.Autorun);
         else MMPrintString("ON");
         if(Option.NoReset){

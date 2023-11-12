@@ -453,6 +453,52 @@ uint64_t crc64(const uint8_t *array, uint16_t length, const uint64_t polynome,
   return crc;
 }
 
+int parsearrays(unsigned char *tp, MMFLOAT **a1float, MMFLOAT **a2float,MMFLOAT **a3float, int64_t **a1int, int64_t **a2int, int64_t **a3int){
+	void *ptr1 = NULL;
+	void *ptr2 = NULL;
+	void *ptr3 = NULL;
+	int i,j;
+	short dims[MAXDIM];
+	getargs(&tp, 5,(unsigned char *)",");
+	if(!(argc == 5)) error("Argument count");
+	ptr1 = findvar(argv[0], V_FIND | V_EMPTY_OK | V_NOFIND_ERR);
+	if(vartbl[VarIndex].type & (T_NBR | T_INT)) {
+		if(vartbl[VarIndex].dims[0] <= 0) {		// Not an array
+			error("Not an array");
+		}
+		memcpy(dims,vartbl[VarIndex].dims, sizeof(dims));
+		if(vartbl[VarIndex].type & T_NBR) *a1float = (MMFLOAT *)ptr1;
+		else *a1int=(int64_t *)ptr1;
+		if((uint32_t)ptr1!=(uint32_t)vartbl[VarIndex].val.s)error("Syntax");
+	} else error("Not an integer or floating point array");
+	ptr2 = findvar(argv[2], V_FIND | V_EMPTY_OK | V_NOFIND_ERR);
+	if(vartbl[VarIndex].type & (T_NBR | T_INT)) {
+		if(vartbl[VarIndex].dims[0] <= 0) {		// Not an array
+			error("Not an array");
+		}
+		for(i=0;i<MAXDIM;i++)if(!(vartbl[VarIndex].dims[i]==dims[i]))error("Arrays different sizes");
+		if(vartbl[VarIndex].type & T_NBR) *a2float = (MMFLOAT *)ptr2;
+		else *a2int=(int64_t *)ptr2;
+		if((uint32_t)ptr2!=(uint32_t)vartbl[VarIndex].val.s)error("Syntax");
+	} else error("Not an integer or floating point array");
+	ptr3 = findvar(argv[4], V_FIND | V_EMPTY_OK | V_NOFIND_ERR);
+	if(vartbl[VarIndex].type & (T_NBR | T_INT)) {
+		if(vartbl[VarIndex].dims[0] <= 0) {		// Not an array
+			error("Not an array");
+		}
+		for(i=0;i<MAXDIM;i++)if(!(vartbl[VarIndex].dims[i]==dims[i]))error("Arrays different sizes");
+		if(vartbl[VarIndex].type & T_NBR) *a3float = (MMFLOAT *)ptr3;
+		else *a3int=(int64_t *)ptr3;
+		if((uint32_t)ptr3!=(uint32_t)vartbl[VarIndex].val.s)error("Syntax");
+	} else error("Not an integer or floating point array");
+	if(!((*a3float==NULL && *a2float==NULL && *a1float==NULL) || (*a3int==NULL && *a2int==NULL && *a1int==NULL)))error("Arrays must be all integer or all floating point");
+	int card=1;
+	for(i=0;i<MAXDIM;i++){
+		j=(dims[i] - OptionBase+1);
+		if(j)card *= j;
+	}
+	return card;
+}
 void cmd_math(void){
 	unsigned char *tp;
     int t = T_NBR;
@@ -636,6 +682,71 @@ void cmd_math(void){
 		tp = checkstring(cmdline, (unsigned char *)"SENSORFUSION");
 		if(tp) {
 			cmd_SensorFusion((char *)tp);
+			return;
+		}
+	} else if(toupper(*cmdline)=='C') {
+		tp = checkstring(cmdline, (unsigned char *)"C_ADD");
+		if(tp) {
+			MMFLOAT *a1float=NULL,*a2float=NULL,*a3float=NULL;
+			int64_t *a1int=NULL,*a2int=NULL,*a3int=NULL;
+			int card=parsearrays(tp, &a1float, &a2float, &a3float, &a1int, &a2int, &a3int);
+			if(a1float){
+				while(card--){
+					*a3float++ = *a1float++ + *a2float++;
+				}
+			} else {
+				while(card--){
+					*a3int++ = *a1int++ + *a2int++;
+				}
+			}
+			return;
+		}
+		tp = checkstring(cmdline, (unsigned char *)"C_MULT");
+		if(tp) {
+			MMFLOAT *a1float=NULL,*a2float=NULL,*a3float=NULL;
+			int64_t *a1int=NULL,*a2int=NULL,*a3int=NULL;
+			int card=parsearrays(tp, &a1float, &a2float, &a3float, &a1int, &a2int, &a3int);
+			if(a1float){
+				while(card--){
+					*a3float++ = *a1float++ * *a2float++;
+				}
+			} else {
+				while(card--){
+					*a3int++ = *a1int++ * *a2int++;
+				}
+			}
+			return;
+		}
+		tp = checkstring(cmdline, (unsigned char *)"C_SUB");
+		if(tp) {
+			MMFLOAT *a1float=NULL,*a2float=NULL,*a3float=NULL;
+			int64_t *a1int=NULL,*a2int=NULL,*a3int=NULL;
+			int card=parsearrays(tp, &a1float, &a2float, &a3float, &a1int, &a2int, &a3int);
+			if(a1float){
+				while(card--){
+					*a3float++ = *a1float++ - *a2float++;
+				}
+			} else {
+				while(card--){
+					*a3int++ = *a1int++ - *a2int++;
+				}
+			}
+			return;
+		}
+		tp = checkstring(cmdline, (unsigned char *)"C_DIV");
+		if(tp) {
+			MMFLOAT *a1float=NULL,*a2float=NULL,*a3float=NULL;
+			int64_t *a1int=NULL,*a2int=NULL,*a3int=NULL;
+			int card=parsearrays(tp, &a1float, &a2float, &a3float, &a1int, &a2int, &a3int);
+			if(a1float){
+				while(card--){
+					*a3float++ = *a1float++ / *a2float++;
+				}
+			} else {
+				while(card--){
+					*a3int++ = *a1int++ / *a2int++;
+				}
+			}
 			return;
 		}
 	} else if(toupper(*cmdline)=='V') {
