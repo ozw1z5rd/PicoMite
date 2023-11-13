@@ -1354,7 +1354,7 @@ void cmd_ireturn(void){
     MMerrno = Saveerrno;
 }
 
-void cmd_library(void) {  
+void MIPS16 cmd_library(void) {  
     unsigned char *tp;
     /********************************************************************************************************************
      ******* LIBRARY SAVE **********************************************************************************************/
@@ -2097,7 +2097,7 @@ void disable_audio(void){
     Option.AUDIO_MISO_PIN=0;
     Option.AUDIO_SLICE=99;
 }
-void cmd_option(void) {
+void MIPS16 cmd_option(void) {
     unsigned char *tp;
 
     tp = checkstring(cmdline, (unsigned char *)"BASE");

@@ -363,7 +363,7 @@ void ClearPin(int pin){
 /****************************************************************************************************************************
 Configure an I/O pin
 *****************************************************************************************************************************/
-void ExtCfg(int pin, int cfg, int option) {
+void MIPS16 ExtCfg(int pin, int cfg, int option) {
   int i, tris, ana, edge;
 
     CheckPin(pin, CP_IGNORE_INUSE | CP_IGNORE_RESERVED);
@@ -780,7 +780,7 @@ int64_t __not_in_flash_func(ExtInp)(int pin){
     } else return  gpio_get(PinDef[pin].GPno);
     return 0;
 }
-void cmd_setpin(void) {
+void MIPS16 cmd_setpin(void) {
 	int i, pin, pin2=0, pin3=0, value=-1, value2=0, value3=0, option = 0;
 	getargs(&cmdline, 7, (unsigned char *)",");
 	if(argc%2 == 0 || argc < 3) error("Argument count");
@@ -1545,7 +1545,7 @@ void cmd_backlight(void){
 }
 #endif
 
-void cmd_pwm(void){
+void MIPS16 cmd_pwm(void){
     unsigned char *tp;
     if((tp=checkstring(cmdline, (unsigned char *)"SYNC"))) {
         MMFLOAT count0=-1.0,count1=-1.0,count2=-1.0,count3=-1.0,count4=-1.0,count5=-1.0,count6=-1.0,count7=-1.0;
@@ -2667,7 +2667,7 @@ void cmd_adc(void){
 	}
     error("Syntax");
 }
-void ClearExternalIO(void) {
+void MIPS16 ClearExternalIO(void) {
     int i;
   	CloseAudio(1);
 	#ifndef PICOMITEVGA

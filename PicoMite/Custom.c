@@ -191,7 +191,7 @@ int checkblock(char *p){
         }
         return data;
 }
-void cmd_pio(void){
+void MIPS16 cmd_pio(void){
     unsigned char *tp;
     tp = checkstring(cmdline, (unsigned char *)"EXECUTE");
     if(tp){

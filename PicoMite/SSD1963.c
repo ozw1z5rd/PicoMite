@@ -567,7 +567,7 @@ void InitILI9341(void){
     ClearScreen(Option.DefaultBC);
 }
 
-void InitSSD1963(void) {
+void MIPS16 InitSSD1963(void) {
 
     PinSetBit(SSD1963_RESET_PIN, LATCLR);                             // reset the SSD1963
     uSec(10000);

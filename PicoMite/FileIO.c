@@ -3752,7 +3752,7 @@ void FlashWriteClose(void)
  The first few bytes are used for the options. So we must save the options in RAM before we erase, then write the
  options back.  The variables saved by this command are then written to flash starting just after the options.
 ********************************************************************************************************************/
-void cmd_var(void)
+void MIPS16 cmd_var(void)
 {
     unsigned char *p, *buf, *bufp, *varp, *vdata, lastc;
     int i, j, nbr = 1, nbr2 = 1, array, type, SaveDefaultType;

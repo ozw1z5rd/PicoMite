@@ -1379,7 +1379,7 @@ void setnoise(void){
 
 }
 // The MMBasic command:  PLAY
-void cmd_play(void) {
+void MIPS16 cmd_play(void) {
     unsigned char *tp;
     if(checkstring(cmdline, (unsigned char *)"STOP")) {
 		if(CurrentlyPlaying == P_NOTHING)return;

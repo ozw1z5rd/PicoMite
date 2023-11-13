@@ -28,8 +28,8 @@ extern "C" {
 #endif
 #ifdef PICOMITEVGA
 #define MAXVARS             512                     // 8 + MAXVARLEN + MAXDIM * 2  (ie, 56 bytes) - these do not incl array members
-#define FLASH_TARGET_OFFSET (800 * 1024) 
-#define MagicKey 0x25931342
+#define FLASH_TARGET_OFFSET (672 * 1024) 
+#define MagicKey 0x14586342
 #define HEAPTOP 0x2003f000
 #define HEAP_MEMORY_SIZE (100*1024) 
 #define MAX_CPU     378000 
@@ -39,8 +39,8 @@ extern "C" {
 #ifdef PICOMITEWEB
 #include "lwipopts_examples_common.h"
 #define MAXVARS             480                    // 8 + MAXVARLEN + MAXDIM * 2  (ie, 56 bytes) - these do not incl array members
-#define FLASH_TARGET_OFFSET (1088 * 1024) 
-#define MagicKey 0x45426327
+#define FLASH_TARGET_OFFSET (992 * 1024) 
+#define MagicKey 0x23226327
 #define HEAPTOP 0x2003fc00
 #define HEAP_MEMORY_SIZE (80*1024+0x4000) 
 #define MaxPcb 8
@@ -50,8 +50,8 @@ extern "C" {
 #endif
 #ifdef PICOMITE
 #define MAXVARS             512                     // 8 + MAXVARLEN + MAXDIM * 2  (ie, 56 bytes) - these do not incl array members
-#define FLASH_TARGET_OFFSET (800 * 1024) 
-#define MagicKey 0x47143427
+#define FLASH_TARGET_OFFSET (720 * 1024) 
+#define MagicKey 0x67243427
 #define HEAPTOP 0x2003e570
 #define HEAP_MEMORY_SIZE (132*1024) 
 #define MAX_CPU     378000
@@ -68,7 +68,7 @@ extern "C" {
 #define MAX_PROG_SIZE HEAP_MEMORY_SIZE
 #define SAVEDVARS_FLASH_SIZE 16384
 #define FLASH_ERASE_SIZE 4096
-#define MAXFLASHSLOTS 4
+#define MAXFLASHSLOTS 3
 #define MAXVARHASH				MAXVARS/2 
 
 // more static memory allocations (less important)

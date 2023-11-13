@@ -1971,7 +1971,7 @@ void WebConnect(void){
 #endif
 
 
-int main(){
+int MIPS16 main(){
    static int ErrorInPrompt;
     repeating_timer_t timer;
     int i;

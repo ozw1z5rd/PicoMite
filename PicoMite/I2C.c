@@ -504,7 +504,7 @@ char CvtCharsToBCD(unsigned char *p, int min, int max) {
 
 
 
-void cmd_rtc(void) {
+void MIPS16 cmd_rtc(void) {
     char buff[7];                                                   // Received data is stored here
     int DS1307;
     unsigned char *p;
@@ -1509,7 +1509,7 @@ void saturation(int s)  //-2 to 2
   ov7670_set(0x54, 0x80 + 0x20 * s);
   ov7670_set(0x58, 0x9e);  //matrix signs
 }
-void cmd_camera(unsigned char *p){
+void MIPS16 cmd_camera(unsigned char *p){
     union colourmap
     {
         char rgbbytes[4];
@@ -1893,7 +1893,7 @@ void cmd_camera(unsigned char *p){
         	disable_interrupts();
 			capture(buff);
         	enable_interrupts();
-			char *linebuff;
+			char *linebuff=NULL;
 			if(scale)linebuff=GetTempMemory(160*3);
 			for(int y=ys;y<120*scale+ys;y+=scale){
 				int kk=0;

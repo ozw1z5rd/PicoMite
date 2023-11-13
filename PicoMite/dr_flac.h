@@ -3732,7 +3732,7 @@ static drflac_bool32 drflac__decode_samples_with_residual__rice__scalar_zeroorde
     return DRFLAC_TRUE;
 }
 
-static drflac_bool32 drflac__decode_samples_with_residual__rice__scalar(drflac_bs* bs, drflac_uint32 bitsPerSample, drflac_uint32 count, drflac_uint8 riceParam, drflac_uint32 lpcOrder, drflac_int32 lpcShift, drflac_uint32 lpcPrecision, const drflac_int32* coefficients, drflac_int32* pSamplesOut)
+static MIPS16 drflac_bool32 drflac__decode_samples_with_residual__rice__scalar(drflac_bs* bs, drflac_uint32 bitsPerSample, drflac_uint32 count, drflac_uint8 riceParam, drflac_uint32 lpcOrder, drflac_int32 lpcShift, drflac_uint32 lpcPrecision, const drflac_int32* coefficients, drflac_int32* pSamplesOut)
 {
     drflac_uint32 t[2] = {0x00000000, 0xFFFFFFFF};
     drflac_uint32 zeroCountPart0 = 0;
@@ -4886,7 +4886,7 @@ Reads and decodes the residual for the sub-frame the decoder is currently sittin
 when the decoder is sitting at the very start of the RESIDUAL block. The first <order> residuals will be ignored. The
 <blockSize> and <order> parameters are used to determine how many residual values need to be decoded.
 */
-static drflac_bool32 drflac__decode_samples_with_residual(drflac_bs* bs, drflac_uint32 bitsPerSample, drflac_uint32 blockSize, drflac_uint32 lpcOrder, drflac_int32 lpcShift, drflac_uint32 lpcPrecision, const drflac_int32* coefficients, drflac_int32* pDecodedSamples)
+static MIPS16 drflac_bool32 drflac__decode_samples_with_residual(drflac_bs* bs, drflac_uint32 bitsPerSample, drflac_uint32 blockSize, drflac_uint32 lpcOrder, drflac_int32 lpcShift, drflac_uint32 lpcPrecision, const drflac_int32* coefficients, drflac_int32* pDecodedSamples)
 {
     drflac_uint8 residualMethod;
     drflac_uint8 partitionOrder;

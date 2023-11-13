@@ -185,7 +185,7 @@ void initFonts(void){
 	FontTable[14] = NULL;
 	FontTable[15] = NULL;
 }
-void cmd_guiMX170(void) {
+void MIPS16 cmd_guiMX170(void) {
     unsigned char *p;
 
   if(Option.DISPLAY_TYPE == 0) error("Display not configured");
