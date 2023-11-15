@@ -289,6 +289,7 @@ void TM_EXTI_Handler_5(char *buf, uint32_t events);
 // numpad declares
 extern unsigned char *KeypadInterrupt;
 int KeypadCheck(void);
+extern MMFLOAT ADCscale[4], ADCbottom[4];
 
 #define IR_CLOSED                   0
 #define IR_WAIT_START               1

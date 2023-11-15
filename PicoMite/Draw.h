@@ -233,6 +233,7 @@ extern int CollisionFound;
 extern void InitDisplayVirtual(void);
 extern void ConfigDisplayVirtual(unsigned char *p);
 extern void merge(uint8_t colour);
+extern void blitmerge (int x0, int y0, int w, int h, uint8_t colour);
 extern int mergerunning;
 extern uint32_t mergetimer;
 extern int RGB121map[16];

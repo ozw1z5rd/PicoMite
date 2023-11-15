@@ -1571,14 +1571,14 @@ void cmd_math(void){
 				if((uint32_t)a2int!=(uint32_t)vartbl[VarIndex].val.s)error("Syntax");
 			} else error("Argument 4 must be numerical");
 			if(card1 != card2)error("Size mismatch");
-			if(a1float!=NULL){ //find min and max if in is a float
-				for(i=0; i< card1;i++){
+			for(i=0; i< card1;i++){
+				if(a1float!=NULL){ //find min and max if in is a float
 					if(a1float[i]<inmin)inmin=a1float[i];
 					if(a1float[i]>inmax)inmax=a1float[i];
+				} else {
+					if(a1int[i]<inmin)inmin=(MMFLOAT)a1int[i];
+					if(a1int[i]>inmax)inmax=(MMFLOAT)a1int[i];
 				}
-			} else { //find min and max if in is an integer
-				if(a1int[i]<inmin)inmin=(MMFLOAT)a1int[i];
-				if(a1int[i]>inmax)inmax=(MMFLOAT)a1int[i];
 			}
 			if(argc==11){
 				ptr1 = findvar(argv[8], V_FIND);
@@ -2048,6 +2048,94 @@ void fun_math(void){
 			if(!(argc == 1)) error("Argument count");
 			fret=cosh(getnumber(argv[0]));
 			targ=T_NBR;
+			return;
+		}
+		tp = checkstring(ep, (unsigned char *)"CROSSING");
+		if(tp){
+		    MMFLOAT *a1float=NULL;
+		    int64_t *a1int=NULL;
+			int arraylength=0;
+			void *ptr1 = NULL;
+			MMFLOAT crossing=0.0;
+			int direction=1;
+			int found=-1;
+			getargs(&tp,5,(unsigned char *)",");
+			if(argc<1)error("Syntax");
+			ptr1 = findvar(argv[0], V_FIND | V_EMPTY_OK | V_NOFIND_ERR);
+			if(vartbl[VarIndex].type & T_NBR) {
+				if(vartbl[VarIndex].dims[1] != 0) error("Invalid variable");
+				if(vartbl[VarIndex].dims[0] <= 0) {		// Not an array
+					error("Argument 1 must be a numerical array");
+				}
+				arraylength=vartbl[VarIndex].dims[0] - OptionBase + 1;
+				a1float = (MMFLOAT *)ptr1;
+				if((uint32_t)ptr1!=(uint32_t)vartbl[VarIndex].val.s)error("Syntax");
+			} else if(ptr1 && vartbl[VarIndex].type & T_INT) {
+				if(vartbl[VarIndex].dims[1] != 0) error("Invalid variable");
+				if(vartbl[VarIndex].dims[0] <= 0) {		// Not an array
+					error("Argument 1 must be a numerical array");
+				}
+				arraylength=vartbl[VarIndex].dims[0] - OptionBase + 1;
+				a1int = (int64_t *)ptr1;
+				if((uint32_t)ptr1!=(uint32_t)vartbl[VarIndex].val.s)error("Syntax");
+			} else error("Syntax");
+			if(argc>=3 && *argv[2])crossing = getnumber(argv[2]);
+			if(argc==5) direction=getint(argv[4],-1,1);
+			if(direction==0)error ("Valid are -1 and 1");
+			for(int i=0;i<arraylength-3;i++){
+				if(a1float){
+					if(a1float[i]<crossing && a1float[i+2]>crossing && (a1float[i+1]>=a1float[i] && a1float[i+1]<=a1float[i+2]) && direction==1){
+						found=i+1;
+						break;
+					}
+					if(a1float[i]>crossing && a1float[i+2]<crossing && (a1float[i+1]<=a1float[i] && a1float[i+1]>=a1float[i+2]) && direction==-1){
+						found=i+1;
+						break;
+					}
+				} else {
+					if(a1int[i]<crossing && a1int[i+2]>crossing && (a1int[i+1]>=a1int[i] && a1int[i+1]<=a1int[i+2]) && direction==1){
+						found=i+1;
+						break;
+					}
+					if(a1int[i]>crossing && a1int[i+2]<crossing && (a1int[i+1]<=a1int[i] && a1int[i+1]>=a1int[i+2]) && direction==-1){
+						found=i+1;
+						break;
+					}
+				}
+			}
+			if(found==-1){ //try a slower moving slope
+				for(int i=0;i<arraylength-5;i++){
+					if(a1float){
+						if(a1float[i+1]<=crossing && a1float[i+3]>=crossing && (a1float[i+2]>=a1float[i+1] && a1float[i+2]<=a1float[i+3]) && direction==1){
+							if(a1float[i]<a1float[i+2] && a1float[i+4]>a1float[i+2]){
+								found=i+2;
+								break;
+							}
+						}
+						if(a1float[i+1]>=crossing && a1float[i+3]<=crossing && (a1float[i+2]<=a1float[i+1] && a1float[i+2]>=a1float[i+3]) && direction==-1){
+							if(a1float[i]>a1float[i+2] && a1float[i+4]<a1float[i+2]){
+								found=i+2;
+								break;
+							}
+						}
+					} else {
+						if(a1int[i+1]<=crossing && a1int[i+3]>=crossing && (a1int[i+2]>=a1int[i+1] && a1int[i+2]<=a1int[i+3]) && direction==1){
+							if(a1int[i]<a1int[i+2] && a1int[i+4]>a1int[i+2]){
+								found=i+2;
+								break;
+							}
+						}
+						if(a1int[i+1]>=crossing && a1int[i+3]<=crossing && (a1int[i+2]<=a1int[i+1] && a1int[i+2]>=a1int[i+3]) && direction==-1){
+							if(a1int[i]>a1int[i+2] && a1int[i+4]<a1int[i+2]){
+								found=i+2;
+								break;
+							}
+						}
+					}
+				}
+			}
+			targ=T_INT;
+			iret=found;
 			return;
 		}
 		tp = checkstring(ep, (unsigned char *)"CORREL");

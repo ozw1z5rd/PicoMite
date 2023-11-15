@@ -1497,10 +1497,14 @@ void cmd_pixel(void) {
             x1 = getinteger(argv[0]);
             y1 = getinteger(argv[2]);
             if(argc == 5)
-                c = getint(argv[4], 0, WHITE);
+                c = getint(argv[4], -1, WHITE);
             else
                 c = gui_fcolour;
-            DrawPixel(x1, y1, c);
+            if(c!=-1)DrawPixel(x1, y1, c);
+            else {
+                CurrentX=x1;
+                CurrentY=y1;
+            }
         } else {
             c = gui_fcolour;                                        // setup the defaults
             if(argc == 5){
@@ -1787,7 +1791,38 @@ void cmd_line(void) {
 		lastx = x2; lasty = y2;											// save in case the user wants the last value
 	} else {
         int x1, y1, x2, y2, w=0, c=0, n=0 ,i, nc=0, nw=0;
-		if((p=checkstring(cmdline,(unsigned char *)"AA"))){
+        if((p=checkstring(cmdline,(unsigned char *)"PLOT"))){
+            long long int *y1ptr;
+            MMFLOAT *y1fptr;
+            int xs=0,xinc=1;
+            int ys=0,yinc=1;
+            getargs(&p, 13,(unsigned char *)",");
+            getargaddress(argv[0], &y1ptr, &y1fptr, &n);
+            if(n==1)error("Argument 1 is not an array");
+            nc=n;
+            if(argc>=3 && *argv[2])nc=getint(argv[2],1,HRes-1);
+            if(nc>n)nc=n;
+            if(argc>=5 && *argv[4])xs=getint(argv[4],0,HRes-1);
+            if(argc>=7 && *argv[6])xinc=getint(argv[6],1,HRes-1);
+            if(argc>=9 && *argv[8])ys=getint(argv[8],0,n-1);
+            if(argc>=11 && *argv[10])yinc=getint(argv[10],1,n-1);
+            c = gui_fcolour;  w = 1;                                        // setup the defaults
+            if(argc == 13) c = getint(argv[12], 0, WHITE);
+            for(i=0;i<nc-1;i+=xinc){
+                int y=ys+yinc*(i/xinc);
+                x1 = xs+i;
+                y1 = (y1fptr==NULL ? y1ptr[y] : (int)y1fptr[y]);
+                if(y1<0)y1=0;
+                if(y1>=VRes)y1=VRes-1;
+                x2 = xs+(i+xinc);
+                y2 = (y1fptr==NULL ? y1ptr[y+yinc] : (int)y1fptr[y+yinc]);
+                if(x1>=HRes)break; //can only get worse so stop now
+                if(x2>=HRes)x2=HRes-1;
+                if(y2<0)y2=0;
+                if(y2>=VRes)y2=VRes-1;
+                DrawLine(x1, y1, x2, y2, w, c);
+            }
+		} else if((p=checkstring(cmdline,(unsigned char *)"AA"))){
 			MMFLOAT x1, y1, x2, y2;
 			getargs(&p, 11,(unsigned char *)",");
 			c = gui_fcolour;  ;  w = 1;                                         // setup the defaults
@@ -1806,9 +1841,10 @@ void cmd_line(void) {
             MMFLOAT *x1fptr, *y1fptr, *x2fptr, *y2fptr, *wfptr, *cfptr;
             
             getargs(&cmdline, 11,(unsigned char *)",");
-            if(!(argc & 1) || argc < 7) error("Argument count");
+            if(!(argc & 1) || argc < 3) error("Argument count");
             getargaddress(argv[0], &x1ptr, &x1fptr, &n);
             if(n != 1) {
+                if(argc<7)error("Argument count");
                 getargaddress(argv[2], &y1ptr, &y1fptr, &n);
                 getargaddress(argv[4], &x2ptr, &x2fptr, &n);
                 getargaddress(argv[6], &y2ptr, &y2fptr, &n);
@@ -1817,8 +1853,14 @@ void cmd_line(void) {
                 c = gui_fcolour;  w = 1;                                        // setup the defaults
                 x1 = getinteger(argv[0]);
                 y1 = getinteger(argv[2]);
-                x2 = getinteger(argv[4]);
-                y2 = getinteger(argv[6]);
+                if(argc>=5 && *argv[4])x2 = getinteger(argv[4]);
+                else {
+                    x2=CurrentX;CurrentX=x1;
+                }
+                if(argc>=7 && *argv[6])y2 = getinteger(argv[6]);
+                else {
+                    y2=CurrentY;CurrentY=y1;
+                }
                 if(argc > 7 && *argv[8]){
                     w = getint(argv[8], 1, 100);
                 }
@@ -4932,6 +4974,43 @@ void copyframetoscreen(uint8_t *s,int xstart, int xend, int ystart, int yend, in
         }
     }
 }
+void blitmerge (int x0, int y0, int w, int h, uint8_t colour){
+    if(LayerBuf==NULL || FrameBuf==NULL)return;
+    uint8_t *ss,*s=LayerBuf;
+    uint8_t *d=FrameBuf;
+    uint8_t LineBuf[HRes/2];
+    uint8_t highcolour=colour<<4;
+#ifdef PICOMITE
+    mutex_enter_blocking(&frameBufferMutex);			// lock the frame buffer
+#endif
+    if(Option.DISPLAY_TYPE==ILI9341 || Option.DISPLAY_TYPE==ST7789B || Option.DISPLAY_TYPE==ILI9488){
+        while(GetLineILI9341()!=0){}
+    }
+    for(int y=y0;y<y0+h;y++){
+        if(y>VRes-1)break;
+        memcpy(LineBuf,d+y*HRes/2,HRes/2);
+        ss=s+y*HRes/2;
+        for(int x=0;x<HRes/2;x++){
+            uint8_t top=*ss & 0xF0;
+            uint8_t bottom=*ss++ &0x0f;
+            if(top==highcolour && bottom==colour)continue;
+            if(top!=highcolour && bottom!=colour)LineBuf[x]=(top|bottom);
+            else if(top!=highcolour){
+                LineBuf[x]&=0x0F;
+                LineBuf[x]|=top;
+            } else {
+                LineBuf[x]&=0xF0;
+                LineBuf[x]|=bottom;
+            }
+        }
+        copyframetoscreen(&LineBuf[x0/2],x0,x0+w-1,y,y,0);
+    }
+#ifdef PICOMITE
+    mutex_exit(&frameBufferMutex);
+    mergedone=1;
+    __dmb();
+#endif
+}
 void merge(uint8_t colour){
     if(LayerBuf==NULL || FrameBuf==NULL)return;
     uint8_t *ss,*s=LayerBuf;
@@ -4941,6 +5020,9 @@ void merge(uint8_t colour){
 #ifdef PICOMITE
     mutex_enter_blocking(&frameBufferMutex);			// lock the frame buffer
 #endif
+    if(Option.DISPLAY_TYPE==ILI9341 || Option.DISPLAY_TYPE==ST7789B || Option.DISPLAY_TYPE==ILI9488){
+        while(GetLineILI9341()!=0){}
+    }
     for(int y=0;y<VRes;y++){
         memcpy(LineBuf,d+y*HRes/2,HRes/2);
         ss=s+y*HRes/2;
@@ -5064,6 +5146,10 @@ void cmd_framebuffer(void){
         if(LayerBuf==NULL){
             LayerBuf=GetMemory(HRes*VRes/2);
         } else error("Layer already exists");
+    } else if((p=checkstring(cmdline, (unsigned char *)"WAIT"))) {
+        if(Option.DISPLAY_TYPE==ILI9341 || Option.DISPLAY_TYPE==ST7789B || Option.DISPLAY_TYPE==ILI9488){
+            while(GetLineILI9341()!=0){}
+        }
     } else if((p=checkstring(cmdline, (unsigned char *)"CLOSE"))) {
         if(checkstring(p, (unsigned char *)"F")){
 #ifdef PICOMITE
@@ -5205,6 +5291,62 @@ void cmd_blit(void) {
         blitbuff[bnbr].w=xlen;
         blitbuff[bnbr].h=ylen;
         FileClose(fnbr);
+        return;
+    }
+    if((p=checkstring(cmdline, (unsigned char *)"MERGE"))) { //merge the layer onto the physical display
+        if(!LayerBuf)error("Layer not created");
+        if(!FrameBuf)error("Framebuffer not created");
+        uint8_t colour=0;
+        getargs(&p,13,(unsigned char *)",");
+        if(argc>=1 && *argv[0]){
+            colour=getint(argv[0],0,15);
+        }
+        x1 = getinteger(argv[2]);
+        y1 = getinteger(argv[4]);
+        w = getinteger(argv[6]);
+        h = getinteger(argv[8]);
+#ifdef PICOMITE
+        uint8_t background=0;
+        if(argc>=11 && *argv[10]){
+            if(checkstring(argv[10],(unsigned char *)"B"))background=1;
+            else if(checkstring(argv[10],(unsigned char *)"R"))background=2;
+            else if(checkstring(argv[10],(unsigned char *)"A"))background=3;
+            else error("Syntax");
+        }
+        if(background==1){
+            if(!(((Option.DISPLAY_TYPE>I2C_PANEL && Option.DISPLAY_TYPE<BufferedPanel ) || (Option.DISPLAY_TYPE>=SSDPANEL && Option.DISPLAY_TYPE<VIRTUAL))))error("Not available on this display");
+            if(diskchecktimer<200 && SPIatRisk)diskchecktimer = 200;
+            multicore_fifo_push_blocking(4);
+            multicore_fifo_push_blocking(x1);
+            multicore_fifo_push_blocking(y1);
+            multicore_fifo_push_blocking(w);
+            multicore_fifo_push_blocking(h);
+            multicore_fifo_push_blocking((uint32_t)colour);
+        } else if(background==2){
+            mergetimer=0;
+            if(argc==13)mergetimer=getint(argv[12],0,60*10*1000);
+            if(!(((Option.DISPLAY_TYPE>I2C_PANEL && Option.DISPLAY_TYPE<BufferedPanel ) || (Option.DISPLAY_TYPE>=SSDPANEL && Option.DISPLAY_TYPE<VIRTUAL))))error("Not available on this display");
+            if(WriteBuf==NULL)WriteBuf=FrameBuf;
+            setframebuffer();
+            multicore_fifo_push_blocking(5);
+            multicore_fifo_push_blocking(x1);
+            multicore_fifo_push_blocking(y1);
+            multicore_fifo_push_blocking(w);
+            multicore_fifo_push_blocking(h);
+            multicore_fifo_push_blocking((uint32_t)colour);
+            multicore_fifo_push_blocking((uint32_t)mergetimer*1000);
+        } else if(background==3){
+            if(mergerunning){
+                multicore_fifo_push_blocking(0xFF);
+                busy_wait_ms(mergetimer+200);
+                if(mergerunning){
+                    _excep_code = RESET_COMMAND;
+                    SoftReset();
+                }
+            }
+        } else 
+#endif
+        blitmerge(x1,y1,w,h,colour);
         return;
     }
     if((p = checkstring(cmdline, (unsigned char *)"READ"))) {
@@ -7280,7 +7422,7 @@ void cmd_framebuffer(void){
         transparenthigh=transparent<<4;
         if(LayerBuf==DisplayBuf){
             LayerBuf=GetMemory(38400);
-        } else error("Layer already exists");
+        } 
     } else if((p=checkstring(cmdline, (unsigned char *)"CLOSE"))) {
         if(checkstring(p, (unsigned char *)"F")){
             if(WriteBuf==FrameBuf)WriteBuf=DisplayBuf;

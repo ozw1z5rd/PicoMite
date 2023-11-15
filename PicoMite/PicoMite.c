@@ -1720,12 +1720,44 @@ void __not_in_flash_func(UpdateCore)()
                     }
                     if(timer){
                         busy_wait_until(delaytime);
+                        delaytime=time_us_64()+timer;
                     }
                     merge(colour);
                 }
             } else if(command==2){
                 uint8_t colour=(uint8_t)multicore_fifo_pop_blocking();
                 merge(colour);
+            } else if(command==4){
+                int x1=multicore_fifo_pop_blocking();
+                int y1=multicore_fifo_pop_blocking();
+                int w=multicore_fifo_pop_blocking();
+                int h=multicore_fifo_pop_blocking();
+                uint8_t colour=(uint8_t)multicore_fifo_pop_blocking();
+                blitmerge(x1,y1,w,h,colour);
+			} else if(command==5){
+                int x1=multicore_fifo_pop_blocking();
+                int y1=multicore_fifo_pop_blocking();
+                int w=multicore_fifo_pop_blocking();
+                int h=multicore_fifo_pop_blocking();
+                uint8_t colour=(uint8_t)multicore_fifo_pop_blocking();
+                uint32_t timer=(uint32_t)multicore_fifo_pop_blocking();
+                uint64_t delaytime=0;
+                if(timer)delaytime=time_us_64()+timer;
+                mergerunning=1;
+                while(1){
+                    if (multicore_fifo_rvalid()){
+                        int a;
+                        if(((a=multicore_fifo_pop_blocking())==0xff)){
+                            mergerunning=0;
+                            break;
+                        }
+                    }
+                    if(timer){
+                        busy_wait_until(delaytime);
+                        delaytime=time_us_64()+timer;
+                    }
+                    blitmerge(x1,y1,w,h,colour);
+                }
             } else if(command==1){ 
                 char *s=(char *)multicore_fifo_pop_blocking();
                 mutex_enter_blocking(&frameBufferMutex);			// lock the frame buffer

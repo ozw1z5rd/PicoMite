@@ -190,6 +190,7 @@ extern void __not_in_flash_func(spi_finish)(spi_inst_t *spi);
 #define ILI9163_MADCTL  	0x36//Memory Access Control
 #define ILI9163_VSSTADRS	0x37//Vertical Scrolling Start address
 #define ILI9163_PIXFMT  	0x3A//Interface Pixel Format
+#define ILI9341_GETSCANLINE 0x45//read the current scanline
 #define ILI9163_FRMCTR1 	0xB1//Frame Rate Control (In normal mode/Full colors)
 #define ILI9163_FRMCTR2 	0xB2//Frame Rate Control(In Idle mode/8-colors)
 #define ILI9163_FRMCTR3 	0xB3//Frame Rate Control(In Partial mode/full colors)
@@ -438,6 +439,7 @@ extern void __not_in_flash_func(HW1ReadSPI)(BYTE *buff, int cnt);
 extern void __not_in_flash_func(BitBangReadSPI)(BYTE *buff, int cnt);
 extern void ScrollLCDSPI(int lines);
 extern void SetCS(void);
+extern int GetLineILI9341(void);
 
 #endif
 

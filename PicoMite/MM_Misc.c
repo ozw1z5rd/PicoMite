@@ -1864,7 +1864,11 @@ void printoptions(void){
         PRet();
     }
 #else
-    if(Option.CPU_Speed!=133000)PO2Int("CPUSPEED (KHz)", Option.CPU_Speed);
+    if(Option.CPU_Speed!=133000){
+        PO("CPUSPEED ");
+        PInt(Option.CPU_Speed);
+        MMPrintString(" 'KHz\r\n");
+    }
     if(Option.DISPLAY_CONSOLE == true) PO2Str("LCDPANEL", "CONSOLE");
     if(Option.Height != 24 || Option.Width != 80) PO3Int("DISPLAY", Option.Height, Option.Width);
     if(Option.DISPLAY_TYPE == DISP_USER) PO3Int("LCDPANEL USER", HRes, VRes);
@@ -1980,7 +1984,7 @@ void printoptions(void){
             MMPrintString((char *)PinDef[Option.AUDIO_DREQ_PIN].pinname);MMputchar(',',1);
             MMPrintString((char *)PinDef[Option.AUDIO_RESET_PIN].pinname);
         }
-        MMPrintString(", ON PWM CHANNEL ");
+        MMPrintString("', ON PWM CHANNEL ");
         PInt(Option.AUDIO_SLICE);
         MMPrintString("\r\n");
     }
@@ -1993,8 +1997,11 @@ void printoptions(void){
         MMputchar(',',1);;MMPrintString((char *)PinDef[Option.INT4pin].pinname);PRet();
     }
 
-    if(Option.modbuff)PO2Int("MODBUFF",Option.modbuffsize);
-
+    if(Option.modbuff){
+        PO("MODBUFF ENABLE ");
+        if(Option.modbuffsize!=128)PInt(Option.modbuffsize);
+        PRet();
+    }
     if(*Option.F1key)PO2Str("F1", (const char *)Option.F1key);
     if(*Option.F5key)PO2Str("F5", (const char *)Option.F5key);
     if(*Option.F6key)PO2Str("F6", (const char *)Option.F6key);
@@ -3178,6 +3185,56 @@ void MIPS16 cmd_option(void) {
         SoftReset();
         return;
     }
+	tp = checkstring(cmdline, (unsigned char *)"DISK SAVE");
+    if(tp){
+        getargs(&tp,1,(unsigned char *)",");
+        if(!(argc==1))error("Syntax");
+        if(CurrentLinePtr) error("Invalid in a program");
+        int fnbr = FindFreeFileNbr();
+        if (!InitSDCard())  return;
+        char *pp = (char *)getFstring(argv[0]);
+        if (strchr((char *)pp, '.') == NULL)
+            strcat((char *)pp, ".opt");
+        if (!BasicFileOpen((char *)pp, fnbr, FA_WRITE | FA_CREATE_ALWAYS)) return;
+        int i = sizeof(Option);
+        char *s = (char *)&Option.Magic;
+        while(i--){
+            FilePutChar(*s++,fnbr);
+        }
+        FileClose(fnbr);
+        return;
+    }
+	tp = checkstring(cmdline, (unsigned char *)"DISK LOAD");
+    if(tp){
+        getargs(&tp,1,(unsigned char *)",");
+        if(!(argc==1))error("Syntax");
+        int fnbr = FindFreeFileNbr();
+        int fsize;
+        if (!InitSDCard())  return;
+        char *pp = (char *)getFstring(argv[0]);
+        if (strchr((char *)pp, '.') == NULL)
+            strcat((char *)pp, ".opt");
+        if (!BasicFileOpen((char *)pp, fnbr, FA_READ)) return;
+		if(filesource[fnbr]!=FLASHFILE)  fsize = f_size(FileTable[fnbr].fptr);
+		else fsize = lfs_file_size(&lfs,FileTable[fnbr].lfsptr);
+        if(fsize!=sizeof(Option))error("File size incorrect");
+        char *s=(char *)&Option.Magic;
+        for(int k = 0; k < fsize; k++){        // write to the flash byte by byte
+           *s++=FileGetChar(fnbr);
+        }
+        Option.Magic=MagicKey; //This isn't ideal but it improves the chances of a older config working in a new build
+        FileClose(fnbr);
+        uSec(100000);
+        disable_interrupts();
+        flash_range_erase(FLASH_TARGET_OFFSET, FLASH_ERASE_SIZE);
+        enable_interrupts();
+        uSec(10000);
+        disable_interrupts();
+        flash_range_program(FLASH_TARGET_OFFSET, (const uint8_t *)&Option, 768);
+        enable_interrupts();
+        _excep_code = RESET_COMMAND;
+        SoftReset();
+    }
 	tp = checkstring(cmdline, (unsigned char *)"RESET");
     if(tp) {
    	    if(CurrentLinePtr) error("Invalid in a program");
@@ -3816,6 +3873,10 @@ void fun_info(void){
         iret=(int64_t)((uint32_t)WriteBuf);
         targ=T_INT;
         return;
+    } else if((tp=checkstring(ep, (unsigned char *)"UPTIME"))){
+        fret = (MMFLOAT)time_us_64()/1000000.0;
+        targ = T_NBR;
+        return;
     } else error("Syntax");
 }
 
@@ -4367,10 +4428,10 @@ int checkdetailinterrupts(void) {
             int k=0;
             for(int i=0;i<ADCmax;i++){
                 for(int j=0;j<ADCopen;j++){
-                    if(j==0)*a1float++ = (MMFLOAT)ADCbuffer[k++]/4095.0*VCC;
-                    if(j==1)*a2float++ = (MMFLOAT)ADCbuffer[k++]/4095.0*VCC;
-                    if(j==2)*a3float++ = (MMFLOAT)ADCbuffer[k++]/4095.0*VCC;
-                    if(j==3)*a4float++ = (MMFLOAT)ADCbuffer[k++]/4095.0*VCC;
+                    if(j==0)*a1float++ = (MMFLOAT)ADCbuffer[k++]*ADCscale[0]+ADCbottom[0];
+                    if(j==1)*a2float++ = (MMFLOAT)ADCbuffer[k++]*ADCscale[1]+ADCbottom[1];
+                    if(j==2)*a3float++ = (MMFLOAT)ADCbuffer[k++]*ADCscale[2]+ADCbottom[2];
+                    if(j==3)*a4float++ = (MMFLOAT)ADCbuffer[k++]*ADCscale[3]+ADCbottom[3];
                 }
             }
         intaddr = ADCInterrupt;                                   // get a pointer to the interrupt routine

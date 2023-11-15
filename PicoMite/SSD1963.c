@@ -926,13 +926,20 @@ void ReadBufferSSD1963(int x1, int y1, int x2, int y2, unsigned char* p) {
 }
 
 void fun_getscanline(void){
-    if(Option.DISPLAY_TYPE < SSDPANEL) error("Invalid on this display");
-
-    WriteComand(CMD_GET_SCANLINE);
-    gpio_set_dir_in_masked(0xFF);
-    iret = (ReadData() << 8) | ReadData();                          // get the scan line
-    gpio_set_dir_out_masked(0xFF);
-    targ = T_INT;
+    if(Option.DISPLAY_TYPE < SSDPANEL && !(Option.DISPLAY_TYPE==ILI9341 || Option.DISPLAY_TYPE==ST7789B || Option.DISPLAY_TYPE==ILI9488)) {
+        iret=-1;
+        targ = T_INT;
+    }
+    if(Option.DISPLAY_TYPE==ILI9341 || Option.DISPLAY_TYPE==ST7789B || Option.DISPLAY_TYPE==ILI9488){
+        iret=GetLineILI9341();
+        targ = T_INT;
+    } else {
+        WriteComand(CMD_GET_SCANLINE);
+        gpio_set_dir_in_masked(0xFF);
+        iret = (ReadData() << 8) | ReadData();                          // get the scan line
+        gpio_set_dir_out_masked(0xFF);
+        targ = T_INT;
+    }
 }
 
 

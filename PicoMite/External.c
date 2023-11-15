@@ -151,6 +151,7 @@ void PWMoff(int slice);
 volatile uint8_t *adcint=NULL; 
 uint8_t *adcint1=NULL; 
 uint8_t *adcint2=NULL; 
+MMFLOAT ADCscale[4], ADCbottom[4];
 
 //Vector to CFunction routine called every command (ie, from the BASIC interrupt checker)
 
@@ -2538,12 +2539,17 @@ void cmd_adc(void){
         void *ptr2 = NULL;
         void *ptr3 = NULL;
         void *ptr4 = NULL;
-        getargs(&tp, 7, (unsigned char *)",");
+        getargs(&tp, 23, (unsigned char *)",");
 		if(!ADCopen)error("ADC not open");
         if(!(argc >= 1))error("Argument count");
         a1float=NULL; a2float=NULL; a3float=NULL; a4float=NULL;
         ADCmax=0;
         ADCpos=0;
+        MMFLOAT top;
+        for(int i=0;i<4;i++){
+            ADCscale[i]=VCC/4095.0;
+            ADCbottom[i]=0;
+        }
         ptr1 = findvar(argv[0], V_FIND | V_EMPTY_OK | V_NOFIND_ERR);
         if(vartbl[VarIndex].type & T_NBR) {
             if(vartbl[VarIndex].dims[1] != 0) error("Invalid variable");
@@ -2553,7 +2559,7 @@ void cmd_adc(void){
             a1float = (MMFLOAT *)ptr1;
         } else error("Argument 1 must be float array");
         ADCmax=(vartbl[VarIndex].dims[0] - OptionBase);
-        if(argc>=3){
+        if(argc>=3 && *argv[2]){
            if(ADCopen<2)error("Second channel not open");
            ptr2 = findvar(argv[2], V_FIND | V_EMPTY_OK | V_NOFIND_ERR);
             if(vartbl[VarIndex].type & T_NBR) {
@@ -2565,7 +2571,7 @@ void cmd_adc(void){
             } else error("Argument 2 must be float array");
             if((vartbl[VarIndex].dims[0] - OptionBase) !=ADCmax)error("Arrays should be the same size");
         }
-        if(argc>=5){
+        if(argc>=5 && *argv[4]){
            if(ADCopen<3)error("Third channel not open");
            ptr3 = findvar(argv[4], V_FIND | V_EMPTY_OK | V_NOFIND_ERR);
             if(vartbl[VarIndex].type & T_NBR) {
@@ -2577,7 +2583,7 @@ void cmd_adc(void){
             } else error("Argument 3 must be float array");
             if((vartbl[VarIndex].dims[0] - OptionBase) !=ADCmax)error("Arrays should be the same size");
         }
-        if(argc>=7){
+        if(argc>=7 && *argv[6]){
            if(ADCopen<4)error("Fourth channel not open");
            ptr4 = findvar(argv[6], V_FIND | V_EMPTY_OK | V_NOFIND_ERR);
             if(vartbl[VarIndex].type & T_NBR) {
@@ -2588,6 +2594,26 @@ void cmd_adc(void){
                 a4float = (MMFLOAT *)ptr4;
             } else error("Argument 4 must be float array");
             if((vartbl[VarIndex].dims[0] - OptionBase) !=ADCmax)error("Arrays should be the same size");
+        }
+        if(argc>=11){
+            ADCbottom[0]=getnumber(argv[8]);
+            top=getnumber(argv[10]);
+            ADCscale[0]=(top-ADCbottom[0])/4095.0;
+        }
+        if(argc>=15){
+            ADCbottom[1]=getnumber(argv[12]);
+            top=getnumber(argv[14]);
+            ADCscale[1]=(top-ADCbottom[1])/4095.0;
+        }
+        if(argc>=19){
+            ADCbottom[2]=getnumber(argv[16]);
+            top=getnumber(argv[18]);
+            ADCscale[2]=(top-ADCbottom[2])/4095.0;
+        }
+        if(argc>=23){
+            ADCbottom[3]=getnumber(argv[20]);
+            top=getnumber(argv[22]);
+            ADCscale[3]=(top-ADCbottom[3])/4095.0;
         }
         ADCmax++;
         ADCbuffer=GetMemory(ADCmax*ADCopen*2);
@@ -2633,10 +2659,10 @@ void cmd_adc(void){
             int k=0;
             for(int i=0;i<ADCmax;i++){
                 for(int j=0;j<ADCopen;j++){
-                    if(j==0)*a1float++ = (MMFLOAT)ADCbuffer[k++]/4095.0*VCC;
-                    if(j==1)*a2float++ = (MMFLOAT)ADCbuffer[k++]/4095.0*VCC;
-                    if(j==2)*a3float++ = (MMFLOAT)ADCbuffer[k++]/4095.0*VCC;
-                    if(j==3)*a4float++ = (MMFLOAT)ADCbuffer[k++]/4095.0*VCC;
+                    if(j==0)*a1float++ = (MMFLOAT)ADCbuffer[k++]*ADCscale[0]+ADCbottom[0];
+                    if(j==1)*a2float++ = (MMFLOAT)ADCbuffer[k++]*ADCscale[1]+ADCbottom[1];
+                    if(j==2)*a3float++ = (MMFLOAT)ADCbuffer[k++]*ADCscale[2]+ADCbottom[2];
+                    if(j==3)*a4float++ = (MMFLOAT)ADCbuffer[k++]*ADCscale[3]+ADCbottom[3];
                 }
             }
             FreeMemory((void *)ADCbuffer);
