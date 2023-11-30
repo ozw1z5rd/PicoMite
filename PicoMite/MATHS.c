@@ -1285,6 +1285,12 @@ void cmd_math(void){
 			parsenumberarray(argv[0],&afloat,&a1int,1,0,dims, false);
 			if(!a1int)a1int=(int64_t *)afloat;
 			if(dims[1]<=0)error("Argument 1 must be a 2D or more numerical array");
+			for(i=0;i<MAXDIM;i++){
+				if(dims[i]-OptionBase>0){
+					dimcount++;
+					dim[i]=dims[i]-OptionBase;
+				} else dim[i]=0;
+			}
 			if(((argc-1)/2-1)!=dimcount)error("Argument count");
 			for(i=0; i<dimcount;i++ ){
 				if(*argv[i*2 +2]) pos[i]=getint(argv[i*2 +2],OptionBase,dim[i]+OptionBase)-OptionBase;

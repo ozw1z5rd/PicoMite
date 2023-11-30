@@ -214,7 +214,7 @@ void cmd_memory(void) {
         uint64_t *to=NULL;
         void *fromp=NULL;
         if(CheckEmpty((char *)argv[0])){
-            sourcesize=parseintegerarray(argv[2],(int64_t **)&fromp, 1,1,NULL,false);
+            sourcesize=parseintegerarray(argv[0],(int64_t **)&fromp, 1,1,NULL,false);
             if(sourcesize*64/size<n)error("Source array too small");
         } else {
             fromp=(void*)GetPokeAddr(argv[0]);
