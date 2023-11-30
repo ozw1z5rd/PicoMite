@@ -85,7 +85,7 @@ struct s_GaugeS {
 int SetupPage;
 unsigned int CurrentPages;
 
-int gui_font_width, gui_font_height;
+short gui_font_width, gui_font_height;
 
 int display_backlight;                  // the brightness of the backlight (1 to 100)
 
@@ -96,17 +96,17 @@ volatile int ClickTimer = 0;            // used to time the click when touch occ
 volatile int TouchTimer;                // used to time the response to touch
 int CheckGuiFlag = 0;                   // used to tell the mSec timer to call CheckGui()
 
-int CurrentRef;                         // if the pen is down this is the control (or zero if not on a control)
-int LastRef;                            // this is the last control touched
-int LastX;                              // this is the x coord when the pen was lifted
-int LastY;                              // ditto for y
+short CurrentRef;                         // if the pen is down this is the control (or zero if not on a control)
+short LastRef;                            // this is the last control touched
+short LastX;                              // this is the x coord when the pen was lifted
+short LastY;                              // ditto for y
 
 MMFLOAT CtrlSavedVal;                   // a temporary place to save a control's value
 
 int TouchX, TouchY;
-volatile int TouchDown = false;
-volatile int TouchUp = false;
-volatile int TouchState = false;
+volatile bool TouchDown = false;
+volatile bool TouchUp = false;
+volatile bool TouchState = false;
 
 
 int last_x2, last_y2;                   // defaults used when creating controls
@@ -118,18 +118,18 @@ char last_units[32];
 
 // used for keypads
 int GUIKeyDown = 0;                        // true if a key is down
-int KeyAltShift = 0;                    // true if in alt keypad layout
+bool KeyAltShift = false;                    // true if in alt keypad layout
 int InvokingCtrl = 0;                   // the number of the control that invoked the keypad
 //int InCallback = 0;                     // true if we are running MM.KEYPRESS
 //int InPause = 0;                        // true if we are inside a PAUSE command (used to suppress calling MM.KEYPRESS)
 char CancelValue[256];                  // save the value of the control in case the user cancels
 
-int gui_int_down;                       // true if the touch has triggered an interrupt
+bool gui_int_down=false;                       // true if the touch has triggered an interrupt
 char *GuiIntDownVector = NULL;          // address of the interrupt routine or NULL if no interrupt
-int gui_int_up;                         // true if the release of the touch has triggered an interrupt
+bool gui_int_up=false;                         // true if the release of the touch has triggered an interrupt
 char *GuiIntUpVector = NULL;            // address of the interrupt routine or NULL if no interrupt
-volatile int DelayedDrawKeyboard = false;        // a flag to indicate that the pop-up keyboard should be drawn AFTER the pen down interrupt
-volatile int DelayedDrawFmtBox = false;          // a flag to indicate that the pop-up formatted keyboard should be drawn AFTER the pen down interrupt
+volatile bool DelayedDrawKeyboard = false;        // a flag to indicate that the pop-up keyboard should be drawn AFTER the pen down interrupt
+volatile bool DelayedDrawFmtBox = false;          // a flag to indicate that the pop-up formatted keyboard should be drawn AFTER the pen down interrupt
 
 //struct s_ctrl *Ctrl;                    // list of the controls
 

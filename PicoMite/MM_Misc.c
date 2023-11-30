@@ -45,7 +45,6 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 #include <malloc.h>
 #include "xregex.h"
 extern int last_adc;
-extern int adcrunning;
 uint32_t getTotalHeap(void) {
    extern char __StackLimit, __bss_end__;
    
@@ -77,9 +76,53 @@ unsigned char *InterruptReturn;
 extern const char *FErrorMsg[];
 #ifdef PICOMITEWEB
 	char *MQTTInterrupt=NULL;
-	volatile int MQTTComplete=0;
+	volatile bool MQTTComplete=false;
     char *UDPinterrupt=NULL;
-    volatile int UDPreceive=0;
+    volatile bool UDPreceive=false;
+    void setwifi(unsigned char *tp){
+        getargs(&tp,11,(unsigned char *)",");
+        if(!(argc==3 || argc==5 || argc==11))error("Syntax");
+   	    if(CurrentLinePtr) error("Invalid in a program");
+        char *ssid=GetTempMemory(STRINGSIZE);
+        char *password=GetTempMemory(STRINGSIZE);
+        char *hostname=GetTempMemory(STRINGSIZE);
+        char *ipaddress=GetTempMemory(STRINGSIZE);
+        char *mask=GetTempMemory(STRINGSIZE);
+        char *gateway=GetTempMemory(STRINGSIZE);
+        strcpy(ssid,(char *)getCstring(argv[0]));
+        strcpy(password,(char *)getCstring(argv[2]));
+        if(strlen(ssid)>MAXKEYLEN-1)error("SSID too long, max 63 chars");
+        if(strlen(password)>MAXKEYLEN-1)error("Password too long, max 63 chars");
+        if(argc==11){
+            strcpy(ipaddress,(char *)getCstring(argv[6]));
+            strcpy(mask,(char *)getCstring(argv[8]));
+            strcpy(gateway,(char *)getCstring(argv[10]));
+            ip4_addr_t ipaddr;
+            if(!ip4addr_aton(ipaddress, &ipaddr))error("Invalid IP address");
+            if(!ip4addr_aton(mask, &ipaddr))error("Invalid mask address");
+            if(!ip4addr_aton(gateway, &ipaddr))error("Invalid gateway address");
+        }
+        if(argc>=5 && *argv[4]){
+            strcpy(hostname,(char *)getCstring(argv[4]));
+            if(strlen(hostname)>31)error("Hostname too long, max 31 chars");
+        }  else {
+            strcpy(hostname,"PICO");
+            strcat(hostname,id_out);
+        }
+        strcpy((char *)Option.SSID,ssid);
+        strcpy((char *)Option.PASSWORD,password);
+        if(argc==11){
+            strcpy(Option.ipaddress,ipaddress);    
+            strcpy(Option.mask,mask);
+            strcpy(Option.gateway,gateway);
+        } else {
+            memset(Option.ipaddress,0,16);
+            memset(Option.mask,0,16);
+            memset(Option.gateway,0,16);
+        }
+        strcpy(Option.hostname,hostname);
+        SaveOptions();
+    }
 #endif
 extern const uint8_t *flash_target_contents;
 int TickPeriod[NBRSETTICKS]={0};
@@ -100,15 +143,14 @@ extern volatile int ConsoleTxBufHead;
 extern volatile int ConsoleTxBufTail;
 extern char *LCDList[];
 extern volatile BYTE SDCardStat;
-extern volatile int keyboardseen;
 extern uint64_t TIM12count;
 extern char id_out[12];
 extern void WriteComand(int cmd);
 extern void WriteData(int data);
 char *CSubInterrupt;
 MMFLOAT optionangle=1.0;
-int optionfastaudio=0;
-volatile int CSubComplete=0;
+bool optionfastaudio=false;
+volatile bool CSubComplete=false;
 uint64_t timeroffset=0;
 int SaveOptionErrorSkip=0;
 char SaveErrorMessage[MAXERRMSG] = { 0 };
@@ -256,47 +298,16 @@ void stringsort(unsigned char *sarray, int n, int offset, long long *index, int 
   }
 }
 void cmd_sort(void){
-    void *ptr1 = NULL;
-    void *ptr2 = NULL;
     MMFLOAT *a3float=NULL;
     int64_t *a3int=NULL,*a4int=NULL;
     unsigned char *a3str=NULL;
-    int i, size, truesize,flags=0, maxsize=0, startpoint=0;
+    int i, size=0, truesize,flags=0, maxsize=0, startpoint=0;
 	getargs(&cmdline,9,(unsigned char *)",");
-    ptr1 = findvar(argv[0], V_FIND | V_EMPTY_OK | V_NOFIND_ERR);
-    if(vartbl[VarIndex].type & T_NBR) {
-        if(vartbl[VarIndex].dims[1] != 0) error("Invalid variable");
-        if(vartbl[VarIndex].dims[0] <= 0) {		// Not an array
-            error("Argument 1 must be array");
-        }
-        a3float = (MMFLOAT *)ptr1;
-    } else if(vartbl[VarIndex].type & T_INT) {
-        if(vartbl[VarIndex].dims[1] != 0) error("Invalid variable");
-        if(vartbl[VarIndex].dims[0] <= 0) {		// Not an array
-            error("Argument 1 must be array");
-        }
-        a3int = (int64_t *)ptr1;
-    } else if(vartbl[VarIndex].type & T_STR) {
-        if(vartbl[VarIndex].dims[1] != 0) error("Invalid variable");
-        if(vartbl[VarIndex].dims[0] <= 0) {		// Not an array
-            error("Argument 1 must be array");
-        }
-        a3str = (unsigned char *)ptr1;
-        maxsize=vartbl[VarIndex].size;
-    } else error("Argument 1 must be array");
-	if((uint32_t)ptr1!=(uint32_t)vartbl[VarIndex].val.s)error("Argument 1 must be array");
-    truesize=size=(vartbl[VarIndex].dims[0] - OptionBase);
+    size=parseany(argv[0],&a3float,&a3int,&a3str,&maxsize,true)-1;
+    truesize=size;
     if(argc>=3 && *argv[2]){
-    	ptr2 = findvar(argv[2], V_FIND | V_EMPTY_OK | V_NOFIND_ERR);
-    	if(vartbl[VarIndex].type & T_INT) {
-    		if(vartbl[VarIndex].dims[1] != 0) error("Invalid variable");
-    		if(vartbl[VarIndex].dims[0] <= 0 ) {		// Not an array
-    			error("Argument 2 must be integer array");
-    		}
-    		a4int = (int64_t *)ptr2;
-    	} else error("Argument 2 must be integer array");
-    	if((vartbl[VarIndex].dims[0] - OptionBase) !=size)error("Arrays should be the same size");
-		if((uint32_t)ptr2!=(uint32_t)vartbl[VarIndex].val.s)error("Argument 2 must be array");
+        int card=parseintegerarray(argv[2],&a4int,2,1,NULL,true)-1;
+    	if(card !=size)error("Array size mismatch");
     }
     if(argc>=5 && *argv[4])flags=getint(argv[4],0,3);
     if(argc>=7 && *argv[6])startpoint=getint(argv[6],OptionBase,size+OptionBase);
@@ -468,7 +479,6 @@ void cmd_longString(void){
     unsigned char *tp;
     tp = checkstring(cmdline, (unsigned char *)"SETBYTE");
     if(tp){
-        void *ptr1 = NULL;
         int64_t *dest=NULL;
         int p=0;
         uint8_t *q=NULL;
@@ -476,66 +486,41 @@ void cmd_longString(void){
         int j=0;
     	getargs(&tp, 5, (unsigned char *)",");
         if(argc != 5)error("Argument count");
-        ptr1 = findvar(argv[0], V_FIND | V_EMPTY_OK | V_NOFIND_ERR);
-        if(vartbl[VarIndex].type & T_INT) {
-            if(vartbl[VarIndex].dims[1] != 0) error("Invalid variable");
-            if(vartbl[VarIndex].dims[0] <= 0) {		// Not an array
-                error("Argument 1 must be integer array");
-            }
-            j=(vartbl[VarIndex].dims[0] - OptionBase)*8-1;
-            dest = (long long int *)ptr1;
-            q=(uint8_t *)&dest[1];
-        } else error("Argument 1 must be integer array");
+        j=(parseintegerarray(argv[0],&dest,1,1,NULL,true)-1)*8-1;
+        q=(uint8_t *)&dest[1];
         p = getint(argv[2],OptionBase,j-OptionBase);
         nbr=getint(argv[4],0,255);
         q[p-OptionBase]=nbr;
-         return;
+        return;
     }
     tp = checkstring(cmdline, (unsigned char *)"APPEND");
     if(tp){
-        void *ptr1 = NULL;
         int64_t *dest=NULL;
         char *p= NULL;
         char *q= NULL;
         int i,j,nbr;
         getargs(&tp, 3, (unsigned char *)",");
         if(argc != 3)error("Argument count");
-        ptr1 = findvar(argv[0], V_FIND | V_EMPTY_OK | V_NOFIND_ERR);
-        if(vartbl[VarIndex].type & T_INT) {
-            if(vartbl[VarIndex].dims[1] != 0) error("Invalid variable");
-            if(vartbl[VarIndex].dims[0] <= 0) {      // Not an array
-                error("Argument 1 must be integer array");
-            }
-            dest = (long long int *)ptr1;
-            q=(char *)&dest[1];
-            q+=dest[0];
-        } else error("Argument 1 must be integer array");
-        j=(vartbl[VarIndex].dims[0] - OptionBase);
+        j=parseintegerarray(argv[0],&dest,1,1,NULL,true)-1;
+        q=(char *)&dest[1];
+        q+=dest[0];
         p=(char *)getstring(argv[2]);
         nbr = i = *p++;
-         if(j*8 < dest[0]+i)error("Integer array too small");
+        if(j*8 < dest[0]+i)error("Integer array too small");
         while(i--)*q++=*p++;
         dest[0]+=nbr;
         return;
     }
     tp = checkstring(cmdline, (unsigned char *)"TRIM");
     if(tp){
-        void *ptr1 = NULL;
         int64_t *dest=NULL;
         uint32_t trim;
         char *p, *q=NULL;
         int i;
         getargs(&tp, 3, (unsigned char *)",");
         if(argc != 3)error("Argument count");
-        ptr1 = findvar(argv[0], V_FIND | V_EMPTY_OK | V_NOFIND_ERR);
-        if(vartbl[VarIndex].type & T_INT) {
-            if(vartbl[VarIndex].dims[1] != 0) error("Invalid variable");
-            if(vartbl[VarIndex].dims[0] <= 0) {      // Not an array
-                error("Argument 1 must be integer array");
-            }
-            dest = (long long int *)ptr1;
-            q=(char *)&dest[1];
-        } else error("Argument 1 must be integer array");
+        parseintegerarray(argv[0],&dest,1,1,NULL,true);
+        q=(char *)&dest[1];
         trim=getint(argv[2],1,dest[0]);
         i = dest[0]-trim;
         p=q+trim;
@@ -545,22 +530,14 @@ void cmd_longString(void){
     }
     tp = checkstring(cmdline, (unsigned char *)"REPLACE");
     if(tp){
-        void *ptr1 = NULL;
         int64_t *dest=NULL;
         char *p=NULL;
         char *q=NULL;
         int i,nbr;
         getargs(&tp, 5, (unsigned char *)",");
         if(argc != 5)error("Argument count");
-        ptr1 = findvar(argv[0], V_FIND | V_EMPTY_OK | V_NOFIND_ERR);
-        if(vartbl[VarIndex].type & T_INT) {
-            if(vartbl[VarIndex].dims[1] != 0) error("Invalid variable");
-            if(vartbl[VarIndex].dims[0] <= 0) {      // Not an array
-                error("Argument 1 must be integer array");
-            }
-            dest = (long long int *)ptr1;
-            q=(char *)&dest[1];
-        } else error("Argument 1 must be integer array");
+        parseintegerarray(argv[0],&dest,1,1,NULL,true);
+        q=(char *)&dest[1];
         p=(char *)getstring(argv[2]);
         nbr=getint(argv[4],1,dest[0]-*p+1);
         q+=nbr-1;
@@ -570,7 +547,6 @@ void cmd_longString(void){
     }
     tp = checkstring(cmdline, (unsigned char *)"LOAD");
     if(tp){
-        void *ptr1 = NULL;
         int64_t *dest=NULL;
         char *p;
         char *q=NULL;
@@ -579,17 +555,9 @@ void cmd_longString(void){
         if(argc != 5)error("Argument count");
         int64_t nbr=getinteger(argv[2]);
         i=nbr;
-        ptr1 = findvar(argv[0], V_FIND | V_EMPTY_OK | V_NOFIND_ERR);
-        if(vartbl[VarIndex].type & T_INT) {
-            if(vartbl[VarIndex].dims[1] != 0) error("Invalid variable");
-            if(vartbl[VarIndex].dims[0] <= 0) {      // Not an array
-                error("Argument 1 must be integer array");
-            }
-            dest = (long long int *)ptr1;
-            dest[0]=0;
-            q=(char *)&dest[1];
-        } else error("Argument 1 must be integer array");
-        j=(vartbl[VarIndex].dims[0] - OptionBase);
+        j=parseintegerarray(argv[0],&dest,1,1,NULL,true)-1;
+        q=(char *)&dest[1];
+        dest[0]=0;
         p=(char *)getstring(argv[4]);
         if(nbr> *p)nbr=*p;
         p++;
@@ -600,33 +568,16 @@ void cmd_longString(void){
     }
     tp = checkstring(cmdline, (unsigned char *)"LEFT");
     if(tp){
-        void *ptr1 = NULL;
-        void *ptr2 = NULL;
         int64_t *dest=NULL, *src=NULL;
         char *p=NULL;
         char *q=NULL;
         int i,j,nbr;
         getargs(&tp, 5, (unsigned char *)",");
         if(argc != 5)error("Argument count");
-        ptr1 = findvar(argv[0], V_FIND | V_EMPTY_OK | V_NOFIND_ERR);
-        if(vartbl[VarIndex].type & T_INT) {
-            if(vartbl[VarIndex].dims[1] != 0) error("Invalid variable");
-            if(vartbl[VarIndex].dims[0] <= 0) {      // Not an array
-                error("Argument 1 must be integer array");
-            }
-            dest = (int64_t *)ptr1;
-            q=(char *)&dest[1];
-        } else error("Argument 1 must be integer array");
-        j=(vartbl[VarIndex].dims[0] - OptionBase);
-        ptr2 = findvar(argv[2], V_FIND | V_EMPTY_OK | V_NOFIND_ERR);
-        if(vartbl[VarIndex].type & T_INT) {
-            if(vartbl[VarIndex].dims[1] != 0) error("Invalid variable");
-            if(vartbl[VarIndex].dims[0] <= 0) {      // Not an array
-                error("Argument 2 must be integer array");
-            }
-            src = (int64_t *)ptr2;
-            p=(char *)&src[1];
-        } else error("Argument 2 must be integer array");
+        j=parseintegerarray(argv[0],&dest,1,1,NULL,true)-1;
+        q=(char *)&dest[1];
+        parseintegerarray(argv[2],&src,2,1,NULL,false);
+        p=(char *)&src[1];
         nbr=i=getinteger(argv[4]);
         if(nbr>src[0])nbr=i=src[0];
         if(j*8 < i)error("Destination array too small");
@@ -636,33 +587,16 @@ void cmd_longString(void){
     }
     tp = checkstring(cmdline, (unsigned char *)"RIGHT");
     if(tp){
-        void *ptr1 = NULL;
-        void *ptr2 = NULL;
         int64_t *dest=NULL, *src=NULL;
         char *p=NULL;
         char *q=NULL;
         int i,j,nbr;
         getargs(&tp, 5, (unsigned char *)",");
         if(argc != 5)error("Argument count");
-        ptr1 = findvar(argv[0], V_FIND | V_EMPTY_OK | V_NOFIND_ERR);
-        if(vartbl[VarIndex].type & T_INT) {
-            if(vartbl[VarIndex].dims[1] != 0) error("Invalid variable");
-            if(vartbl[VarIndex].dims[0] <= 0) {      // Not an array
-                error("Argument 1 must be integer array");
-            }
-            dest = (int64_t *)ptr1;
-            q=(char *)&dest[1];
-        } else error("Argument 1 must be integer array");
-        j=(vartbl[VarIndex].dims[0] - OptionBase);
-        ptr2 = findvar(argv[2], V_FIND | V_EMPTY_OK | V_NOFIND_ERR);
-        if(vartbl[VarIndex].type & T_INT) {
-            if(vartbl[VarIndex].dims[1] != 0) error("Invalid variable");
-            if(vartbl[VarIndex].dims[0] <= 0) {      // Not an array
-                error("Argument 2 must be integer array");
-            }
-            src = (int64_t *)ptr2;
-            p=(char *)&src[1];
-        } else error("Argument 2 must be integer array");
+        j=parseintegerarray(argv[0],&dest,1,1,NULL,true)-1;
+        q=(char *)&dest[1];
+        parseintegerarray(argv[2],&src,2,1,NULL,false);
+        p=(char *)&src[1];
         nbr=i=getinteger(argv[4]);
         if(nbr>src[0]){
             nbr=i=src[0];
@@ -674,33 +608,16 @@ void cmd_longString(void){
     }
     tp = checkstring(cmdline, (unsigned char *)"MID");
     if(tp){
-        void *ptr1 = NULL;
-        void *ptr2 = NULL;
-        int64_t *dest=NULL, *src=NULL;
+       int64_t *dest=NULL, *src=NULL;
         char *p=NULL;
         char *q=NULL;
         int i,j,nbr,start;
         getargs(&tp, 7,(unsigned char *)",");
         if(argc < 5)error("Argument count");
-        ptr1 = findvar(argv[0], V_FIND | V_EMPTY_OK | V_NOFIND_ERR);
-        if(vartbl[VarIndex].type & T_INT) {
-            if(vartbl[VarIndex].dims[1] != 0) error("Invalid variable");
-            if(vartbl[VarIndex].dims[0] <= 0) {      // Not an array
-                error("Argument 1 must be integer array");
-            }
-            dest = (int64_t *)ptr1;
-            q=(char *)&dest[1];
-        } else error("Argument 1 must be integer array");
-        j=(vartbl[VarIndex].dims[0] - OptionBase);
-        ptr2 = findvar(argv[2], V_FIND | V_EMPTY_OK | V_NOFIND_ERR);
-        if(vartbl[VarIndex].type & T_INT) {
-            if(vartbl[VarIndex].dims[1] != 0) error("Invalid variable");
-            if(vartbl[VarIndex].dims[0] <= 0) {      // Not an array
-                error("Argument 2 must be integer array");
-            }
-            src = (int64_t *)ptr2;
-            p=(char *)&src[1];
-        } else error("Argument 2 must be integer array");
+        j=parseintegerarray(argv[0],&dest,1,1,NULL,true)-1;
+        q=(char *)&dest[1];
+        parseintegerarray(argv[2],&src,2,1,NULL,false);
+        p=(char *)&src[1];
         start=getint(argv[4],1,src[0]);
         if(argc==7)nbr=getinteger(argv[6]);
         else nbr=src[0];
@@ -716,57 +633,32 @@ void cmd_longString(void){
     }
     tp = checkstring(cmdline, (unsigned char *)"CLEAR");
     if(tp){
-        void *ptr1 = NULL;
         int64_t *dest=NULL;
         getargs(&tp, 1, (unsigned char *)",");
         if(argc != 1)error("Argument count");
-        ptr1 = findvar(argv[0], V_FIND | V_EMPTY_OK | V_NOFIND_ERR);
-        if(vartbl[VarIndex].type & T_INT) {
-            if(vartbl[VarIndex].dims[1] != 0) error("Invalid variable");
-            if(vartbl[VarIndex].dims[0] <= 0) {      // Not an array
-                error("Argument 1 must be integer array");
-            }
-            dest = (long long int *)ptr1;
-        } else error("Argument 1 must be integer array");
+        parseintegerarray(argv[0],&dest,1,1,NULL,true);
         dest[0]=0;
         return;
     }
     tp = checkstring(cmdline, (unsigned char *)"RESIZE");
     if(tp){
-        void *ptr1 = NULL;
         int64_t *dest=NULL;
         int j=0;
         getargs(&tp, 3, (unsigned char *)",");
         if(argc != 3)error("Argument count");
-        ptr1 = findvar(argv[0], V_FIND | V_EMPTY_OK | V_NOFIND_ERR);
-        if(vartbl[VarIndex].type & T_INT) {
-            if(vartbl[VarIndex].dims[1] != 0) error("Invalid variable");
-            if(vartbl[VarIndex].dims[0] <= 0) {		// Not an array
-                error("Argument 1 must be integer array");
-            }
-            j=(vartbl[VarIndex].dims[0] - OptionBase)*8;
-            dest = (long long int *)ptr1;
-        } else error("Argument 1 must be integer array");
+        j=(parseintegerarray(argv[0],&dest,1,1,NULL,true)-1)*8;
         dest[0] = getint(argv[2], 0, j);
         return;
     }
     tp = checkstring(cmdline, (unsigned char *)"UCASE");
     if(tp){
-        void *ptr1 = NULL;
         int64_t *dest=NULL;
         char *q=NULL;
         int i;
         getargs(&tp, 1, (unsigned char *)",");
         if(argc != 1)error("Argument count");
-        ptr1 = findvar(argv[0], V_FIND | V_EMPTY_OK | V_NOFIND_ERR);
-        if(vartbl[VarIndex].type & T_INT) {
-            if(vartbl[VarIndex].dims[1] != 0) error("Invalid variable");
-            if(vartbl[VarIndex].dims[0] <= 0) {      // Not an array
-                error("Argument 1 must be integer array");
-            }
-            dest = (long long int *)ptr1;
-            q=(char *)&dest[1];
-        } else error("Argument 1 must be integer array");
+        parseintegerarray(argv[0],&dest,1,1,NULL,true);
+        q=(char *)&dest[1];
         i=dest[0];
         while(i--){
         if(*q >= 'a' && *q <= 'z')
@@ -777,7 +669,6 @@ void cmd_longString(void){
     }
     tp = checkstring(cmdline, (unsigned char *)"PRINT");
     if(tp){
-        void *ptr1 = NULL;
         int64_t *dest=NULL;
         char *q=NULL;
         int i, j, fnbr;
@@ -794,15 +685,8 @@ void cmd_longString(void){
             i = 0;
         }
         if(argc>=1){
-            ptr1 = findvar(argv[i], V_FIND | V_EMPTY_OK | V_NOFIND_ERR);
-            if(vartbl[VarIndex].type & T_INT) {
-                if(vartbl[VarIndex].dims[1] != 0) error("Invalid variable");
-                if(vartbl[VarIndex].dims[0] <= 0) {      // Not an array
-                    error("Argument must be integer array");
-                }
-                dest = (long long int *)ptr1;
-                q=(char *)&dest[1];
-            } else error("Argument must be integer array");
+            parseintegerarray(argv[0],&dest,1,1,NULL,true);
+            q=(char *)&dest[1];
             j=dest[0];
             while(j--){
                 MMfputc(*q++, fnbr);
@@ -817,21 +701,13 @@ void cmd_longString(void){
     }
     tp = checkstring(cmdline, (unsigned char *)"LCASE");
     if(tp){
-        void *ptr1 = NULL;
         int64_t *dest=NULL;
         char *q=NULL;
         int i;
         getargs(&tp, 1, (unsigned char *)",");
         if(argc != 1)error("Argument count");
-        ptr1 = findvar(argv[0], V_FIND | V_EMPTY_OK | V_NOFIND_ERR);
-        if(vartbl[VarIndex].type & T_INT) {
-            if(vartbl[VarIndex].dims[1] != 0) error("Invalid variable");
-            if(vartbl[VarIndex].dims[0] <= 0) {      // Not an array
-                error("Argument 1 must be integer array");
-            }
-            dest = (long long int *)ptr1;
-            q=(char *)&dest[1];
-        } else error("Argument 1 must be integer array");
+        parseintegerarray(argv[0],&dest,1,1,NULL,true);
+        q=(char *)&dest[1];
         i=dest[0];
         while(i--){
             if(*q >= 'A' && *q <= 'Z')
@@ -842,71 +718,36 @@ void cmd_longString(void){
     }
     tp = checkstring(cmdline, (unsigned char *)"COPY");
     if(tp){
-        void *ptr1 = NULL;
-        void *ptr2 = NULL;
-        int64_t *dest=NULL, *src=NULL;
+       int64_t *dest=NULL, *src=NULL;
         char *p=NULL;
         char *q=NULL;
-        int i=0,j;
+        int i=0,j,k;
         getargs(&tp, 3, (unsigned char *)",");
         if(argc != 3)error("Argument count");
-        ptr1 = findvar(argv[0], V_FIND | V_EMPTY_OK | V_NOFIND_ERR);
-        if(vartbl[VarIndex].type & T_INT) {
-            if(vartbl[VarIndex].dims[1] != 0) error("Invalid variable");
-            if(vartbl[VarIndex].dims[0] <= 0) {      // Not an array
-                error("Argument 1 must be integer array");
-            }
-            dest = (int64_t *)ptr1;
-            dest[0]=0;
-            q=(char *)&dest[1];
-        } else error("Argument 1 must be integer array");
-        j=(vartbl[VarIndex].dims[0] - OptionBase);
-        ptr2 = findvar(argv[2], V_FIND | V_EMPTY_OK | V_NOFIND_ERR);
-        if(vartbl[VarIndex].type & T_INT) {
-            if(vartbl[VarIndex].dims[1] != 0) error("Invalid variable");
-            if(vartbl[VarIndex].dims[0] <= 0) {      // Not an array
-                error("Argument 2 must be integer array");
-            }
-            src = (int64_t *)ptr2;
-            p=(char *)&src[1];
-            i=src[0];
-        } else error("Argument 2 must be integer array");
-        if(j*8 <i)error("Destination array too small");
+        j=parseintegerarray(argv[0],&dest,1,1,NULL,true);
+        q=(char *)&dest[1];
+        dest[0]=0;
+        k=parseintegerarray(argv[2],&src,2,1,NULL,false);
+        p=(char *)&src[1];
+        if(j<k)error("Destination array too small");
         while(i--)*q++=*p++;
         dest[0]=src[0];
         return;
     }
     tp = checkstring(cmdline, (unsigned char *)"CONCAT");
     if(tp){
-        void *ptr1 = NULL;
-        void *ptr2 = NULL;
         int64_t *dest=NULL, *src=NULL;
         char *p=NULL;
         char *q=NULL;
         int i=0,j,d=0,s=0;
         getargs(&tp, 3, (unsigned char *)",");
         if(argc != 3)error("Argument count");
-        ptr1 = findvar(argv[0], V_FIND | V_EMPTY_OK | V_NOFIND_ERR);
-        if(vartbl[VarIndex].type & T_INT) {
-            if(vartbl[VarIndex].dims[1] != 0) error("Invalid variable");
-            if(vartbl[VarIndex].dims[0] <= 0) {      // Not an array
-                error("Argument 1 must be integer array");
-            }
-            dest = (int64_t *)ptr1;
-            d=dest[0];
-            q=(char *)&dest[1];
-        } else error("Argument 1 must be integer array");
-        j=(vartbl[VarIndex].dims[0] - OptionBase);
-        ptr2 = findvar(argv[2], V_FIND | V_EMPTY_OK | V_NOFIND_ERR);
-        if(vartbl[VarIndex].type & T_INT) {
-            if(vartbl[VarIndex].dims[1] != 0) error("Invalid variable");
-            if(vartbl[VarIndex].dims[0] <= 0) {      // Not an array
-                error("Argument 2 must be integer array");
-            }
-            src = (int64_t *)ptr2;
-            p=(char *)&src[1];
-            i = s = src[0];
-        } else error("Argument 2 must be integer array");
+        j=parseintegerarray(argv[0],&dest,1,1,NULL,true)-1;
+        q=(char *)&dest[1];
+        d=dest[0];
+        parseintegerarray(argv[2],&src,2,1,NULL,false);
+        p=(char *)&src[1];
+        i = s = src[0];
         if(j*8 < (d+s))error("Destination array too small");
         q+=d;
         while(i--)*q++=*p++;
@@ -916,28 +757,18 @@ void cmd_longString(void){
     error("Invalid option");
 }
 void fun_LGetStr(void){
-        void *ptr1 = NULL;
         char *p;
         char *s=NULL;
         int64_t *src=NULL;
         int start,nbr,j;
         getargs(&ep, 5, (unsigned char *)",");
         if(argc != 5)error("Argument count");
-        ptr1 = findvar(argv[0], V_FIND | V_EMPTY_OK | V_NOFIND_ERR);
-        if(vartbl[VarIndex].type & T_INT) {
-            if(vartbl[VarIndex].dims[1] != 0) error("Invalid variable");
-            if(vartbl[VarIndex].dims[0] <= 0) {      // Not an array
-                error("Argument 1 must be integer array");
-            }
-            src = (int64_t *)ptr1;
-            s=(char *)&src[1];
-        } else error("Argument 1 must be integer array");
-        j=(vartbl[VarIndex].dims[0] - OptionBase)*8;
+        j=(parseintegerarray(argv[2],&src,2,1,NULL,false)-1)*8;
         start = getint(argv[2],1,j);
-    nbr = getinteger(argv[4]);
-    if(nbr < 1 || nbr > MAXSTRLEN) error("Number out of bounds");
+        nbr = getinteger(argv[4]);
+        if(nbr < 1 || nbr > MAXSTRLEN) error("Number out of bounds");
         if(start+nbr>src[0])nbr=src[0]-start+1;
-    sret = GetTempMemory(STRINGSIZE);                                       // this will last for the life of the command
+        sret = GetTempMemory(STRINGSIZE);                                       // this will last for the life of the command
         s+=(start-1);
         p=(char *)sret+1;
         *sret=nbr;
@@ -947,22 +778,13 @@ void fun_LGetStr(void){
 }
 
 void fun_LGetByte(void){
-        void *ptr1 = NULL;
         uint8_t *s=NULL;
         int64_t *src=NULL;
         int start,j;
     	getargs(&ep, 3, (unsigned char *)",");
         if(argc != 3)error("Argument count");
-        ptr1 = findvar(argv[0], V_FIND | V_EMPTY_OK | V_NOFIND_ERR);
-        if(vartbl[VarIndex].type & T_INT) {
-            if(vartbl[VarIndex].dims[1] != 0) error("Invalid variable");
-            if(vartbl[VarIndex].dims[0] <= 0) {		// Not an array
-                error("Argument 1 must be integer array");
-            }
-            src = (int64_t *)ptr1;
-            s=(uint8_t *)&src[1];
-        } else error("Argument 1 must be integer array");
-        j=(vartbl[VarIndex].dims[0] - OptionBase)*8-1;
+        j=(parseintegerarray(argv[0],&src,2,1,NULL,false)-1)*8;
+        s=(uint8_t *)&src[1];
         start = getint(argv[2],OptionBase,j-OptionBase);
         iret=s[start-OptionBase];
         targ = T_INT;
@@ -970,8 +792,7 @@ void fun_LGetByte(void){
 
 
 void fun_LInstr(void){
-        void *ptr1 = NULL;
-        int64_t *dest=NULL;
+        int64_t *src=NULL;
         char *srch;
         char *str=NULL;
         int slen,found=0,i,j,n;
@@ -980,23 +801,15 @@ void fun_LInstr(void){
         int64_t start;
         if(argc>=5 && *argv[4])start=getinteger(argv[4])-1;
         else start=0;
-        ptr1 = findvar(argv[0], V_FIND | V_EMPTY_OK | V_NOFIND_ERR);
-        if(vartbl[VarIndex].type & T_INT) {
-            if(vartbl[VarIndex].dims[1] != 0) error("Invalid variable");
-            if(vartbl[VarIndex].dims[0] <= 0) {      // Not an array
-                error("Argument 1 must be integer array");
-            }
-            dest = (long long int *)ptr1;
-            str=(char *)&dest[0];
-        } else error("Argument 1 must be integer array");
-        j=(vartbl[VarIndex].dims[0] - OptionBase);
+        j=(parseintegerarray(argv[0],&src,2,1,NULL,false)-1);
+        str=(char *)&src[0];
         srch=(char *)getstring(argv[2]);
         if(argc<7){
             slen=*srch;
             iret=0;
-            if(start>dest[0] || start<0 || slen==0 || dest[0]==0 || slen>dest[0]-start)found=1;
+            if(start>src[0] || start<0 || slen==0 || src[0]==0 || slen>src[0]-start)found=1;
             if(!found){
-                n=dest[0]- slen - start;
+                n=src[0]- slen - start;
 
                 for(i = start; i <= n + start; i++) {
                     if(str[i + 8] == srch[1]) {
@@ -1039,34 +852,18 @@ void fun_LInstr(void){
 }
 
 void fun_LCompare(void){
-        void *ptr1 = NULL;
-        void *ptr2 = NULL;
-        int64_t *dest, *src;
-        char *p=NULL;
-        char *q=NULL;
-        int d=0,s=0,found=0;
-        getargs(&ep, 3, (unsigned char *)",");
-        if(argc != 3)error("Argument count");
-        ptr1 = findvar(argv[0], V_FIND | V_EMPTY_OK | V_NOFIND_ERR);
-        if(vartbl[VarIndex].type & T_INT) {
-            if(vartbl[VarIndex].dims[1] != 0) error("Invalid variable");
-            if(vartbl[VarIndex].dims[0] <= 0) {      // Not an array
-                error("Argument 1 must be integer array");
-            }
-            dest = (int64_t *)ptr1;
-            q=(char *)&dest[1];
-            d=dest[0];
-        } else error("Argument 1 must be integer array");
-        ptr2 = findvar(argv[2], V_FIND | V_EMPTY_OK | V_NOFIND_ERR);
-        if(vartbl[VarIndex].type & T_INT) {
-            if(vartbl[VarIndex].dims[1] != 0) error("Invalid variable");
-            if(vartbl[VarIndex].dims[0] <= 0) {      // Not an array
-                error("Argument 2 must be integer array");
-            }
-            src = (int64_t *)ptr2;
-            p=(char *)&src[1];
-            s=src[0];
-        } else error("Argument 2 must be integer array");
+    int64_t *dest, *src;
+    char *p=NULL;
+    char *q=NULL;
+    int d=0,s=0,found=0;
+    getargs(&ep, 3, (unsigned char *)",");
+    if(argc != 3)error("Argument count");
+    parseintegerarray(argv[0],&dest,1,1,NULL,false);
+    q=(char *)&dest[1];
+    d=dest[0];
+    parseintegerarray(argv[2],&src,1,1,NULL,false);
+    p=(char *)&src[1];
+    s=src[0];
     while(!found) {
         if(d == 0 && s == 0) {found=1;iret=0;}
         if(d == 0 && !found) {found=1;iret=-1;}
@@ -1075,22 +872,14 @@ void fun_LCompare(void){
         if(*q > *p && !found) {found=1;iret=1;}
         q++;  p++;  d--; s--;
     }
-        targ = T_INT;
+    targ = T_INT;
 }
 
 void fun_LLen(void) {
-    void *ptr1 = NULL;
     int64_t *dest=NULL;
     getargs(&ep, 1, (unsigned char *)",");
     if(argc != 1)error("Argument count");
-    ptr1 = findvar(argv[0], V_FIND | V_EMPTY_OK | V_NOFIND_ERR);
-    if(vartbl[VarIndex].type & T_INT) {
-        if(vartbl[VarIndex].dims[1] != 0) error("Invalid variable");
-        if(vartbl[VarIndex].dims[0] <= 0) {      // Not an array
-            error("Argument 1 must be integer array");
-        }
-        dest = (long long int *)ptr1;
-    } else error("Argument 1 must be integer array");
+    parseintegerarray(argv[0],&dest,1,1,NULL,false);
     iret=dest[0];
     targ = T_INT;
 }
@@ -1778,12 +1567,14 @@ void printoptions(void){
         if(Option.SerialConsole & 4)MMPrintString((char *)",BOTH");
         PRet();
     }
+#ifndef PICOMITEVGA
     if(Option.SYSTEM_CLK){
         PO("SYSTEM SPI");
         MMPrintString((char *)PinDef[Option.SYSTEM_CLK].pinname);MMputchar(',',1);;
         MMPrintString((char *)PinDef[Option.SYSTEM_MOSI].pinname);MMputchar(',',1);;
         MMPrintString((char *)PinDef[Option.SYSTEM_MISO].pinname);MMPrintString("\r\n");
     }
+#endif
     if(Option.SYSTEM_I2C_SDA){
         PO("SYSTEM I2C");
         MMPrintString((char *)PinDef[Option.SYSTEM_I2C_SDA].pinname);MMputchar(',',1);
@@ -1954,6 +1745,7 @@ void printoptions(void){
         }
     }
 #endif
+#ifndef PICOMITEVGA
     if(Option.SD_CS){
         PO("SDCARD");
         MMPrintString((char *)PinDef[Option.SD_CS].pinname);
@@ -1964,6 +1756,22 @@ void printoptions(void){
         }
         MMPrintString("\r\n");
     }
+#else
+    if(Option.SD_CS){
+        PO("SDCARD");
+        MMPrintString((char *)PinDef[Option.SD_CS].pinname);
+        if(Option.SD_CLK_PIN){
+            MMPrintString(", "); MMPrintString((char *)PinDef[Option.SD_CLK_PIN].pinname);
+            MMPrintString(", "); MMPrintString((char *)PinDef[Option.SD_MOSI_PIN].pinname);
+            MMPrintString(", "); MMPrintString((char *)PinDef[Option.SD_MISO_PIN].pinname);
+        } else {
+            MMPrintString(", "); MMPrintString((char *)PinDef[Option.SYSTEM_CLK].pinname);
+            MMPrintString(", "); MMPrintString((char *)PinDef[Option.SYSTEM_MOSI].pinname);
+            MMPrintString(", "); MMPrintString((char *)PinDef[Option.SYSTEM_MISO].pinname);
+        }
+        MMPrintString("\r\n");
+    }
+#endif
     if(Option.AUDIO_L || Option.AUDIO_CLK_PIN){
         PO("AUDIO");
         if(Option.AUDIO_L){
@@ -2451,48 +2259,7 @@ void MIPS16 cmd_option(void) {
 	}
     tp = checkstring(cmdline, (unsigned char *)"WIFI");
     if(tp) {
-        getargs(&tp,11,(unsigned char *)",");
-        if(!(argc==3 || argc==5 || argc==11))error("Syntax");
-   	    if(CurrentLinePtr) error("Invalid in a program");
-        char *ssid=GetTempMemory(STRINGSIZE);
-        char *password=GetTempMemory(STRINGSIZE);
-        char *hostname=GetTempMemory(STRINGSIZE);
-        char *ipaddress=GetTempMemory(STRINGSIZE);
-        char *mask=GetTempMemory(STRINGSIZE);
-        char *gateway=GetTempMemory(STRINGSIZE);
-        strcpy(ssid,(char *)getCstring(argv[0]));
-        strcpy(password,(char *)getCstring(argv[2]));
-        if(strlen(ssid)>MAXKEYLEN-1)error("SSID too long, max 63 chars");
-        if(strlen(password)>MAXKEYLEN-1)error("Password too long, max 63 chars");
-        if(argc==11){
-            strcpy(ipaddress,(char *)getCstring(argv[6]));
-            strcpy(mask,(char *)getCstring(argv[8]));
-            strcpy(gateway,(char *)getCstring(argv[10]));
-            ip4_addr_t ipaddr;
-            if(!ip4addr_aton(ipaddress, &ipaddr))error("Invalid IP address");
-            if(!ip4addr_aton(mask, &ipaddr))error("Invalid mask address");
-            if(!ip4addr_aton(gateway, &ipaddr))error("Invalid gateway address");
-        }
-        if(argc>=5 && *argv[4]){
-            strcpy(hostname,(char *)getCstring(argv[4]));
-            if(strlen(hostname)>31)error("Hostname too long, max 31 chars");
-        }  else {
-            strcpy(hostname,"PICO");
-            strcat(hostname,id_out);
-        }
-        strcpy((char *)Option.SSID,ssid);
-        strcpy((char *)Option.PASSWORD,password);
-        if(argc==11){
-            strcpy(Option.ipaddress,ipaddress);    
-            strcpy(Option.mask,mask);
-            strcpy(Option.gateway,gateway);
-        } else {
-            memset(Option.ipaddress,0,16);
-            memset(Option.mask,0,16);
-            memset(Option.gateway,0,16);
-        }
-        strcpy(Option.hostname,hostname);
-        SaveOptions();
+        setwifi(tp);
          _excep_code = RESET_COMMAND;
         SoftReset();
         return;
@@ -2551,8 +2318,8 @@ void MIPS16 cmd_option(void) {
     tp = checkstring(cmdline, (unsigned char *)"CPUSPEED");
     if(tp) {
    	    if(CurrentLinePtr) error("Invalid in a program");
-         int CPU_Speed=getinteger(tp);
-        if(!(CPU_Speed==126000 || CPU_Speed==252000 || CPU_Speed==378000))error("CpuSpeed 126000, 252000 or 378000 only");
+         int CPU_Speed=getint(tp, MIN_CPU, MAX_CPU);
+        if(!(CPU_Speed==126000 || CPU_Speed==252000))error("CpuSpeed 126000, 252000 only");
         Option.CPU_Speed=CPU_Speed;
         Option.X_TILE=80;
         Option.Y_TILE=40;
@@ -3159,7 +2926,10 @@ void MIPS16 cmd_option(void) {
         if(IsInvalidPin(pin4)) error("Invalid pin");
         if(ExtCurrentConfig[pin4] != EXT_NOT_CONFIG)  error("Pin %/| is in use",pin4,pin4);
         Option.SD_CS=pin4;
-        Option.SDspeed=10;
+        Option.SDspeed=12;
+        Option.SD_CLK_PIN=0;
+        Option.SD_MOSI_PIN=0;
+        Option.SD_MISO_PIN=0;
         if(argc>1){
             if(!(code=codecheck(argv[2])))argv[2]+=2;
             pin1 = getinteger(argv[2]);
@@ -3176,9 +2946,23 @@ void MIPS16 cmd_option(void) {
             if(!code)pin3=codemap(pin3);
             if(IsInvalidPin(pin3)) error("Invalid pin");
             if(ExtCurrentConfig[pin3] != EXT_NOT_CONFIG)  error("Pin %/| is in use",pin3,pin3);
-            Option.SD_CLK_PIN=pin1;
-            Option.SD_MOSI_PIN=pin2;
-            Option.SD_MISO_PIN=pin3;
+#ifdef PICOMITEVGA
+			if(PinDef[pin1].mode & SPI0SCK && PinDef[pin2].mode & SPI0TX  && PinDef[pin3].mode & SPI0RX && !Option.SYSTEM_CLK){
+                Option.SYSTEM_CLK=pin1;
+                Option.SYSTEM_MOSI=pin2;
+                Option.SYSTEM_MISO=pin3;
+			} else if(PinDef[pin1].mode & SPI1SCK && PinDef[pin2].mode & SPI1TX  && PinDef[pin3].mode & SPI1RX  && !Option.SYSTEM_CLK){
+                Option.SYSTEM_CLK=pin1;
+                Option.SYSTEM_MOSI=pin2;
+                Option.SYSTEM_MISO=pin3;
+			} else {
+#endif
+                Option.SD_CLK_PIN=pin1;
+                Option.SD_MOSI_PIN=pin2;
+                Option.SD_MISO_PIN=pin3;
+#ifdef PICOMITEVGA
+            }
+#endif
         }
         SaveOptions();
         _excep_code = RESET_COMMAND;
@@ -3359,7 +3143,7 @@ void fun_info(void){
 #endif
     } else if((tp=checkstring(ep, (unsigned char *)"ADC DMA"))){
         targ=T_INT;
-        iret=adcrunning | dmarunning;
+        iret=ADCDualBuffering | dmarunning;
         return;
     } else if((tp=checkstring(ep, (unsigned char *)"ADC"))){
         targ=T_INT;
@@ -4419,6 +4203,11 @@ int checkdetailinterrupts(void) {
         goto GotAnInterrupt;
     }
 #endif
+    if(nunInterruptc !=NULL && nunfoundc){
+        nunfoundc=false;
+        intaddr=nunInterruptc;
+        goto GotAnInterrupt;
+    }
 
     if(ADCInterrupt && dmarunning){
         if(!dma_channel_is_busy(ADC_dma_chan)){
@@ -4435,15 +4224,15 @@ int checkdetailinterrupts(void) {
                 }
             }
         intaddr = ADCInterrupt;                                   // get a pointer to the interrupt routine
-        dmarunning=0;
+        dmarunning=false;
         adc_init();
         last_adc=99;
         FreeMemory((void *)ADCbuffer);
         goto GotAnInterrupt;
         }
     }
-    if(ADCInterrupt && ADCrunning){
-        ADCrunning=0;
+    if(ADCInterrupt && ADCDualBuffering){
+        ADCDualBuffering=false;
         intaddr = ADCInterrupt;
         goto GotAnInterrupt;
     }

@@ -281,6 +281,7 @@ void fun_mmvpos(void);
 #ifdef PICOMITEWEB
     void fun_json(void);
 #endif
+void fun_dev(void);
 #endif
 
 /**********************************************************************************
@@ -380,7 +381,7 @@ void fun_mmvpos(void);
 	{ (unsigned char *)"Port(",		T_CMD | T_FUN,		0, cmd_port	    },
 	{ (unsigned char *)"IR",                 T_CMD,			0, cmd_ir           },
 	{ (unsigned char *)"KeyPad",             T_CMD,			0, cmd_keypad       },
-	{ (unsigned char *)"Bitbang",              T_CMD,			0, cmd_bitbang        },
+	{ (unsigned char *)"Device",              T_CMD,			0, cmd_bitbang        },
 	{ (unsigned char *)"PWM",		T_CMD,		0, cmd_pwm		},
 	{ (unsigned char *)"CSub",           T_CMD,              0, cmd_cfunction},
 	{ (unsigned char *)"End CSub",       T_CMD,              0, cmd_null     },
@@ -567,6 +568,7 @@ void fun_mmvpos(void);
 	  { (unsigned char *)"MM.HPos",        T_FNA | T_INT,              0, fun_mmhpos     },
 	  { (unsigned char *)"MM.VPos",        T_FNA | T_INT,              0, fun_mmvpos     },
 #endif
+	{ (unsigned char *)"DEVICE(",	T_FUN | T_INT| T_NBR | T_STR,		0, fun_dev,	},
 
 #endif
 

@@ -55,9 +55,10 @@ int SPISpeed=0xFF;
 //#define SPI_MOSI_PIN Option.SYSTEM_MOSI
 //#define SPI_CLK_PIN Option.SYSTEM_CLK
 //define SPI_MISO_PIN Option.SYSTEM_MISO
-int SPI_CLK_PIN,SPI_MOSI_PIN,SPI_MISO_PIN;
-int SD_CLK_PIN,SD_MOSI_PIN,SD_MISO_PIN, SD_CS_PIN;
-int AUDIO_CLK_PIN,AUDIO_MOSI_PIN,AUDIO_MISO_PIN, AUDIO_CS_PIN, AUDIO_RESET_PIN, AUDIO_DREQ_PIN, AUDIO_DCS_PIN, AUDIO_LDAC_PIN;
+uint16_t SPI_CLK_PIN,SPI_MOSI_PIN,SPI_MISO_PIN;
+uint16_t SD_CLK_PIN,SD_MOSI_PIN,SD_MISO_PIN, SD_CS_PIN;
+uint16_t AUDIO_CLK_PIN,AUDIO_MOSI_PIN,AUDIO_MISO_PIN, AUDIO_CS_PIN, AUDIO_RESET_PIN, AUDIO_DREQ_PIN, AUDIO_DCS_PIN, AUDIO_LDAC_PIN;
+uint16_t AUDIO_L_PIN, AUDIO_R_PIN, AUDIO_SLICE;
 #define CD	MDD_SDSPI_CardDetectState()	/* Card detected   (yes:true, no:false, default:true) */
 #define WP	MDD_SDSPI_WriteProtectState()		/* Write protected (yes:true, no:false, default:false) */
 /* SPI bit rate controls */
@@ -70,7 +71,6 @@ const uint8_t high[512]={[0 ... 511]=0xFF};
 int CurrentSPISpeed=NONE_SPI_SPEED;
 #define slow_clock 200000
 #define SPI_FAST 18000000
-int AUDIO_L_PIN, AUDIO_R_PIN, AUDIO_SLICE;
 uint16_t AUDIO_WRAP=0;
 BYTE (*xchg_byte)(BYTE data_out)= NULL;
 void (*xmit_byte_multi)(const BYTE *buff, int cnt)= NULL;
@@ -89,14 +89,14 @@ const int mapping[101]={
 	1408,1437,1466,1495,1525,1554,1584,1615,1645,1676,
 	1707,1739,1770,1802,1834,1867,1900,1933,1966,2000
 	};
-int I2C0locked=0;
-int I2C1locked=0;
-int SPI0locked=0;
-int SPI1locked=0;
+uint8_t I2C0locked=0;
+uint8_t I2C1locked=0;
+uint8_t SPI0locked=0;
+uint8_t SPI1locked=0;
 int BacklightSlice=-1;
 int BacklightChannel=-1;
 extern const unsigned short whitenoise[2];
-int AUDIO_SPI;
+uint16_t AUDIO_SPI;
 volatile uint16_t VSbuffer=0;
 void __not_in_flash_func(DefaultAudio)(uint16_t left, uint16_t right){
 	pwm_set_both_levels(AUDIO_SLICE,(left*AUDIO_WRAP)>>12,(right*AUDIO_WRAP)>>12);
@@ -140,7 +140,7 @@ void (*AudioOutput)(uint16_t left, uint16_t right) = (void (*)(uint16_t, uint16_
 #define CMD41  (41)			/* SEND_OP_COND (ACMD) */
 #define CMD55  (55)			/* APP_CMD */
 #define CMD58  (58)			/* READ_OCR */
-unsigned char __not_in_flash_func(CRC7)(const unsigned char message[], const unsigned int length) {
+unsigned char CRC7(const unsigned char message[], const unsigned int length) {
   const unsigned char poly = 0b10001001;
   unsigned char crc = 0;
   for (unsigned i = 0; i < length; i++) {
@@ -162,14 +162,18 @@ BYTE MDD_SDSPI_WriteProtectState(void)
 	return 0;
 }
 void __not_in_flash_func(on_pwm_wrap)(void) {
+	static int noisedwellleft[MAXSOUNDS]={0}, noisedwellright[MAXSOUNDS]={0};
+	static uint32_t noiseleft[MAXSOUNDS]={0}, noiseright[MAXSOUNDS]={0};
 	static int repeatcount=1;
-	uint16_t left=0,right=0;
     // play a tone
     pwm_clear_irq(AUDIO_SLICE);
 	if(Option.AUDIO_MISO_PIN){
+	int32_t left=0, right=0;
 		if(!(gpio_get(PinDef[Option.AUDIO_DREQ_PIN].GPno)))return;
-		VSbuffer=VS1053free();
-		if(VSbuffer>900)return;
+		if(!(CurrentlyPlaying == P_TONE || CurrentlyPlaying == P_SOUND)){
+			VSbuffer=VS1053free();
+			if(VSbuffer>500)return;
+		}
     	if(CurrentlyPlaying == P_FLAC || CurrentlyPlaying == P_WAV ||CurrentlyPlaying == P_MP3 || CurrentlyPlaying == P_MIDI || CurrentlyPlaying==P_MOD) {
 			if(bcount[1]==0 && bcount[2]==0 && playreadcomplete==1){
 //				pwm_set_irq_enabled(AUDIO_SLICE, false);
@@ -177,8 +181,8 @@ void __not_in_flash_func(on_pwm_wrap)(void) {
 			}
 			if(swingbuf){ //buffer is primed
 				int sendlen=((bcount[swingbuf]-ppos)>=32 ? 32 : bcount[swingbuf]-ppos);
-				if(swingbuf==1)playChunk((uint8_t *)&sbuff1[ppos],sendlen);
-				else playChunk((uint8_t *)&sbuff2[ppos],sendlen);
+				if(swingbuf==1)sdi_send_buffer((uint8_t *)&sbuff1[ppos],sendlen);
+				else sdi_send_buffer((uint8_t *)&sbuff2[ppos],sendlen);
 				ppos+=sendlen;
 				if(ppos==bcount[swingbuf]){
 					bcount[swingbuf]=0;
@@ -194,7 +198,7 @@ void __not_in_flash_func(on_pwm_wrap)(void) {
 			if(i < 0) i += streamsize;
 			if(i>32){
 				if(streamsize-rp>32){
-					playChunk((uint8_t *)&streambuffer[rp],32);
+					sdi_send_buffer((uint8_t *)&streambuffer[rp],32);
 					rp+=32;
 				} else {
 					char buff[32];
@@ -203,12 +207,78 @@ void __not_in_flash_func(on_pwm_wrap)(void) {
 						buff[j++]=streambuffer[rp];
 						rp = (rp + 1) % streamsize;
 					}
-					playChunk((uint8_t *)buff,32);
+					sdi_send_buffer((uint8_t *)buff,32);
 				}
 			}
 			*streamreadpointer=rp;
+		} else if(CurrentlyPlaying == P_SOUND) {
+			int i,j;
+			int leftv=0, rightv=0, Lcount=0, Rcount=0;
+			for(i=0;i<MAXSOUNDS;i++){ //first update the 8 sound pointers
+					if(sound_mode_left[i]!=nulltable){
+						Lcount++;
+						if(sound_mode_left[i]!=whitenoise){
+							sound_PhaseAC_left[i] = sound_PhaseAC_left[i] + sound_PhaseM_left[i];
+							if(sound_PhaseAC_left[i]>=4096.0)sound_PhaseAC_left[i]-=4096.0;
+							j = (int)sound_mode_left[i][(int)sound_PhaseAC_left[i]];
+							leftv+=j;
+						} else {
+							if(noisedwellleft[i]<=0){
+								noisedwellleft[i]=sound_PhaseM_left[i];
+								noiseleft[i]=rand() % 3800+100;
+							}
+							if(noisedwellleft[i])noisedwellleft[i]--;
+							j = (int)noiseleft[i];
+							leftv+=j;
+						}
+					}
+					if(sound_mode_right[i]!=nulltable){
+						Rcount++;
+						if(sound_mode_right[i]!=whitenoise){
+							sound_PhaseAC_right[i] = sound_PhaseAC_right[i] + sound_PhaseM_right[i];
+							if(sound_PhaseAC_right[i]>=4096.0)sound_PhaseAC_right[i]-=4096.0;
+							j = (int)sound_mode_right[i][(int)sound_PhaseAC_right[i]];
+							rightv += j;
+						}  else {
+							if(noisedwellright[i]<=0){
+								noisedwellright[i]=sound_PhaseM_right[i];
+								noiseright[i]=rand() % 3800+100;
+							}
+							if(noisedwellright[i])noisedwellright[i]--;
+							j = (int)noiseright[i];
+							rightv+=j;
+						}
+					}
+			}
+			left=((leftv/Lcount)-2000)*16;
+			right=((rightv/Rcount)-2000)*16;
+			sdi_send_buffer((uint8_t *)&left,2);
+			sdi_send_buffer((uint8_t *)&right,2);
+		} else if(CurrentlyPlaying == P_TONE){
+			if(!SoundPlay){
+				StopAudio();
+				WAVcomplete = true;
+			} else {
+				SoundPlay--;
+				if(mono){
+					left=((((int)SineTable[(int)PhaseAC_left])-2000)  * 16 );
+					PhaseAC_left = PhaseAC_left + PhaseM_left;
+					if(PhaseAC_left>=4096.0)PhaseAC_left-=4096.0;
+					right=left;
+				} else {
+					left=(((SineTable[(int)PhaseAC_left])-2000) * 16);
+					right=(((SineTable[(int)PhaseAC_right])-2000) * 16);
+					PhaseAC_left = PhaseAC_left + PhaseM_left;
+					PhaseAC_right = PhaseAC_right + PhaseM_right;
+					if(PhaseAC_left>=4096.0)PhaseAC_left-=4096.0;
+					if(PhaseAC_right>=4096.0)PhaseAC_right-=4096.0;
+				}
+				sdi_send_buffer((uint8_t *)&left,2);
+				sdi_send_buffer((uint8_t *)&right,2);
+			}
 		}
 	} else {
+		uint16_t left=0,right=0;
 		if(CurrentlyPlaying == P_TONE){
 			if(!SoundPlay){
 				StopAudio();
@@ -269,33 +339,9 @@ void __not_in_flash_func(on_pwm_wrap)(void) {
 				}
 			}
 		} else if(CurrentlyPlaying == P_SOUND) {
-			static int noisedwellleft[MAXSOUNDS]={0}, noisedwellright[MAXSOUNDS]={0};
-			static uint32_t noiseleft[MAXSOUNDS]={0}, noiseright[MAXSOUNDS]={0};
 			int i,j;
 			int leftv=0, rightv=0;
 			for(i=0;i<MAXSOUNDS;i++){ //first update the 8 sound pointers
-				if(monosound[i]){
-					if(sound_mode_left[i]!=nulltable){
-						if(sound_mode_left[i]!=whitenoise){
-							sound_PhaseAC_left[i] = sound_PhaseAC_left[i] + sound_PhaseM_left[i];
-							if(sound_PhaseAC_left[i]>=4096.0)sound_PhaseAC_left[i]-=4096.0;
-							j = (int)sound_mode_left[i][(int)sound_PhaseAC_left[i]];
-							j= (j-2000)*mapping[sound_v_left[i]]/2000;
-							leftv+=j;
-						} else {
-							if(noisedwellleft[i]<=0){
-								noisedwellleft[i]=sound_PhaseM_left[i];
-								noiseleft[i]=rand() % 3800+100;
-							}
-							if(noisedwellleft[i])noisedwellleft[i]--;
-							j = (int)noiseleft[i];
-							j= (j-2000)*mapping[sound_v_left[i]]/2000;
-							leftv+=j;
-						}
-					if(monosound[i]==1)rightv+=j;
-					else rightv-=j;
-					}
-				} else {
 					if(sound_mode_left[i]!=nulltable){
 						if(sound_mode_left[i]!=whitenoise){
 							sound_PhaseAC_left[i] = sound_PhaseAC_left[i] + sound_PhaseM_left[i];
@@ -332,7 +378,6 @@ void __not_in_flash_func(on_pwm_wrap)(void) {
 							rightv+=j;
 						}
 					}
-				}
 			}
 			left=leftv+2000;
 			right=rightv+2000;
@@ -346,11 +391,7 @@ void __not_in_flash_func(on_pwm_wrap)(void) {
 	}
 }
 
-#ifdef PICOMITEVGA
-void __not_in_flash_func(BitBangSendSPI)(const BYTE *buff, int cnt){
-#else
 void BitBangSendSPI(const BYTE *buff, int cnt){
-#endif
 	int i, SPICount;
 	BYTE SPIData;
     if(SD_SPI_SPEED==SD_SLOW_SPI_SPEED){
@@ -397,11 +438,7 @@ void BitBangSendSPI(const BYTE *buff, int cnt){
     	}
 	}
 }
-#ifdef PICOMITEVGA
-void __not_in_flash_func(BitBangReadSPI)(BYTE *buff, int cnt){
-#else
 void BitBangReadSPI(BYTE *buff, int cnt){
-#endif
 	int i, SPICount;
 	BYTE SPIData;
 	gpio_put(SD_CLK_PIN,GPIO_PIN_RESET);
@@ -450,11 +487,7 @@ void BitBangReadSPI(BYTE *buff, int cnt){
     }
 }
 
-#ifdef PICOMITEVGA
-BYTE __not_in_flash_func(BitBangSwapSPI)(BYTE data_out){
-#else
 BYTE BitBangSwapSPI(BYTE data_out){
-#endif
 	BYTE data_in=0;
 	int SPICount;
 	if(SD_SPI_SPEED==SD_SLOW_SPI_SPEED){
@@ -503,7 +536,7 @@ BYTE BitBangSwapSPI(BYTE data_out){
 	}
 	return data_in;
 }
-int BitBangSetClk(int speed, int polarity, int edge){
+int MIPS16 BitBangSetClk(int speed, int polarity, int edge){
 	gpio_init(SD_CLK_PIN);
 	gpio_put(SD_CLK_PIN,GPIO_PIN_RESET);
 	gpio_set_dir(SD_CLK_PIN, GPIO_OUT);
@@ -596,12 +629,7 @@ int wait_ready (void)
 /* Deselect the card and release SPI bus                                 */
 /*-----------------------------------------------------------------------*/
 
-static
-#ifdef PICOMITEVGA
-void __not_in_flash_func(deselect)(void)
-#else
-void deselect(void)
-#endif
+static void __not_in_flash_func(deselect)(void)
 {
 //	asm("NOP");asm("NOP");//asm("NOP");
 	gpio_put(SD_CS_PIN,GPIO_PIN_SET);
@@ -617,11 +645,7 @@ void deselect(void)
 
 
 static
-#ifdef PICOMITEVGA
 int __not_in_flash_func(selectSD)(void)	/* 1:Successful, 0:Timeout */
-#else
-int selectSD(void)	/* 1:Successful, 0:Timeout */
-#endif
 {
 	if(SD_SPI_SPEED==SD_SLOW_SPI_SPEED)	SPISpeedSet(SDSLOW);
 	else SPISpeedSet(SDFAST);
@@ -643,11 +667,7 @@ int selectSD(void)	/* 1:Successful, 0:Timeout */
 
 
 static
-#ifdef PICOMITEVGA
 int __not_in_flash_func(rcvr_datablock)(	/* 1:OK, 0:Failed */
-#else
-int rcvr_datablock(	/* 1:OK, 0:Failed */
-#endif
 	BYTE *buff,			/* Data buffer to store received data */
 	UINT btr			/* Byte count (must be multiple of 4) */
 )
@@ -670,7 +690,6 @@ int rcvr_datablock(	/* 1:OK, 0:Failed */
 }
 
 
-
 /*-----------------------------------------------------------------------*/
 /* Send a data packet to MMC                                             */
 /*-----------------------------------------------------------------------*/
@@ -678,11 +697,7 @@ int rcvr_datablock(	/* 1:OK, 0:Failed */
 
 
 static
-#ifdef PICOMITEVGA
-int __not_in_flash_func(xmit_datablock)(	/* 1:OK, 0:Failed */
-#else
 int xmit_datablock(	/* 1:OK, 0:Failed */
-#endif
 	const BYTE *buff,	/* 512 byte data block to be transmitted */
 	BYTE token			/* Data token */
 )
@@ -710,7 +725,7 @@ int xmit_datablock(	/* 1:OK, 0:Failed */
 /*-----------------------------------------------------------------------*/
 /* Send a command packet to MMC                                          */
 /*-----------------------------------------------------------------------*/
-BYTE send_cmd(
+BYTE __not_in_flash_func(send_cmd)(
 	BYTE cmd,		/* Command byte */
 	DWORD arg		/* Argument */
 )
@@ -738,12 +753,13 @@ BYTE send_cmd(
 		command[3]=(arg >> 8);		// Argument[15..8]
 		command[4]=(arg);			// Argument[7..0]
 		command[5]=(CRC7(command, 5)<<1) | 1;
-		xchg_byte(command[0]);			/* Start + Command index */
-		xchg_byte(command[1]);	/* Argument[31..24] */
-		xchg_byte(command[2]);	/* Argument[23..16] */
-		xchg_byte(command[3]);		/* Argument[15..8] */
-		xchg_byte(command[4]);			/* Argument[7..0] */
-		xchg_byte(command[5]);
+/*		xchg_byte(command[0]);			// Start + Command index 
+		xchg_byte(command[1]);	// Argument[31..24] 
+		xchg_byte(command[2]);	// Argument[23..16] 
+		xchg_byte(command[3]);		// Argument[15..8] 
+		xchg_byte(command[4]);			// Argument[7..0] 
+		xchg_byte(command[5]);*/
+		xmit_byte_multi(command,6);
 	/* Receive command response */
 	if (cmd == CMD12) xchg_byte(0xFF);	/* Skip a stuff byte on stop to read */
 	n = 100;							/* Wait for a valid response in timeout of 10 attempts */
@@ -859,11 +875,7 @@ DSTATUS disk_initialize (
 /* Read Sector(s)                                                        */
 /*-----------------------------------------------------------------------*/
 
-#ifdef PICOMITEVGA
 DRESULT __not_in_flash_func(disk_read)(BYTE pdrv, BYTE* buff, LBA_t sector, UINT count)
-#else
-DRESULT disk_read(BYTE pdrv, BYTE* buff, LBA_t sector, UINT count)
-#endif
 {
 	if (pdrv || !count) return RES_PARERR;
 	if (SDCardStat & STA_NOINIT) return RES_NOTRDY;
@@ -896,11 +908,7 @@ DRESULT disk_read(BYTE pdrv, BYTE* buff, LBA_t sector, UINT count)
 /*-----------------------------------------------------------------------*/
 
 
-#ifdef PICOMITEVGA
-DRESULT __not_in_flash_func(disk_write)(BYTE pdrv, const BYTE* buff, LBA_t sector, UINT count)
-#else
 DRESULT disk_write(BYTE pdrv, const BYTE* buff, LBA_t sector, UINT count)
-#endif
 {
 	if (pdrv || !count) return RES_PARERR;
 	if (SDCardStat & STA_NOINIT) return RES_NOTRDY;
@@ -937,11 +945,7 @@ DRESULT disk_write(BYTE pdrv, const BYTE* buff, LBA_t sector, UINT count)
 /*-----------------------------------------------------------------------*/
 
 
-#ifdef PICOMITEVGA
-DRESULT __not_in_flash_func(disk_ioctl)(
-#else
 DRESULT disk_ioctl(
-#endif
 	BYTE pdrv,		/* Physical drive nmuber (0) */
 	BYTE cmd,		/* Control code */
 	void *buff		/* Buffer to send/receive data block */
@@ -1051,32 +1055,8 @@ DRESULT disk_ioctl(
 /*-----------------------------------------------------------------------*/
 /* This function must be called by timer interrupt in period of 1ms      */
 
-void __not_in_flash_func(disk_timerproc)(void)
-{
-	BYTE s;
-	UINT n;
 
-
-	n = Timer1;					/* 1000Hz decrement timer with zero stopped */
-	if (n) Timer1 = --n;
-	n = Timer2;
-	if (n) Timer2 = --n;
-
-
-	/* Update socket status */
-
-	s = SDCardStat;
-
-	if (WP) s |= STA_PROTECT;
-	else	s &= ~STA_PROTECT;
-
-	if (CD) s &= ~STA_NODISK;
-	else	s |= (STA_NODISK | STA_NOINIT);
-
-	SDCardStat = s;
-}
-
-DWORD __not_in_flash_func(get_fattime)(void){
+DWORD get_fattime(void){
     DWORD i;
     i = ((year-1980) & 0x7F)<<25;
     i |= (month & 0xF)<<21;
@@ -1216,7 +1196,7 @@ void dobacklight(void){
 	if(Option.DISPLAY_BL){
 		ExtCfg(Option.DISPLAY_BL, EXT_BOOT_RESERVED, 0);
 		int pin=Option.DISPLAY_BL;
-		setpwm(pin, &BacklightChannel, &BacklightSlice, 50000.0, Option.DefaultBrightness);
+		setpwm(pin, &BacklightChannel, &BacklightSlice, Option.DISPLAY_TYPE==ILI9488W ? 1000.0 : 50000.0, Option.DefaultBrightness);
 	}
 }
 void InitReservedIO(void) {

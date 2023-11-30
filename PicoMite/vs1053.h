@@ -142,5 +142,6 @@ enum VS1053_I2S_RATE {
     uint16_t VS1053free(void);
     extern volatile uint16_t VSbuffer;
     void setVolumes(int valueL, int valueR);
+    void VS1053reset(uint8_t _reset_pin);
 
 #endif

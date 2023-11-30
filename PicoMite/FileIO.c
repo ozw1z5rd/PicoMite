@@ -872,7 +872,13 @@ void LoadJPGImage(unsigned char *p)
                     }
                 }
             }
-            DrawBuffer(x, y, xend, yend, imageblock);
+            if(yend>=yOrigin+image_info.m_height)yend=yOrigin+image_info.m_height-1;
+            if(xend>=xOrigin+image_info.m_width){
+                for(int yi=y;yi<yend;yi++){
+                    uint8_t *ipoint=imageblock+3*image_info.m_MCUWidth*(yi-y);
+                    DrawBuffer(x, yi, xOrigin+image_info.m_width-1, yi, ipoint);
+                }
+            } else DrawBuffer(x, y, xend, yend, imageblock);
         }
 
         if (y >= VRes)
@@ -3559,7 +3565,7 @@ void cmd_close(void)
         }
     }
 }
-void __not_in_flash_func(CheckSDCard)(void)
+void CheckSDCard(void)
 {
     if (!(SDCardStat & STA_NOINIT))
     { // the card is supposed to be initialised - lets check
@@ -3632,7 +3638,7 @@ void ResetOptions(void)
     Option.ServerResponceTime=5000;
 #endif
     Option.AUDIO_SLICE = 99;
-    Option.SDspeed = 10;
+    Option.SDspeed = 12;
     Option.DISPLAY_ORIENTATION = DISPLAY_LANDSCAPE;
     Option.DefaultFont = 0x01;
     Option.DefaultFC = WHITE;

@@ -80,15 +80,15 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
     #define ORIENT_CCW90DEG     3
     #define ORIENT_CW90DEG      4
 
- extern int gui_font;
-    extern int gui_font_width, gui_font_height;
+ extern short gui_font;
+    extern short gui_font_width, gui_font_height;
 
     extern int gui_fcolour;
     extern int gui_bcolour;
 
-    extern int DisplayHRes, DisplayVRes;        // resolution of the display
-    extern int HRes, VRes;                      // the programming charteristics of the display
-    extern int low_y, high_y, low_x, high_x;
+    extern short DisplayHRes, DisplayVRes;        // resolution of the display
+    extern short HRes, VRes;                      // the programming charteristics of the display
+    extern short low_y, high_y, low_x, high_x;
 
 #define LANDSCAPE       1
 #define PORTRAIT        2
@@ -147,9 +147,9 @@ extern void cmd_guiMX170(void);
 extern void initFonts(void);
 extern void ShowCursor(int show);
 extern unsigned char *FontTable[16];
-extern int CurrentX, CurrentY;
+extern short CurrentX, CurrentY;
 extern int PrintPixelMode;
-extern int CMM1;
+extern char CMM1;
 extern int transparenthigh,transparentlow;
 typedef struct SVD {
 	FLOAT3D x;
@@ -229,12 +229,12 @@ extern void closeall3d(void);
 extern void closeframebuffer(void);
 extern void closeallsprites(void);
 extern char* COLLISIONInterrupt;
-extern int CollisionFound;
+extern bool CollisionFound;
 extern void InitDisplayVirtual(void);
 extern void ConfigDisplayVirtual(unsigned char *p);
 extern void merge(uint8_t colour);
 extern void blitmerge (int x0, int y0, int w, int h, uint8_t colour);
-extern int mergerunning;
+extern bool mergerunning;
 extern uint32_t mergetimer;
 extern int RGB121map[16];
 #endif

@@ -53,7 +53,7 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 
     extern void HideAllControls(void);
 
-    extern int gui_font, gui_font_width, gui_font_height;
+    extern short gui_font, gui_font_width, gui_font_height;
 
     extern int gui_fcolour, gui_bcolour;
     extern int last_fcolour, last_bcolour;
@@ -61,19 +61,19 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
     extern int gui_click_pin;                  // the sound pin
     extern int display_backlight;              // the brightness of the backlight (1 to 100)
 
-    extern int CurrentX, CurrentY;             // and the current default position
+    extern short CurrentX, CurrentY;             // and the current default position
 
-    extern int gui_int_down;                   // true if the touch down has triggered an interrupt
+    extern bool gui_int_down;                   // true if the touch down has triggered an interrupt
     extern char *GuiIntDownVector;             // address of the interrupt routine or NULL if no interrupt
-    extern int gui_int_up;                     // true if the release of the touch has triggered an interrupt
+    extern bool gui_int_up;                     // true if the release of the touch has triggered an interrupt
     extern char *GuiIntUpVector;               // address of the interrupt routine or NULL if no interrupt
-    extern volatile int DelayedDrawKeyboard;            // a flag to indicate that the pop-up keyboard should be drawn AFTER the pen down interrupt
-    extern volatile int DelayedDrawFmtBox;              // a flag to indicate that the pop-up formatted keyboard should be drawn AFTER the pen down interrupt
+    extern volatile bool DelayedDrawKeyboard;            // a flag to indicate that the pop-up keyboard should be drawn AFTER the pen down interrupt
+    extern volatile bool DelayedDrawFmtBox;              // a flag to indicate that the pop-up formatted keyboard should be drawn AFTER the pen down interrupt
 
-    extern int CurrentRef;                     // if the pen is down this is the control (or zero if not on a control)
-    extern int LastRef;                        // this is the last control touched
-    extern int LastX;                          // this is the x coord when the pen was lifted
-    extern int LastY;                          // ditto for y
+    extern short CurrentRef;                     // if the pen is down this is the control (or zero if not on a control)
+    extern short LastRef;                        // this is the last control touched
+    extern short LastX;                          // this is the x coord when the pen was lifted
+    extern short LastY;                          // ditto for y
 
     extern MMFLOAT CtrlSavedVal;               // a temporary place to save a control's value
 

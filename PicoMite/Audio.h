@@ -44,27 +44,25 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 
 #ifndef AUDIO_HEADER
 #define AUDIO_HEADER
-typedef enum { P_NOTHING, P_PAUSE_TONE, P_TONE, P_PAUSE_SOUND, P_SOUND, P_WAV, P_PAUSE_WAV, P_FLAC, P_MP3, P_MIDI, P_PAUSE_FLAC, P_PAUSE_MP3, P_STOP, P_SYNC, P_MOD, P_STREAM} e_CurrentlyPlaying;
+typedef enum { P_NOTHING, P_PAUSE_TONE, P_TONE, P_PAUSE_SOUND, P_SOUND, P_WAV, P_PAUSE_WAV, P_FLAC, P_MP3, P_MIDI, P_PAUSE_FLAC, P_PAUSE_MP3, P_STOP, P_SYNC, P_MOD, P_STREAM, P_WAVOPEN} e_CurrentlyPlaying;
 extern const char* const PlayingStr[];
 extern volatile e_CurrentlyPlaying CurrentlyPlaying; 
 extern char *WAVInterrupt;
-extern int WAVcomplete;
+extern bool WAVcomplete;
 extern int WAV_fnbr;
 extern int PWM_FREQ;
 extern char *sbuff1, *sbuff2, *modbuff;
-extern volatile uint64_t bcount[3];
+extern volatile uint32_t bcount[3];
 extern volatile int wav_filesize;                                    // head and tail of the ring buffer for com1
-extern int trackplaying, trackstoplay;
+extern uint8_t trackplaying, trackstoplay;
 extern void checkWAVinput(void);
 extern volatile uint64_t SoundPlay;
 #define WAV_BUFFER_SIZE 8192
 extern const unsigned short SineTable[4096];
 extern const unsigned short nulltable[4096];
-extern volatile uint64_t bcount[3];
 extern volatile float PhaseM_left, PhaseM_right;
 extern volatile unsigned char PWM_count;
 extern uint16_t *playbuff;
-extern volatile uint64_t bcount[3];
 extern volatile int sound_v_left[MAXSOUNDS];
 extern volatile int sound_v_right[MAXSOUNDS];
 extern volatile float sound_PhaseAC_left[MAXSOUNDS], sound_PhaseAC_right[MAXSOUNDS];
@@ -74,12 +72,11 @@ extern volatile unsigned short * sound_mode_right[MAXSOUNDS];
 extern volatile int ppos;                                                       // playing position for PLAY WAV
 extern volatile float PhaseAC_left, PhaseAC_right;
 extern volatile int swingbuf,nextbuf, playreadcomplete;
-extern volatile int mono;
-extern volatile int audiorepeat;
+extern volatile uint8_t mono;
+extern volatile uint8_t audiorepeat;
 extern int PWM_FREQ;
 extern void (*AudioOutput)(uint16_t left, uint16_t right);
-extern volatile int monosound[MAXSOUNDS];
-extern int AUDIO_SPI, AUDIO_CLK_PIN,AUDIO_MOSI_PIN,AUDIO_MISO_PIN, AUDIO_CS_PIN, AUDIO_RESET_PIN, AUDIO_DREQ_PIN, AUDIO_DCS_PIN, AUDIO_LDAC_PIN;
+extern uint16_t AUDIO_SPI, AUDIO_CLK_PIN,AUDIO_MOSI_PIN,AUDIO_MISO_PIN, AUDIO_CS_PIN, AUDIO_RESET_PIN, AUDIO_DREQ_PIN, AUDIO_DCS_PIN, AUDIO_LDAC_PIN;
 extern int streamsize;
 extern int *streamwritepointer;
 extern int *streamreadpointer;

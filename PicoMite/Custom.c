@@ -104,7 +104,8 @@ int dma_tx_sm;
 int dma_rx_pio;
 int dma_rx_sm;
 #ifdef PICOMITEWEB
-volatile int TCPreceived=0;
+extern void setwifi(unsigned char *tp);
+volatile bool TCPreceived=false;
 char *TCPreceiveInterrupt=NULL;
 #endif
 #define MAXLABEL 16
@@ -193,6 +194,7 @@ int checkblock(char *p){
 }
 void MIPS16 cmd_pio(void){
     unsigned char *tp;
+    short dims[MAXDIM]={0};
     tp = checkstring(cmdline, (unsigned char *)"EXECUTE");
     if(tp){
         int i;
@@ -268,18 +270,9 @@ void MIPS16 cmd_pio(void){
         int nbr=getint(argv[4],0,0xFFFFFFFF);
         uint32_t s_nbr=nbr;
         static uint32_t *a1int=NULL;
-	void *ptr1 = NULL;
-        int toarraysize=0;
-        ptr1 = findvar(argv[6], V_FIND | V_EMPTY_OK | V_NOFIND_ERR);
-        if(vartbl[VarIndex].type &  T_INT) {
-                if(vartbl[VarIndex].dims[1] != 0) error("Target must be an 1D integer array");
-                if(vartbl[VarIndex].dims[0] <= 0) {		// Not an array
-                        error("Target must be an 1D integer array");
-                }
-                toarraysize=vartbl[VarIndex].dims[0]-OptionBase+1;
-                a1int = (uint32_t *)ptr1;
-                if((uint32_t)ptr1!=(uint32_t)vartbl[VarIndex].val.s)error("Syntax");
-        } else error("Target must be an 1D integer array");
+        int64_t *aint=NULL;
+        int toarraysize=parseintegerarray(argv[6],&aint,4,1,dims, true);
+        a1int=(uint32_t *)aint;
         if(argc>=9 && *argv[8]){
                 if(nbr==0)error("Interrupt incopmpatible with continuous running");
                 DMAinterruptRX=(char *)GetIntAddress(argv[8]);
@@ -371,18 +364,9 @@ void MIPS16 cmd_pio(void){
         uint32_t nbr=getint(argv[4],0,0xFFFFFFFF);
         uint32_t s_nbr=nbr;
         static uint32_t *a1int=NULL;
-	void *ptr1 = NULL;
-        int toarraysize=0;
-        ptr1 = findvar(argv[6], V_FIND | V_EMPTY_OK | V_NOFIND_ERR);
-        if(vartbl[VarIndex].type &  T_INT) {
-                if(vartbl[VarIndex].dims[1] != 0) error("Target must be an 1D integer array");
-                if(vartbl[VarIndex].dims[0] <= 0) {		// Not an array
-                        error("Target must be an 1D integer array");
-                }
-                toarraysize=vartbl[VarIndex].dims[0]-OptionBase+1;
-                a1int = (uint32_t *)ptr1;
-                if((uint32_t)ptr1!=(uint32_t)vartbl[VarIndex].val.s)error("Syntax");
-        } else error("Target must be an 1D integer array");
+        int64_t *aint=NULL;
+        int toarraysize=parseintegerarray(argv[6],&aint,4,1,dims, true);
+        a1int=(uint32_t *)aint;
         if(argc>=9 && *argv[8]){
                 if(nbr==0)error("Interrupt incopmpatible with continuous running");
                 DMAinterruptTX=(char *)GetIntAddress(argv[8]);
@@ -1087,6 +1071,7 @@ void MIPS16 cmd_pio(void){
 //        void *prt1;
         program.length=32;
         program.origin=0;
+        int64_t *a1int=NULL;
 #ifdef PICOMITEVGA
         PIO pio = (getint(argv[0],1,1) ? pio1: pio0);
 #endif
@@ -1096,15 +1081,9 @@ void MIPS16 cmd_pio(void){
 #ifdef PICOMITEWEB
         PIO pio = (getint(argv[0],0,0) ? pio1: pio0);
 #endif
-	    void *ptr1 = findvar(argv[2], V_FIND | V_EMPTY_OK | V_NOFIND_ERR);
-        if(vartbl[VarIndex].type & T_INT) {
-            if(vartbl[VarIndex].dims[1] != 0) error("Invalid variable");
-            if(vartbl[VarIndex].dims[0] <= 0) {		// Not an array
-                error("Argument 2 must be integer array");
-            }
-            if((vartbl[VarIndex].dims[0] - OptionBase)!=7)error("Array size");
-            program.instructions = (const uint16_t *)ptr1;
-        } else error("Argument 2 must be integer array");
+        int toarraysize=parseintegerarray(argv[2],&a1int,2,1,dims, true);
+        if(toarraysize!=8)error("Array size");
+        program.instructions = (const uint16_t *)a1int;
         for(int sm=0;sm<4;sm++)hw_clear_bits(&pio->ctrl, 1 << (PIO_CTRL_SM_ENABLE_LSB + sm));
         pio_clear_instruction_memory(pio);
         pio_add_program(pio, &program);
@@ -1377,21 +1356,15 @@ void cmd_web(void){
         unsigned char *tp;
         tp=checkstring(cmdline, (unsigned char *)"CONNECT");
         if(tp){
-            if(cyw43_wifi_link_status(&cyw43_state,CYW43_ITF_STA)<0){
+            if(*tp){
+            	setwifi(tp);
                 WebConnect();
-            }
-            return;   
-        }
-        if(!(WIFIconnected &&  cyw43_tcpip_link_status(&cyw43_state,CYW43_ITF_STA)==CYW43_LINK_UP))error("WIFI not connected");
-        tp=checkstring(cmdline, (unsigned char *)"NTP");
-        if(tp){
-            cmd_ntp(tp);
-            return;   
-        }
-        tp=checkstring(cmdline, (unsigned char *)"UDP");
-        if(tp){
-            cmd_udp(tp);
-            return;   
+            } else {
+	            if(cyw43_wifi_link_status(&cyw43_state,CYW43_ITF_STA)<0){
+	                WebConnect();
+	            }
+	        }
+           return;   
         }
         tp=checkstring(cmdline, (unsigned char *)"SCAN");
         if(tp){
@@ -1420,7 +1393,7 @@ void cmd_web(void){
                     MMPrintString(buff);
                 }
                 Timer4=500;
-                while (Timer4)ProcessWeb();
+                while (Timer4)if(startupcomplete)cyw43_arch_poll();
                 if(scan_dest){
                         uint64_t *p=(uint64_t *)scan_dest;
                         *p=strlen(&scan_dest[8]);
@@ -1428,6 +1401,17 @@ void cmd_web(void){
                 scan_dest=NULL;
                 FreeMemorySafe((void **)&scan_dups);
                 return;   
+        }
+        if(!(WIFIconnected &&  cyw43_tcpip_link_status(&cyw43_state,CYW43_ITF_STA)==CYW43_LINK_UP))error("WIFI not connected");
+        tp=checkstring(cmdline, (unsigned char *)"NTP");
+        if(tp){
+            cmd_ntp(tp);
+            return;   
+        }
+        tp=checkstring(cmdline, (unsigned char *)"UDP");
+        if(tp){
+            cmd_udp(tp);
+            return;   
         }
         if(cmd_mqtt())return;
         if(cmd_tcpclient())return;

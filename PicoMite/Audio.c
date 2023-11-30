@@ -105,7 +105,7 @@ char *wav_buf;                                                      // pointer t
 volatile int wav_filesize;                                                   // head and tail of the ring buffer for com1
 volatile int tickspersample;
 char *WAVInterrupt = NULL;
-int WAVcomplete;
+bool WAVcomplete;
 int WAV_fnbr=0;
 int PWM_FREQ;
 volatile int swingbuf = 0,nextbuf = 0, playreadcomplete = 1;
@@ -118,32 +118,29 @@ char *pbuffp;
 void audio_checks(void);
 uint16_t *playbuff;
 volatile int ppos = 0;                                                       // playing position for PLAY WAV
-int nchannels;
-volatile uint64_t bcount[3] = {0, 0, 0};
-volatile int last_left, last_right, current_left, current_right;
+uint8_t nchannels;
+volatile uint32_t bcount[3] = {0, 0, 0};
 volatile int sound_v_left[MAXSOUNDS]={[0 ... MAXSOUNDS-1 ]=25};
 volatile int sound_v_right[MAXSOUNDS]={[0 ... MAXSOUNDS-1 ]=25};
 volatile float sound_PhaseAC_left[MAXSOUNDS], sound_PhaseAC_right[MAXSOUNDS];
 volatile float sound_PhaseM_left[MAXSOUNDS], sound_PhaseM_right[MAXSOUNDS];
 volatile unsigned short * sound_mode_left[MAXSOUNDS];
 volatile unsigned short * sound_mode_right[MAXSOUNDS];
-volatile int monosound[MAXSOUNDS]={0};
-volatile int audiorepeat=1;
-volatile int mono;
-int myData;
-int debug = 0;
-drwav mywav;
+volatile uint8_t audiorepeat=1;
+volatile uint8_t mono;
+//int debug = 0;
+drwav *mywav;
 drflac *myflac;
 //drflac* myflac=NULL;
 //drmp3 mymp3;
 a_flist *alist=NULL;
-int trackplaying=0, trackstoplay=0;
+uint8_t trackplaying=0, trackstoplay=0;
 unsigned short *noisetable=NULL;
 unsigned short *usertable=NULL;
 const unsigned short whitenoise[2]={0};
 int noloop=0;
 int8_t XDCS=-1,XCS=-1,DREQ=-1,XRST=-1;
-int midienabled=0;
+uint8_t midienabled=0;
 int streamsize=0;
 int *streamwritepointer=NULL;
 int *streamreadpointer=NULL;
@@ -1072,10 +1069,32 @@ const unsigned short SineTable[4096] = {
 		1814,1817,1820,1822,1825,1828,1831,1834,1837,1840,1843,1846,1849,1852,1854,1857,1860,1863,1866,1869,1872,1875,1878,1881,1883,1886,1889,1892,1895,1898,1901,1904,
 		1907,1910,1913,1916,1918,1921,1924,1927,1930,1933,1936,1939,1942,1945,1948,1950,1953,1956,1959,1962,1965,1968,1971,1974,1977,1980,1983,1985,1988,1991,1994,1997
 };
-const char wavheader[44]={0x52,0x49,0x46,0x46,0xFF,0xFF,0xFF,0xFF,0x57,0x41,0x56,0x45,0x66,
-0x6d,0x74,0x20,0x10,0x00,0x00,0x00,0x01,0x00,0x02,0x00,0x80,0x3E,
-0x00,0x00,0x0,0xFA,0x00,0x00,0x04,0x00,0x10,0x00,0x64,0x61,0x74,0x61,
-0xFF,0xFF,0xFF,0xFF};
+const char wavheader[44]={0x52,0x49,0x46,0x46,
+                          0xFF,0xFF,0xFF,0xFF,
+						  0x57,0x41,0x56,0x45,
+						  0x66,0x6d,0x74,0x20,
+						  0x10,0x00,0x00,0x00,
+						  0x01,0x00,
+						  0x02,0x00,
+						  0x80,0x3E,0x00,0x00,
+						  0x0,0xFA,0x00,0x00,
+						  0x04,0x00,
+						  0x10,0x00,
+						  0x64,0x61,0x74,0x61,
+						  0xFF,0xFF,0xFF,0xFF};
+const char toneheader[44]={0x52,0x49,0x46,0x46,
+                           0xFF,0xFF,0xFF,0xFF,
+						   0x57,0x41,0x56,0x45,
+						   0x66,0x6d,0x74,0x20,
+						   0x10,0x00,0x00,0x00,
+						   0x01,0x00,
+						   0x02,0x00,
+						   0x44,0xAC,0x00,0x00,
+						   0x10,0xB1,0x02,0x00,
+						   0x04,0x00,
+						   0x10,0x00,
+						   0x64,0x61,0x74,0x61,
+						   0xFF,0xFF,0xFF,0xFF};
 size_t onRead(void  *userdata,  char  *pBufferOut,   size_t bytesToRead){
     unsigned int nbr;
 	if(filesource[WAV_fnbr]==FATFSFILE){
@@ -1105,9 +1124,10 @@ void CloseAudio(int all){
 	int was_playing=CurrentlyPlaying;
 	bcount[1] = bcount[2] = wav_filesize = 0;
 	swingbuf = nextbuf = playreadcomplete = 0;
-	if((CurrentlyPlaying == P_FLAC || CurrentlyPlaying == P_WAV ||CurrentlyPlaying == P_MP3 ||CurrentlyPlaying == P_MIDI || CurrentlyPlaying==P_MOD) && Option.AUDIO_MISO_PIN)stopSong();
+//	if((CurrentlyPlaying == P_FLAC || CurrentlyPlaying == P_WAV ||CurrentlyPlaying == P_MP3 ||CurrentlyPlaying == P_MIDI || CurrentlyPlaying==P_MOD) && Option.AUDIO_MISO_PIN)stopSong();
 //	WAVInterrupt = NULL;
 	StopAudio();
+	if(CurrentlyPlaying==P_WAVOPEN)CurrentlyPlaying=P_NOTHING;
 	ForceFileClose(WAV_fnbr);
 	FreeMemorySafe((void **)&sbuff1);
 	FreeMemorySafe((void **)&sbuff2);
@@ -1123,8 +1143,9 @@ void CloseAudio(int all){
 	}
 	WAVcomplete = true;
 	FSerror = 0;
-	memset(&mywav,0,sizeof(drwav));
-	if(was_playing == P_FLAC || was_playing == P_PAUSE_FLAC )FreeMemorySafe((void *)&myflac);
+	memset(mywav,0,sizeof(drwav));
+	if(was_playing == P_FLAC || was_playing == P_PAUSE_FLAC )FreeMemorySafe((void **)&myflac);
+	if(was_playing == P_WAV || was_playing == P_PAUSE_WAV )FreeMemorySafe((void **)&mywav);
     int i;
     for(i=0;i<MAXSOUNDS;i++){
     	sound_PhaseM_left[i]=0;
@@ -1135,6 +1156,7 @@ void CloseAudio(int all){
     	sound_mode_right[i]=(uint16_t *)nulltable;
     }
 	if(XDCS!=-1){
+		VS1053reset(XRST);
 		XDCS = XCS = DREQ = XRST = -1;
 		midienabled=0;
 		streamsize=0;
@@ -1168,9 +1190,9 @@ void playvs1053(int mode){
 	VS1053(XCS,XDCS,DREQ,XRST);
 	switchToMp3Mode();
 	loadDefaultVs1053Patches(); 
-	setVolume(100);
+	setVolumes(vol_left,vol_right);
 	//playing a file
-	setrate(16000); //16KHz should be fast enough
+	setrate(20000); //32KHz should be fast enough
 	if(mode==P_MOD){
 		memcpy((char *)sbuff1,wavheader,sizeof(wavheader));
 //		hxcmod_fillbuffer( mcontext, (msample*)((char *)&sbuff1[44]), WAV_BUFFER_SIZE/4-11, NULL, noloop );
@@ -1194,6 +1216,21 @@ void playvs1053(int mode){
 		if(time_us_64()-t>500000)break;
 	}
 }
+void playimmediatevs1053(int play){
+	if(CurrentlyPlaying==P_WAVOPEN)return;
+	XCS=PinDef[Option.AUDIO_CS_PIN].GPno;
+	XDCS=PinDef[Option.AUDIO_DCS_PIN].GPno;
+	DREQ=PinDef[Option.AUDIO_DREQ_PIN].GPno;
+	XRST=PinDef[Option.AUDIO_RESET_PIN].GPno;
+	VS1053(XCS,XDCS,DREQ,XRST);
+	switchToMp3Mode();
+	loadDefaultVs1053Patches(); 
+	setVolumes(vol_left,vol_right);
+	//playing a file
+	setrate(PWM_FREQ); //16KHz should be fast enough
+	CurrentlyPlaying = play;
+	playChunk((uint8_t *)toneheader,sizeof(toneheader));
+}
 void wavcallback(char *p){
 	int actualrate;
     if(strchr((char *)p, '.') == NULL) strcat((char *)p, ".wav");
@@ -1207,26 +1244,26 @@ void wavcallback(char *p){
 		return;
 	}
 	drwav_allocation_callbacks allocationCallbacks;
-	int myData;
-    allocationCallbacks.pUserData = &myData;
+    allocationCallbacks.pUserData = NULL;
     allocationCallbacks.onMalloc  = my_malloc;
     allocationCallbacks.onRealloc = my_realloc;
     allocationCallbacks.onFree    = my_free;
-    drwav_init(&mywav,(drwav_read_proc)onRead, (drwav_seek_proc)onSeek, NULL, &allocationCallbacks);
-    if(mywav.sampleRate>44100*((int)(Option.CPU_Speed/126000)))error("Max %KHz sample rate",44100*((int)(Option.CPU_Speed/126000)));
+	mywav=GetMemory(sizeof(drwav));
+    drwav_init(mywav,(drwav_read_proc)onRead, (drwav_seek_proc)onSeek, NULL, &allocationCallbacks);
+    if(mywav->sampleRate>44100*((int)(Option.CPU_Speed/126000)))error("Max %KHz sample rate",44100*((int)(Option.CPU_Speed/126000)));
 //        PInt(mywav.channels);MMPrintString(" Channels\r\n");
 //        PInt(mywav.bitsPerSample);MMPrintString(" Bits per sample\r\n");
 //        PInt(mywav.sampleRate);MMPrintString(" Sample rate\r\n");
 	if(Option.AUDIO_L){
 		audiorepeat=1;
-		actualrate=mywav.sampleRate;
+		actualrate=mywav->sampleRate;
 		while(actualrate<PWM_FREQ){
-			actualrate +=mywav.sampleRate;
+			actualrate +=mywav->sampleRate;
 			audiorepeat++;
 		}
 		setrate(actualrate);
 	} else {
-		setrate(mywav.sampleRate);
+		setrate(mywav->sampleRate);
 	}
     FreeMemorySafe((void **)&sbuff1);
     FreeMemorySafe((void **)&sbuff2);
@@ -1234,8 +1271,8 @@ void wavcallback(char *p){
     sbuff2 = GetMemory(WAV_BUFFER_SIZE);
     ibuff1 = (uint16_t *)sbuff1;
     ibuff2 = (uint16_t *)sbuff2;
-	mono=(mywav.channels == 1 ? 1 : 0);
-    bcount[1]=drwav_read_pcm_frames_s16(&mywav, WAV_BUFFER_SIZE/4, (drwav_int16*)sbuff1) * mywav.channels;
+	mono=(mywav->channels == 1 ? 1 : 0);
+    bcount[1]=drwav_read_pcm_frames_s16(mywav, WAV_BUFFER_SIZE/4, (drwav_int16*)sbuff1) * mywav->channels;
 //    bcount[2]=drwav_read_pcm_frames_s16(&mywav, WAV_BUFFER_SIZE/4, (drwav_int16*)sbuff2) * mywav.channels;
     iconvert(ibuff1, (int16_t *)sbuff1, bcount[1]);
 //    iconvert(ibuff2, (int16_t *)sbuff2, bcount[2]);
@@ -1278,7 +1315,6 @@ void flaccallback(char *p){
 		return;
 	}
 	drflac_allocation_callbacks allocationCallbacks;
-//	int myData;
     allocationCallbacks.pUserData = NULL;
     allocationCallbacks.onMalloc  = my_malloc;
     allocationCallbacks.onRealloc = my_realloc;
@@ -1393,13 +1429,11 @@ void MIPS16 cmd_play(void) {
         if(usertable!=NULL)error("Already loaded");
 //        unsigned int nbr;
         uint16_t *dd;
+		int64_t *aint;
 		skipspace(tp);
-       	dd = findvar(tp, V_FIND | V_EMPTY_OK | V_NOFIND_ERR);
-        if(((vartbl[VarIndex].type & T_INT) && vartbl[VarIndex].dims[0] > 0 && vartbl[VarIndex].dims[1] == 0)){
-            if(vartbl[VarIndex].dims[0] + 1 - OptionBase !=1024) error("Array size");
-        }  else {
-			error("Invalid variable");
-		}
+		int size=parseintegerarray(tp,&aint,1,1,NULL,false);
+       	dd = (uint16_t *)aint;
+        if(size!=1024) error("Array size");
 		usertable=dd;
         return;
     }
@@ -1500,7 +1534,7 @@ void MIPS16 cmd_play(void) {
         if(*argv[0]) vol_left = getint(argv[0], 0, 100);
         if(argc == 3) vol_right = getint(argv[2], 0, 100);
 		if(CurrentlyPlaying==P_TONE && vol_left!=vol_right && mono)mono=0;
-		if(Option.AUDIO_MISO_PIN){
+		if(Option.AUDIO_MISO_PIN && CurrentlyPlaying!=P_NOTHING){
 			pwm_set_irq_enabled(AUDIO_SLICE, false);
 			setVolumes(vol_left, vol_right);
 			pwm_set_irq_enabled(AUDIO_SLICE, true);
@@ -1518,9 +1552,9 @@ void MIPS16 cmd_play(void) {
         {// get the command line arguments
 			getargs(&tp, 7,(unsigned char *)","); 
 			if(!(argc == 3 || argc == 5 || argc == 7)) error("Argument count");
-			if(Option.AUDIO_MISO_PIN)error("Not available with VS1053 audio");
+//			if(Option.AUDIO_MISO_PIN)error("Not available with VS1053 audio");
 			mono=0;
-			if(!(CurrentlyPlaying == P_NOTHING || CurrentlyPlaying == P_TONE || CurrentlyPlaying == P_PAUSE_TONE || CurrentlyPlaying == P_STOP)) error("Sound output in use for $",PlayingStr[CurrentlyPlaying]);
+			if(!(CurrentlyPlaying == P_NOTHING || CurrentlyPlaying == P_TONE || CurrentlyPlaying == P_PAUSE_TONE || CurrentlyPlaying == P_STOP || CurrentlyPlaying == P_WAVOPEN)) error("Sound output in use for $",PlayingStr[CurrentlyPlaying]);
 			f_left = getnumber(argv[0]);                         // get the arguments
 			f_right = getnumber(argv[2]);
 			if(f_left==f_right && vol_left==vol_right)mono=1;
@@ -1553,6 +1587,7 @@ void MIPS16 cmd_play(void) {
 				setrate(PWM_FREQ);
 				PhaseAC_right=0.0;
 				PhaseAC_left=0.0;
+				if(Option.AUDIO_MISO_PIN)playimmediatevs1053(P_TONE);
 			}
 			CurrentlyPlaying = P_TONE;
 			pwm_set_irq_enabled(AUDIO_SLICE, true);
@@ -1563,15 +1598,13 @@ void MIPS16 cmd_play(void) {
         float f_in, PhaseM;
         int channel, left=0, right=0, lset=0, rset=0, local_sound_v_left=0,local_sound_v_right=0;
 		char *p;
-        uint16_t *lastleft=NULL, *lastright=NULL, *local_sound_mode_left=NULL, *local_sound_mode_right=NULL;
+        uint16_t *lastleft=NULL, *lastright=NULL, *local_sound_mode_left=(uint16_t *)nulltable, *local_sound_mode_right=(uint16_t *)nulltable;
         // get the command line arguments
         getargs(&tp, 9,(unsigned char *)",");                                       // this MUST be the first executable line in the function
         if(!(argc == 9 || argc == 7 || argc == 5)) error("Argument count");
         if(checkstring(argv[4],(unsigned char *)"O")==NULL && argc == 5) error("Argument count");
-		if(Option.AUDIO_MISO_PIN)error("Not available with VS1053 audio");
 		WAV_fnbr=0;
         channel=getint(argv[0],1,MAXSOUNDS)-1;
-		monosound[channel]=0;
         lastleft=local_sound_mode_left=(uint16_t *)sound_mode_left[channel];
         lastright=local_sound_mode_right=(uint16_t *)sound_mode_right[channel];
         if(checkstring(argv[2],(unsigned char *)"L")!=NULL){
@@ -1581,28 +1614,21 @@ void MIPS16 cmd_play(void) {
         } else if(checkstring(argv[2],(unsigned char *)"B")!=NULL){
         	right=1;
         	left=1;
-			monosound[channel]=1;
-        } else if(checkstring(argv[2],(unsigned char *)"M")!=NULL){
-        	right=1;
-        	left=1;
-			monosound[channel]=2;
        } else {
 			p=(char *)getCstring(argv[2]);
 			if(strcasecmp(p,"B")==0){
 				right=1;
 				left=1;
-				monosound[channel]=1;
 			} else if(strcasecmp(p,"M")==0){
 				right=1;
 				left=1;
-				monosound[channel]=2;
 			} else if (strcasecmp(p,"L")==0){
 				left=1;
 			} else if (strcasecmp(p,"R")==0){
 				right=1;
 			} else error("Position must be L, R, or B");
 		}
-        if(!(CurrentlyPlaying == P_NOTHING || CurrentlyPlaying == P_SOUND || CurrentlyPlaying == P_PAUSE_SOUND)) error("Sound output in use for $",PlayingStr[CurrentlyPlaying]);
+        if(!(CurrentlyPlaying == P_NOTHING || CurrentlyPlaying == P_SOUND || CurrentlyPlaying == P_PAUSE_SOUND || CurrentlyPlaying == P_STOP || CurrentlyPlaying == P_WAVOPEN)) error("Sound output in use for $",PlayingStr[CurrentlyPlaying]);
         if(checkstring(argv[4],(unsigned char *)"O")!=NULL && left){lset=1;local_sound_mode_left=(uint16_t *)nulltable;}
         if(checkstring(argv[4],(unsigned char *)"O")!=NULL && right){rset=1;local_sound_mode_right=(uint16_t *)nulltable;}
         if(checkstring(argv[4],(unsigned char *)"Q")!=NULL && left){lset=1;local_sound_mode_left=(uint16_t *)squaretable;}
@@ -1613,8 +1639,8 @@ void MIPS16 cmd_play(void) {
         if(checkstring(argv[4],(unsigned char *)"W")!=NULL && right){rset=1;local_sound_mode_right=(uint16_t *)sawtable;}
         if(checkstring(argv[4],(unsigned char *)"S")!=NULL && left){lset=1;local_sound_mode_left=(uint16_t *)SineTable;}
         if(checkstring(argv[4],(unsigned char *)"S")!=NULL && right){rset=1;local_sound_mode_right=(uint16_t *)SineTable;}
-        if(checkstring(argv[4],(unsigned char *)"P")!=NULL && left){lset=1;local_sound_mode_left=(uint16_t *)noisetable;setnoise();}
-        if(checkstring(argv[4],(unsigned char *)"P")!=NULL && right){rset=1;local_sound_mode_right=(uint16_t *)noisetable;setnoise();}
+        if(checkstring(argv[4],(unsigned char *)"P")!=NULL && left){lset=1;setnoise();local_sound_mode_left=(uint16_t *)noisetable;}
+        if(checkstring(argv[4],(unsigned char *)"P")!=NULL && right){rset=1;setnoise();local_sound_mode_right=(uint16_t *)noisetable;}
         if(checkstring(argv[4],(unsigned char *)"N")!=NULL && left){lset=1;local_sound_mode_left=(uint16_t *)whitenoise;}
         if(checkstring(argv[4],(unsigned char *)"N")!=NULL && right){rset=1;local_sound_mode_right=(uint16_t *)whitenoise;}
         if(checkstring(argv[4],(unsigned char *)"U")!=NULL && left){lset=1;local_sound_mode_left=(uint16_t *)usertable;}
@@ -1626,7 +1652,7 @@ void MIPS16 cmd_play(void) {
 			if(strcasecmp(p,"T")==0)local_sound_mode_left=(uint16_t *)triangletable;
 			if(strcasecmp(p,"W")==0)local_sound_mode_left=(uint16_t *)sawtable;
 			if(strcasecmp(p,"S")==0)local_sound_mode_left=(uint16_t *)SineTable;
-			if(strcasecmp(p,"P")==0){local_sound_mode_left=(uint16_t *)noisetable;setnoise();}
+			if(strcasecmp(p,"P")==0){setnoise();local_sound_mode_left=(uint16_t *)noisetable;}
 			if(strcasecmp(p,"N")==0)local_sound_mode_left=(uint16_t *)whitenoise;
 			if(strcasecmp(p,"U")==0)local_sound_mode_left=(uint16_t *)usertable;
 			if(local_sound_mode_left==NULL)error("Invalid type");
@@ -1639,7 +1665,7 @@ void MIPS16 cmd_play(void) {
 			if(strcasecmp(p,"T")==0)local_sound_mode_right=(uint16_t *)triangletable;
 			if(strcasecmp(p,"W")==0)local_sound_mode_right=(uint16_t *)sawtable;
 			if(strcasecmp(p,"S")==0)local_sound_mode_right=(uint16_t *)SineTable;
-			if(strcasecmp(p,"P")==0){local_sound_mode_right=(uint16_t *)noisetable;setnoise();}
+			if(strcasecmp(p,"P")==0){setnoise();local_sound_mode_right=(uint16_t *)noisetable;;}
 			if(strcasecmp(p,"N")==0)local_sound_mode_right=(uint16_t *)whitenoise;
 			if(strcasecmp(p,"U")==0)local_sound_mode_right=(uint16_t *)usertable;
 			if(local_sound_mode_right==NULL)error("Invalid type");
@@ -1657,7 +1683,7 @@ void MIPS16 cmd_play(void) {
         		PhaseM =  f_in;
         	}
         	if(lastleft!=local_sound_mode_left){
-				rampvolume(1,0,channel,0);
+				if(!Option.AUDIO_MISO_PIN)rampvolume(1,0,channel,0);
 				sound_PhaseAC_left[channel] = 0.0;
 			}
         	sound_PhaseM_left[channel] = PhaseM;
@@ -1672,7 +1698,7 @@ void MIPS16 cmd_play(void) {
         		PhaseM =  f_in;
         	}
         	if(lastright!=local_sound_mode_right){
-				rampvolume(0,1,channel,0);
+				if(!Option.AUDIO_MISO_PIN)rampvolume(0,1,channel,0);
 				sound_PhaseAC_right[channel] = 0.0;
 			}
         	sound_PhaseM_right[channel] = PhaseM;
@@ -1680,15 +1706,16 @@ void MIPS16 cmd_play(void) {
             else local_sound_v_right=25;
 			local_sound_v_right=local_sound_v_right*41/(100/MAXSOUNDS);
         }
-		if(left && right && local_sound_v_left==local_sound_v_right && sound_v_left[channel]==sound_v_right[channel])rampvolume(1,1,channel,local_sound_v_left);
+		if(left && right && local_sound_v_left==local_sound_v_right && sound_v_left[channel]==sound_v_right[channel]  && !Option.AUDIO_MISO_PIN)rampvolume(1,1,channel,local_sound_v_left);
 		else {
-			if(left)rampvolume(1,0,channel,local_sound_v_left);
-			if(right)rampvolume(0,1,channel,local_sound_v_right);
+			if(left  && !Option.AUDIO_MISO_PIN)rampvolume(1,0,channel,local_sound_v_left);
+			if(right  && !Option.AUDIO_MISO_PIN)rampvolume(0,1,channel,local_sound_v_right);
 		}
 		if(left)sound_mode_left[channel]=local_sound_mode_left;
 		if(right)sound_mode_right[channel]=local_sound_mode_right;
-        if(!(CurrentlyPlaying == P_SOUND)){
+        if(!(CurrentlyPlaying == P_SOUND || CurrentlyPlaying==P_PAUSE_SOUND)){
 			setrate(PWM_FREQ);
+			if(Option.AUDIO_MISO_PIN)playimmediatevs1053(P_SOUND);
     		pwm_set_irq_enabled(AUDIO_SLICE, true);
 		}
         CurrentlyPlaying = P_SOUND;
@@ -1699,7 +1726,7 @@ void MIPS16 cmd_play(void) {
         int i __attribute((unused))=0;
         getargs(&tp, 3,(unsigned char *)",");                                  // this MUST be the first executable line in the function
         if(!(argc == 1 || argc == 3)) error("Argument count");
-
+		if(CurrentlyPlaying==P_WAVOPEN)CloseAudio(1);
         if(CurrentlyPlaying != P_NOTHING) error("Sound output in use for $",PlayingStr[CurrentlyPlaying]);
 
         if(!InitSDCard()) return;
@@ -1760,7 +1787,7 @@ void MIPS16 cmd_play(void) {
         int i __attribute((unused))=0;
         getargs(&tp, 3,(unsigned char *)",");                                  // this MUST be the first executable line in the function
         if(!(argc == 1 || argc == 3)) error("Argument count");
-
+		if(CurrentlyPlaying==P_WAVOPEN)CloseAudio(1);
         if(CurrentlyPlaying != P_NOTHING) error("Sound output in use for $",PlayingStr[CurrentlyPlaying]);
 
         if(!InitSDCard()) return;
@@ -1842,20 +1869,15 @@ void MIPS16 cmd_play(void) {
 		getargs(&tp,5,(unsigned char *)",");
         if(!(argc == 5 )) error("Syntax");
 		if(!Option.AUDIO_MISO_PIN)error("Only available with VS1053 audio");
+		if(CurrentlyPlaying==P_WAVOPEN)CloseAudio(1);
         if(CurrentlyPlaying != P_NOTHING) error("Sound output in use for $",PlayingStr[CurrentlyPlaying]);
 		WAVInterrupt = NULL;
 		WAVcomplete = 0;
 		if(XDCS!=-1)error("VS1053 already open");
 		void *ptr1 = NULL;
-		ptr1 = findvar(argv[0], V_FIND | V_EMPTY_OK | V_NOFIND_ERR);
-		if(vartbl[VarIndex].type & T_INT) {
-				if(vartbl[VarIndex].dims[1] != 0) error("Invalid variable");
-				if(vartbl[VarIndex].dims[0] <= 0) {      // Not an array
-						error("Argument 1 must be integer array");
-				}
-				streamsize=(vartbl[VarIndex].dims[0] - OptionBase + 1 ) * 8;
-				streambuffer=(char *)ptr1;
-		} else error("Argument 1 must be integer array");
+		int64_t *aint;
+		streamsize=parseintegerarray(argv[0], &aint, 1, 1, NULL, true) * 8;
+		streambuffer=(char *)aint;
 		ptr1 = findvar(argv[2], V_FIND | V_EMPTY_OK | V_NOFIND_ERR);
 		if(vartbl[VarIndex].type & T_INT) {
 				if(vartbl[VarIndex].dims[0] != 0) error("Argument 2 must be an integer");
@@ -1873,7 +1895,7 @@ void MIPS16 cmd_play(void) {
 		VS1053(XCS,XDCS,DREQ,XRST);
 		switchToMp3Mode();
 		loadDefaultVs1053Patches(); 
-		setVolume(100);
+		setVolumes(vol_left,vol_right);
 		MMPrintString("Stream output enabled\r\n");	
 		playreadcomplete=0;
 		CurrentlyPlaying=P_STREAM;
@@ -1901,6 +1923,7 @@ void MIPS16 cmd_play(void) {
 			return;
 		}
 		if(!Option.AUDIO_MISO_PIN)error("Only available with VS1053 audio");
+		if(CurrentlyPlaying==P_WAVOPEN)CloseAudio(1);
         if(CurrentlyPlaying != P_NOTHING) error("Sound output in use for $",PlayingStr[CurrentlyPlaying]);
 		WAVInterrupt = NULL;
 		WAVcomplete = 0;
@@ -1909,7 +1932,7 @@ void MIPS16 cmd_play(void) {
 		DREQ=PinDef[Option.AUDIO_DREQ_PIN].GPno;
 		XRST=PinDef[Option.AUDIO_RESET_PIN].GPno;
 		VS1053(XCS,XDCS,DREQ,XRST);
-		setVolume(100);
+		setVolumes(vol_left,vol_right);
 		midienabled=1;
 		miditest(0);
 		if(!CurrentLinePtr)MMPrintString("Real Time MIDI mode enabled\r\n");
@@ -1921,6 +1944,7 @@ void MIPS16 cmd_play(void) {
         getargs(&tp, 3,(unsigned char *)",");                                  // this MUST be the first executable line in the function
         if(!(argc == 1 || argc == 3)) error("Argument count");
 		if(!Option.AUDIO_MISO_PIN)error("Only available with VS1053 audio");
+		if(CurrentlyPlaying==P_WAVOPEN)CloseAudio(1);
         if(CurrentlyPlaying != P_NOTHING) error("Sound output in use for $",PlayingStr[CurrentlyPlaying]);
 
         if(!InitSDCard()) return;
@@ -1982,6 +2006,7 @@ void MIPS16 cmd_play(void) {
         getargs(&tp, 3,(unsigned char *)",");                                  // this MUST be the first executable line in the function
         if(!(argc == 1 || argc == 3)) error("Argument count");
 		if(!Option.AUDIO_MISO_PIN)error("Only available with VS1053 audio");
+		if(CurrentlyPlaying==P_WAVOPEN)CloseAudio(1);
         if(CurrentlyPlaying != P_NOTHING) error("Sound output in use for $",PlayingStr[CurrentlyPlaying]);
 
         if(!InitSDCard()) return;
@@ -2042,6 +2067,7 @@ void MIPS16 cmd_play(void) {
         char *p, *r;
         int i __attribute((unused))=0,fsize;
         modfilesamplerate=16000;
+		if(CurrentlyPlaying==P_WAVOPEN)CloseAudio(1);
         if(CurrentlyPlaying != P_NOTHING) error("Sound output in use");
 		if(!modbuff)error("Mod playback not enabled");
         if(!InitSDCard()) return;
@@ -2120,8 +2146,8 @@ void MIPS16 cmd_play(void) {
         nextbuf=2;
         ppos=0;
         playreadcomplete=0;
-        setrate(32000);
-		audiorepeat=2;
+        setrate(48000);
+		audiorepeat=3;
     	pwm_set_irq_enabled(AUDIO_SLICE, true);
 		Timer1=500;
 		while(Timer1){
@@ -2173,22 +2199,26 @@ void StopAudio(void) {
 
 	if(CurrentlyPlaying != P_NOTHING ) {
 		int ramptime=1000000/PWM_FREQ+2;
-		CurrentlyPlaying = P_STOP;
-		int ll,l=pwm_hw->slice[AUDIO_SLICE].cc >>16;
-		int rr,r=pwm_hw->slice[AUDIO_SLICE].cc & 0xFFFF;
-		int m=(AUDIO_WRAP>>1);
-		l=m-l;
-		r=m-r;
-		for(int i=50;i>=0;i--){
-			ll=m-l*i/50;
-			rr=m-r*i/50;
-			pwm_set_both_levels(AUDIO_SLICE,ll,rr);
-			uSec(ramptime);
+		if(!Option.AUDIO_MISO_PIN )
+		{
+			CurrentlyPlaying = P_STOP;
+			int ll,l=pwm_hw->slice[AUDIO_SLICE].cc >>16;
+			int rr,r=pwm_hw->slice[AUDIO_SLICE].cc & 0xFFFF;
+			int m=(AUDIO_WRAP>>1);
+			l=m-l;
+			r=m-r;
+			for(int i=50;i>=0;i--){
+				ll=m-l*i/50;
+				rr=m-r*i/50;
+				pwm_set_both_levels(AUDIO_SLICE,ll,rr);
+				uSec(ramptime);
+			}
+			setrate(PWM_FREQ);
 		}
-		setrate(PWM_FREQ);
 		pwm_set_irq_enabled(AUDIO_SLICE, false);
         ppos=0;
-        CurrentlyPlaying = P_NOTHING;
+        if(Option.AUDIO_MISO_PIN && (CurrentlyPlaying == P_TONE || CurrentlyPlaying==P_SOUND))CurrentlyPlaying = P_WAVOPEN;
+		else CurrentlyPlaying = P_NOTHING;
     }
 	SoundPlay = 0;
 }
@@ -2249,11 +2279,11 @@ void checkWAVinput(void){
 				nextbuf=swingbuf;
 			} else if(CurrentlyPlaying == P_WAV){
 				if(swingbuf==2){
-					bcount[1]=(volatile unsigned int)drwav_read_pcm_frames_s16(&mywav, WAV_BUFFER_SIZE/4, (drwav_int16*)sbuff1) * mywav.channels;
+					bcount[1]=(volatile unsigned int)drwav_read_pcm_frames_s16(mywav, WAV_BUFFER_SIZE/4, (drwav_int16*)sbuff1) * mywav->channels;
 					iconvert(ibuff1, (int16_t *)sbuff1, bcount[1]);
 					wav_filesize = bcount[1];
 				} else {
-					bcount[2]=(volatile unsigned int)drwav_read_pcm_frames_s16(&mywav, WAV_BUFFER_SIZE/4, (drwav_int16*)sbuff2) * mywav.channels;
+					bcount[2]=(volatile unsigned int)drwav_read_pcm_frames_s16(mywav, WAV_BUFFER_SIZE/4, (drwav_int16*)sbuff2) * mywav->channels;
 					iconvert(ibuff2, (int16_t *)sbuff2, bcount[2]);
 					wav_filesize = bcount[2];
 				}
@@ -2299,7 +2329,7 @@ void audio_checks(void){
             FileClose(WAV_fnbr);
             WAVcomplete = true;
 //            playreadcomplete = 0;
-            memset(&mywav,0,sizeof(drwav));
+            if(CurrentlyPlaying == P_FLAC)FreeMemorySafe((void **)&mywav);
         }
     }
 }

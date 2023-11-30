@@ -27,7 +27,6 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 #include "MMBasic_Includes.h"
 #include "Hardware_Includes.h"
 int CurrentSPIDevice=NONE_SPI_DEVICE;
-#ifndef PICOMITEVGA
 const struct Displays display_details[]={
 		{0,"", SDCARD_SPI_SPEED, 0, 0, 0, 0, SPI_POLARITY_LOW, SPI_PHASE_1EDGE},
 		{1,"", SDCARD_SPI_SPEED, 0, 0, 0, 0, SPI_POLARITY_LOW, SPI_PHASE_1EDGE},
@@ -70,6 +69,7 @@ const struct Displays display_details[]={
 		{38,"VS1053fast", 4000000, 0, 0, 0, 0, SPI_POLARITY_LOW, SPI_PHASE_1EDGE},
 
 };
+#ifndef PICOMITEVGA
 int LCD_CS_PIN=0;
 int LCD_CD_PIN=0;
 int LCD_Reset_PIN=0;
@@ -1626,6 +1626,7 @@ void DisplayNotSet(void) {
 void SPISpeedSet(int device){
     if(CurrentSPIDevice != device){
 		if(device==SDFAST || device==SDSLOW) {
+//			MMPrintString("Slow Bitbang\r\n");
 			xchg_byte= BitBangSwapSPI;
 			xmit_byte_multi=BitBangSendSPI;
 			rcvr_byte_multi=BitBangReadSPI;
@@ -1634,17 +1635,20 @@ void SPISpeedSet(int device){
 			SET_SPI_CLK(SD_SPI_SPEED, false, false);
 		}
 		else {
-			if(PinDef[Option.SYSTEM_CLK].mode & SPI0SCK && PinDef[Option.SYSTEM_MOSI].mode & SPI0TX  && PinDef[Option.SYSTEM_MISO].mode & SPI0RX  ){
+			if(PinDef[Option.SYSTEM_CLK].mode & SPI0SCK && PinDef[Option.SYSTEM_MOSI].mode & SPI0TX  && PinDef[Option.SYSTEM_MISO].mode & SPI0RX  ) {
+//				MMPrintString("SPI0\r\n");
 				xchg_byte= HW0SwapSPI;
 				xmit_byte_multi=HW0SendSPI;
 				rcvr_byte_multi=HW0ReadSPI;
 				SET_SPI_CLK=HW0Clk;
-			} else if(PinDef[Option.SYSTEM_CLK].mode & SPI1SCK && PinDef[Option.SYSTEM_MOSI].mode & SPI1TX  && PinDef[Option.SYSTEM_MISO].mode & SPI1RX  ){
+			} else if(PinDef[Option.SYSTEM_CLK].mode & SPI1SCK && PinDef[Option.SYSTEM_MOSI].mode & SPI1TX  && PinDef[Option.SYSTEM_MISO].mode & SPI1RX ){
+//				MMPrintString("SPI1\r\n");
 				xchg_byte= HW1SwapSPI;
 				xmit_byte_multi=HW1SendSPI;
 				rcvr_byte_multi=HW1ReadSPI;
 				SET_SPI_CLK=HW1Clk;
 			} else {
+//				MMPrintString("Fast Bitbang\r\n");
 				xchg_byte= BitBangSwapSPI;
 				xmit_byte_multi=BitBangSendSPI;
 				rcvr_byte_multi=BitBangReadSPI;

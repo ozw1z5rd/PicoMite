@@ -681,7 +681,6 @@ static uint8 readSOSMarker(void)
 {
    uint8 i;
    uint16 left = getBits1(16);
-//   uint8 spectral_start, spectral_end, successive_high, successive_low;
 
    gCompsInScan = (uint8)getBits1(8);
 
@@ -710,10 +709,10 @@ static uint8 readSOSMarker(void)
       gCompACTab[ci] = (c & 15);
    }
 
-//   spectral_start  = (uint8)getBits1(8);
-//   spectral_end    = (uint8)getBits1(8);
-//   successive_high = (uint8)getBits1(4);
-//   successive_low  = (uint8)getBits1(4);
+	getBits1(8);
+	getBits1(8);
+	getBits1(4);
+	getBits1(4);
 
    left -= 3;
 
@@ -1021,33 +1020,6 @@ static uint8 processRestart(void)
    
    return 0;
 }
-//------------------------------------------------------------------------------
-// FIXME: findEOI() is not actually called at the end of the image 
-// (it's optional, and probably not needed on embedded devices)
-/*static uint8 findEOI(void)
-{
-   uint8 c;
-   uint8 status;
-
-   // Prime the bit buffer
-   gBitsLeft = 8;
-   getBits1(8);
-   getBits1(8);
-
-   // The next marker _should_ be EOI
-   status = processMarkers(&c);
-   if (status)
-      return status;
-   else if (gCallbackStatus)
-      return gCallbackStatus;
-   
-   //gTotalBytesRead -= in_buf_left;
-   if (c != M_EOI)
-      return PJPG_UNEXPECTED_MARKER;
-   
-   return 0;
-}*/
-//------------------------------------------------------------------------------
 static uint8 checkHuffTables(void)
 {
    uint8 i;
@@ -2316,7 +2288,7 @@ unsigned char pjpeg_decode_init(pjpeg_image_info_t *pInfo, pjpeg_need_bytes_call
    memset(gMCUOrg,0,sizeof(gMCUOrg));
    g_pCallback_data=NULL;
    gValidHuffTables =gValidQuantTables=gTemFlag=gInBufOfs=gInBufLeft=gBitBuf=gBitsLeft=gImageXSize=0;
-   gImageYSize= gCompsInFrame= gRestartInterval= /*gRestartInterval =*/gNextRestartNum =gRestartsLeft=0;
+   gImageYSize= gCompsInFrame= gRestartInterval= gNextRestartNum =gRestartsLeft=0;
    gCompsInScan= gMaxBlocksPerMCU= gMaxMCUXSize= gMaxMCUYSize=gMaxMCUSPerRow= gMaxMCUSPerCol=0;
    gNumMCUSRemainingX= gNumMCUSRemainingY =gCallbackStatus=gReduce=0;
    pInfo->m_width = 0; pInfo->m_height = 0; pInfo->m_comps = 0;

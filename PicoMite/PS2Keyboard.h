@@ -36,7 +36,7 @@ extern void initKeyboard(void);
 extern void CNInterrupt(int dd);
 extern void CheckKeyboard(void);
 extern volatile int PS2code;
-extern volatile int PS2int;
+extern volatile bool PS2int;
 // definition of the keyboard PS/2 state machine
 #define PS2START    0
 #define PS2BIT      1

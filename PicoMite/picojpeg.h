@@ -47,7 +47,7 @@ enum
    PJPG_NOTENOUGHMEM,
    PJPG_UNSUPPORTED_COMP_IDENT,
    PJPG_UNSUPPORTED_QUANT_TABLE,
-   PJPG_UNSUPPORTED_MODE,        // picojpeg doesn't support progressive JPEG's
+   PJPG_UNSUPPORTED_MODE,      // picojpeg doesn't support progressive JPEG's
 };  
 
 // Scan types

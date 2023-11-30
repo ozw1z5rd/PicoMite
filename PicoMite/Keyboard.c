@@ -55,7 +55,7 @@ int justset = 0;
 volatile int KeyDownRegister;
 volatile int KeyDownCode;
 volatile int PS2code=0;
-volatile int PS2int=0;
+volatile bool PS2int=false;
 // key codes that must be tracked for up/down state
 #define CTRL 0x14 // left and right generate the same code
 #define L_SHFT 0x12
@@ -1038,7 +1038,7 @@ void __not_in_flash_func(CNInterrupt)(int dd)
               ConsoleRxBuf[ConsoleRxBufHead] = c; // store the byte in the ring buffer
               if (ConsoleRxBuf[ConsoleRxBufHead] == keyselect && KeyInterrupt != NULL)
               {
-                Keycomplete = 1;
+                Keycomplete = true;
               }
               else
               {

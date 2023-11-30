@@ -76,14 +76,14 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 	extern void disable_systemi2c(void);
 	extern void disable_audio(void);
 	extern char *MQTTInterrupt;
-	extern volatile int MQTTComplete;
+	extern volatile bool MQTTComplete;
 	extern char *CSubInterrupt;
-	extern volatile int CSubComplete;
+	extern volatile bool CSubComplete;
 	extern uint32_t __get_MSP(void);
 	extern int ExistsFile(char *p);
 	extern int ExistsDir(char *p, char *q, int *filesystem);
 	extern MMFLOAT optionangle;
-	extern int optionfastaudio;
-	extern int optionsuppressstatus;
+	extern bool optionfastaudio;
+	extern bool optionsuppressstatus;
 #endif
 #endif

@@ -26,6 +26,7 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 extern "C" {
 #endif
 #include <stdio.h>
+#include <stdbool.h>
 #include "pico/stdlib.h"
 #include "hardware/gpio.h"
 #include "pico/binary_info.h"
@@ -103,6 +104,7 @@ volatile unsigned int WDTimer = 0;
 volatile unsigned int diskchecktimer = DISKCHECKRATE;
 volatile unsigned int clocktimer=60*60*1000;
 volatile unsigned int PauseTimer = 0;
+volatile unsigned int ClassicTimer = 0;
 volatile unsigned int IntPauseTimer = 0;
 volatile unsigned int Timer1=0, Timer2=0, Timer3=0, Timer4=0;		                       //1000Hz decrement timer
 volatile unsigned int KeyCheck=2000;
@@ -156,7 +158,7 @@ extern unsigned int CFuncInt2;
 extern unsigned int CFuncmSec;
 extern void CallCFuncInt1(void);
 extern void CallCFuncInt2(void);
-extern volatile int CSubComplete;
+extern volatile bool CSubComplete;
 static uint64_t __not_in_flash_func(uSecTimer)(void){ return time_us_64();}
 static int64_t PinReadFunc(int a){return gpio_get(PinDef[a].GPno);}
 extern void CallExecuteProgram(char *p);
@@ -287,25 +289,7 @@ const struct s_PinDef PinDef[NBRPINS + 1]={
 char alive[]="\033[?25h";
 const char DaysInMonth[] = { 0, 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31 };
 void __not_in_flash_func(routinechecks)(void){
-    static int c,when=0, read=0;
-    if(++when & 7 && CurrentLinePtr) return;
-    if(tud_cdc_connected() && (Option.SerialConsole==0 || Option.SerialConsole>4) && Option.Telnet!=-1){
-        while(( c=tud_cdc_read_char())!=-1){
-            ConsoleRxBuf[ConsoleRxBufHead] = c;
-            if(BreakKey && ConsoleRxBuf[ConsoleRxBufHead] == BreakKey) {// if the user wants to stop the progran
-                MMAbort = true;                                        // set the flag for the interpreter to see
-                ConsoleRxBufHead = ConsoleRxBufTail;                    // empty the buffer
-            } else if(ConsoleRxBuf[ConsoleRxBufHead] ==keyselect && KeyInterrupt!=NULL){
-                Keycomplete=1;
-            } else {
-                ConsoleRxBufHead = (ConsoleRxBufHead + 1) % CONSOLE_RX_BUF_SIZE;     // advance the head of the queue
-                if(ConsoleRxBufHead == ConsoleRxBufTail) {                           // if the buffer has overflowed
-                    ConsoleRxBufTail = (ConsoleRxBufTail + 1) % CONSOLE_RX_BUF_SIZE; // throw away the oldest char
-                }
-            }
-        }
-    }
-	if(GPSchannel)processgps();
+    static int c,when=0, read=0, classicread=0;
     if (CurrentlyPlaying == P_WAV || CurrentlyPlaying == P_FLAC || CurrentlyPlaying==P_MP3 || CurrentlyPlaying==P_MIDI ){
 #ifdef PICOMITE
         if(SPIatRisk)mutex_enter_blocking(&frameBufferMutex);			// lock the frame buffer
@@ -316,6 +300,24 @@ void __not_in_flash_func(routinechecks)(void){
 #endif
     }
     if(CurrentlyPlaying == P_MOD) checkWAVinput();
+    if(++when & 7 && CurrentLinePtr) return;
+    if(tud_cdc_connected() && (Option.SerialConsole==0 || Option.SerialConsole>4) && Option.Telnet!=-1){
+        while(( c=tud_cdc_read_char())!=-1){
+            ConsoleRxBuf[ConsoleRxBufHead] = c;
+            if(BreakKey && ConsoleRxBuf[ConsoleRxBufHead] == BreakKey) {// if the user wants to stop the progran
+                MMAbort = true;                                        // set the flag for the interpreter to see
+                ConsoleRxBufHead = ConsoleRxBufTail;                    // empty the buffer
+            } else if(ConsoleRxBuf[ConsoleRxBufHead] == keyselect && KeyInterrupt!=NULL){
+                Keycomplete=true;
+            } else {
+                ConsoleRxBufHead = (ConsoleRxBufHead + 1) % CONSOLE_RX_BUF_SIZE;     // advance the head of the queue
+                if(ConsoleRxBufHead == ConsoleRxBufTail) {                           // if the buffer has overflowed
+                    ConsoleRxBufTail = (ConsoleRxBufTail + 1) % CONSOLE_RX_BUF_SIZE; // throw away the oldest char
+                }
+            }
+        }
+    }
+	if(GPSchannel)processgps();
     if(diskchecktimer == 0)CheckSDCard();
 #ifdef PICOMITE
     if(Ctrl)ProcessTouch();
@@ -336,6 +338,18 @@ void __not_in_flash_func(routinechecks)(void){
             read=0;
         }
         KeyCheck=KEYCHECKTIME;
+    }
+    if(classic1 && ClassicTimer>=10){
+        if(classicread==0){
+			WiiSend(sizeof(readcontroller),(char *)readcontroller);
+            classicread=1;
+        } else {
+            classicread=0;
+            classic1=2;
+			WiiReceive(6, (char *)nunbuff);
+            classicproc();
+        }
+        ClassicTimer=0;
     }
 }
 
@@ -850,7 +864,6 @@ void mT4IntEnable(int status){
 	}
 }
 
-
 volatile int onoff=0;
 bool __not_in_flash_func(timer_callback)(repeating_timer_t *rt)
 {
@@ -871,6 +884,7 @@ bool __not_in_flash_func(timer_callback)(repeating_timer_t *rt)
         if(Timer2)Timer2--;
         if(Timer1)Timer1--;
         if(KeyCheck)KeyCheck--;
+        ClassicTimer++;
         if(diskchecktimer && Option.SD_CS)diskchecktimer--;
 	    if(++CursorTimer > CURSOR_OFF + CURSOR_ON) CursorTimer = 0;		// used to control cursor blink rate
         if(CFuncmSec) CallCFuncmSec();                                  // the 1mS tick for CFunctions (see CFunction.c)
@@ -1709,12 +1723,12 @@ void __not_in_flash_func(UpdateCore)()
                 uint32_t timer=(uint32_t)multicore_fifo_pop_blocking();
                 uint64_t delaytime=0;
                 if(timer)delaytime=time_us_64()+timer;
-                mergerunning=1;
+                mergerunning=true;
                 while(1){
                     if (multicore_fifo_rvalid()){
                         int a;
                         if(((a=multicore_fifo_pop_blocking())==0xff)){
-                            mergerunning=0;
+                            mergerunning=false;
                             break;
                         }
                     }
@@ -1743,12 +1757,12 @@ void __not_in_flash_func(UpdateCore)()
                 uint32_t timer=(uint32_t)multicore_fifo_pop_blocking();
                 uint64_t delaytime=0;
                 if(timer)delaytime=time_us_64()+timer;
-                mergerunning=1;
+                mergerunning=true;
                 while(1){
                     if (multicore_fifo_rvalid()){
                         int a;
                         if(((a=multicore_fifo_pop_blocking())==0xff)){
-                            mergerunning=0;
+                            mergerunning=false;
                             break;
                         }
                     }
@@ -1998,6 +2012,9 @@ void WebConnect(void){
             if(!Option.disabletftp)cmd_tftp_server_init();
             if(Option.UDP_PORT)open_udp_server();
         }
+    } else {
+        cyw43_arch_enable_sta_mode();
+        cyw43_wifi_pm(&cyw43_state, CYW43_NO_POWERSAVE_MODE);        
     }
 }
 #endif
@@ -2020,6 +2037,8 @@ int MIPS16 main(){
         _excep_code=0;
         SoftReset();
     }
+//    Option.CPU_Speed=252000;
+//    SaveOptions();
     m_alloc(M_PROG);                                           // init the variables for program memory
     LibMemory = (uint8_t *)flash_libmemory;
     uSec(100);

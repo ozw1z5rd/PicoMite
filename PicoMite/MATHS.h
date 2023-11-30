@@ -31,6 +31,10 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 extern void Q_Mult(MMFLOAT *q1, MMFLOAT *q2, MMFLOAT *n);
 extern void Q_Invert(MMFLOAT *q, MMFLOAT *n);
 extern void cmd_SensorFusion(char *passcmdline);
+extern int parsenumberarray(unsigned char *tp, MMFLOAT **a1float, int64_t **a1int, int argno, short dimensions, short *dims, bool ConstantNotAllowed);
+extern int parsefloatrarray(unsigned char *tp, MMFLOAT **a1float, int argno, int dimensions, short *dims, bool ConstantNotAllowed);
+extern int parseintegerarray(unsigned char *tp, int64_t **a1int, int argno, int dimensions, short *dims, bool ConstantNotAllowed);
+extern int parseany(unsigned char *tp, MMFLOAT **a1float, int64_t **a1int, unsigned char ** a1str, int *length, bool stringarray);
 void MahonyQuaternionUpdate(MMFLOAT ax, MMFLOAT ay, MMFLOAT az, MMFLOAT gx, MMFLOAT gy, MMFLOAT gz, MMFLOAT mx, MMFLOAT my, MMFLOAT mz, MMFLOAT Ki, MMFLOAT Kp, MMFLOAT deltat, MMFLOAT *yaw, MMFLOAT *pitch, MMFLOAT *roll);
 void MadgwickQuaternionUpdate(MMFLOAT ax, MMFLOAT ay, MMFLOAT az, MMFLOAT gx, MMFLOAT gy, MMFLOAT gz, MMFLOAT mx, MMFLOAT my, MMFLOAT mz, MMFLOAT beta, MMFLOAT deltat, MMFLOAT *pitch, MMFLOAT *yaw, MMFLOAT *roll);
 extern volatile unsigned int AHRSTimer;

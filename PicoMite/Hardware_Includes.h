@@ -143,7 +143,7 @@ extern char SerialConsolePutC(char c, int flush);
 extern long long int *GetReceiveDataBuffer(unsigned char *p, unsigned int *nbr);
 extern int ticks_per_second;
 extern volatile unsigned int GPSTimer;
-extern int AUDIO_L_PIN, AUDIO_R_PIN, AUDIO_SLICE;
+extern uint16_t AUDIO_L_PIN, AUDIO_R_PIN, AUDIO_SLICE;
 extern uint16_t AUDIO_WRAP;
 extern int PromptFont, PromptFC, PromptBC;                             // the font and colours selected at the prompt
 extern const uint8_t *flash_progmemory;

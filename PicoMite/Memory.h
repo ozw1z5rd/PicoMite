@@ -24,6 +24,7 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 ************************************************************************************************************************/
 
 #include <stddef.h>
+#include <stdbool.h>
 #include "configuration.h"
 
 /**********************************************************************************
@@ -46,7 +47,7 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 
 extern unsigned char *strtmp[];                                       // used to track temporary string space on the heap
 extern int TempMemoryTop;                                           // this is the last index used for allocating temp memory
-extern int TempMemoryIsChanged;						                // used to prevent unnecessary scanning of strtmp[]
+extern bool TempMemoryIsChanged;						                // used to prevent unnecessary scanning of strtmp[]
 
 typedef enum _M_Req {M_PROG, M_VAR} M_Req;
 

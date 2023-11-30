@@ -83,8 +83,8 @@ volatile char StrTmpLocalIndex[MAXTEMPSTRINGS];                              // 
 
 void *getheap(int size);
 unsigned int UsedHeap(void);
-int TempMemoryIsChanged = false;						            // used to prevent unnecessary scanning of strtmp[]
-int StrTmpIndex = 0;                                                // index to the next unallocated slot in strtmp[]
+bool TempMemoryIsChanged = false;						            // used to prevent unnecessary scanning of strtmp[]
+short StrTmpIndex = 0;                                                // index to the next unallocated slot in strtmp[]
 
 
 
@@ -107,22 +107,12 @@ void cmd_memory(void) {
         void *top=NULL;
         uint64_t *from=NULL;
         if(CheckEmpty((char *)argv[0])){
-        void *ptr1 = findvar(argv[0], V_FIND | V_EMPTY_OK | V_NOFIND_ERR);
-        if(!(ptr1 && (vartbl[VarIndex].type & T_INT)))error("Invalid source");
-            if(vartbl[VarIndex].dims[1] != 0) error("Invalid variable");
-            sourcesize=vartbl[VarIndex].dims[0] - OptionBase + 1;
-            sourcesize=vartbl[VarIndex].dims[0] - OptionBase + 1;
-            if(n>sourcesize)error("Source array too small");
-            from=(uint64_t *)ptr1;
+            sourcesize=parseintegerarray(argv[0],(int64_t **)&from, 1,1,NULL,false);
+            if(sourcesize<n)error("Source array too small");
         } else from=(uint64_t *)GetPokeAddr(argv[0]);
         if(CheckEmpty((char *)argv[2])){
-            void *ptr2 = findvar(argv[2], V_FIND | V_EMPTY_OK | V_NOFIND_ERR);
-            if(!(ptr2 && (vartbl[VarIndex].type & T_INT)))error("Invalid destination");
-            if(vartbl[VarIndex].dims[1] != 0) error("Invalid variable");
-            destinationsize=vartbl[VarIndex].dims[0] - OptionBase + 1;
-            destinationsize=vartbl[VarIndex].dims[0] - OptionBase + 1;
+            destinationsize=parseintegerarray(argv[2],(int64_t **)&top, 2,1,NULL,true);
             if(destinationsize*64/size<n)error("Destination array too small");
-            top=(void *)ptr2;
         } else top=(void *)GetPokeAddr(argv[2]);
         if((uint32_t)from % 8)error("Source address not divisible by 8");
         if(size==1){
@@ -163,6 +153,55 @@ void cmd_memory(void) {
         }
         return;
     }
+    tp = checkstring(cmdline, (unsigned char *)"PRINT");
+    if(tp){
+        char *fromp=NULL;
+        int sourcesize;
+        int64_t *aint;
+        getargs(&tp,5,(unsigned char *)",");
+        if(!(argc==5))error("Syntax");
+	    if(*argv[0] == '#') argv[0]++;
+		int fnbr = getint(argv[0],1,MAXOPENFILES);	// get the number
+        int n=getinteger(argv[2]);
+        if(CheckEmpty((char *)argv[4])){
+            sourcesize=parseintegerarray(argv[4],&aint,3,1,NULL,false);
+            if(sourcesize*8<n)error("Source array too small");
+            fromp=(char *)aint;
+        } else {
+            fromp=(char *)GetPeekAddr(argv[4]);
+        }
+        if (FileTable[fnbr].com > MAXCOMPORTS)
+        {
+            FilePutStr(n, fromp, fnbr);
+        }
+        else error("File % not open",fnbr);
+        return;
+    }
+    tp = checkstring(cmdline, (unsigned char *)"INPUT");
+    if(tp){
+        char *fromp=NULL;
+        int sourcesize;
+        int64_t *aint;
+        getargs(&tp,5,(unsigned char *)",");
+        if(!(argc==5))error("Syntax");
+	    if(*argv[0] == '#') argv[0]++;
+		int fnbr = getint(argv[0],1,MAXOPENFILES);	// get the number
+        int n=getinteger(argv[2]);
+        if(CheckEmpty((char *)argv[4])){
+            sourcesize=parseintegerarray(argv[4],&aint,3,1,NULL,false);
+            if(sourcesize*8<n)error("Source array too small");
+            fromp=(char *)aint;
+        } else {
+            fromp=(char *)GetPokeAddr(argv[4]);
+        }
+        if (FileTable[fnbr].com > MAXCOMPORTS)
+        {
+            while(!(MMfeof(fnbr)) && n--) *fromp++=FileGetChar(fnbr);
+            if(n)error("End of file");
+        }
+        else error("File % not open",fnbr);
+        return;
+    }
     tp = checkstring(cmdline, (unsigned char *)"UNPACK");
     if(tp){
         getargs(&tp,7,(unsigned char *)",");
@@ -175,22 +214,14 @@ void cmd_memory(void) {
         uint64_t *to=NULL;
         void *fromp=NULL;
         if(CheckEmpty((char *)argv[0])){
-            void *ptr1 = findvar(argv[0], V_FIND | V_EMPTY_OK | V_NOFIND_ERR);
-            if(!(ptr1 && (vartbl[VarIndex].type & T_INT)))error("Invalid source");
-            if(vartbl[VarIndex].dims[1] != 0) error("Invalid variable");
-            sourcesize=vartbl[VarIndex].dims[0] - OptionBase + 1;
+            sourcesize=parseintegerarray(argv[2],(int64_t **)&fromp, 1,1,NULL,false);
             if(sourcesize*64/size<n)error("Source array too small");
-            fromp=ptr1;
         } else {
             fromp=(void*)GetPokeAddr(argv[0]);
         }
         if(CheckEmpty((char *)argv[2])){
-            void *ptr2 = findvar(argv[2], V_FIND | V_EMPTY_OK | V_NOFIND_ERR);
-            if(!(ptr2 && (vartbl[VarIndex].type & T_INT)))error("Invalid destination");
-            if(vartbl[VarIndex].dims[1] != 0) error("Invalid variable");
-            destinationsize=vartbl[VarIndex].dims[0] - OptionBase + 1;
+            destinationsize=parseintegerarray(argv[2],(int64_t **)&to, 2,1,NULL,true);
             if(n>destinationsize)error("Destination array too small");
-            to=(uint64_t *)ptr2;
         } else to=(uint64_t *)GetPokeAddr(argv[2]);
         if((uint32_t)to % 8)error("Source address not divisible by 8");
         if(size==1){

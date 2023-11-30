@@ -28,6 +28,7 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 #include <complex.h>
 MMFLOAT PI;
 typedef MMFLOAT complex cplx;
+typedef float complex fcplx;
 void cmd_FFT(unsigned char *pp);
 const double chitable[51][15]={
 		{0.995,0.99,0.975,0.95,0.9,0.5,0.2,0.1,0.05,0.025,0.02,0.01,0.005,0.002,0.001},
@@ -452,52 +453,119 @@ uint64_t crc64(const uint8_t *array, uint16_t length, const uint64_t polynome,
   if (reverseOut) crc = reverse64(crc);
   return crc;
 }
-
-int parsearrays(unsigned char *tp, MMFLOAT **a1float, MMFLOAT **a2float,MMFLOAT **a3float, int64_t **a1int, int64_t **a2int, int64_t **a3int){
+int parseintegerarray(unsigned char *tp, int64_t **a1int, int argno, int dimensions, short *dims, bool ConstantNotAllowed){
 	void *ptr1 = NULL;
-	void *ptr2 = NULL;
-	void *ptr3 = NULL;
 	int i,j;
-	short dims[MAXDIM];
-	getargs(&tp, 5,(unsigned char *)",");
-	if(!(argc == 5)) error("Argument count");
-	ptr1 = findvar(argv[0], V_FIND | V_EMPTY_OK | V_NOFIND_ERR);
-	if(vartbl[VarIndex].type & (T_NBR | T_INT)) {
-		if(vartbl[VarIndex].dims[0] <= 0) {		// Not an array
-			error("Not an array");
-		}
-		memcpy(dims,vartbl[VarIndex].dims, sizeof(dims));
-		if(vartbl[VarIndex].type & T_NBR) *a1float = (MMFLOAT *)ptr1;
-		else *a1int=(int64_t *)ptr1;
+	ptr1 = findvar(tp, V_FIND | V_EMPTY_OK | V_NOFIND_ERR);
+	if((vartbl[VarIndex].type & T_CONST) && ConstantNotAllowed) error("Cannot change a constant");
+	if(dims==NULL)dims=vartbl[VarIndex].dims;
+	if(vartbl[VarIndex].type & T_INT) {
+		memcpy(dims,vartbl[VarIndex].dims, MAXDIM * sizeof(short));
+		*a1int = (int64_t *)ptr1;
 		if((uint32_t)ptr1!=(uint32_t)vartbl[VarIndex].val.s)error("Syntax");
-	} else error("Not an integer or floating point array");
-	ptr2 = findvar(argv[2], V_FIND | V_EMPTY_OK | V_NOFIND_ERR);
-	if(vartbl[VarIndex].type & (T_NBR | T_INT)) {
-		if(vartbl[VarIndex].dims[0] <= 0) {		// Not an array
-			error("Not an array");
-		}
-		for(i=0;i<MAXDIM;i++)if(!(vartbl[VarIndex].dims[i]==dims[i]))error("Arrays different sizes");
-		if(vartbl[VarIndex].type & T_NBR) *a2float = (MMFLOAT *)ptr2;
-		else *a2int=(int64_t *)ptr2;
-		if((uint32_t)ptr2!=(uint32_t)vartbl[VarIndex].val.s)error("Syntax");
-	} else error("Not an integer or floating point array");
-	ptr3 = findvar(argv[4], V_FIND | V_EMPTY_OK | V_NOFIND_ERR);
-	if(vartbl[VarIndex].type & (T_NBR | T_INT)) {
-		if(vartbl[VarIndex].dims[0] <= 0) {		// Not an array
-			error("Not an array");
-		}
-		for(i=0;i<MAXDIM;i++)if(!(vartbl[VarIndex].dims[i]==dims[i]))error("Arrays different sizes");
-		if(vartbl[VarIndex].type & T_NBR) *a3float = (MMFLOAT *)ptr3;
-		else *a3int=(int64_t *)ptr3;
-		if((uint32_t)ptr3!=(uint32_t)vartbl[VarIndex].val.s)error("Syntax");
-	} else error("Not an integer or floating point array");
-	if(!((*a3float==NULL && *a2float==NULL && *a1float==NULL) || (*a3int==NULL && *a2int==NULL && *a1int==NULL)))error("Arrays must be all integer or all floating point");
+	} else error("Argument % must be an integer array",argno);
 	int card=1;
+	if(dimensions==1 && (dims[0]<=0 || dims[1]>0))error("Argument % must be a 1D floating point array",argno);
+	if(dimensions==2 && (dims[0]<=0 || dims[1]<=0 || dims[2]>0))error("Argument % must be a 2D floating point array",argno);
 	for(i=0;i<MAXDIM;i++){
-		j=(dims[i] - OptionBase+1);
+		j=(dims[i] - OptionBase + 1);
 		if(j)card *= j;
 	}
 	return card;
+}
+int parsenumberarray(unsigned char *tp, MMFLOAT **a1float, int64_t **a1int, int argno, short dimensions, short *dims, bool ConstantNotAllowed){
+	void *ptr1 = NULL;
+	int i,j;
+	ptr1 = findvar(tp, V_FIND | V_EMPTY_OK | V_NOFIND_ERR);
+	if((vartbl[VarIndex].type & T_CONST) && ConstantNotAllowed) error("Cannot change a constant");
+	if(dims==NULL)dims=vartbl[VarIndex].dims;
+	if(vartbl[VarIndex].type & (T_INT | T_NBR)) {
+		memcpy(dims,vartbl[VarIndex].dims,  MAXDIM * sizeof(short));
+		if(vartbl[VarIndex].type & T_NBR) *a1float = (MMFLOAT *)ptr1;
+		else *a1int=(int64_t *)ptr1;
+		if((uint32_t)ptr1!=(uint32_t)vartbl[VarIndex].val.s)error("Syntax");
+	} else error("Argument % must be a numerical array",argno);
+	int card=1;
+	if(dimensions==1 && (dims[0]<=0 || dims[1]>0))error("Argument % must be a 1D floating point array",argno);
+	if(dimensions==2 && (dims[0]<=0 || dims[1]<=0 || dims[2]>0))error("Argument % must be a 2D floating point array",argno);
+	for(i=0;i<MAXDIM;i++){
+		j=(dims[i] - OptionBase + 1);
+		if(j)card *= j;
+	}
+	return card;
+}
+int parsefloatrarray(unsigned char *tp, MMFLOAT **a1float, int argno, int dimensions, short *dims, bool ConstantNotAllowed){
+	void *ptr1 = NULL;
+	int i,j;
+	ptr1 = findvar(tp, V_FIND | V_EMPTY_OK | V_NOFIND_ERR);
+	if((vartbl[VarIndex].type & T_CONST) && ConstantNotAllowed) error("Cannot change a constant");
+	if(dims==NULL)dims=vartbl[VarIndex].dims;
+	if(vartbl[VarIndex].type & T_NBR) {
+		memcpy(dims,vartbl[VarIndex].dims,  MAXDIM * sizeof(short));
+		*a1float = (MMFLOAT *)ptr1;
+		if((uint32_t)ptr1!=(uint32_t)vartbl[VarIndex].val.s)error("Syntax");
+	} else error("Argument % must be a floating point array",argno);
+	int card=1;
+	if(dimensions==1 && (dims[0]<=0 || dims[1]>0))error("Argument % must be a 1D floating point array",argno);
+	if(dimensions==2 && (dims[0]<=0 || dims[1]<=0 || dims[2]>0))error("Argument % must be a 2D floating point array",argno);
+	for(i=0;i<MAXDIM;i++){
+		j=(dims[i] - OptionBase + 1);
+		if(j)card *= j;
+	}
+	return card;
+}
+int parsearrays(unsigned char *tp, MMFLOAT **a1float, MMFLOAT **a2float,MMFLOAT **a3float, int64_t **a1int, int64_t **a2int, int64_t **a3int){
+	int card1,card2,card3;
+	getargs(&tp, 5,(unsigned char *)",");
+	if(!(argc == 5)) error("Argument count");
+	card1=parsenumberarray(argv[0],a1float,a1int,1,0, NULL, false);
+	card2=parsenumberarray(argv[2],a2float,a2int,2,0, NULL, false);
+	card3=parsenumberarray(argv[4],a3float,a3int,3,0, NULL, true);
+	if(!(card1==card2 && card2==card3))error("Array size mismatch");
+	if(!((*a3float==NULL && *a2float==NULL && *a1float==NULL) || (*a3int==NULL && *a2int==NULL && *a1int==NULL)))error("Arrays must be all integer or all floating point");
+	return card1;
+}
+int parseany(unsigned char *tp, MMFLOAT **a1float, int64_t **a1int, unsigned char ** a1str, int *length, bool stringarray){
+	void *ptr1 = findvar(tp, V_FIND | V_EMPTY_OK | V_NOFIND_ERR);
+	int arraylength;
+	if(vartbl[VarIndex].type & T_NBR) {
+		if(vartbl[VarIndex].dims[1] != 0) error("Invalid variable");
+		if(vartbl[VarIndex].dims[0] <= 0) {		// Not an array
+			error("Argument 1 must be a numerical array");
+		}
+		arraylength=vartbl[VarIndex].dims[0] - OptionBase + 1;
+		if(*length==0)*length=arraylength;
+		if(*length>arraylength)error("Array size");
+		*a1float = (MMFLOAT *)ptr1;
+		if((uint32_t)ptr1!=(uint32_t)vartbl[VarIndex].val.s)error("Syntax");
+	} else if(ptr1 && vartbl[VarIndex].type & T_INT) {
+		if(vartbl[VarIndex].dims[1] != 0) error("Invalid variable");
+		if(vartbl[VarIndex].dims[0] <= 0) {		// Not an array
+			error("Argument 1 must be a numerical array");
+		}
+		arraylength=vartbl[VarIndex].dims[0] - OptionBase + 1;
+		if(*length==0)*length=arraylength;
+		if(*length>arraylength)error("Array size");
+		*a1int = (int64_t *)ptr1;
+		if((uint32_t)ptr1!=(uint32_t)vartbl[VarIndex].val.s)error("Syntax");
+	} else if(ptr1 && vartbl[VarIndex].type & T_STR && !stringarray) {
+		*a1str=(unsigned char *)ptr1;
+		if(*length==0)*length=**a1str;
+		if(**a1str<*length)error("String size");
+	} else if(ptr1 && vartbl[VarIndex].type & T_STR && stringarray) {
+		if(vartbl[VarIndex].dims[1] != 0) error("Invalid variable");
+		if(vartbl[VarIndex].dims[0] <= 0) {		// Not an array
+			error("Argument 1 must be a string array");
+		}
+		arraylength=vartbl[VarIndex].dims[0] - OptionBase + 1;
+		if(*length==0)*length=arraylength;
+		if(*length>arraylength)error("Array size");
+		*a1str=(unsigned char *)ptr1;
+		if((uint32_t)ptr1!=(uint32_t)vartbl[VarIndex].val.s)error("Syntax");
+		*length=vartbl[VarIndex].size;
+		return arraylength;
+	} else error("Syntax");
+	return *length;
 }
 void cmd_math(void){
 	unsigned char *tp;
@@ -505,38 +573,22 @@ void cmd_math(void){
     MMFLOAT f;
     long long int i64;
     unsigned char *s;
+	short dims[MAXDIM]={0};
 
 	skipspace(cmdline);
 	if(toupper(*cmdline)=='S'){
 
 		tp = checkstring(cmdline, (unsigned char *)"SET");
 		if(tp) {
-			void *ptr1 = NULL;
-			int i,j,card1=1;
+			int i,card1=1;
 			MMFLOAT *a1float=NULL;
 			int64_t *a1int=NULL;
 			getargs(&tp, 3,(unsigned char *)",");
 			if(!(argc == 3)) error("Argument count");
+			card1=parsenumberarray(argv[2],&a1float,&a1int,2,0, dims, true);
 		    evaluate(argv[0], &f, &i64, &s, &t, false);
 		    if(t & T_STR) error("Syntax");
-			ptr1 = findvar(argv[2], V_FIND | V_EMPTY_OK | V_NOFIND_ERR);
-			if(vartbl[VarIndex].type & T_NBR) {
-				card1=1;
-				for(i=0;i<MAXDIM;i++){
-					j=(vartbl[VarIndex].dims[i] - OptionBase+1);
-					if(j)card1 *= j;
-				}
-				a1float = (MMFLOAT *)ptr1;
-				if((uint32_t)ptr1!=(uint32_t)vartbl[VarIndex].val.s)error("Syntax");
-			} else if(vartbl[VarIndex].type & T_INT) {
-				card1=1;
-				for(i=0;i<MAXDIM;i++){
-					j=(vartbl[VarIndex].dims[i] - OptionBase+1);
-					if(j)card1 *= j;
-				}
-				a1int = (int64_t *)ptr1;
-				if((uint32_t)ptr1!=(uint32_t)vartbl[VarIndex].val.s)error("Syntax");
-			} else error("Argument 2 must be numerical");
+
 			if(a1float!=NULL){
 				for(i=0; i< card1;i++)*a1float++ = ((t & T_INT) ? (MMFLOAT)i64 : f);
 			} else {
@@ -547,52 +599,16 @@ void cmd_math(void){
 
 		tp = checkstring(cmdline, (unsigned char *)"SCALE");
 		if(tp) {
-			void *ptr1 = NULL;
-			void *ptr2 = NULL;
-			int i,j,card1=1, card2=1;
+			int i,card1=1, card2=1;
 			MMFLOAT *a1float=NULL,*a2float=NULL, scale;
 			int64_t *a1int=NULL, *a2int=NULL;
 			getargs(&tp, 5,(unsigned char *)",");
 			if(!(argc == 5)) error("Argument count");
-			ptr1 = findvar(argv[0], V_FIND | V_EMPTY_OK | V_NOFIND_ERR);
-			if(vartbl[VarIndex].type & T_NBR) {
-				card1=1;
-				for(i=0;i<MAXDIM;i++){
-					j=(vartbl[VarIndex].dims[i] - OptionBase+1);
-					if(j)card1 *= j;
-				}
-				a1float = (MMFLOAT *)ptr1;
-				if((uint32_t)ptr1!=(uint32_t)vartbl[VarIndex].val.s)error("Syntax");
-			} else if(vartbl[VarIndex].type & T_INT) {
-				card1=1;
-				for(i=0;i<MAXDIM;i++){
-					j=(vartbl[VarIndex].dims[i] - OptionBase+1);
-					if(j)card1 *= j;
-				}
-				a1int = (int64_t *)ptr1;
-				if((uint32_t)ptr1!=(uint32_t)vartbl[VarIndex].val.s)error("Syntax");
-			} else error("Argument 1 must be numerical");
+			card1=parsenumberarray(argv[0],&a1float,&a1int,1,0, dims, false);
 		    evaluate(argv[2], &f, &i64, &s, &t, false);
 		    if(t & T_STR) error("Syntax");
 		    scale=getnumber(argv[2]);
-			ptr2 = findvar(argv[4], V_FIND | V_EMPTY_OK | V_NOFIND_ERR);
-			if(vartbl[VarIndex].type & T_NBR) {
-				card2=1;
-				for(i=0;i<MAXDIM;i++){
-					j=(vartbl[VarIndex].dims[i] - OptionBase+1);
-					if(j)card2 *= j;
-				}
-				a2float = (MMFLOAT *)ptr2;
-				if((uint32_t)a2float!=(uint32_t)vartbl[VarIndex].val.s)error("Syntax");
-			} else if(vartbl[VarIndex].type & T_INT) {
-				card2=1;
-				for(i=0;i<MAXDIM;i++){
-					j=(vartbl[VarIndex].dims[i] - OptionBase+1);
-					if(j)card2 *= j;
-				}
-				a2int = (int64_t *)ptr2;
-				if((uint32_t)a2int!=(uint32_t)vartbl[VarIndex].val.s)error("Syntax");
-			} else error("Argument 3 must be numerical");
+			card2=parsenumberarray(argv[4],&a2float,&a2int,3,0, dims, true);
 			if(card1 != card2)error("Size mismatch");
 			if(scale!=1.0){
 				if(a2float!=NULL && a1float!=NULL){
@@ -617,32 +633,38 @@ void cmd_math(void){
 			}
 			return;
 		}
+		tp = checkstring(cmdline, (unsigned char *)"SHIFT");
+		if(tp) {
+			int i, card1=1, card2=1;
+			int64_t *a1int=NULL, *a2int=NULL;
+			getargs(&tp, 5,(unsigned char *)",");
+			if(!(argc == 5)) error("Argument count");
+			card1=parseintegerarray(argv[0],&a1int,1,0, dims, false);
+		    evaluate(argv[2], &f, &i64, &s, &t, false);
+		    int shift=getint(argv[2], -63,63);
+			card2=parseintegerarray(argv[4],&a2int,3,0, dims, true);
+			if(card1 != card2)error("Size mismatch");
+			if(shift>0)for(i=0; i< card1;i++)*a2int++ = ((*a1int++)<<shift);
+			else for(i=0; i< card1;i++)*a2int++ = ((*a1int++)>>(-shift));
+			return;
+		}
 
 		tp = checkstring(cmdline, (unsigned char *)"SLICE");
 		if(tp) {
 			int i, j, start, increment, dim[MAXDIM], pos[MAXDIM],off[MAXDIM], dimcount=0, target=-1, toarray=0;
 			int64_t *a1int=NULL,*a2int=NULL;
-			void *ptr1 = NULL;
-			void *ptr2 = NULL;
+			MMFLOAT *afloat=NULL;
 			getargs(&tp, 13,(unsigned char *)",");
 			if(argc<7)error("Argument count");
-			ptr1 = findvar(argv[0], V_FIND | V_EMPTY_OK | V_NOFIND_ERR);
-			if(vartbl[VarIndex].type & (T_NBR | T_INT)) {
-				if(vartbl[VarIndex].dims[1] <= 0) {		// Not an array
-					error("Argument 1 must be a 2D or more numerical array");
-				}
-				if(vartbl[VarIndex].dims[0] <= 0) {		// Not an array
-					error("Argument 1 must be a 2D or more numerical array");
-				}
-				for(i=0;i<MAXDIM;i++){
-					if(vartbl[VarIndex].dims[i]-OptionBase>0){
-						dimcount++;
-						dim[i]=vartbl[VarIndex].dims[i]-OptionBase;
-					} else dim[i]=0;
-				}
-				a1int = (int64_t *)ptr1;
-				if((uint32_t)ptr1!=(uint32_t)vartbl[VarIndex].val.s)error("Syntax");
-			} else error("Argument 1 must be a 2D or more numerical array");
+			parsenumberarray(argv[0],&afloat,&a1int,1,0,dims, false);
+			if(!a1int)a1int=(int64_t *)afloat;
+			if(dims[1]<=0)error("Argument 1 must be a 2D or more numerical array");
+			for(i=0;i<MAXDIM;i++){
+				if(dims[i]-OptionBase>0){
+					dimcount++;
+					dim[i]=dims[i]-OptionBase;
+				} else dim[i]=0;
+			}
 			if(((argc-1)/2-1)!=dimcount)error("Argument count");
 			for(i=0; i<dimcount;i++ ){
 				if(*argv[i*2 +2]) pos[i]=getint(argv[i*2 +2],OptionBase,dim[i]+OptionBase)-OptionBase;
@@ -652,16 +674,8 @@ void cmd_math(void){
 					pos[i]=1;
 				}
 			}
-			ptr2 = findvar(argv[i*2 +2], V_FIND | V_EMPTY_OK | V_NOFIND_ERR);
-			if(vartbl[VarIndex].type &  (T_NBR | T_INT)) {
-				if(vartbl[VarIndex].dims[1] != 0) error("Target must be 1D a numerical point array");
-				if(vartbl[VarIndex].dims[0] <= 0) {		// Not an array
-					error("Target must be 1D a numerical point array");
-				}
-				toarray=vartbl[VarIndex].dims[0]-OptionBase;
-				a2int = (int64_t *)ptr2;
-				if((uint32_t)ptr2!=(uint32_t)vartbl[VarIndex].val.s)error("Syntax");
-			} else error("Target must be 1D a numerical point array");
+			toarray=parsenumberarray(argv[i*2 +2],&afloat,&a2int,i+1,1,dims, true)-1;
+			if(!a2int)a2int=(int64_t *)afloat;
 			if(dim[target]!=toarray)error("Size mismatch between slice and target array");
 			i=dimcount-1;
 			while(i>=0){
@@ -752,48 +766,18 @@ void cmd_math(void){
 	} else if(toupper(*cmdline)=='V') {
 		tp = checkstring(cmdline, (unsigned char *)"V_MULT");
 		if(tp) {
-			void *ptr1 = NULL;
-			void *ptr2 = NULL;
-			void *ptr3 = NULL;
 			int i,j, numcols=0, numrows=0;
 			MMFLOAT *a1float=NULL,*a2float=NULL,*a2sfloat=NULL,*a3float=NULL;
 			getargs(&tp, 5,(unsigned char *)",");
 			if(!(argc == 5)) error("Argument count");
-			ptr1 = findvar(argv[0], V_FIND | V_EMPTY_OK | V_NOFIND_ERR);
-			if(vartbl[VarIndex].type & T_NBR) {
-				if(vartbl[VarIndex].dims[2] != 0) error("Invalid variable");
-				if(vartbl[VarIndex].dims[1] <= 0) {		// Not an array
-					error("Argument 1 must be a 2D floating point array");
-				}
-				if(vartbl[VarIndex].dims[0] <= 0) {		// Not an array
-					error("Argument 1 must be a 2D floating point array");
-				}
-				numcols=vartbl[VarIndex].dims[0] - OptionBase;
-				numrows=vartbl[VarIndex].dims[1] - OptionBase;
-				a1float = (MMFLOAT *)ptr1;
-				if((uint32_t)ptr1!=(uint32_t)vartbl[VarIndex].val.s)error("Syntax");
-			} else error("Argument 1 must be a 2D floating point array");
-			ptr2 = findvar(argv[2], V_FIND | V_EMPTY_OK | V_NOFIND_ERR);
-			if(vartbl[VarIndex].type & T_NBR) {
-				if(vartbl[VarIndex].dims[1] != 0) error("Invalid variable");
-				if(vartbl[VarIndex].dims[0] <= 0) {		// Not an array
-					error("Argument 2 must be a floating point array");
-				}
-				if((vartbl[VarIndex].dims[0] - OptionBase) != numcols)error("Array size mismatch");
-				a2float = a2sfloat = (MMFLOAT *)ptr2;
-				if((uint32_t)ptr2!=(uint32_t)vartbl[VarIndex].val.s)error("Syntax");
-			} else error("Argument 2 must be a floating point array");
-			ptr3 = findvar(argv[4], V_FIND | V_EMPTY_OK | V_NOFIND_ERR);
-			if(vartbl[VarIndex].type & T_NBR) {
-				if(vartbl[VarIndex].dims[1] != 0) error("Invalid variable");
-				if(vartbl[VarIndex].dims[0] <= 0) {		// Not an array
-					error("Argument 3 must be a floating point array");
-				}
-				if((vartbl[VarIndex].dims[0] - OptionBase) != numrows)error("Array size mismatch");
-				a3float = (MMFLOAT *)ptr3;
-				if((uint32_t)ptr3!=(uint32_t)vartbl[VarIndex].val.s)error("Syntax");
-			} else error("Argument 3 must be a floating point array");
-			if(ptr3==ptr1 || ptr3==ptr2)error("Destination array same as source");
+			parsefloatrarray(argv[0],&a1float,1,2,dims,false);
+			numcols=dims[0] - OptionBase;
+			numrows=dims[1] - OptionBase;
+			parsefloatrarray(argv[2],&a2float,1,1,dims,false);
+			if((dims[0] - OptionBase) != numcols)error("Array size mismatch");
+			parsefloatrarray(argv[4],&a3float,1,1,dims,true);
+			if((dims[0] - OptionBase) != numrows)error("Array size mismatch");
+			if(a3float==a1float || a3float==a2float)error("Destination array same as source");
 			numcols++;
 			numrows++;
 			for(i=0;i<numrows;i++){
@@ -809,33 +793,13 @@ void cmd_math(void){
 
 		tp = checkstring(cmdline, (unsigned char *)"V_NORMALISE");
 		if(tp) {
-			void *ptr1 = NULL;
-			void *ptr2 = NULL;
-			int j, numrows=0;
+			int j, numrows=0, card2;
 			MMFLOAT *a1float=NULL,*a1sfloat=NULL,*a2float=NULL,mag=0.0;
 			getargs(&tp, 3,(unsigned char *)",");
 			if(!(argc == 3)) error("Argument count");
-			ptr1 = findvar(argv[0], V_FIND | V_EMPTY_OK | V_NOFIND_ERR);
-			if(vartbl[VarIndex].type & T_NBR) {
-				if(vartbl[VarIndex].dims[1] != 0) error("Invalid variable");
-				if(vartbl[VarIndex].dims[0] <= 0) {		// Not an array
-					error("Argument 1 must be a floating point array");
-				}
-				numrows=vartbl[VarIndex].dims[0] - OptionBase;
-				a1float = a1sfloat = (MMFLOAT *)ptr1;
-				if((uint32_t)ptr1!=(uint32_t)vartbl[VarIndex].val.s)error("Syntax");
-			} else error("Argument 1 must be a floating point array");
-			ptr2 = findvar(argv[2], V_FIND | V_EMPTY_OK | V_NOFIND_ERR);
-			if(vartbl[VarIndex].type & T_NBR) {
-				if(vartbl[VarIndex].dims[1] != 0) error("Invalid variable");
-				if(vartbl[VarIndex].dims[0] <= 0) {		// Not an array
-					error("Argument 2 must be a floating point array");
-				}
-				if((vartbl[VarIndex].dims[0] - OptionBase) != numrows)error("Array size mismatch");
-				a2float = (MMFLOAT *)ptr2;
-				if((uint32_t)ptr2!=(uint32_t)vartbl[VarIndex].val.s)error("Syntax");
-			} else error("Argument 2 must be a floating point array");
-			numrows++;
+			numrows=parsefloatrarray(argv[0],&a1float,1,1, dims, false);
+			card2=parsefloatrarray(argv[2],&a2float,2,1, dims, true);
+			if(numrows!=card2)error("Array size mismatch");
 			for(j=0;j<numrows;j++){
 				mag+= (*a1sfloat) * (*a1sfloat);
 				a1sfloat++;
@@ -849,82 +813,34 @@ void cmd_math(void){
 
 		tp = checkstring(cmdline, (unsigned char *)"V_CROSS");
 		if(tp) {
-			void *ptr1 = NULL;
-			void *ptr2 = NULL;
-			void *ptr3 = NULL;
 			int j, numcols=0;
 			MMFLOAT *a1float=NULL,*a2float=NULL,*a3float=NULL;
 			MMFLOAT a[3],b[3];
 			getargs(&tp, 5,(unsigned char *)",");
 			if(!(argc == 5)) error("Argument count");
-			ptr1 = findvar(argv[0], V_FIND | V_EMPTY_OK | V_NOFIND_ERR);
-			if(vartbl[VarIndex].type & T_NBR) {
-				if(vartbl[VarIndex].dims[1] != 0) error("Invalid variable");
-				if(vartbl[VarIndex].dims[0] <= 0) {		// Not an array
-					error("Argument 1 must be a 3 element floating point array");
-				}
-				numcols=vartbl[VarIndex].dims[0] - OptionBase;
-				if(numcols!=2)error("Argument 1 must be a 3 element floating point array");
-				a1float = (MMFLOAT *)ptr1;
-				if((uint32_t)ptr1!=(uint32_t)vartbl[VarIndex].val.s)error("Syntax");
-			} else error("Argument 1 must be a 3 element floating point array");
-			ptr2 = findvar(argv[2], V_FIND | V_EMPTY_OK | V_NOFIND_ERR);
-			if(vartbl[VarIndex].type & T_NBR) {
-				if(vartbl[VarIndex].dims[1] != 0) error("Invalid variable");
-				if(vartbl[VarIndex].dims[0] <= 0) {		// Not an array
-					error("Argument 2 must be a floating point array");
-				}
-				if((vartbl[VarIndex].dims[0] - OptionBase) != numcols)error("Array size mismatch");
-				a2float = (MMFLOAT *)ptr2;
-				if((uint32_t)ptr2!=(uint32_t)vartbl[VarIndex].val.s)error("Syntax");
-			} else error("Argument 2 must be a floating point array");
-			ptr3 = findvar(argv[4], V_FIND | V_EMPTY_OK | V_NOFIND_ERR);
-			if(vartbl[VarIndex].type & T_NBR) {
-				if(vartbl[VarIndex].dims[1] != 0) error("Invalid variable");
-				if(vartbl[VarIndex].dims[0] <= 0) {		// Not an array
-					error("Argument 3 must be a floating point array");
-				}
-				if((vartbl[VarIndex].dims[0] - OptionBase) != numcols)error("Array size mismatch");
-				a3float = (MMFLOAT *)ptr3;
-				if((uint32_t)ptr3!=(uint32_t)vartbl[VarIndex].val.s)error("Syntax");
-			} else error("Argument 3 must be a floating point array");
-			numcols++;
+			numcols=parsefloatrarray(argv[0],&a1float,1,1, dims, false);
+			if(numcols!=3)error("Argument 1 must be a 3 element floating point array");
+			numcols=parsefloatrarray(argv[2],&a2float,2,1, dims, false);
+			if(numcols!=3)error("Argument 2 must be a 3 element floating point array");
+			numcols=parsefloatrarray(argv[4],&a3float,3,1, dims, true);
+			if(numcols!=3)error("Argument 3 must be a 3 element floating point array");
 			for(j=0;j<numcols;j++){
 				a[j]=*a1float++;
 				b[j]=*a2float++;
 			}
-		*a3float++ = a[1]*b[2] - a[2]*b[1];
-		*a3float++ = a[2]*b[0] - a[0]*b[2];
-		*a3float = a[0]*b[1] - a[1]*b[0];
-		return;
+			*a3float++ = a[1]*b[2] - a[2]*b[1];
+			*a3float++ = a[2]*b[0] - a[0]*b[2];
+			*a3float = a[0]*b[1] - a[1]*b[0];
+			return;
 		}
 		tp = checkstring(cmdline, (unsigned char *)"V_PRINT");
 		if(tp) {
-			void *ptr1 = NULL;
 			int j, numcols=0;
 			MMFLOAT *a1float=NULL;
 			int64_t *a1int=NULL;
 			getargs(&tp, 1,(unsigned char *)",");
 			if(!(argc == 1)) error("Argument count");
-			ptr1 = findvar(argv[0], V_FIND | V_EMPTY_OK | V_NOFIND_ERR);
-			if(vartbl[VarIndex].type & T_NBR) {
-				if(vartbl[VarIndex].dims[1] != 0) error("Invalid variable");
-				if(vartbl[VarIndex].dims[0] <= 0) {		// Not an array
-					error("Argument 1 must be a numerical array");
-				}
-				numcols=vartbl[VarIndex].dims[0] - OptionBase;
-				a1float = (MMFLOAT *)ptr1;
-				if((uint32_t)ptr1!=(uint32_t)vartbl[VarIndex].val.s)error("Syntax");
-			} else if(ptr1 && vartbl[VarIndex].type & T_INT) {
-				if(vartbl[VarIndex].dims[1] != 0) error("Invalid variable");
-				if(vartbl[VarIndex].dims[0] <= 0) {		// Not an array
-					error("Argument 1 must be a numerical array");
-				}
-				numcols=vartbl[VarIndex].dims[0] - OptionBase;
-				a1int = (int64_t *)ptr1;
-				if((uint32_t)ptr1!=(uint32_t)vartbl[VarIndex].val.s)error("Syntax");
-			} else error("Argument 1 must be a numerical array");
-			numcols++;
+			numcols=parsenumberarray(argv[0],&a1float,&a1int,1,1, dims, false);
 			if(a1float!=NULL){
 				PFlt(*a1float++);
 				for(j=1;j<numcols;j++)PFltComma(*a1float++);
@@ -939,42 +855,17 @@ void cmd_math(void){
 	} else if(toupper(*cmdline)=='M') {
 		tp = checkstring(cmdline, (unsigned char *)"M_INVERSE");
 		if(tp){
-			void *ptr1 = NULL;
-			void *ptr2 = NULL;
 			int i, j, n, numcols=0, numrows=0;
 			MMFLOAT *a1float=NULL, *a2float=NULL,det;
 			getargs(&tp, 3,(unsigned char *)",");
 			if(!(argc == 3)) error("Argument count");
-			ptr1 = findvar(argv[0], V_FIND | V_EMPTY_OK | V_NOFIND_ERR);
-			if(vartbl[VarIndex].type & T_NBR) {
-				if(vartbl[VarIndex].dims[2] != 0) error("Invalid variable");
-				if(vartbl[VarIndex].dims[1] <= 0) {		// Not an array
-					error("Argument 1 must be a numerical 2D array");
-				}
-				if(vartbl[VarIndex].dims[0] <= 0) {		// Not an array
-					error("Argument 1 must be a numerical 2D array");
-				}
-				numcols=vartbl[VarIndex].dims[0] - OptionBase;
-				numrows=vartbl[VarIndex].dims[1] - OptionBase;
-				a1float = (MMFLOAT *)ptr1;
-				if((uint32_t)ptr1!=(uint32_t)vartbl[VarIndex].val.s)error("Syntax");
-			} else	error("Argument 1 must be a numerical 2D array");
-			ptr2 = findvar(argv[2], V_FIND | V_EMPTY_OK | V_NOFIND_ERR);
-			if(vartbl[VarIndex].type & T_NBR) {
-				if(vartbl[VarIndex].dims[2] != 0) error("Invalid variable");
-				if(vartbl[VarIndex].dims[1] <= 0) {		// Not an array
-					error("Argument 2 must be a numerical 2D array");
-				}
-				if(vartbl[VarIndex].dims[0] <= 0) {		// Not an array
-					error("Argument 2 must be a numerical 2D array");
-				}
-				if(numcols!=vartbl[VarIndex].dims[0] - OptionBase)error("array size mismatch");
-				if(numrows!=vartbl[VarIndex].dims[1] - OptionBase)error("array size mismatch");
-				a2float = (MMFLOAT *)ptr2;
-				if((uint32_t)ptr2!=(uint32_t)vartbl[VarIndex].val.s)error("Syntax");
-			} else	error("Argument 2 must be a numerical 2D array");
+			parsefloatrarray(argv[0], &a1float, 1,2,dims, false);
+			numcols=dims[0] - OptionBase;
+			numrows=dims[1] - OptionBase;
+			parsefloatrarray(argv[2], &a2float, 2,2,dims, true);
+			if(dims[0] - OptionBase != numcols || dims[1] - OptionBase!= numrows)error("Array size mismatch");
 			if(numcols!=numrows)error("Array must be square");
-			if(ptr1==ptr2)error("Same array specified for input and output");
+			if(a1float==a2float)error("Same array specified for input and output");
 			n=numrows+1;
 			MMFLOAT **matrix=alloc2df(n,n);
 			for(i=0;i<n;i++){ //load the matrix
@@ -1001,40 +892,16 @@ void cmd_math(void){
 		}
 		tp = checkstring(cmdline, (unsigned char *)"M_TRANSPOSE");
 		if(tp) {
-			void *ptr1 = NULL;
-			void *ptr2 = NULL;
 			int i,j, numcols1=0, numrows1=0, numcols2=0, numrows2=0;
 			MMFLOAT *a1float=NULL,*a2float=NULL;
 			getargs(&tp, 3,(unsigned char *)",");
 			if(!(argc == 3)) error("Argument count");
-			ptr1 = findvar(argv[0], V_FIND | V_EMPTY_OK | V_NOFIND_ERR);
-			if(vartbl[VarIndex].type & T_NBR) {
-				if(vartbl[VarIndex].dims[2] != 0) error("Invalid variable");
-				if(vartbl[VarIndex].dims[1] <= 0) {		// Not an array
-					error("Argument 1 must be a 2D floating point array");
-				}
-				if(vartbl[VarIndex].dims[0] <= 0) {		// Not an array
-					error("Argument 1 must be a 2D floating point array");
-				}
-				numcols1=numrows2=vartbl[VarIndex].dims[0] - OptionBase;
-				numrows1=numcols2=vartbl[VarIndex].dims[1] - OptionBase;
-				a1float = (MMFLOAT *)ptr1;
-				if((uint32_t)ptr1!=(uint32_t)vartbl[VarIndex].val.s)error("Syntax");
-			} else error("Argument 1 must be a 2D floating point array");
-			ptr2 = findvar(argv[2], V_FIND | V_EMPTY_OK | V_NOFIND_ERR);
-			if(vartbl[VarIndex].type & T_NBR) {
-				if(vartbl[VarIndex].dims[2] != 0) error("Invalid variable");
-				if(vartbl[VarIndex].dims[1] <= 0) {		// Not an array
-					error("Argument 2 must be 2D floating point array");
-				}
-				if(vartbl[VarIndex].dims[0] <= 0) {		// Not an array
-					error("Argument 2 must be 2D floating point array");
-				}
-				if(numcols2!=(vartbl[VarIndex].dims[0] - OptionBase))error("Array size mismatch");
-				if(numrows2!=(vartbl[VarIndex].dims[1] - OptionBase))error("Array size mismatch");
-				a2float = (MMFLOAT *)ptr2;
-				if((uint32_t)ptr2!=(uint32_t)vartbl[VarIndex].val.s)error("Syntax");
-			} else error("Argument 2 must be a 2D floating point array");
+			parsefloatrarray(argv[0], &a1float, 1,2,dims, false);
+			numcols1=numrows2=dims[0] - OptionBase;
+			numrows1=numcols2=dims[1] - OptionBase;
+			parsefloatrarray(argv[2], &a2float,2,2,dims, true);
+			if(numcols2 !=dims[0] - OptionBase)error("Array size mismatch");
+			if(numrows2 !=dims[1] - OptionBase)error("Array size mismatch");
 			numcols1++;
 			numrows1++;
 			numcols2++;
@@ -1063,58 +930,22 @@ void cmd_math(void){
 
 		tp = checkstring(cmdline, (unsigned char *)"M_MULT");
 		if(tp) {
-			void *ptr1 = NULL;
-			void *ptr2 = NULL;
-			void *ptr3 = NULL;
 			int i,j, k, numcols1=0, numrows1=0, numcols2=0, numrows2=0, numcols3=0, numrows3=0;
 			MMFLOAT *a1float=NULL,*a2float=NULL,*a3float=NULL;
 			getargs(&tp, 5,(unsigned char *)",");
 			if(!(argc == 5)) error("Argument count");
-			ptr1 = findvar(argv[0], V_FIND | V_EMPTY_OK | V_NOFIND_ERR);
-			if(vartbl[VarIndex].type & T_NBR) {
-				if(vartbl[VarIndex].dims[2] != 0) error("Invalid variable");
-				if(vartbl[VarIndex].dims[1] <= 0) {		// Not an array
-					error("Argument 1 must be a 2D floating point array");
-				}
-				if(vartbl[VarIndex].dims[0] <= 0) {		// Not an array
-					error("Argument 1 must be a 2D floating point array");
-				}
-				numcols1=numrows2=vartbl[VarIndex].dims[0] - OptionBase + 1;
-				numrows1=vartbl[VarIndex].dims[1] - OptionBase + 1;
-				a1float = (MMFLOAT *)ptr1;
-				if((uint32_t)ptr1!=(uint32_t)vartbl[VarIndex].val.s)error("Syntax");
-			} else error("Argument 1 must be a 2D floating point array");
-			ptr2 = findvar(argv[2], V_FIND | V_EMPTY_OK | V_NOFIND_ERR);
-			if(vartbl[VarIndex].type & T_NBR) {
-				if(vartbl[VarIndex].dims[2] != 0) error("Invalid variable");
-				if(vartbl[VarIndex].dims[1] <= 0) {		// Not an array
-					error("Argument 2 must be a 2D floating point array");
-				}
-				if(vartbl[VarIndex].dims[0] <= 0) {		// Not an array
-					error("Argument 2 must be a 2D floating point array");
-				}
-				numcols2=vartbl[VarIndex].dims[0] - OptionBase + 1;
-				numrows2=vartbl[VarIndex].dims[1] - OptionBase + 1;
-				if(numrows2!=numcols1)error("Input array size mismatch");
-				a2float = (MMFLOAT *)ptr2;
-				if((uint32_t)ptr2!=(uint32_t)vartbl[VarIndex].val.s)error("Syntax");
-			} else error("Argument 2 must be a 2D floating point array");
-			ptr3 = findvar(argv[4], V_FIND | V_EMPTY_OK | V_NOFIND_ERR);
-			if(vartbl[VarIndex].type & T_NBR) {
-				if(vartbl[VarIndex].dims[2] != 0) error("Invalid variable");
-				if(vartbl[VarIndex].dims[1] <= 0) {		// Not an array
-					error("Argument 3 must be a 2D floating point array");
-				}
-				if(vartbl[VarIndex].dims[0] <= 0) {		// Not an array
-					error("Argument 3 must be a 2D floating point array");
-				}
-				numcols3=vartbl[VarIndex].dims[0] - OptionBase + 1;
-				numrows3=vartbl[VarIndex].dims[1] - OptionBase + 1;
-				if(numcols3!=numcols2 || numrows3!=numrows1)error("Output array size mismatch");
-				a3float = (MMFLOAT *)ptr3;
-				if((uint32_t)ptr3!=(uint32_t)vartbl[VarIndex].val.s)error("Syntax");
-			} else error("Argument 3 must be a 2D floating point array");
-			if(ptr3==ptr1 || ptr3==ptr2)error("Destination array same as source");
+			parsefloatrarray(argv[0], &a1float, 1, 2, dims, false);
+			numcols1=numrows2=dims[0] - OptionBase + 1;
+			numrows1=dims[1] - OptionBase + 1;
+			parsefloatrarray(argv[2], &a2float, 2, 2, dims, false);
+			numcols2=dims[0] - OptionBase + 1;
+			numrows2=dims[1] - OptionBase + 1;
+			if(numrows2!=numcols1)error("Input array size mismatch");
+			parsefloatrarray(argv[4], &a3float, 3, 2, dims, true);
+			numcols3=dims[0] - OptionBase + 1;
+			numrows3=dims[1] - OptionBase + 1;
+			if(numcols3!=numcols2 || numrows3!=numrows1)error("Output array size mismatch");
+			if(a3float==a1float || a3float==a2float)error("Destination array same as source");
 			MMFLOAT **matrix1=alloc2df(numcols1,numrows1);
 			MMFLOAT **matrix2=alloc2df(numrows2,numcols2);
 			MMFLOAT **matrix3=alloc2df(numrows3,numcols3);
@@ -1150,41 +981,15 @@ void cmd_math(void){
 		}
 		tp = checkstring(cmdline, (unsigned char *)"M_PRINT");
 		if(tp) {
-			void *ptr1 = NULL;
 			int i,j, numcols=0, numrows=0;
 			MMFLOAT *a1float=NULL;
 			int64_t *a1int=NULL;
 			// need three arrays with same cardinality, second array must be 2 dimensional
 			getargs(&tp, 1,(unsigned char *)",");
 			if(!(argc == 1)) error("Argument count");
-			ptr1 = findvar(argv[0], V_FIND | V_EMPTY_OK | V_NOFIND_ERR);
-			if(vartbl[VarIndex].type & T_NBR) {
-				if(vartbl[VarIndex].dims[2] != 0) error("Invalid variable");
-				if(vartbl[VarIndex].dims[1] <= 0) {		// Not an array
-					error("Argument 1 must be a numerical 2D array");
-				}
-				if(vartbl[VarIndex].dims[0] <= 0) {		// Not an array
-					error("Argument 1 must be a numerical 2D array");
-				}
-				numcols=vartbl[VarIndex].dims[0] - OptionBase;
-				numrows=vartbl[VarIndex].dims[1] - OptionBase;
-				a1float = (MMFLOAT *)ptr1;
-				if((uint32_t)ptr1!=(uint32_t)vartbl[VarIndex].val.s)error("Syntax");
-			} else if(ptr1 && vartbl[VarIndex].type & T_INT) {
-				if(vartbl[VarIndex].dims[2] != 0) error("Invalid variable");
-				if(vartbl[VarIndex].dims[1] <= 0) {		// Not an array
-					error("Argument 1 must be a numerical 2D array");
-				}
-				if(vartbl[VarIndex].dims[0] <= 0) {		// Not an array
-					error("Argument 1 must be a numerical 2D array");
-				}
-				numcols=vartbl[VarIndex].dims[0] - OptionBase;
-				numrows=vartbl[VarIndex].dims[1] - OptionBase;
-				a1int = (int64_t *)ptr1;
-				if((uint32_t)ptr1!=(uint32_t)vartbl[VarIndex].val.s)error("Syntax");
-			} else error("Argument 1 must be a numerical 2D array");
-			numcols++;
-			numrows++;
+			parsenumberarray(argv[0],&a1float,&a1int,1,2,dims, false);
+			numcols=dims[0]+1;
+			numrows=dims[1]+1;
 			MMFLOAT **matrix=alloc2df(numcols,numrows);
 			int64_t **imatrix= (int64_t **)matrix;
 			if(a1float!=NULL){
@@ -1221,41 +1026,21 @@ void cmd_math(void){
 
 		tp = checkstring(cmdline, (unsigned char *)"Q_INVERT");
 		if(tp) {
-			void *ptr1 = NULL;
-			void *ptr2 = NULL;
-			int numcols=0;
+			int card;
 			MMFLOAT *q=NULL,*n=NULL;
 			getargs(&tp, 3,(unsigned char *)",");
 			if(!(argc == 3)) error("Argument count");
-			ptr1 = findvar(argv[0], V_FIND | V_EMPTY_OK | V_NOFIND_ERR);
-			if(vartbl[VarIndex].type & T_NBR) {
-				if(vartbl[VarIndex].dims[1] != 0) error("Invalid variable");
-				if(vartbl[VarIndex].dims[0] <= 0) {		// Not an array
-					error("Argument 1 must be a 5 element floating point array");
-				}
-				numcols=vartbl[VarIndex].dims[0] - OptionBase;
-				if(numcols!=4)error("Argument 1 must be a 5 element floating point array");
-				q = (MMFLOAT *)ptr1;
-				if((uint32_t)ptr1!=(uint32_t)vartbl[VarIndex].val.s)error("Syntax");
-			} else error("Argument 1 must be a 5 element floating point array");
-			ptr2 = findvar(argv[2], V_FIND | V_EMPTY_OK | V_NOFIND_ERR);
-			if(vartbl[VarIndex].type & T_NBR) {
-				if(vartbl[VarIndex].dims[1] != 0) error("Invalid variable");
-				if(vartbl[VarIndex].dims[0] <= 0) {		// Not an array
-					error("Argument 2 must be a 5 element floating point array");
-				}
-				if((vartbl[VarIndex].dims[0] - OptionBase) != numcols)error("Array size mismatch");
-				n = (MMFLOAT *)ptr2;
-				if((uint32_t)ptr2!=(uint32_t)vartbl[VarIndex].val.s)error("Syntax");
-			} else error("Argument 2 must be a 5 element floating point array");
+			card=parsefloatrarray(argv[0],&q,1,1, dims, false);
+			if(card!=5)error("Argument 1 must be a 5 element floating point array");
+			card=parsefloatrarray(argv[2],&n,2,1, dims, true);
+			if(card!=5)error("Argument 2 must be a 5 element floating point array");
 			Q_Invert(q, n);
 			return;
 		}
 
 		tp = checkstring(cmdline, (unsigned char *)"Q_VECTOR");
 		if(tp) {
-			void *ptr1 = NULL;
-			int numcols=0;
+			int card;
 			MMFLOAT *q=NULL;
 			MMFLOAT mag=0.0;
 			getargs(&tp, 7,(unsigned char *)",");
@@ -1263,17 +1048,8 @@ void cmd_math(void){
 			MMFLOAT x=getnumber(argv[0]);
 			MMFLOAT y=getnumber(argv[2]);
 			MMFLOAT z=getnumber(argv[4]);
-			ptr1 = findvar(argv[6], V_FIND | V_EMPTY_OK | V_NOFIND_ERR);
-			if(vartbl[VarIndex].type & T_NBR) {
-				if(vartbl[VarIndex].dims[1] != 0) error("Invalid variable");
-				if(vartbl[VarIndex].dims[0] <= 0) {		// Not an array
-					error("Argument 4 must be a 5 element floating point array");
-				}
-				numcols=vartbl[VarIndex].dims[0] - OptionBase;
-				if(numcols!=4)error("Argument 4 must be a 5 element floating point array");
-				q = (MMFLOAT *)ptr1;
-				if((uint32_t)ptr1!=(uint32_t)vartbl[VarIndex].val.s)error("Syntax");
-			} else error("Argument 4 must be a 5 element floating point array");
+			card=parsefloatrarray(argv[6],&q,4,1, dims, true);
+			if(card!=5)error("Argument 4 must be a 5 element floating point array");
 			mag=sqrt(x*x + y*y + z*z) ;//calculate the magnitude
 			q[0]=0.0; //create a normalised vector
 			q[1]=x/mag;
@@ -1285,25 +1061,15 @@ void cmd_math(void){
 
 		tp = checkstring(cmdline, (unsigned char *)"Q_EULER");
 		if(tp) {
-			void *ptr1 = NULL;
-			int numcols=0;
+			int card;
 			MMFLOAT *q=NULL;
 			getargs(&tp, 7,(unsigned char *)",");
 			if(!(argc == 7)) error("Argument count");
 			MMFLOAT yaw=-getnumber(argv[0])/optionangle;
 			MMFLOAT pitch=getnumber(argv[2])/optionangle;
 			MMFLOAT roll=getnumber(argv[4])/optionangle;
-			ptr1 = findvar(argv[6], V_FIND | V_EMPTY_OK | V_NOFIND_ERR);
-			if(vartbl[VarIndex].type & T_NBR) {
-				if(vartbl[VarIndex].dims[1] != 0) error("Invalid variable");
-				if(vartbl[VarIndex].dims[0] <= 0) {		// Not an array
-					error("Argument 4 must be a 5 element floating point array");
-				}
-				numcols=vartbl[VarIndex].dims[0] - OptionBase;
-				if(numcols!=4)error("Argument 4 must be a 5 element floating point array");
-				q = (MMFLOAT *)ptr1;
-				if((uint32_t)ptr1!=(uint32_t)vartbl[VarIndex].val.s)error("Syntax");
-			} else error("Argument 4 must be a 5 element floating point array");
+			card=parsefloatrarray(argv[6],&q,4,1, dims, true);
+			if(card!=5)error("Argument 4 must be a 5 element floating point array");
 			MMFLOAT s1=sin(pitch/2);
 			MMFLOAT c1=cos(pitch/2);
 			MMFLOAT s2=sin(yaw/2);
@@ -1320,8 +1086,7 @@ void cmd_math(void){
 
 		tp = checkstring(cmdline, (unsigned char *)"Q_CREATE");
 		if(tp) {
-			void *ptr1 = NULL;
-			int numcols=0;
+			int card;
 			MMFLOAT *q=NULL;
 			MMFLOAT mag=0.0;
 			getargs(&tp, 9,(unsigned char *)",");
@@ -1330,17 +1095,8 @@ void cmd_math(void){
 			MMFLOAT x=getnumber(argv[2]);
 			MMFLOAT y=getnumber(argv[4]);
 			MMFLOAT z=getnumber(argv[6]);
-			ptr1 = findvar(argv[8], V_FIND | V_EMPTY_OK | V_NOFIND_ERR);
-			if(vartbl[VarIndex].type & T_NBR) {
-				if(vartbl[VarIndex].dims[1] != 0) error("Invalid variable");
-				if(vartbl[VarIndex].dims[0] <= 0) {		// Not an array
-					error("Argument 1 must be a 5 element floating point array");
-				}
-				numcols=vartbl[VarIndex].dims[0] - OptionBase;
-				if(numcols!=4)error("Argument 1 must be a 5 element floating point array");
-				q = (MMFLOAT *)ptr1;
-				if((uint32_t)ptr1!=(uint32_t)vartbl[VarIndex].val.s)error("Syntax");
-			} else error("Argument 1 must be a 5 element floating point array");
+			card=parsefloatrarray(argv[6],&q,4,1, dims, true);
+			if(card!=5)error("Argument 4 must be a 5 element floating point array");
 			MMFLOAT sineterm= sin(theta/2.0/optionangle);
 			q[0]=cos(theta/2.0);
 			q[1]=x* sineterm;
@@ -1357,93 +1113,33 @@ void cmd_math(void){
 
 		tp = checkstring(cmdline, (unsigned char *)"Q_MULT");
 		if(tp) {
-			void *ptr1 = NULL;
-			void *ptr2 = NULL;
-			void *ptr3 = NULL;
-			int numcols=0;
 			MMFLOAT *q1=NULL,*q2=NULL,*n=NULL;
+			int card;
 			getargs(&tp, 5,(unsigned char *)",");
 			if(!(argc == 5)) error("Argument count");
-			ptr1 = findvar(argv[0], V_FIND | V_EMPTY_OK | V_NOFIND_ERR);
-			if(vartbl[VarIndex].type & T_NBR) {
-				if(vartbl[VarIndex].dims[1] != 0) error("Invalid variable");
-				if(vartbl[VarIndex].dims[0] <= 0) {		// Not an array
-					error("Argument 1 must be a 5 element floating point array");
-				}
-				numcols=vartbl[VarIndex].dims[0] - OptionBase;
-				if(numcols!=4)error("Argument 1 must be a 5 element floating point array");
-				q1 = (MMFLOAT *)ptr1;
-				if((uint32_t)ptr1!=(uint32_t)vartbl[VarIndex].val.s)error("Syntax");
-			} else error("Argument 1 must be a 5 element floating point array");
-			ptr2 = findvar(argv[2], V_FIND | V_EMPTY_OK | V_NOFIND_ERR);
-			if(vartbl[VarIndex].type & T_NBR) {
-				if(vartbl[VarIndex].dims[1] != 0) error("Invalid variable");
-				if(vartbl[VarIndex].dims[0] <= 0) {		// Not an array
-					error("Argument 2 must be a 5 element floating point array");
-				}
-				if((vartbl[VarIndex].dims[0] - OptionBase) != numcols)error("Array size mismatch");
-				q2 = (MMFLOAT *)ptr2;
-				if((uint32_t)ptr2!=(uint32_t)vartbl[VarIndex].val.s)error("Syntax");
-			} else error("Argument 2 must be a 5 element floating point array");
-			ptr3 = findvar(argv[4], V_FIND | V_EMPTY_OK | V_NOFIND_ERR);
-			if(vartbl[VarIndex].type & T_NBR) {
-				if(vartbl[VarIndex].dims[1] != 0) error("Invalid variable");
-				if(vartbl[VarIndex].dims[0] <= 0) {		// Not an array
-					error("Argument 3 must be a 5 element floating point array");
-				}
-				if((vartbl[VarIndex].dims[0] - OptionBase) != numcols)error("Array size mismatch");
-				n = (MMFLOAT *)ptr3;
-				if((uint32_t)ptr3!=(uint32_t)vartbl[VarIndex].val.s)error("Syntax");
-			} else error("Argument 3 must be a 5 element floating point array");
-			numcols++;
+			card=parsefloatrarray(argv[0],&q1,1,1, dims, false);
+			if(card!=5)error("Argument 1 must be a 5 element floating point array");
+			card=parsefloatrarray(argv[2],&q2,2,1, dims, false);
+			if(card!=5)error("Argument 2 must be a 5 element floating point array");
+			card=parsefloatrarray(argv[4],&n,31,1, dims, true);
+			if(card!=5)error("Argument 3 must be a 5 element floating point array");
 			Q_Mult(q1, q2, n);
 			return;
 		}
 
 		tp = checkstring(cmdline, (unsigned char *)"Q_ROTATE");
 		if(tp) {
-			void *ptr1 = NULL;
-			void *ptr2 = NULL;
-			void *ptr3 = NULL;
-			int numcols=0;
+			int card;
 			MMFLOAT *q1=NULL,*v1=NULL,*n=NULL;
 			MMFLOAT temp[5], qtemp[5];
 			getargs(&tp, 5,(unsigned char *)",");
 			if(!(argc == 5)) error("Argument count");
-			ptr1 = findvar(argv[0], V_FIND | V_EMPTY_OK | V_NOFIND_ERR);
-			if(vartbl[VarIndex].type & T_NBR) {
-				if(vartbl[VarIndex].dims[1] != 0) error("Invalid variable");
-				if(vartbl[VarIndex].dims[0] <= 0) {		// Not an array
-					error("Argument 1 must be a 5 element floating point array");
-				}
-				numcols=vartbl[VarIndex].dims[0] - OptionBase;
-				if(numcols!=4)error("Argument 1 must be a 5 element floating point array");
-				q1 = (MMFLOAT *)ptr1;
-				if((uint32_t)ptr1!=(uint32_t)vartbl[VarIndex].val.s)error("Syntax");
-			} else error("Argument 1 must be a 5 element floating point array");
-			ptr2 = findvar(argv[2], V_FIND | V_EMPTY_OK | V_NOFIND_ERR);
-			if(vartbl[VarIndex].type & T_NBR) {
-				if(vartbl[VarIndex].dims[1] != 0) error("Invalid variable");
-				if(vartbl[VarIndex].dims[0] <= 0) {		// Not an array
-					error("Argument 2 must be a 5 element floating point array");
-				}
-				numcols=vartbl[VarIndex].dims[0] - OptionBase;
-				if(numcols!=4)error("Argument 2 must be a 5 element floating point array");
-				v1 = (MMFLOAT *)ptr2;
-				if((uint32_t)ptr2!=(uint32_t)vartbl[VarIndex].val.s)error("Syntax");
-			} else error("Argument 2 must be a 5 element floating point array");
-			ptr3 = findvar(argv[4], V_FIND | V_EMPTY_OK | V_NOFIND_ERR);
-			if(vartbl[VarIndex].type & T_NBR) {
-				if(vartbl[VarIndex].dims[1] != 0) error("Invalid variable");
-				if(vartbl[VarIndex].dims[0] <= 0) {		// Not an array
-					error("Argument 3 must be a 5 element floating point array");
-				}
-				numcols=vartbl[VarIndex].dims[0] - OptionBase;
-				if(numcols!=4)error("Argument 3 must be a 5 element floating point array");
-				n = (MMFLOAT *)ptr3;
-				if((uint32_t)ptr3!=(uint32_t)vartbl[VarIndex].val.s)error("Syntax");
-			} else error("Argument 3 must be a 5 element floating point array");
-			numcols++;
+			card=parsefloatrarray(argv[0],&q1,1,1, dims, false);
+			if(card!=5)error("Argument 1 must be a 5 element floating point array");
+			card=parsefloatrarray(argv[2],&v1,2,1, dims, false);
+			if(card!=5)error("Argument 2 must be a 5 element floating point array");
+			card=parsefloatrarray(argv[4],&n,31,1, dims, true);
+			if(card!=5)error("Argument 3 must be a 5 element floating point array");
 			Q_Mult(q1, v1, temp);
 			Q_Invert(q1, qtemp);
 			Q_Mult(temp, qtemp, n);
@@ -1452,53 +1148,17 @@ void cmd_math(void){
 	} else {
 		tp = checkstring(cmdline, (unsigned char *)"ADD");
 		if(tp) {
-			void *ptr1 = NULL;
-			void *ptr2 = NULL;
-			int i,j,card1=1, card2=1;
+			int i,card1=1, card2=1;
 			MMFLOAT *a1float=NULL,*a2float=NULL, scale;
 			int64_t *a1int=NULL, *a2int=NULL;
 			getargs(&tp, 5,(unsigned char *)",");
 			if(!(argc == 5)) error("Argument count");
-			ptr1 = findvar(argv[0], V_FIND | V_EMPTY_OK | V_NOFIND_ERR);
-			if(vartbl[VarIndex].type & T_NBR) {
-				card1=1;
-				for(i=0;i<MAXDIM;i++){
-					j=(vartbl[VarIndex].dims[i] - OptionBase+1);
-					if(j)card1 *= j;
-				}
-				a1float = (MMFLOAT *)ptr1;
-				if((uint32_t)ptr1!=(uint32_t)vartbl[VarIndex].val.s)error("Syntax");
-			} else if(vartbl[VarIndex].type & T_INT) {
-				card1=1;
-				for(i=0;i<MAXDIM;i++){
-					j=(vartbl[VarIndex].dims[i] - OptionBase+1);
-					if(j)card1 *= j;
-				}
-				a1int = (int64_t *)ptr1;
-				if((uint32_t)ptr1!=(uint32_t)vartbl[VarIndex].val.s)error("Syntax");
-			} else error("Argument 1 must be numerical");
+			card1=parsenumberarray(argv[0], &a1float, &a1int, 1, 0,dims, false);
 		    evaluate(argv[2], &f, &i64, &s, &t, false);
 		    if(t & T_STR) error("Syntax");
 		    scale=getnumber(argv[2]);
-			ptr2 = findvar(argv[4], V_FIND | V_EMPTY_OK | V_NOFIND_ERR);
-			if(vartbl[VarIndex].type & T_NBR) {
-				card2=1;
-				for(i=0;i<MAXDIM;i++){
-					j=(vartbl[VarIndex].dims[i] - OptionBase+1);
-					if(j)card2 *= j;
-				}
-				a2float = (MMFLOAT *)ptr2;
-				if((uint32_t)ptr2!=(uint32_t)vartbl[VarIndex].val.s)error("Syntax");
-			} else if(vartbl[VarIndex].type & T_INT) {
-				card2=1;
-				for(i=0;i<MAXDIM;i++){
-					j=(vartbl[VarIndex].dims[i] - OptionBase+1);
-					if(j)card2 *= j;
-				}
-				a2int = (int64_t *)ptr2;
-				if((uint32_t)ptr2!=(uint32_t)vartbl[VarIndex].val.s)error("Syntax");
-			} else error("Argument 3 must be numerical");
-			if(card1 != card2)error("Size mismatch");
+			card2=parsenumberarray(argv[4], &a2float, &a2int, 3, 0,dims, true);
+			if(card1 != card2)error("Array size mismatch");
 			if(scale!=0.0){
 				if(a2float!=NULL && a1float!=NULL){
 					for(i=0; i< card1;i++)*a2float++ = ((t & T_INT) ? (MMFLOAT)i64 : f) + (*a1float++);
@@ -1525,51 +1185,15 @@ void cmd_math(void){
 
 		tp = checkstring(cmdline, (unsigned char *)"WINDOW");
 		if(tp) {
-			void *ptr1 = NULL;
-			void *ptr2 = NULL;
-			int i,j,card1=1, card2=1;
+			int i,card1=1, card2=1;
 			MMFLOAT *a1float=NULL,*a2float=NULL, outmin,outmax, inmin=1.5e+308 , inmax=-1.5e308;
 			int64_t *a1int=NULL, *a2int=NULL;
 			getargs(&tp, 11,(unsigned char *)",");
 			if(!(argc == 7 || argc==11)) error("Argument count");
-			ptr1 = findvar(argv[0], V_FIND | V_EMPTY_OK | V_NOFIND_ERR);
-			if(vartbl[VarIndex].type & T_NBR) {
-				card1=1;
-				for(i=0;i<MAXDIM;i++){
-					j=(vartbl[VarIndex].dims[i] - OptionBase+1);
-					if(j)card1 *= j;
-				}
-				a1float = (MMFLOAT *)ptr1;
-				if((uint32_t)ptr1!=(uint32_t)vartbl[VarIndex].val.s)error("Syntax");
-			} else if(vartbl[VarIndex].type & T_INT) {
-				card1=1;
-				for(i=0;i<MAXDIM;i++){
-					j=(vartbl[VarIndex].dims[i] - OptionBase+1);
-					if(j)card1 *= j;
-				}
-				a1int = (int64_t *)ptr1;
-				if((uint32_t)ptr1!=(uint32_t)vartbl[VarIndex].val.s)error("Syntax");
-			} else error("Argument 1 must be numerical");
+			card1=parsenumberarray(argv[0], &a1float, &a1int, 1, 0,dims, false);
 		    outmin=getnumber(argv[2]);
 			outmax=getnumber(argv[4]);
-			ptr2 = findvar(argv[6], V_FIND | V_EMPTY_OK | V_NOFIND_ERR);
-			if(vartbl[VarIndex].type & T_NBR) {
-				card2=1;
-				for(i=0;i<MAXDIM;i++){
-					j=(vartbl[VarIndex].dims[i] - OptionBase+1);
-					if(j)card2 *= j;
-				}
-				a2float = (MMFLOAT *)ptr2;
-				if((uint32_t)a2float!=(uint32_t)vartbl[VarIndex].val.s)error("Syntax");
-			} else if(vartbl[VarIndex].type & T_INT) {
-				card2=1;
-				for(i=0;i<MAXDIM;i++){
-					j=(vartbl[VarIndex].dims[i] - OptionBase+1);
-					if(j)card2 *= j;
-				}
-				a2int = (int64_t *)ptr2;
-				if((uint32_t)a2int!=(uint32_t)vartbl[VarIndex].val.s)error("Syntax");
-			} else error("Argument 4 must be numerical");
+			card2=parsenumberarray(argv[6], &a2float, &a2int, 4, 0,dims, true);
 			if(card1 != card2)error("Size mismatch");
 			for(i=0; i< card1;i++){
 				if(a1float!=NULL){ //find min and max if in is a float
@@ -1581,11 +1205,11 @@ void cmd_math(void){
 				}
 			}
 			if(argc==11){
-				ptr1 = findvar(argv[8], V_FIND);
+				void *ptr1 = findvar(argv[8], V_FIND);
 				if(!(vartbl[VarIndex].type & (T_NBR | T_INT))) error("Invalid variable");
 				if(vartbl[VarIndex].type==T_INT)*(long long int *)ptr1=(long long int)inmin;
 				else *(MMFLOAT *)ptr1=inmin;
-				ptr2 = findvar(argv[10], V_FIND);
+				void *ptr2 = findvar(argv[10], V_FIND);
 				if(!(vartbl[VarIndex].type & (T_NBR | T_INT))) error("Invalid variable");
 				if(vartbl[VarIndex].type==T_INT)*(long long int *)ptr2=(long long int)inmax;
 				else *(MMFLOAT *)ptr2=inmax;
@@ -1616,74 +1240,20 @@ void cmd_math(void){
 		}
 		tp = checkstring(cmdline, (unsigned char *)"INTERPOLATE");
 		if(tp) {
-			void *ptr1 = NULL;
-			void *ptr2 = NULL;
-			void *ptr3 = NULL;
-			int i,j,card1=1, card2=1, card3=1;
+			int i,card1, card2, card3;
 			MMFLOAT *a1float=NULL,*a2float=NULL, *a3float=NULL, scale, tmp1, tmp2, tmp3;
 			int64_t *a1int=NULL, *a2int=NULL, *a3int=NULL;
 			getargs(&tp, 7,(unsigned char *)",");
 			if(!(argc == 7)) error("Argument count");
-			ptr1 = findvar(argv[0], V_FIND | V_EMPTY_OK | V_NOFIND_ERR);
-			if(vartbl[VarIndex].type & T_NBR) {
-				card1=1;
-				for(i=0;i<MAXDIM;i++){
-					j=(vartbl[VarIndex].dims[i] - OptionBase+1);
-					if(j)card1 *= j;
-				}
-				a1float = (MMFLOAT *)ptr1;
-				if((uint32_t)ptr1!=(uint32_t)vartbl[VarIndex].val.s)error("Syntax");
-			} else if(vartbl[VarIndex].type & T_INT) {
-				card1=1;
-				for(i=0;i<MAXDIM;i++){
-					j=(vartbl[VarIndex].dims[i] - OptionBase+1);
-					if(j)card1 *= j;
-				}
-				a1int = (int64_t *)ptr1;
-				if((uint32_t)ptr1!=(uint32_t)vartbl[VarIndex].val.s)error("Syntax");
-			} else error("Argument 1 must be numerical");
+			card1=parsenumberarray(argv[0], &a1float, &a1int, 1, 0, dims, false);
 		    evaluate(argv[4], &f, &i64, &s, &t, false);
 		    if(t & T_STR) error("Syntax");
 		    scale=getnumber(argv[4]);
-			ptr2 = findvar(argv[2], V_FIND | V_EMPTY_OK | V_NOFIND_ERR);
-			if(vartbl[VarIndex].type & T_NBR) {
-				card2=1;
-				for(i=0;i<MAXDIM;i++){
-					j=(vartbl[VarIndex].dims[i] - OptionBase+1);
-					if(j)card2 *= j;
-				}
-				a2float = (MMFLOAT *)ptr2;
-				if((uint32_t)ptr2!=(uint32_t)vartbl[VarIndex].val.s)error("Syntax");
-			} else if(vartbl[VarIndex].type & T_INT) {
-				card2=1;
-				for(i=0;i<MAXDIM;i++){
-					j=(vartbl[VarIndex].dims[i] - OptionBase+1);
-					if(j)card2 *= j;
-				}
-				a2int = (int64_t *)ptr2;
-				if((uint32_t)ptr2!=(uint32_t)vartbl[VarIndex].val.s)error("Syntax");
-			} else error("Argument 2 must be numerical");
-			ptr3 = findvar(argv[6], V_FIND | V_EMPTY_OK | V_NOFIND_ERR);
-			if(vartbl[VarIndex].type & T_NBR) {
-				card3=1;
-				for(i=0;i<MAXDIM;i++){
-					j=(vartbl[VarIndex].dims[i] - OptionBase+1);
-					if(j)card3 *= j;
-				}
-				a3float = (MMFLOAT *)ptr3;
-				if((uint32_t)ptr3!=(uint32_t)vartbl[VarIndex].val.s)error("Syntax");
-			} else if(vartbl[VarIndex].type & T_INT) {
-				card3=1;
-				for(i=0;i<MAXDIM;i++){
-					j=(vartbl[VarIndex].dims[i] - OptionBase+1);
-					if(j)card3 *= j;
-				}
-				a3int = (int64_t *)ptr3;
-				if((uint32_t)ptr3!=(uint32_t)vartbl[VarIndex].val.s)error("Syntax");
-			} else error("Argument 2 must be numerical");
+			card2=parsenumberarray(argv[2], &a2float, &a2int, 3, 0, dims, false);
+			card3=parsenumberarray(argv[6], &a3float, &a3int, 4, 0, dims, true);
 			if((card1 != card2) || (card1!=card3))error("Size mismatch");
-			if((ptr1==ptr2) || (ptr1==ptr3))error("Arrays must be different");
 			if(a3int!=NULL){
+				if((a1int==a2int) || (a1int==a3int) || (a2int==a3int))error("Arrays must be different");
 				for(i=0; i< card1;i++){
 					if(a1int!=NULL)tmp1=(MMFLOAT)*a1int++;
 					else tmp1=*a1float++;
@@ -1693,6 +1263,7 @@ void cmd_math(void){
 					*a3int++=FloatToInt64(tmp3);
 				}
 			} else {
+				if((a1float==a2float) || (a1float==a3float) || (a2float==a3float))error("Arrays must be different");
 				for(i=0; i< card1;i++){
 					if(a1int!=NULL)tmp1=(MMFLOAT)*a1int++;
 					else tmp1=*a1float++;
@@ -1706,29 +1277,14 @@ void cmd_math(void){
 		}
 		tp = checkstring(cmdline, (unsigned char *)"INSERT");
 		if(tp) {
-			int i, j, start, increment, dim[MAXDIM], pos[MAXDIM],off[MAXDIM], dimcount=0, target=-1, toarray=0;
+			int i, j, start, increment, dim[MAXDIM], pos[MAXDIM],off[MAXDIM], dimcount=0, target=-1;
 			int64_t *a1int=NULL,*a2int=NULL;
-			void *ptr1 = NULL;
-			void *ptr2 = NULL;
+			MMFLOAT *afloat=NULL;
 			getargs(&tp, 13,(unsigned char *)",");
 			if(argc<7)error("Argument count");
-			ptr1 = findvar(argv[0], V_FIND | V_EMPTY_OK | V_NOFIND_ERR);
-			if(vartbl[VarIndex].type & (T_NBR | T_INT)) {
-				if(vartbl[VarIndex].dims[1] <= 0) {		// Not an array
-					error("Argument 1 must be a 2D or more numerical array");
-				}
-				if(vartbl[VarIndex].dims[0] <= 0) {		// Not an array
-					error("Argument 1 must be a 2D or more numerical array");
-				}
-				for(i=0;i<MAXDIM;i++){
-					if(vartbl[VarIndex].dims[i]-OptionBase>0){
-						dimcount++;
-						dim[i]=vartbl[VarIndex].dims[i]-OptionBase;
-					} else dim[i]=0;
-				}
-				a1int = (int64_t *)ptr1;
-				if((uint32_t)ptr1!=(uint32_t)vartbl[VarIndex].val.s)error("Syntax");
-			} else error("Argument 1 must be a 2D or more numerical array");
+			parsenumberarray(argv[0],&afloat,&a1int,1,0,dims, false);
+			if(!a1int)a1int=(int64_t *)afloat;
+			if(dims[1]<=0)error("Argument 1 must be a 2D or more numerical array");
 			if(((argc-1)/2-1)!=dimcount)error("Argument count");
 			for(i=0; i<dimcount;i++ ){
 				if(*argv[i*2 +2]) pos[i]=getint(argv[i*2 +2],OptionBase,dim[i]+OptionBase)-OptionBase;
@@ -1738,17 +1294,10 @@ void cmd_math(void){
 					pos[i]=1;
 				}
 			}
-			ptr2 = findvar(argv[i*2 +2], V_FIND | V_EMPTY_OK | V_NOFIND_ERR);
-			if(vartbl[VarIndex].type &  (T_NBR | T_INT)) {
-				if(vartbl[VarIndex].dims[1] != 0) error("Source must be 1D a numerical point array");
-				if(vartbl[VarIndex].dims[0] <= 0) {		// Not an array
-					error("Source must be 1D a numerical point array");
-				}
-				toarray=vartbl[VarIndex].dims[0]-OptionBase;
-				a2int = (int64_t *)ptr2;
-				if((uint32_t)ptr2!=(uint32_t)vartbl[VarIndex].val.s)error("Syntax");
-			} else error("Source must be 1D a numerical point array");
-			if(dim[target]!=toarray)error("Size mismatch between insert and target array");
+			parsenumberarray(argv[i*2 +2],&afloat,&a2int,i+1,1,dims,true);
+			if(!a2int)a2int=(int64_t *)afloat;
+			if(target==-1)return;
+			if(dim[target]!=dims[0])error("Size mismatch between insert and target array");
 			i=dimcount-1;
 			while(i>=0){
 				off[i]=1;
@@ -1774,9 +1323,20 @@ void cmd_math(void){
 
 	error("Syntax");
 }
-
+fcplx getComplex(unsigned char *in){
+	int64_t i=getinteger(in);
+	fcplx x;
+	memcpy(&x, &i, 8);
+	return x;
+}
+void retComplex(fcplx in){
+	iret=0;
+	memcpy(&iret, &in, 8);
+	targ=T_INT;
+}
 void fun_math(void){
 	unsigned char *tp, *tp1;
+	short dims[MAXDIM]={0};
 	skipspace(ep);
 	if(toupper(*ep)=='A'){
 		tp = checkstring(ep, (unsigned char *)"ATAN3");
@@ -1793,10 +1353,120 @@ void fun_math(void){
 			return;
 		}
 	} else if(toupper(*ep)=='C') {
-
+		if(ep[1]=='_'){
+			if((tp=checkstring(&ep[2],(unsigned char *)"REAL"))){
+				fret=(MMFLOAT)crealf(getComplex(tp));
+				targ=T_NBR;
+			} else if((tp=checkstring(&ep[2],(unsigned char *)"IMAG"))){
+				fret=(MMFLOAT)cimagf(getComplex(tp));
+				targ=T_NBR;
+			} else if((tp=checkstring(&ep[2],(unsigned char *)"MOD"))){
+				MMFLOAT a=(MMFLOAT)crealf(getComplex(tp));
+				MMFLOAT b=(MMFLOAT)cimagf(getComplex(tp));
+				a*=a;
+				b*=b;
+				b+=a;
+				fret=sqrt(b);
+				targ=T_NBR;
+			} else if((tp=checkstring(&ep[2],(unsigned char *)"PHASE"))){
+				MMFLOAT a=(MMFLOAT)crealf(getComplex(tp));
+				MMFLOAT b=(MMFLOAT)cimagf(getComplex(tp));
+				fret=atan2(b,a)*optionangle;
+				targ=T_NBR;
+			} else if((tp=checkstring(&ep[2],(unsigned char *)"CARG"))){
+				fret=(MMFLOAT)cargf(getComplex(tp));
+				targ=T_NBR;
+			} else if((tp=checkstring(&ep[2],(unsigned char *)"ADD"))){
+				getargs(&tp,3,(unsigned char *)",");
+				fcplx x=getComplex(argv[0])+getComplex(argv[2]);
+				retComplex(x);
+			} else if((tp=checkstring(&ep[2],(unsigned char *)"MUL"))){
+				getargs(&tp,3,(unsigned char *)",");
+				fcplx x=getComplex(argv[0])*getComplex(argv[2]);
+				retComplex(x);
+			} else if((tp=checkstring(&ep[2],(unsigned char *)"SUB"))){
+				getargs(&tp,3,(unsigned char *)",");
+				fcplx x=getComplex(argv[0])-getComplex(argv[2]);
+				retComplex(x);
+			} else if((tp=checkstring(&ep[2],(unsigned char *)"DIV"))){
+				getargs(&tp,3,(unsigned char *)",");
+				fcplx x=getComplex(argv[0])/getComplex(argv[2]);
+				retComplex(x);
+			} else if((tp=checkstring(&ep[2],(unsigned char *)"POW"))){
+				getargs(&tp,3,(unsigned char *)",");
+				fcplx x=cpowf(getComplex(argv[0]),getComplex(argv[2]));
+				retComplex(x);
+			} else if((tp=checkstring(&ep[2],(unsigned char *)"CONJ"))){
+				fcplx x=conjf(getComplex(tp));
+				retComplex(x);
+			} else if((tp=checkstring(&ep[2],(unsigned char *)"ACOS"))){
+				fcplx x=cacosf(getComplex(tp));
+				retComplex(x);
+			} else if((tp=checkstring(&ep[2],(unsigned char *)"ASIN"))){
+				fcplx x=casinf(getComplex(tp));
+				retComplex(x);
+			} else if((tp=checkstring(&ep[2],(unsigned char *)"ATAN"))){
+				fcplx x=catanf(getComplex(tp));
+				retComplex(x);
+			} else if((tp=checkstring(&ep[2],(unsigned char *)"SIN"))){
+				fcplx x=csinf(getComplex(tp));
+				retComplex(x);
+			} else if((tp=checkstring(&ep[2],(unsigned char *)"COS"))){
+				fcplx x=ccosf(getComplex(tp));
+				retComplex(x);
+			} else if((tp=checkstring(&ep[2],(unsigned char *)"TAN"))){
+				fcplx x=ctanf(getComplex(tp));
+				retComplex(x);
+			} else if((tp=checkstring(&ep[2],(unsigned char *)"SINH"))){
+				fcplx x=csinhf(getComplex(tp));
+				retComplex(x);
+			} else if((tp=checkstring(&ep[2],(unsigned char *)"COSH"))){
+				fcplx x=ccoshf(getComplex(tp));
+				retComplex(x);
+			} else if((tp=checkstring(&ep[2],(unsigned char *)"TANH"))){
+				fcplx x=ctanhf(getComplex(tp));
+				retComplex(x);
+			} else if((tp=checkstring(&ep[2],(unsigned char *)"ASINH"))){
+				fcplx x=casinhf(getComplex(tp));
+				retComplex(x);
+			} else if((tp=checkstring(&ep[2],(unsigned char *)"ACOSH"))){
+				fcplx x=cacoshf(getComplex(tp));
+				retComplex(x);
+			} else if((tp=checkstring(&ep[2],(unsigned char *)"ATANH"))){
+				fcplx x=catanhf(getComplex(tp));
+				retComplex(x);
+			} else if((tp=checkstring(&ep[2],(unsigned char *)"EXP"))){
+				fcplx x=cexpf(getComplex(tp));
+				retComplex(x);
+			} else if((tp=checkstring(&ep[2],(unsigned char *)"LOG"))){
+				fcplx x=clogf(getComplex(tp));
+				retComplex(x);
+			} else if((tp=checkstring(&ep[2],(unsigned char *)"ABS"))){
+				fcplx x=cabsf(getComplex(tp));
+				retComplex(x);
+			} else if((tp=checkstring(&ep[2],(unsigned char *)"SQRT"))){
+				fcplx x=csqrtf(getComplex(tp));
+				retComplex(x);
+			} else if((tp=checkstring(&ep[2],(unsigned char *)"PROJ"))){
+				fcplx x=cprojf(getComplex(tp));
+				retComplex(x);
+			} else if((tp=checkstring(&ep[2],(unsigned char *)"CPLX"))){
+				getargs(&tp,3,(unsigned char *)",");
+				fcplx x=(float)(getnumber(argv[0]))+(float)(getnumber(argv[2]))*I;
+				retComplex(x);
+			} else if((tp=checkstring(&ep[2],(unsigned char *)"POLAR"))){
+				getargs(&tp,3,(unsigned char *)",");
+				MMFLOAT r=getnumber(argv[0]);
+				MMFLOAT theta=getnumber(argv[2])/optionangle;
+				MMFLOAT stheta=sin(theta)*r;
+				MMFLOAT ctheta=cos(theta)*r;
+				fcplx x=(float)(ctheta)+(float)(stheta)*I;
+				retComplex(x);
+			} else error("Syntax");
+			return;
+		}
 		tp = checkstring(ep, (unsigned char *)"CRC8");
 		if(tp) {
-		    void *ptr1 = NULL;
 		    int i;
 		    MMFLOAT *a1float=NULL;
 		    int64_t *a1int=NULL;
@@ -1808,35 +1478,9 @@ void fun_math(void){
 			uint8_t reverseIn=false;
 			uint8_t reverseOut=false;
 			unsigned char *a1str=NULL;
-			int arraylength=0;
 			int length=0;
 			if(argc>1 && *argv[2])length=getint(argv[2],1,65535);
-			ptr1 = findvar(argv[0], V_FIND | V_EMPTY_OK | V_NOFIND_ERR);
-			if(vartbl[VarIndex].type & T_NBR) {
-				if(vartbl[VarIndex].dims[1] != 0) error("Invalid variable");
-				if(vartbl[VarIndex].dims[0] <= 0) {		// Not an array
-					error("Argument 1 must be a numerical array");
-				}
-				arraylength=vartbl[VarIndex].dims[0] - OptionBase + 1;
-				if(length==0)length=arraylength;
-				if(length>arraylength)error("Array size");
-				a1float = (MMFLOAT *)ptr1;
-				if((uint32_t)ptr1!=(uint32_t)vartbl[VarIndex].val.s)error("Syntax");
-			} else if(ptr1 && vartbl[VarIndex].type & T_INT) {
-				if(vartbl[VarIndex].dims[1] != 0) error("Invalid variable");
-				if(vartbl[VarIndex].dims[0] <= 0) {		// Not an array
-					error("Argument 1 must be a numerical array");
-				}
-				arraylength=vartbl[VarIndex].dims[0] - OptionBase + 1;
-				if(length==0)length=arraylength;
-				if(length>arraylength)error("Array size");
-				a1int = (int64_t *)ptr1;
-				if((uint32_t)ptr1!=(uint32_t)vartbl[VarIndex].val.s)error("Syntax");
-			} else if(ptr1 && vartbl[VarIndex].type & T_STR) {
-				a1str=(unsigned char *)ptr1;
-				if(length==0)length=*a1str;
-				if(*a1str<length)error("String size");
-			} else error("Syntax");
+			length=parseany(argv[0], &a1float, &a1int, &a1str, &length, false);
 			uint8_t *array=GetTempMemory(length);
 			if(argc>3 && *argv[4])polynome=getint(argv[4],0,255);
 			if(argc>5 && *argv[6])startmask=getint(argv[6],0,255);
@@ -1858,7 +1502,6 @@ void fun_math(void){
 		}
 		tp = checkstring(ep, (unsigned char *)"CRC12");
 		if(tp) {
-		    void *ptr1 = NULL;
 		    int i;
 		    MMFLOAT *a1float=NULL;
 		    int64_t *a1int=NULL;
@@ -1870,35 +1513,9 @@ void fun_math(void){
 			uint8_t reverseIn=false;
 			uint8_t reverseOut=false;
 			unsigned char *a1str=NULL;
-			int arraylength=0;
 			int length=0;
 			if(argc>1 && *argv[2])length=getint(argv[2],1,65535);
-			ptr1 = findvar(argv[0], V_FIND | V_EMPTY_OK | V_NOFIND_ERR);
-			if(vartbl[VarIndex].type & T_NBR) {
-				if(vartbl[VarIndex].dims[1] != 0) error("Invalid variable");
-				if(vartbl[VarIndex].dims[0] <= 0) {		// Not an array
-					error("Argument 1 must be a numerical array");
-				}
-				arraylength=vartbl[VarIndex].dims[0] - OptionBase + 1;
-				if(length==0)length=arraylength;
-				if(length>arraylength)error("Array size");
-				a1float = (MMFLOAT *)ptr1;
-				if((uint32_t)ptr1!=(uint32_t)vartbl[VarIndex].val.s)error("Syntax");
-			} else if(ptr1 && vartbl[VarIndex].type & T_INT) {
-				if(vartbl[VarIndex].dims[1] != 0) error("Invalid variable");
-				if(vartbl[VarIndex].dims[0] <= 0) {		// Not an array
-					error("Argument 1 must be a numerical array");
-				}
-				arraylength=vartbl[VarIndex].dims[0] - OptionBase + 1;
-				if(length==0)length=arraylength;
-				if(length>arraylength)error("Array size");
-				a1int = (int64_t *)ptr1;
-				if((uint32_t)ptr1!=(uint32_t)vartbl[VarIndex].val.s)error("Syntax");
-			} else if(ptr1 && vartbl[VarIndex].type & T_STR) {
-				a1str=(unsigned char *)ptr1;
-				if(length==0)length=*a1str;
-				if(*a1str<length)error("String size");
-			} else error("Syntax");
+			length=parseany(argv[0], &a1float, &a1int, &a1str, &length, false);
 			uint8_t *array=GetTempMemory(length);
 			if(argc>3 && *argv[4])polynome=getint(argv[4],0,4095);
 			if(argc>5 && *argv[6])startmask=getint(argv[6],0,4095);
@@ -1920,7 +1537,6 @@ void fun_math(void){
 		}
 		tp = checkstring(ep, (unsigned char *)"CRC16");
 		if(tp) {
-		    void *ptr1 = NULL;
 		    int i;
 		    MMFLOAT *a1float=NULL;
 		    int64_t *a1int=NULL;
@@ -1932,35 +1548,9 @@ void fun_math(void){
 			uint8_t reverseIn=false;
 			uint8_t reverseOut=false;
 			unsigned char *a1str=NULL;
-			int arraylength=0;
 			int length=0;
 			if(argc>1 && *argv[2])length=getint(argv[2],1,65535);
-			ptr1 = findvar(argv[0], V_FIND | V_EMPTY_OK | V_NOFIND_ERR);
-			if(vartbl[VarIndex].type & T_NBR) {
-				if(vartbl[VarIndex].dims[1] != 0) error("Invalid variable");
-				if(vartbl[VarIndex].dims[0] <= 0) {		// Not an array
-					error("Argument 1 must be a numerical array");
-				}
-				arraylength=vartbl[VarIndex].dims[0] - OptionBase + 1;
-				if(length==0)length=arraylength;
-				if(length>arraylength)error("Array size");
-				a1float = (MMFLOAT *)ptr1;
-				if((uint32_t)ptr1!=(uint32_t)vartbl[VarIndex].val.s)error("Syntax");
-			} else if(ptr1 && vartbl[VarIndex].type & T_INT) {
-				if(vartbl[VarIndex].dims[1] != 0) error("Invalid variable");
-				if(vartbl[VarIndex].dims[0] <= 0) {		// Not an array
-					error("Argument 1 must be a numerical array");
-				}
-				arraylength=vartbl[VarIndex].dims[0] - OptionBase + 1;
-				if(length==0)length=arraylength;
-				if(length>arraylength)error("Array size");
-				a1int = (int64_t *)ptr1;
-				if((uint32_t)ptr1!=(uint32_t)vartbl[VarIndex].val.s)error("Syntax");
-			} else if(ptr1 && vartbl[VarIndex].type & T_STR) {
-				a1str=(unsigned char *)ptr1;
-				if(length==0)length=*a1str;
-				if(*a1str<length)error("String size");
-			} else error("Syntax");
+			length=parseany(argv[0], &a1float, &a1int, &a1str, &length, false);
 			uint8_t *array=GetTempMemory(length);
 			if(argc>3 && *argv[4])polynome=getint(argv[4],0,65535);
 			if(argc>5 && *argv[6])startmask=getint(argv[6],0,65535);
@@ -1982,7 +1572,6 @@ void fun_math(void){
 		}
 		tp = checkstring(ep, (unsigned char *)"CRC32");
 		if(tp) {
-		    void *ptr1 = NULL;
 		    int i;
 		    MMFLOAT *a1float=NULL;
 		    int64_t *a1int=NULL;
@@ -1994,35 +1583,9 @@ void fun_math(void){
 			uint8_t reverseIn=false;
 			uint8_t reverseOut=false;
 			unsigned char *a1str=NULL;
-			int arraylength=0;
 			int length=0;
 			if(argc>1 && *argv[2])length=getint(argv[2],1,65535);
-			ptr1 = findvar(argv[0], V_FIND | V_EMPTY_OK | V_NOFIND_ERR);
-			if(vartbl[VarIndex].type & T_NBR) {
-				if(vartbl[VarIndex].dims[1] != 0) error("Invalid variable");
-				if(vartbl[VarIndex].dims[0] <= 0) {		// Not an array
-					error("Argument 1 must be a numerical array");
-				}
-				arraylength=vartbl[VarIndex].dims[0] - OptionBase + 1;
-				if(length==0)length=arraylength;
-				if(length>arraylength)error("Array size");
-				a1float = (MMFLOAT *)ptr1;
-				if((uint32_t)ptr1!=(uint32_t)vartbl[VarIndex].val.s)error("Syntax");
-			} else if(ptr1 && vartbl[VarIndex].type & T_INT) {
-				if(vartbl[VarIndex].dims[1] != 0) error("Invalid variable");
-				if(vartbl[VarIndex].dims[0] <= 0) {		// Not an array
-					error("Argument 1 must be a numerical array");
-				}
-				arraylength=vartbl[VarIndex].dims[0] - OptionBase + 1;
-				if(length==0)length=arraylength;
-				if(length>arraylength)error("Array size");
-				a1int = (int64_t *)ptr1;
-				if((uint32_t)ptr1!=(uint32_t)vartbl[VarIndex].val.s)error("Syntax");
-			} else if(ptr1 && vartbl[VarIndex].type & T_STR) {
-				a1str=(unsigned char *)ptr1;
-				if(length==0)length=*a1str;
-				if(*a1str<length)error("String size");
-			} else error("Syntax");
+			length=parseany(argv[0], &a1float, &a1int, &a1str, &length, false);
 			uint8_t *array=GetTempMemory(length);
 			if(argc>3 && *argv[4])polynome=getint(argv[4],0,0xFFFFFFFF);
 			if(argc>5 && *argv[6])startmask=getint(argv[6],0,0xFFFFFFFF);
@@ -2055,33 +1618,15 @@ void fun_math(void){
 		    MMFLOAT *a1float=NULL;
 		    int64_t *a1int=NULL;
 			int arraylength=0;
-			void *ptr1 = NULL;
 			MMFLOAT crossing=0.0;
 			int direction=1;
 			int found=-1;
 			getargs(&tp,5,(unsigned char *)",");
 			if(argc<1)error("Syntax");
-			ptr1 = findvar(argv[0], V_FIND | V_EMPTY_OK | V_NOFIND_ERR);
-			if(vartbl[VarIndex].type & T_NBR) {
-				if(vartbl[VarIndex].dims[1] != 0) error("Invalid variable");
-				if(vartbl[VarIndex].dims[0] <= 0) {		// Not an array
-					error("Argument 1 must be a numerical array");
-				}
-				arraylength=vartbl[VarIndex].dims[0] - OptionBase + 1;
-				a1float = (MMFLOAT *)ptr1;
-				if((uint32_t)ptr1!=(uint32_t)vartbl[VarIndex].val.s)error("Syntax");
-			} else if(ptr1 && vartbl[VarIndex].type & T_INT) {
-				if(vartbl[VarIndex].dims[1] != 0) error("Invalid variable");
-				if(vartbl[VarIndex].dims[0] <= 0) {		// Not an array
-					error("Argument 1 must be a numerical array");
-				}
-				arraylength=vartbl[VarIndex].dims[0] - OptionBase + 1;
-				a1int = (int64_t *)ptr1;
-				if((uint32_t)ptr1!=(uint32_t)vartbl[VarIndex].val.s)error("Syntax");
-			} else error("Syntax");
 			if(argc>=3 && *argv[2])crossing = getnumber(argv[2]);
 			if(argc==5) direction=getint(argv[4],-1,1);
 			if(direction==0)error ("Valid are -1 and 1");
+			arraylength=parsenumberarray(argv[0],&a1float,&a1int,1,1,dims, false);
 			for(int i=0;i<arraylength-3;i++){
 				if(a1float){
 					if(a1float[i]<crossing && a1float[i+2]>crossing && (a1float[i+1]>=a1float[i] && a1float[i+1]<=a1float[i+2]) && direction==1){
@@ -2140,51 +1685,15 @@ void fun_math(void){
 		}
 		tp = checkstring(ep, (unsigned char *)"CORREL");
 		if(tp) {
-		    void *ptr1 = NULL;
-		    void *ptr2 = NULL;
-		    int i,j,card1=1, card2=1;
+		    int i,card1=1, card2=1;
 		    MMFLOAT *a1float=NULL, *a2float=NULL, mean1=0, mean2=0;
 		    MMFLOAT *a3float=NULL, *a4float=NULL;
 		    MMFLOAT axb=0, a2=0, b2=0;
 		    int64_t *a1int=NULL, *a2int=NULL;
 		    getargs(&tp, 3,(unsigned char *)",");
 		    if(!(argc == 3)) error("Argument count");
-		    ptr1 = findvar(argv[0], V_FIND | V_EMPTY_OK | V_NOFIND_ERR);
-			if(vartbl[VarIndex].type & T_NBR) {
-				card1=1;
-				for(i=0;i<MAXDIM;i++){
-		    		j=(vartbl[VarIndex].dims[i] - OptionBase+1);
-		    		if(j)card1 *= j;
-				}
-				a1float = (MMFLOAT *)ptr1;
-				if((uint32_t)ptr1!=(uint32_t)vartbl[VarIndex].val.s)error("Syntax");
-		    } else if(vartbl[VarIndex].type & T_INT) {
-		    	card1=1;
-		    	for(i=0;i<MAXDIM;i++){
-		    		j=(vartbl[VarIndex].dims[i] - OptionBase+1);
-		    		if(j)card1 *= j;
-		    	}
-		        a1int = (int64_t *)ptr1;
-				if((uint32_t)ptr1!=(uint32_t)vartbl[VarIndex].val.s)error("Syntax");
-		    } else error("Argument 1 must be numerical");
-		    ptr2 = findvar(argv[2], V_FIND | V_EMPTY_OK | V_NOFIND_ERR);
-			if(vartbl[VarIndex].type & T_NBR) {
-				card2=1;
-				for(i=0;i<MAXDIM;i++){
-		    		j=(vartbl[VarIndex].dims[i] - OptionBase+1);
-		    		if(j)card2 *= j;
-				}
-				a2float = (MMFLOAT *)ptr2;
-				if((uint32_t)ptr2!=(uint32_t)vartbl[VarIndex].val.s)error("Syntax");
-		    } else if(vartbl[VarIndex].type & T_INT) {
-		    	card2=1;
-		    	for(i=0;i<MAXDIM;i++){
-		    		j=(vartbl[VarIndex].dims[i] - OptionBase+1);
-		    		if(j)card2 *= j;
-		    	}
-		        a2int = (int64_t *)ptr2;
-				if((uint32_t)ptr2!=(uint32_t)vartbl[VarIndex].val.s)error("Syntax");
-		    } else error("Argument 2 must be numerical");
+			card1=parsenumberarray(argv[0],&a1float,&a1int,1,0,dims, false);
+			card2=parsenumberarray(argv[2],&a2float,&a2int,2,0,dims, false);
 			if(card1!=card2)error("Array size mismatch");
 			a3float=GetTempMemory(card1*sizeof(MMFLOAT));
 			a4float=GetTempMemory(card1*sizeof(MMFLOAT));
@@ -2218,7 +1727,6 @@ void fun_math(void){
 	tp = (checkstring(ep, (unsigned char *)"CHI_P"));
 	tp1 = (checkstring(ep, (unsigned char *)"CHI"));
 	if(tp || tp1) {
-			void *ptr1 = NULL;
 			int chi_p=1;
 			if(tp1){
 				tp=tp1;
@@ -2231,32 +1739,9 @@ void fun_math(void){
 			{
 				getargs(&tp, 1,(unsigned char *)",");
 				if(!(argc == 1)) error("Argument count");
-				ptr1 = findvar(argv[0], V_FIND | V_EMPTY_OK | V_NOFIND_ERR);
-				if(vartbl[VarIndex].type & T_NBR) {
-					if(vartbl[VarIndex].dims[2] != 0) error("Invalid variable");
-					if(vartbl[VarIndex].dims[1] <= 0) {		// Not an array
-						error("Argument 1 must be a numerical 2D array");
-					}
-					if(vartbl[VarIndex].dims[0] <= 0) {		// Not an array
-						error("Argument 1 must be a numerical 2D array");
-					}
-					numcols=vartbl[VarIndex].dims[0] - OptionBase;
-					numrows=vartbl[VarIndex].dims[1] - OptionBase;
-					a1float = (MMFLOAT *)ptr1;
-					if((uint32_t)ptr1!=(uint32_t)vartbl[VarIndex].val.s)error("Syntax");
-				} else if(ptr1 && vartbl[VarIndex].type & T_INT) {
-					if(vartbl[VarIndex].dims[2] != 0) error("Invalid variable");
-					if(vartbl[VarIndex].dims[1] <= 0) {		// Not an array
-						error("Argument 1 must be a numerical 2D array");
-					}
-					if(vartbl[VarIndex].dims[0] <= 0) {		// Not an array
-						error("Argument 1 must be a numerical 2D array");
-					}
-					numcols=vartbl[VarIndex].dims[0] - OptionBase;
-					numrows=vartbl[VarIndex].dims[1] - OptionBase;
-					a1int = (int64_t *)ptr1;
-					if((uint32_t)ptr1!=(uint32_t)vartbl[VarIndex].val.s)error("Syntax");
-				} else error("Argument 1 must be a numerical 2D array");
+				parsenumberarray(argv[0],&a1float,&a1int,1,2,dims, false);
+				numcols=dims[0];
+				numrows=dims[1];
 				df=numcols*numrows;
 				numcols++;
 				numrows++;
@@ -2320,35 +1805,16 @@ void fun_math(void){
 		tp = checkstring(ep, (unsigned char *)"DOTPRODUCT");
 		if(tp) {
 			int i;
-			void *ptr1 = NULL,*ptr2 = NULL;
-			int numcols=0;
+			int card1,card2;
 			MMFLOAT *a1float=NULL, *a2float=NULL;
 			// need two arrays with same cardinality
 			getargs(&tp, 3,(unsigned char *)",");
 			if(!(argc == 3)) error("Argument count");
-			ptr1 = findvar(argv[0], V_FIND | V_EMPTY_OK | V_NOFIND_ERR);
-			if(vartbl[VarIndex].type & T_NBR) {
-				if(vartbl[VarIndex].dims[1] != 0) error("Invalid variable");
-				if(vartbl[VarIndex].dims[0] <= 0) {		// Not an array
-					error("Argument 1 must be a floating point array");
-				}
-				numcols=vartbl[VarIndex].dims[0] - OptionBase;
-				a1float = (MMFLOAT *)ptr1;
-				if((uint32_t)ptr1!=(uint32_t)vartbl[VarIndex].val.s)error("Syntax");
-			} else error("Argument 1 must be a floating point array");
-			ptr2 = findvar(argv[2], V_FIND | V_EMPTY_OK | V_NOFIND_ERR);
-			if(vartbl[VarIndex].type & T_NBR) {
-				if(vartbl[VarIndex].dims[1] != 0) error("Invalid variable");
-				if(vartbl[VarIndex].dims[0] <= 0) {		// Not an array
-					error("Argument 2 must be a floating point array");
-				}
-				if((vartbl[VarIndex].dims[0] - OptionBase) != numcols)error("Array size mismatch");
-				a2float = (MMFLOAT *)ptr2;
-				if((uint32_t)ptr2!=(uint32_t)vartbl[VarIndex].val.s)error("Syntax");
-			} else error("Argument 2 must be a floating point array");
-			numcols++;
+			card1=parsefloatrarray(argv[0],&a1float,1,1,dims, false);
+			card2=parsefloatrarray(argv[2],&a2float,2,1,dims, false);
+			if(card1!=card2)error("Array size mismatch");
 			fret=0;
-			for(i=0;i<numcols;i++){
+			for(i=0;i<card1;i++){
 				fret = fret + ((*a1float++) * (*a2float++));
 			}
 			targ = T_NBR;
@@ -2367,25 +1833,13 @@ void fun_math(void){
 	} else if(toupper(*ep)=='M') {
 		tp = checkstring(ep, (unsigned char *)"M_DETERMINANT");
 		if(tp){
-			void *ptr1 = NULL;
 			int i, j, n, numcols=0, numrows=0;
 			MMFLOAT *a1float=NULL;
 			getargs(&tp, 1,(unsigned char *)",");
 			if(!(argc == 1)) error("Argument count");
-			ptr1 = findvar(argv[0], V_FIND | V_EMPTY_OK | V_NOFIND_ERR);
-			if(vartbl[VarIndex].type & T_NBR) {
-				if(vartbl[VarIndex].dims[2] != 0) error("Invalid variable");
-				if(vartbl[VarIndex].dims[1] <= 0) {		// Not an array
-					error("Argument 1 must be a numerical 2D array");
-				}
-				if(vartbl[VarIndex].dims[0] <= 0) {		// Not an array
-					error("Argument 1 must be a numerical 2D array");
-				}
-				numcols=vartbl[VarIndex].dims[0] - OptionBase;
-				numrows=vartbl[VarIndex].dims[1] - OptionBase;
-				a1float = (MMFLOAT *)ptr1;
-				if((uint32_t)ptr1!=(uint32_t)vartbl[VarIndex].val.s)error("Syntax");
-			} else	error("Argument 1 must be a numerical 2D array");
+			parsefloatrarray(argv[0],&a1float,1,1,dims, false);
+			numcols=dims[0];
+			numrows=dims[1];
 			if(numcols!=numrows)error("Array must be square");
 			n=numrows+1;
 			MMFLOAT **matrix=alloc2df(n,n);
@@ -2403,33 +1857,15 @@ void fun_math(void){
 
 		tp = checkstring(ep, (unsigned char *)"MAX");
 		if(tp) {
-			void *ptr1 = NULL;
-			int i,j,card1=1;
+			int i,card1=1;
 			MMFLOAT *a1float=NULL, max=-3.0e+38;
 			int64_t *a1int=NULL;
 			long long int *temp=NULL;
 			getargs(&tp, 3,(unsigned char *)",");
 //			if(!(argc == 1)) error("Argument count");
-			ptr1 = findvar(argv[0], V_FIND | V_EMPTY_OK | V_NOFIND_ERR);
-			if(vartbl[VarIndex].type & T_NBR) {
-				card1=1;
-				for(i=0;i<MAXDIM;i++){
-					j=(vartbl[VarIndex].dims[i] - OptionBase+1);
-					if(j)card1 *= j;
-				}
-				a1float = (MMFLOAT *)ptr1;
-				if((uint32_t)ptr1!=(uint32_t)vartbl[VarIndex].val.s)error("Syntax");
-			} else if(vartbl[VarIndex].type & T_INT) {
-				card1=1;
-				for(i=0;i<MAXDIM;i++){
-					j=(vartbl[VarIndex].dims[i] - OptionBase+1);
-					if(j)card1 *= j;
-				}
-				a1int = (int64_t *)ptr1;
-				if((uint32_t)ptr1!=(uint32_t)vartbl[VarIndex].val.s)error("Syntax");
-			} else error("Argument 1 must be numerical");
+			card1=parsenumberarray(argv[0],&a1float,&a1int,1,0,dims, false);
 			if(argc==3){
-				if(vartbl[VarIndex].dims[1] > 0) {		// Not an array
+				if(dims[1] > 0) {		// Not an array
 					error("Argument 1 must be a 1D numerical array");
 				}
 				temp = findvar(argv[2], V_FIND);
@@ -2463,33 +1899,15 @@ void fun_math(void){
 		}
 		tp = checkstring(ep, (unsigned char *)"MIN");
 		if(tp) {
-			void *ptr1 = NULL;
-			int i,j,card1=1;
+			int i,card1=1;
 			MMFLOAT *a1float=NULL, min=3.0e+38;
 			int64_t *a1int=NULL;
 			long long int *temp=NULL;
 			getargs(&tp, 3,(unsigned char *)",");
 //			if(!(argc == 1)) error("Argument count");
-			ptr1 = findvar(argv[0], V_FIND | V_EMPTY_OK | V_NOFIND_ERR);
-			if(vartbl[VarIndex].type & T_NBR) {
-				card1=1;
-				for(i=0;i<MAXDIM;i++){
-					j=(vartbl[VarIndex].dims[i] - OptionBase+1);
-					if(j)card1 *= j;
-				}
-				a1float = (MMFLOAT *)ptr1;
-				if((uint32_t)ptr1!=(uint32_t)vartbl[VarIndex].val.s)error("Syntax");
-			} else if(vartbl[VarIndex].type & T_INT) {
-				card1=1;
-				for(i=0;i<MAXDIM;i++){
-					j=(vartbl[VarIndex].dims[i] - OptionBase+1);
-					if(j)card1 *= j;
-				}
-				a1int = (int64_t *)ptr1;
-				if((uint32_t)ptr1!=(uint32_t)vartbl[VarIndex].val.s)error("Syntax");
-			} else error("Argument 1 must be numerical");
+			card1=parsenumberarray(argv[0],&a1float,&a1int,1,0,dims, false);
 			if(argc==3){
-				if(vartbl[VarIndex].dims[1] > 0) {		// Not an array
+				if(dims[1] > 0) {		// Not an array
 					error("Argument 1 must be a 1D numerical array");
 				}
 				temp = findvar(argv[2], V_FIND);
@@ -2523,23 +1941,12 @@ void fun_math(void){
 		tp = checkstring(ep, (unsigned char *)"MAGNITUDE");
 		if(tp) {
 			int i;
-			void *ptr1 = NULL;
 			int numcols=0;
 			MMFLOAT *a1float=NULL;
 			MMFLOAT mag=0.0;
 			getargs(&tp, 1,(unsigned char *)",");
 			if(!(argc == 1)) error("Argument count");
-			ptr1 = findvar(argv[0], V_FIND | V_EMPTY_OK | V_NOFIND_ERR);
-			if(vartbl[VarIndex].type & T_NBR) {
-				if(vartbl[VarIndex].dims[1] != 0) error("Invalid variable");
-				if(vartbl[VarIndex].dims[0] <= 0) {		// Not an array
-					error("Argument 1 must be a floating point array");
-				}
-				numcols=vartbl[VarIndex].dims[0] - OptionBase;
-				a1float = (MMFLOAT *)ptr1;
-				if((uint32_t)ptr1!=(uint32_t)vartbl[VarIndex].val.s)error("Syntax");
-			} else error("Argument 1 must be a floating point array");
-			numcols++;
+			numcols=parsefloatrarray(argv[0],&a1float,1,0,dims, false);
 			for(i=0;i<numcols;i++){
 				mag = mag + ((*a1float) * (*a1float));
 				a1float++;
@@ -2551,30 +1958,12 @@ void fun_math(void){
 
 		tp = checkstring(ep, (unsigned char *)"MEAN");
 		if(tp) {
-			void *ptr1 = NULL;
-			int i,j,card1=1;
+			int i,card1=1;
 			MMFLOAT *a1float=NULL, mean=0;
 			int64_t *a1int=NULL;
 			getargs(&tp, 1,(unsigned char *)",");
 			if(!(argc == 1)) error("Argument count");
-			ptr1 = findvar(argv[0], V_FIND | V_EMPTY_OK | V_NOFIND_ERR);
-			if(vartbl[VarIndex].type & T_NBR) {
-				card1=1;
-				for(i=0;i<MAXDIM;i++){
-					j=(vartbl[VarIndex].dims[i] - OptionBase+1);
-					if(j)card1 *= j;
-				}
-				a1float = (MMFLOAT *)ptr1;
-				if((uint32_t)ptr1!=(uint32_t)vartbl[VarIndex].val.s)error("Syntax");
-			} else if(vartbl[VarIndex].type & T_INT) {
-				card1=1;
-				for(i=0;i<MAXDIM;i++){
-					j=(vartbl[VarIndex].dims[i] - OptionBase+1);
-					if(j)card1 *= j;
-				}
-				a1int = (int64_t *)ptr1;
-				if((uint32_t)ptr1!=(uint32_t)vartbl[VarIndex].val.s)error("Syntax");
-			} else error("Argument 1 must be numerical");
+			card1=parsenumberarray(argv[0],&a1float,&a1int,1,0,dims, false);
 			if(a1float!=NULL){
 				for(i=0; i< card1;i++)mean+= (*a1float++);
 			} else {
@@ -2587,30 +1976,12 @@ void fun_math(void){
 
 		tp = checkstring(ep, (unsigned char *)"MEDIAN");
 		if(tp) {
-			void *ptr2 = NULL;
-			int i,j,card1, card2=1;
+			int i,card1, card2=1;
 			MMFLOAT *a1float=NULL, *a2float=NULL;
 			int64_t *a2int=NULL;
 			getargs(&tp, 1,(unsigned char *)",");
 			if(!(argc == 1)) error("Argument count");
-			ptr2 = findvar(argv[0], V_FIND | V_EMPTY_OK | V_NOFIND_ERR);
-			if(vartbl[VarIndex].type & T_NBR) {
-				card2=1;
-				for(i=0;i<MAXDIM;i++){
-					j=(vartbl[VarIndex].dims[i] - OptionBase+1);
-					if(j)card2 *= j;
-				}
-				a2float = (MMFLOAT *)ptr2;
-				if((uint32_t)ptr2!=(uint32_t)vartbl[VarIndex].val.s)error("Syntax");
-			} else if(vartbl[VarIndex].type & T_INT) {
-				card2=1;
-				for(i=0;i<MAXDIM;i++){
-					j=(vartbl[VarIndex].dims[i] - OptionBase+1);
-					if(j)card2 *= j;
-				}
-				a2int = (int64_t *)ptr2;
-				if((uint32_t)ptr2!=(uint32_t)vartbl[VarIndex].val.s)error("Syntax");
-			} else error("Argument 1 must be numerical");
+			card2=parsenumberarray(argv[0],&a2float,&a2int,1,0,dims,false);
 			card1=card2;
 			card2=(card2-1)/2;
 			a1float=GetTempMemory(card1*sizeof(MMFLOAT));
@@ -2638,33 +2009,17 @@ void fun_math(void){
 
 		tp = checkstring(ep, (unsigned char *)"SD");
 		if(tp) {
-			void *ptr1 = NULL;
-			int i,j,card1=1;
+			int i,card1=1;
 			MMFLOAT *a2float=NULL, *a1float=NULL, mean=0, var=0, deviation;
 			int64_t *a2int=NULL, *a1int=NULL;
 			getargs(&tp, 1,(unsigned char *)",");
 			if(!(argc == 1)) error("Argument count");
-			ptr1 = findvar(argv[0], V_FIND | V_EMPTY_OK | V_NOFIND_ERR);
-			if(vartbl[VarIndex].type & T_NBR) {
-				card1=1;
-				for(i=0;i<MAXDIM;i++){
-					j=(vartbl[VarIndex].dims[i] - OptionBase+1);
-					if(j)card1 *= j;
-				}
-				a1float = a2float = (MMFLOAT *)ptr1;
-				if((uint32_t)ptr1!=(uint32_t)vartbl[VarIndex].val.s)error("Syntax");
-			} else if(vartbl[VarIndex].type & T_INT) {
-				card1=1;
-				for(i=0;i<MAXDIM;i++){
-					j=(vartbl[VarIndex].dims[i] - OptionBase+1);
-					if(j)card1 *= j;
-				}
-				a1int = a2int = (int64_t *)ptr1;
-				if((uint32_t)ptr1!=(uint32_t)vartbl[VarIndex].val.s)error("Syntax");
-			} else error("Argument 1 must be numerical");
-			if(a2float!=NULL){
+			card1=parsenumberarray(argv[0],&a1float,&a1int,1,0,dims, false);
+			if(a1float!=NULL){
+				a2float=a1float;
 				for(i=0; i< card1;i++)mean+= (*a2float++);
 			} else {
+				a2int=a1int;
 				for(i=0; i< card1;i++)mean+= (MMFLOAT)(*a2int++);
 			}
 			mean=mean/(MMFLOAT)card1;
@@ -2686,30 +2041,12 @@ void fun_math(void){
 
 		tp = checkstring(ep, (unsigned char *)"SUM");
 		if(tp) {
-			void *ptr1 = NULL;
-			int i,j,card1=1;
+			int i,card1=1;
 			MMFLOAT *a1float=NULL, sum=0;
 			int64_t *a1int=NULL;
 			getargs(&tp, 1,(unsigned char *)",");
 			if(!(argc == 1)) error("Argument count");
-			ptr1 = findvar(argv[0], V_FIND | V_EMPTY_OK | V_NOFIND_ERR);
-			if(vartbl[VarIndex].type & T_NBR) {
-				card1=1;
-				for(i=0;i<MAXDIM;i++){
-					j=(vartbl[VarIndex].dims[i] - OptionBase+1);
-					if(j)card1 *= j;
-				}
-				a1float = (MMFLOAT *)ptr1;
-				if((uint32_t)ptr1!=(uint32_t)vartbl[VarIndex].val.s)error("Syntax");
-			} else if(vartbl[VarIndex].type & T_INT) {
-				card1=1;
-				for(i=0;i<MAXDIM;i++){
-					j=(vartbl[VarIndex].dims[i] - OptionBase+1);
-					if(j)card1 *= j;
-				}
-				a1int = (int64_t *)ptr1;
-				if((uint32_t)ptr1!=(uint32_t)vartbl[VarIndex].val.s)error("Syntax");
-			} else error("Argument 1 must be numerical");
+			card1=parsenumberarray(argv[0],&a1float,&a1int,1,0,dims, false);
 			if(a1float!=NULL){
 				for(i=0; i< card1;i++)sum+= (*a1float++);
 			} else {
@@ -2800,150 +2137,81 @@ bool Fft_transformRadix2(double complex vec[], size_t n, bool inverse) {
 
 
 void cmd_FFT(unsigned char *pp){
-    void *ptr1 = NULL;
-    void *ptr2 = NULL;
     unsigned char *tp;
 	PI = atan2(1, 1) * 4;
+	short dims[MAXDIM]={0};
     cplx *a1cplx=NULL, *a2cplx=NULL;
     MMFLOAT *a3float=NULL, *a4float=NULL, *a5float;
-    int i, size, powerof2=0;
+    int i, card1,card2, powerof2=0;
 	tp = checkstring(pp, (unsigned char *)"MAGNITUDE");
 	if(tp) {
 		getargs(&tp,3,(unsigned char *)",");
-	    ptr1 = findvar(argv[0], V_FIND | V_EMPTY_OK | V_NOFIND_ERR);
-	    if(vartbl[VarIndex].type & T_NBR) {
-	        if(vartbl[VarIndex].dims[1] != 0) error("Invalid variable");
-	        if(vartbl[VarIndex].dims[0] <= 0) {		// Not an array
-	        	error("Argument 1 must be a floating point array");
-	        }
-	        a3float = (MMFLOAT *)ptr1;
-			if((uint32_t)ptr1!=(uint32_t)vartbl[VarIndex].val.s)error("Syntax");
-	    } else error("Argument 1 must be a floating point array");
-	    size=(vartbl[VarIndex].dims[0] - OptionBase);
-	    ptr2 = findvar(argv[2], V_FIND | V_EMPTY_OK | V_NOFIND_ERR);
-	    if(vartbl[VarIndex].type & T_NBR) {
-	         if(vartbl[VarIndex].dims[1] != 0) error("Invalid variable");
-	         if(vartbl[VarIndex].dims[0] <= 0 ) {		// Not an array
-	        	 error("Argument 2 must be a floating point array");
-	         }
-	         a4float = (MMFLOAT *)ptr2;
-			 if((uint32_t)ptr2!=(uint32_t)vartbl[VarIndex].val.s)error("Syntax");
-	    } else error("Argument 2 must be a floating point array");
-	    if((vartbl[VarIndex].dims[0] - OptionBase) !=size)error("Array size mismatch");
+		card1=parsefloatrarray(argv[0],&a3float,1,1,dims, false);
+		card2=parsefloatrarray(argv[2],&a4float,2,1,dims, true);
+	    if(card1 !=card2)error("Array size mismatch");
 	    for(i=1;i<65536;i*=2){
-	    	if(size==i-1)powerof2=1;
+	    	if(card1==i)powerof2=1;
 	    }
 	    if(!powerof2)error("array size must be a power of 2");
-        a1cplx=(cplx *)GetTempMemory((size+1)*16);
+        a1cplx=(cplx *)GetTempMemory((card1)*16);
         a5float=(MMFLOAT *)a1cplx;
-        for(i=0;i<=size;i++){a5float[i*2]=a3float[i];a5float[i*2+1]=0;}
-        Fft_transformRadix2(a1cplx, size+1, 0);
+        for(i=0;i<card1;i++){a5float[i*2]=a3float[i];a5float[i*2+1]=0;}
+        Fft_transformRadix2(a1cplx, card1, 0);
 //	    fft((MMFLOAT *)a1cplx,size+1);
-	    for(i=0;i<=size;i++)a4float[i]=cabs(a1cplx[i]);
+	    for(i=0;i<card1;i++)a4float[i]=cabs(a1cplx[i]);
 		return;
 	}
 	tp = checkstring(pp, (unsigned char *)"PHASE");
 	if(tp) {
 		getargs(&tp,3,(unsigned char *)",");
-	    ptr1 = findvar(argv[0], V_FIND | V_EMPTY_OK | V_NOFIND_ERR);
-	    if(vartbl[VarIndex].type & T_NBR) {
-	        if(vartbl[VarIndex].dims[1] != 0) error("Invalid variable");
-	        if(vartbl[VarIndex].dims[0] <= 0) {		// Not an array
-	        	error("Argument 1 must be a floating point array");
-	        }
-	        a3float = (MMFLOAT *)ptr1;
-			if((uint32_t)ptr1!=(uint32_t)vartbl[VarIndex].val.s)error("Syntax");
-	    } else error("Argument 1 must be a floating point array");
-	    size=(vartbl[VarIndex].dims[0] - OptionBase);
-	    ptr2 = findvar(argv[2], V_FIND | V_EMPTY_OK | V_NOFIND_ERR);
-	    if(vartbl[VarIndex].type & T_NBR) {
-	         if(vartbl[VarIndex].dims[1] != 0) error("Invalid variable");
-	         if(vartbl[VarIndex].dims[0] <= 0 ) {		// Not an array
-	        	 error("Argument 2 must be a floating point array");
-	         }
-	         a4float = (MMFLOAT *)ptr2;
-			 if((uint32_t)ptr2!=(uint32_t)vartbl[VarIndex].val.s)error("Syntax");
-	    } else error("Argument 2 must be a floating point array");
-	    if((vartbl[VarIndex].dims[0] - OptionBase) !=size)error("Array size mismatch");
+		card1=parsefloatrarray(argv[0],&a3float,1,1,dims, false);
+		card2=parsefloatrarray(argv[2],&a4float,2,1,dims, true);
+	    if(card1 !=card2)error("Array size mismatch");
 	    for(i=1;i<65536;i*=2){
-	    	if(size==i-1)powerof2=1;
+	    	if(card1==i)powerof2=1;
 	    }
 	    if(!powerof2)error("array size must be a power of 2");
-        a1cplx=(cplx *)GetTempMemory((size+1)*16);
+        a1cplx=(cplx *)GetTempMemory((card1)*16);
         a5float=(MMFLOAT *)a1cplx;
-        for(i=0;i<=size;i++){a5float[i*2]=a3float[i];a5float[i*2+1]=0;}
-        Fft_transformRadix2(a1cplx, size+1, 0);
+        for(i=0;i<card1;i++){a5float[i*2]=a3float[i];a5float[i*2+1]=0;}
+        Fft_transformRadix2(a1cplx, card1, 0);
 //	    fft((MMFLOAT *)a1cplx,size+1);
-	    for(i=0;i<=size;i++)a4float[i]=carg(a1cplx[i]);
+	    for(i=0;i<card1;i++)a4float[i]=carg(a1cplx[i]);
 		return;
 	}
 	tp = checkstring(pp, (unsigned char *)"INVERSE");
 	if(tp) {
 		getargs(&tp,3,(unsigned char *)",");
-	    ptr1 = findvar(argv[0], V_FIND | V_EMPTY_OK | V_NOFIND_ERR);
-	    if(vartbl[VarIndex].type & T_NBR) {
-	        if(vartbl[VarIndex].dims[1] <= 0) error("Invalid variable");
-	        if(vartbl[VarIndex].dims[2] != 0) error("Invalid variable");
-	        if(vartbl[VarIndex].dims[0] - OptionBase != 1) {		// Not an array
-	        	error("Argument 1 must be a 2D floating point array");
-	        }
-	        a1cplx = (cplx *)ptr1;
-			if((uint32_t)ptr1!=(uint32_t)vartbl[VarIndex].val.s)error("Syntax");
-	    } else error("Argument 1 must be a 2D floating point array");
-	    size=(vartbl[VarIndex].dims[1] - OptionBase);
-	    ptr2 = findvar(argv[2], V_FIND | V_EMPTY_OK | V_NOFIND_ERR);
-	    if(vartbl[VarIndex].type & T_NBR) {
-	         if(vartbl[VarIndex].dims[1] != 0) error("Invalid variable");
-	         if(vartbl[VarIndex].dims[0] <= 0) {		// Not an array
-	        	 error("Argument 2 must be a floating point array");
-	         }
-	         a3float = (MMFLOAT *)ptr2;
-			 if((uint32_t)ptr2!=(uint32_t)vartbl[VarIndex].val.s)error("Syntax");
-	    } else error("Argument 2 must be a floating point array");
-	    if((vartbl[VarIndex].dims[0] - OptionBase) !=size)error("Array size mismatch");
+		card1=parsefloatrarray(argv[0],&a4float,1,2,dims, false);
+		int size=dims[1] - OptionBase +1;
+		a1cplx=(cplx *)a4float;
+		card2=parsefloatrarray(argv[2],&a3float,2,1,dims, true);
+	    if(card2 !=size)error("Array size mismatch");
 	    for(i=1;i<65536;i*=2){
-	    	if(size==i-1)powerof2=1;
+	    	if(card2==i)powerof2=1;
 	    }
 	    if(!powerof2)error("array size must be a power of 2");
-        a2cplx=(cplx *)GetTempMemory((size+1)*16);
-	    memcpy(a2cplx,a1cplx,(size+1)*16);
-	    for(i=0;i<=size;i++)a2cplx[i]=conj(a2cplx[i]);
-        Fft_transformRadix2(a2cplx, size+1, 0);
+        a2cplx=(cplx *)GetTempMemory((card2)*16);
+	    memcpy(a2cplx,a1cplx,card2*16);
+	    for(i=0;i<card2;i++)a2cplx[i]=conj(a2cplx[i]);
+        Fft_transformRadix2(a2cplx, card2, 0);
 //	    fft((MMFLOAT *)a2cplx,size+1);
-	    for(i=0;i<=size;i++)a2cplx[i]=conj(a2cplx[i])/(cplx)(size+1);
-	    for(i=0;i<=size;i++)a3float[i]=creal(a2cplx[i]);
+	    for(i=0;i<card2;i++)a2cplx[i]=conj(a2cplx[i])/(cplx)(card2);
+	    for(i=0;i<card2;i++)a3float[i]=creal(a2cplx[i]);
 	    return;
 	}
 	getargs(&pp,3,(unsigned char *)",");
-    ptr1 = findvar(argv[0], V_FIND | V_EMPTY_OK | V_NOFIND_ERR);
-    if(vartbl[VarIndex].type & T_NBR) {
-        if(vartbl[VarIndex].dims[1] != 0) error("Invalid variable");
-        if(vartbl[VarIndex].dims[0] <= 1) {		// Not an array
-        	error("Argument 1 must be a floating point array");
-        }
-        a3float = (MMFLOAT *)ptr1;
-		if((uint32_t)ptr1!=(uint32_t)vartbl[VarIndex].val.s)error("Syntax");
-    } else error("Argument 1 must be a floating point array");
-    size=(vartbl[VarIndex].dims[0] - OptionBase);
-    ptr2 = findvar(argv[2], V_FIND | V_EMPTY_OK | V_NOFIND_ERR);
-    if(vartbl[VarIndex].type & T_NBR) {
-         if(vartbl[VarIndex].dims[1] <= 0) error("Invalid variable");
-         if(vartbl[VarIndex].dims[2] != 0) error("Invalid variable");
-         if(vartbl[VarIndex].dims[0] - OptionBase != 1) {		// Not an array
-        	 error("Argument 2 must be a 2D floating point array");
-         }
-         a2cplx = (cplx *)ptr2;
-		 if((uint32_t)ptr2!=(uint32_t)vartbl[VarIndex].val.s)error("Syntax");
-    } else error("Argument 2 must be a 2D floating point array");
-    if((vartbl[VarIndex].dims[1] - OptionBase) !=size)error("Array size mismatch");
+	card1=parsefloatrarray(argv[0],&a3float,1,1,dims, false);
+	card2=parsefloatrarray(argv[2],&a4float,2,2,dims, true);
+    a2cplx = (cplx *)a4float;
+    if((dims[1] - OptionBase + 1) !=card1)error("Array size mismatch");
     for(i=1;i<65536;i*=2){
-    	if(size==i-1)powerof2=1;
+    	if(card1==i)powerof2=1;
     }
     if(!powerof2)error("array size must be a power of 2");
-    a4float=(MMFLOAT *)a2cplx;
-    for(i=0;i<=size;i++){a4float[i*2]=a3float[i];a4float[i*2+1]=0;}
+    for(i=0;i<card1;i++){a4float[i*2]=a3float[i];a4float[i*2+1]=0;}
 //    fft((MMFLOAT *)a2cplx,size+1);
-    Fft_transformRadix2(a2cplx, size+1, 0);
+    Fft_transformRadix2(a2cplx, card1, 0);
 }
 void cmd_SensorFusion(char *passcmdline){
     unsigned char *p;

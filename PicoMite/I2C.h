@@ -70,13 +70,13 @@ extern void i2c2_disable(void);
 extern void RtcGetTime(int noerror);
 extern void ConfigDisplayI2C(unsigned char *p);
 extern void InitDisplayI2C(int InitOnly);
-extern unsigned int I2C2_enabled;									// I2C enable marker
-extern unsigned int I2C_enabled;									// I2C enable marker
+extern bool  I2C2_enabled;									// I2C enable marker
+extern bool  I2C_enabled;									// I2C enable marker
 extern unsigned int I2C_Timeout;									// master timeout value
 extern unsigned int I2C2_Timeout;									// master timeout value
 extern volatile unsigned int I2C_Status;                            // status flags
 extern volatile unsigned int I2C2_Status;                            // status flags
-extern int noRTC, noI2C;
+extern bool  noRTC, noI2C;
 extern char *I2C_Slave_Send_IntLine;                                // pointer to the slave send interrupt line number
 extern char *I2C_Slave_Receive_IntLine;                             // pointer to the slave receive interrupt line number
 extern char *I2C2_Slave_Send_IntLine;                                // pointer to the slave send interrupt line number
@@ -84,6 +84,7 @@ extern char *I2C2_Slave_Receive_IntLine;                             // pointer 
 extern void I2C_Send_Command(char command);
 extern void CheckI2CKeyboard(int noerror, int read);
 extern void cmd_camera(unsigned char *p);
+extern void cmd_Classic(unsigned char *p);
 extern void cameraclose(void);
 typedef struct {
   uint8_t reg;   ///< Register address
@@ -103,6 +104,35 @@ typedef enum {
   OV7670_TEST_PATTERN_COLOR_BAR_FADE, ///< Color bars w/fade to white
 } OV7670_pattern;
 
+typedef struct s_nunstruct {
+    	char x;
+    	char y;
+    	int ax; //classic left x
+    	int ay; //classic left y
+    	int az; //classic centre
+    	int Z;  //classic right x
+    	int C;  //classic right y
+    	int L;  //classic left analog
+    	int R;  //classic right analog
+    	unsigned short x0; //classic buttons
+    	unsigned short y0;
+    	unsigned short z0;
+    	unsigned short x1;
+    	unsigned short y1;
+    	unsigned short z1;
+    	uint32_t type;
+    	uint8_t calib[16];
+    	uint8_t classic[6];
+} a_nunstruct;
+extern volatile int classic1;
+extern char *nunInterruptc;
+extern bool nunfoundc;
+extern void classicproc(void);
+extern uint8_t nunbuff[];
+extern const unsigned char readcontroller[1];
+extern volatile struct s_nunstruct nunstruct;
+extern void WiiReceive(int nbr, char *p);
+extern void WiiSend(int nbr, char *p);
 #define REG_GAIN                    0x00         // Gain lower 8 bits (rest in vref 
     #define REG_BLUE                    0x01         // blue gain 
     #define REG_RED                     0x02         // red gain 

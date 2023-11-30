@@ -22,6 +22,7 @@
 #include "ff.h"			/* Declarations of FatFs API */
 #include "diskio.h"		/* Declarations of device I/O functions */
 #include "string.h"
+#include "configuration.h"
 extern void MMPrintString(char *s);
 extern void error(char *msg, ...);
 extern const int enableexFAT;
@@ -1645,7 +1646,7 @@ static DWORD create_chain (	/* 0:No free cluster, 1:Internal error, 0xFFFFFFFF:D
 /* FAT handling - Convert offset into cluster with link map table        */
 /*-----------------------------------------------------------------------*/
 
-static DWORD clmt_clust (	/* <2:Error, >=2:Cluster number */
+static MIPS32 DWORD  clmt_clust (	/* <2:Error, >=2:Cluster number */
 	FIL* fp,		/* Pointer to the file object */
 	FSIZE_t ofs		/* File offset to be converted to cluster# */
 )
@@ -3613,7 +3614,7 @@ static FRESULT mount_volume (	/* FR_OK(0): successful, !=0: an error occurred */
 /* Check if the file/directory object is valid or not                    */
 /*-----------------------------------------------------------------------*/
 
-static FRESULT validate (	/* Returns FR_OK or FR_INVALID_OBJECT */
+static FRESULT MIPS32 validate (	/* Returns FR_OK or FR_INVALID_OBJECT */
 	FFOBJID* obj,			/* Pointer to the FFOBJID, the 1st member in the FIL/DIR object, to check validity */
 	FATFS** rfs				/* Pointer to pointer to the owner filesystem object to return */
 )
@@ -3897,7 +3898,7 @@ FRESULT f_open (
 /* Read File                                                             */
 /*-----------------------------------------------------------------------*/
 
-FRESULT f_read (
+FRESULT MIPS32 f_read (
 	FIL* fp, 	/* Pointer to the file object */
 	void* buff,	/* Pointer to data buffer */
 	UINT btr,	/* Number of bytes to read */

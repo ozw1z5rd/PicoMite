@@ -393,7 +393,7 @@ extern void __not_in_flash_func(spi_finish)(spi_inst_t *spi);
 #define SLOW_TOUCH_SPEED 240000
 #define NOKIA_SPI_SPEED 4000000
 #define ST7920_SPI_SPEED 1200000
-#define SDCARD_SPI_SPEED 0
+#define SDCARD_SPI_SPEED 12000000
 #define NONE_SPI_DEVICE -1
 #define P_INPUT				1						// for setting the TRIS on I/O bits
 #define P_OUTPUT			0
@@ -430,13 +430,13 @@ extern int __not_in_flash_func(HW1Clk)(int speed, int polarity, int edge);
 extern int __not_in_flash_func(BitBangSetClk)(int speed, int polarity, int edge);
 extern BYTE __not_in_flash_func(HW0SwapSPI)(BYTE data_out);
 extern BYTE __not_in_flash_func(HW1SwapSPI)(BYTE data_out);
-extern BYTE __not_in_flash_func(BitBangSwapSPI)(BYTE data_out);
+extern BYTE BitBangSwapSPI(BYTE data_out);
 extern void __not_in_flash_func(HW0SendSPI)(const BYTE *buff, int cnt);
 extern void __not_in_flash_func(HW1SendSPI)(const BYTE *buff, int cnt);
-extern void __not_in_flash_func(BitBangSendSPI)(const BYTE *buff, int cnt);
+extern void BitBangSendSPI(const BYTE *buff, int cnt);
 extern void __not_in_flash_func(HW0ReadSPI)(BYTE *buff, int cnt);
 extern void __not_in_flash_func(HW1ReadSPI)(BYTE *buff, int cnt);
-extern void __not_in_flash_func(BitBangReadSPI)(BYTE *buff, int cnt);
+extern void BitBangReadSPI(BYTE *buff, int cnt);
 extern void ScrollLCDSPI(int lines);
 extern void SetCS(void);
 extern int GetLineILI9341(void);

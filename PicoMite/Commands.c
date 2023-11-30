@@ -37,20 +37,19 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 #include <math.h>
 void flist(int, int, int);
 //void clearprog(void);
+char *KeyInterrupt=NULL;
+unsigned char* SaveNextDataLine = NULL;
 void execute_one_command(unsigned char *p);
 extern void STR_REPLACE(unsigned char *target, const unsigned char *needle, const unsigned char *replacement);
 void ListNewLine(int *ListCnt, int all);
 char MMErrMsg[MAXERRMSG];                                           // the error message
-char *KeyInterrupt=NULL;
-volatile int Keycomplete=0;
+volatile bool Keycomplete=false;
 int keyselect=0;
 extern volatile unsigned int ScrewUpTimer;
-unsigned char* SaveNextDataLine = NULL;
 int SaveNextData = 0;
 struct sa_data datastore[MAXRESTORE];
 int restorepointer = 0;
 
-extern int adcrunning;
 
 // stack to keep track of nested FOR/NEXT loops
 struct s_forstack forstack[MAXFORLOOPS + 1];
@@ -784,7 +783,7 @@ void cmd_end(void) {
 #ifdef PICOMITE
     if(mergerunning){
         multicore_fifo_push_blocking(0xFF);
-        mergerunning=0;
+        mergerunning=false;
         busy_wait_ms(100);
     }
 #endif
@@ -819,8 +818,9 @@ void cmd_end(void) {
 	WriteBuf=(unsigned char *)FRAMEBUFFER;
 	DisplayBuf=(unsigned char *)FRAMEBUFFER;
 #endif
-    adcrunning=0;
+    ADCDualBuffering=0;
 	WatchdogSet = false;
+	dmarunning = false;
 
 	if(g_myrand)FreeMemory((void *)g_myrand);
 	g_myrand=NULL;
@@ -1412,7 +1412,7 @@ void __not_in_flash_func(cmd_loop)(void) {
 
 
 
-void __not_in_flash_func(cmd_exitfor)(void) {
+void cmd_exitfor(void) {
 	if(forindex == 0) error("No FOR loop is in effect");
 	nextstmt = forstack[--forindex].nextptr;
 	checkend(cmdline);
@@ -1421,7 +1421,7 @@ void __not_in_flash_func(cmd_exitfor)(void) {
 
 
 
-void __not_in_flash_func(cmd_exit)(void) {
+void cmd_exit(void) {
 	if(doindex == 0) error("No DO loop is in effect");
 	nextstmt = dostack[--doindex].loopptr;
 	checkend(cmdline);

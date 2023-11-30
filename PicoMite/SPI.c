@@ -31,8 +31,8 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 unsigned int *GetSendDataList(unsigned char *p, unsigned int *nbr);
 long long int *GetReceiveDataBuffer(unsigned char *p, unsigned int *nbr);
 
-int spibits=8;
-int spi2bits=8;
+uint8_t spibits=8;
+uint8_t spi2bits=8;
 void cmd_spi(void) {
 	    int speed;
     unsigned char *p;

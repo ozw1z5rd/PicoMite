@@ -101,12 +101,12 @@ void control_mode_off()  {
         gpio_put(cs_pin,GPIO_PIN_SET);
 }
 
-void data_mode_on() {
+void __not_in_flash_func(data_mode_on()) {
         gpio_put(cs_pin,GPIO_PIN_SET);
         gpio_put(dcs_pin,GPIO_PIN_RESET);
 }
 
-void data_mode_off() {
+void __not_in_flash_func(data_mode_off()) {
         gpio_put(dcs_pin,GPIO_PIN_SET);
 }
 
@@ -139,13 +139,15 @@ void writeRegister(uint8_t _reg, uint16_t _value){
     control_mode_off();
 }
 
-void sdi_send_buffer(uint8_t *data, size_t len) {
+void __not_in_flash_func(sdi_send_buffer)(uint8_t *data, size_t len) {
     size_t chunk_length; // Length of chunk 32 byte or shorter
 
-    data_mode_on();
+    gpio_put(cs_pin,GPIO_PIN_SET);
+    gpio_put(dcs_pin,GPIO_PIN_RESET);
     while (len) // More to do?
     {
-        await_data_request(); // Wait for space available
+        while (!(gpio_get(dreq_pin))) {
+        }
         chunk_length = len;
         if (len > vs1053_chunk_size) {
             chunk_length = vs1053_chunk_size;
@@ -154,7 +156,7 @@ void sdi_send_buffer(uint8_t *data, size_t len) {
         xmit_multi(data, chunk_length);
         data += chunk_length;
     }
-    data_mode_off();
+    gpio_put(dcs_pin,GPIO_PIN_SET);
 }
 
 void sdi_send_fillers(size_t len) {
@@ -212,7 +214,7 @@ bool testComm(const char *header) {
     // Will give warnings on serial output if DEBUG is active.
     // A maximum of 20 errors will be reported.
     if (strstr(header, "Fast")) {
-        delta = 3; // Fast SPI, more loops
+        delta = 30; // Fast SPI, more loops
     }
 
     LOG("%s", header);  // Show a header
@@ -230,7 +232,14 @@ bool testComm(const char *header) {
     }
     return (cnt == 0); // Return the result
 }
-
+void VS1053reset(uint8_t _reset_pin){
+    reset_pin=_reset_pin;
+    PinSetBit(PINMAP[reset_pin],LATCLR);
+    uSec(20000);
+    PinSetBit(PINMAP[reset_pin],LATSET);
+    PinSetBit(PINMAP[dreq_pin],CNPUSET);
+    uSec(100000);
+}
 void VS1053(uint8_t _cs_pin, uint8_t _dcs_pin, uint8_t _dreq_pin, uint8_t _reset_pin){
     dreq_pin=_dreq_pin;
     cs_pin=_cs_pin;
@@ -249,7 +258,7 @@ void VS1053(uint8_t _cs_pin, uint8_t _dcs_pin, uint8_t _dreq_pin, uint8_t _reset
 //    uSec(500000);
     // Init SPI in slow mode ( 0.2 MHz )
 //	SET_SPI_CLK(display_details[device].speed, display_details[device].CPOL, display_details[device].CPHASE);
-    spi_init((AUDIO_SPI==1 ? spi0 : spi1), 200000);
+    spi_init((AUDIO_SPI==1 ? spi0 : spi1), 8000);
 	spi_set_format((AUDIO_SPI==1 ? spi0 : spi1), 8, 0,0, SPI_MSB_FIRST);
     // printDetails("Right after reset/startup");
     uSec(20000);
@@ -261,17 +270,17 @@ void VS1053(uint8_t _cs_pin, uint8_t _dcs_pin, uint8_t _dreq_pin, uint8_t _reset
         // The next clocksetting allows SPI clocking at 5 MHz, 4 MHz is safe then.
         writeRegister(SCI_CLOCKF, 0xE000); // Normal clock settings multiplyer 3.0 = 12.2 MHz
         // SPI Clock to 4 MHz. Now you can set high speed SPI clock.
-        spi_init((AUDIO_SPI==1 ? spi0 : spi1), 6000000);
+        spi_init((AUDIO_SPI==1 ? spi0 : spi1), 5000000);
         spi_set_format((AUDIO_SPI==1 ? spi0 : spi1), 8, 0,0, SPI_MSB_FIRST);
-        uSec(20000);
+        uSec(5000);
         writeRegister(SCI_MODE, _BV(SM_SDINEW) | _BV(SM_LINE1) | _BV(SM_LAYER12));
         testComm("Fast SPI, Testing VS1053 read/write registers again...\r\n");
-        uSec(10000);
+        uSec(5000);
         await_data_request();
         endFillByte = wram_read(0x1E06) & 0xFF;
         LOG("endFillByte is %X\r\n", endFillByte);
         //printDetails("After last clocksetting") ;
-        uSec(100000);
+        uSec(5000);
     }
 }
 
@@ -334,7 +343,7 @@ void startSong() {
     sdi_send_fillers(10);
 }
 
-void playChunk(uint8_t *data, size_t len) {
+void __not_in_flash_func(playChunk)(uint8_t *data, size_t len) {
     sdi_send_buffer(data, len);
 }
 
@@ -422,7 +431,7 @@ void printDetails(const char *header) {
 void switchToMp3Mode() {
     wram_write(ADDR_REG_GPIO_DDR_RW, 3); // GPIO DDR = 3
     wram_write(ADDR_REG_GPIO_ODATA_RW, 0); // GPIO ODATA = 0
-    uSec(100000);
+    uSec(10000);
     LOG("Switched to mp3 mode\r\n");
     softReset();
 }

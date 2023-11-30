@@ -103,47 +103,46 @@ int IrBits, IrCount;
 unsigned char *IrInterrupt;
 int last_adc=99;
 volatile int CallBackEnabled=0;
-int IRpin=99;
-int PWM0Apin=99;
-int PWM1Apin=99;
-int PWM2Apin=99;
-int PWM3Apin=99;
-int PWM4Apin=99;
-int PWM5Apin=99;
-int PWM6Apin=99;
-int PWM7Apin=99;
-int PWM0Bpin=99;
-int PWM1Bpin=99;
-int PWM2Bpin=99;
-int PWM3Bpin=99;
-int PWM4Bpin=99;
-int PWM5Bpin=99;
-int PWM6Bpin=99;
-int PWM7Bpin=99;
-int UART1RXpin=99;
-int UART1TXpin=99;
-int UART0TXpin=99;
-int UART0RXpin=99;
-int SPI1TXpin=99;
-int SPI1RXpin=99;
-int SPI1SCKpin=99;
-int SPI0TXpin=99;
-int SPI0RXpin=99;
-int SPI0SCKpin=99;
-int I2C1SDApin=99;
-int I2C1SCLpin=99;
-int I2C0SDApin=99;
-int I2C0SCLpin=99;
-int slice0=0,slice1=0,slice2=0,slice3=0,slice4=0,slice5=0,slice6=0,slice7=0;
-char *ADCInterrupt;
+uint8_t IRpin=99;
+uint8_t PWM0Apin=99;
+uint8_t PWM1Apin=99;
+uint8_t PWM2Apin=99;
+uint8_t PWM3Apin=99;
+uint8_t PWM4Apin=99;
+uint8_t PWM5Apin=99;
+uint8_t PWM6Apin=99;
+uint8_t PWM7Apin=99;
+uint8_t PWM0Bpin=99;
+uint8_t PWM1Bpin=99;
+uint8_t PWM2Bpin=99;
+uint8_t PWM3Bpin=99;
+uint8_t PWM4Bpin=99;
+uint8_t PWM5Bpin=99;
+uint8_t PWM6Bpin=99;
+uint8_t PWM7Bpin=99;
+uint8_t UART1RXpin=99;
+uint8_t UART1TXpin=99;
+uint8_t UART0TXpin=99;
+uint8_t UART0RXpin=99;
+uint8_t SPI1TXpin=99;
+uint8_t SPI1RXpin=99;
+uint8_t SPI1SCKpin=99;
+uint8_t SPI0TXpin=99;
+uint8_t SPI0RXpin=99;
+uint8_t SPI0SCKpin=99;
+uint8_t I2C1SDApin=99;
+uint8_t I2C1SCLpin=99;
+uint8_t I2C0SDApin=99;
+uint8_t I2C0SCLpin=99;
+uint8_t slice0=0,slice1=0,slice2=0,slice3=0,slice4=0,slice5=0,slice6=0,slice7=0;
+bool dmarunning=false;
+bool ADCDualBuffering=false;
+uint8_t ADCmax=0;
 int ADCopen=0;
+char *ADCInterrupt;
 volatile MMFLOAT * volatile a1float=NULL, * volatile a2float=NULL, * volatile a3float=NULL, * volatile a4float=NULL;
-int ADCmax=0;
 volatile int ADCpos=0;
 float frequency;
-int dmarunning=0;
-int adcrunning=0;
-int ADCrunning=0;
 uint32_t ADC_dma_chan=ADC_DMA;
 uint32_t ADC_dma_chan2=ADC_DMA2;
 short *ADCbuffer=NULL;
@@ -169,12 +168,12 @@ void writeIRclock(uint64_t timeset){
 }
 
 const uint8_t PINMAP[30]={1,2,4,5,6,7,9,10,11,12,14,15,16,17,19,20,21,22,24,25,26,27,29,41,42,43,31,32,34,44};
-int __not_in_flash_func(codemap)(int pin){
+int codemap(int pin){
 			if(pin>29 || pin<0) error("Invalid GPIO");
 			return (int)PINMAP[pin];
 	return 0;
 }
-int __not_in_flash_func(codecheck)(unsigned char *line){
+int codecheck(unsigned char *line){
 	if((line[0]=='G' || line[0]=='g') && (line[1]=='P' || line[1]=='p')){
 		line+=2;
 		if(isnamestart(*line) || *line=='.') return 1;
@@ -314,7 +313,7 @@ void __not_in_flash_func(cmd_sync)(void){
 // this is invoked as a command (ie, pin(3) = 1)
 // first get the argument then step over the closing bracket.  Search through the rest of the command line looking
 // for the equals sign and step over it, evaluate the rest of the command and set the pin accordingly
-void __not_in_flash_func(cmd_pin)(void) {
+void cmd_pin(void) {
 	int pin, value;
 	unsigned char code;
 	if(!(code=codecheck(cmdline)))cmdline+=2;
@@ -1067,7 +1066,7 @@ void fun_pin(void) {
     int pin, i, j, b[ANA_AVERAGE];
     MMFLOAT t;
 	if(checkstring(ep, (unsigned char *)"TEMP")){
-        if(adcrunning || dmarunning)error("ADC in use");
+        if(ADCDualBuffering || dmarunning)error("ADC in use");
         adc_init();
         adc_set_temp_sensor_enabled(true);
         adc_select_input(4);
@@ -1108,7 +1107,7 @@ void fun_pin(void) {
                             targ = T_NBR;
                             return;
         case EXT_ANA_IN:    
-                            if(adcrunning || dmarunning)error("ADC in use");
+                            if(ADCDualBuffering || dmarunning)error("ADC in use");
                             for(i = 0; i < ANA_AVERAGE; i++) {
                                 b[i] = ExtInp(pin);                 // get the value
                                 for(j = i; j > 0; j--) {            // and sort into position
@@ -1501,7 +1500,7 @@ void PWMoff(int slice){
 #ifndef PICOMITEVGA
 void setBacklight(int level){
     if(((Option.DISPLAY_TYPE>I2C_PANEL && Option.DISPLAY_TYPE<BufferedPanel ) || (Option.DISPLAY_TYPE>=SSDPANEL && Option.DISPLAY_TYPE<VIRTUAL)) && Option.DISPLAY_BL){
-        MMFLOAT frequency=50000.0;
+        MMFLOAT frequency=Option.DISPLAY_TYPE==ILI9488W ? 1000.0 : 50000.0;
         int wrap=(Option.CPU_Speed*1000)/frequency;
         int high=(int)((MMFLOAT)Option.CPU_Speed/frequency*level*10.0);
         int div=1;
@@ -2112,8 +2111,35 @@ void __not_in_flash_func(WS2812e)(int gppin, int T1H, int T1L, int T0H, int T0L,
         p++;
     }
 }
+
+void fun_dev(void){
+    unsigned char *tp=NULL;
+    if((tp=checkstring(ep,(unsigned char *)"WII"))){
+       //	int ax; //classic left x
+        //	int ay; //classic left y
+        //	int az; //classic centre
+        //	int Z;  //classic right x
+        //	int C;  //classic right y
+        //	int L;  //classic left analog
+        //	int R;  //classic right analog
+        //	unsigned short x0; //classic buttons
+        getargs(&tp,1,(unsigned char *)",");
+		if(!classic1)error("Not open");
+         if(checkstring(argv[0], (unsigned char *)"LX"))iret=nunstruct.ax;
+        else if(checkstring(argv[0], (unsigned char *)"LY"))iret=nunstruct.ay;
+        else if(checkstring(argv[0], (unsigned char *)"RX"))iret=nunstruct.Z;
+        else if(checkstring(argv[0], (unsigned char *)"RY"))iret=nunstruct.C;
+        else if(checkstring(argv[0], (unsigned char *)"L"))iret=nunstruct.L;
+        else if(checkstring(argv[0], (unsigned char *)"R"))iret=nunstruct.R;
+        else if(checkstring(argv[0], (unsigned char *)"B"))iret=nunstruct.x0;
+        else if(checkstring(argv[0], (unsigned char *)"T"))iret=nunstruct.type;
+        else iret=0;
+        targ=T_INT;
+    } else error("Syntax");
+
+}
+
 void WS2812(unsigned char *q){
-       void *ptr1 = NULL;
         int64_t *dest=NULL;
         uint32_t pin, red , green, blue, white, colour;
         int T0H=0,T0L=0,T1H=0,T1L=0,TRST=0;
@@ -2145,16 +2171,7 @@ void WS2812(unsigned char *q){
     	} else error("Syntax");
         nbr=getint(argv[4],1,256);
         if(nbr>1){
-            ptr1 = findvar(argv[6], V_FIND | V_EMPTY_OK | V_NOFIND_ERR);
-            if(vartbl[VarIndex].type & T_INT) {
-                if(vartbl[VarIndex].dims[1] != 0) error("Invalid variable");
-                if(vartbl[VarIndex].dims[0] <= 0) {		// Not an array
-                    error("Argument 1 must be integer array");
-                } else {
-                    if((vartbl[VarIndex].dims[0] - OptionBase + 1)<nbr)error("Array size");
-                }
-                dest = (long long int *)ptr1;
-            } else error("Argument 1 must be integer array");
+            parseintegerarray(argv[6], &dest, 4, 1, NULL, false);
         } else {
             colour=getinteger(argv[6]);
             dest = (long long int *)&colour;
@@ -2274,6 +2291,11 @@ void cmd_bitbang(void){
 		return;
 	}
 #endif
+	tp = checkstring(cmdline, (unsigned char *)"WII");
+	if(tp) {
+		cmd_Classic(tp);
+		return;
+	}
 	tp = checkstring(cmdline, (unsigned char *)"HUMID");
 	if(tp) {
 		DHT22(tp);
@@ -2338,8 +2360,7 @@ void cmd_bitbang(void){
 	}
 	tp = checkstring(cmdline, (unsigned char *)"BITSTREAM");
 	if(tp) {
-		void *ptr1 = NULL;
-		int i,num;
+		int i,num,size;
 		uint32_t pin;
         int ticks_per_millisecond=ticks_per_second/1000;
 		MMFLOAT *a1float=NULL;
@@ -2356,22 +2377,8 @@ void cmd_bitbang(void){
         int gppin=(1<<PinDef[pin].GPno);
         if(!(ExtCurrentConfig[pin] == EXT_DIG_OUT || ExtCurrentConfig[pin] == EXT_NOT_CONFIG)) error("Pin %/| is not off or an output",pin,pin);
         if(ExtCurrentConfig[pin] == EXT_NOT_CONFIG)ExtCfg(pin, EXT_DIG_OUT, 0);
-        ptr1 = findvar(argv[4], V_FIND | V_EMPTY_OK | V_NOFIND_ERR);
-        if(vartbl[VarIndex].type & T_NBR) {
-            if(vartbl[VarIndex].dims[1] != 0) error("Invalid variable");
-            if(vartbl[VarIndex].dims[0] <= 0) {		// Not an array
-                error("Argument 2 must be an array");
-            }
-            if((vartbl[VarIndex].dims[0] - OptionBase) < num-1)error("Array too small");
-            a1float = (MMFLOAT *)ptr1;
-        } else if(vartbl[VarIndex].type & T_INT) {
-            if(vartbl[VarIndex].dims[1] != 0) error("Invalid variable");
-            if(vartbl[VarIndex].dims[0] <= 0) {		// Not an array
-                error("Argument 2 must be an array");
-            }
-            if((vartbl[VarIndex].dims[0] - OptionBase) < num-1)error("Array too small");
-            a1int = (int64_t *)ptr1;
-        } else error("Argument 2 must be an array");
+        size=parsenumberarray(argv[4],&a1float, &a1int, 3, 1, NULL, false);
+        if(size < num)error("Array too small");
         data=GetTempMemory(num * sizeof(unsigned int));
         if(a1float!=NULL){
             for(i=0; i< num;i++)data[i]= FloatToUint32(*a1float++);
@@ -2398,7 +2405,7 @@ void __not_in_flash_func(ADCint)()
 	dma_hw->ints1 = (1u << ADC_dma_chan);
     if(adcint==adcint2)adcint=adcint1;
     else adcint=adcint2;
-    ADCrunning=1;
+    ADCDualBuffering=true;
 }
 
 void cmd_adc(void){
@@ -2444,31 +2451,18 @@ void cmd_adc(void){
 	}
 	tp = checkstring(cmdline, (unsigned char *)"RUN");
     if(tp){
-        void *ptr1=NULL, *ptr2=NULL;
         getargs(&tp, 3, (unsigned char *)",");
 		if(!ADCopen)error("ADC not open");
         if(!(argc == 3))error("Argument count");
         ADCmax=0;
         ADCpos=0;
         adcint2=NULL;
-        ptr1 = findvar(argv[0], V_FIND | V_EMPTY_OK | V_NOFIND_ERR);
-        if(vartbl[VarIndex].type & T_INT) {
-            if(vartbl[VarIndex].dims[1] != 0) error("Invalid variable");
-            if(vartbl[VarIndex].dims[0] <= 0) {		// Not an array
-                error("Argument 1 must be integer array");
-            }
-            adcint1 = (uint8_t *)ptr1;
-        } else error("Argument 1 must be integer array");
-        ADCmax=(vartbl[VarIndex].dims[0] - OptionBase + 1);
-        ptr2 = findvar(argv[2], V_FIND | V_EMPTY_OK | V_NOFIND_ERR);
-        if(vartbl[VarIndex].type & T_INT) {
-            if(vartbl[VarIndex].dims[1] != 0) error("Invalid variable");
-            if(vartbl[VarIndex].dims[0] <= 0) {		// Not an array
-                error("Argument 2 must be integer array");
-            }
-            if((vartbl[VarIndex].dims[0] - OptionBase + 1) != ADCmax)error("Array size mismatch");
-            adcint2 = (uint8_t *)ptr2;
-        } else error("Argument 2 must be integer array");
+        int64_t *adcval=NULL;
+        int card1=parseintegerarray(argv[0], &adcval, 1, 1, NULL, true);
+        adcint1=(uint8_t *)adcval;
+        ADCmax=parseintegerarray(argv[2], &adcval, 2, 1, NULL, true);
+        adcint2=(uint8_t *)adcval;
+        if(card1!=ADCmax)error("Array size mismatch");
         ADCmax *=8;
         adc_init();
         adc_set_round_robin(ADCopen==1 ? 1 : ADCopen==2 ? 3 : ADCopen==3 ? 7 : 15);
@@ -2520,7 +2514,7 @@ void cmd_adc(void){
         dma_start_channel_mask(1u << ADC_dma_chan2);
         adc_run(true);
         adcint=adcint2;
-        adcrunning=1;
+        ADCDualBuffering=true;
 		return;
 	}
 
@@ -2535,65 +2529,33 @@ void cmd_adc(void){
 	}
 	tp = checkstring(cmdline, (unsigned char *)"START");
 	if(tp) {
-        void *ptr1 = NULL;
-        void *ptr2 = NULL;
-        void *ptr3 = NULL;
-        void *ptr4 = NULL;
         getargs(&tp, 23, (unsigned char *)",");
 		if(!ADCopen)error("ADC not open");
         if(!(argc >= 1))error("Argument count");
         a1float=NULL; a2float=NULL; a3float=NULL; a4float=NULL;
         ADCmax=0;
         ADCpos=0;
+        int card;
         MMFLOAT top;
         for(int i=0;i<4;i++){
             ADCscale[i]=VCC/4095.0;
             ADCbottom[i]=0;
         }
-        ptr1 = findvar(argv[0], V_FIND | V_EMPTY_OK | V_NOFIND_ERR);
-        if(vartbl[VarIndex].type & T_NBR) {
-            if(vartbl[VarIndex].dims[1] != 0) error("Invalid variable");
-            if(vartbl[VarIndex].dims[0] <= 0) {		// Not an array
-                error("Argument 1 must be float array");
-            }
-            a1float = (MMFLOAT *)ptr1;
-        } else error("Argument 1 must be float array");
-        ADCmax=(vartbl[VarIndex].dims[0] - OptionBase);
+        ADCmax=parsefloatrarray(argv[0], (MMFLOAT **)&a1float, 1, 1, NULL, true);
         if(argc>=3 && *argv[2]){
-           if(ADCopen<2)error("Second channel not open");
-           ptr2 = findvar(argv[2], V_FIND | V_EMPTY_OK | V_NOFIND_ERR);
-            if(vartbl[VarIndex].type & T_NBR) {
-                if(vartbl[VarIndex].dims[1] != 0) error("Invalid variable");
-                if(vartbl[VarIndex].dims[0] <= 0) {		// Not an array
-                    error("Argument 2 must be float array");
-                }
-                a2float = (MMFLOAT *)ptr2;
-            } else error("Argument 2 must be float array");
-            if((vartbl[VarIndex].dims[0] - OptionBase) !=ADCmax)error("Arrays should be the same size");
+            if(ADCopen<2)error("Second channel not open");
+            card=parsefloatrarray(argv[2], (MMFLOAT **)&a2float, 2, 1, NULL, true);
+            if(card!=ADCmax)error("Array size mismatch");
         }
         if(argc>=5 && *argv[4]){
            if(ADCopen<3)error("Third channel not open");
-           ptr3 = findvar(argv[4], V_FIND | V_EMPTY_OK | V_NOFIND_ERR);
-            if(vartbl[VarIndex].type & T_NBR) {
-                if(vartbl[VarIndex].dims[1] != 0) error("Invalid variable");
-                if(vartbl[VarIndex].dims[0] <= 0) {		// Not an array
-                    error("Argument 3 must be float array");
-                }
-                a3float = (MMFLOAT *)ptr3;
-            } else error("Argument 3 must be float array");
-            if((vartbl[VarIndex].dims[0] - OptionBase) !=ADCmax)error("Arrays should be the same size");
+            card=parsefloatrarray(argv[4], (MMFLOAT **)&a3float, 3, 1, NULL, true);
+            if(card!=ADCmax)error("Array size mismatch");
         }
         if(argc>=7 && *argv[6]){
            if(ADCopen<4)error("Fourth channel not open");
-           ptr4 = findvar(argv[6], V_FIND | V_EMPTY_OK | V_NOFIND_ERR);
-            if(vartbl[VarIndex].type & T_NBR) {
-                if(vartbl[VarIndex].dims[1] != 0) error("Invalid variable");
-                if(vartbl[VarIndex].dims[0] <= 0) {		// Not an array
-                    error("Argument 4 must be float array");
-                }
-                a4float = (MMFLOAT *)ptr4;
-            } else error("Argument 4 must be float array");
-            if((vartbl[VarIndex].dims[0] - OptionBase) !=ADCmax)error("Arrays should be the same size");
+            card=parsefloatrarray(argv[6], (MMFLOAT **)&a4float, 4, 1, NULL, true);
+            if(card!=ADCmax)error("Array size mismatch");
         }
         if(argc>=11){
             ADCbottom[0]=getnumber(argv[8]);
@@ -2668,7 +2630,7 @@ void cmd_adc(void){
             FreeMemory((void *)ADCbuffer);
             adc_init();
             last_adc=99;
-        } else dmarunning=1;
+        } else dmarunning=true;
 		return;
 	}
 	tp = checkstring(cmdline, (unsigned char *)"CLOSE");
@@ -2686,7 +2648,8 @@ void cmd_adc(void){
         if(ADCopen>=4)ExtCfg(44, EXT_NOT_CONFIG, 0);
         ADCopen=0;
         adcint=adcint1=adcint2=NULL;
-        adcrunning=0;
+        ADCDualBuffering=false;
+        dmarunning=false;
         last_adc=99;
         adc_init();
 		return;
@@ -2828,14 +2791,13 @@ void MIPS16 ClearExternalIO(void) {
     ADCopen=0;
     adc_set_round_robin(0);
     adc_set_clkdiv(0);
-    dmarunning=0;
-    adcrunning=0;
-    ADCInterrupt=NULL;
     KeyInterrupt=NULL;
     OnKeyGOSUB=NULL;
     OnPS2GOSUB=NULL;
+    nunInterruptc=NULL;
+    classic1=0;
     PS2code=0;
-    PS2int=0;
+    PS2int=false;
 #ifdef PICOMITEWEB
     MQTTInterrupt=NULL;
     MQTTComplete=0;
@@ -2852,8 +2814,8 @@ void MIPS16 ClearExternalIO(void) {
     GuiIntUpVector=NULL;
 #endif
 #endif
-    dmarunning=0;
-    ADCrunning=0;
+    dmarunning=false;
+    ADCDualBuffering=false;
     ADCInterrupt=NULL;
     CSubInterrupt=NULL;
     CSubComplete=0;

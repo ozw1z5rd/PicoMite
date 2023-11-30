@@ -61,7 +61,7 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 // these two are the only global variables, the default place for the cursor when the editor opens
 unsigned char *StartEditPoint = NULL;
 int StartEditChar = 0;
-static int markmode=0;
+static bool markmode=false;
 extern void routinechecks(void);
 int optioncolourcodesave;
 #if !defined(LITE)
@@ -971,7 +971,7 @@ void MarkMode(unsigned char *cb, unsigned char *buf) {
         }
 
         x = curx; y = cury;
-        markmode=1;
+        markmode=true;
         // first unmark the area not marked as a result of the keystroke
         if(oldmark < mark) {
             PositionCursor(oldmark);
@@ -1022,7 +1022,7 @@ void MarkMode(unsigned char *cb, unsigned char *buf) {
             }
             MX470Display(REVERSE_VIDEO);                            // reverse video back to normal on the MX470 display only
         }
-        markmode=0;
+        markmode=false;
         MMPrintString("\033[0m");                                   // normal video
 
         oldx = x; oldy = y; oldmark = mark;

@@ -80,7 +80,7 @@ void fun_touch(void);
     extern void GetCalibration(int x, int y, int *xval, int *yval);
 
 //    extern volatile int TouchX, TouchY;
-    extern volatile int TouchState, TouchDown, TouchUp;
+    extern volatile bool TouchState, TouchDown, TouchUp;
     extern int TOUCH_GETIRQTRIS;
 
     #define TOUCH_ERROR             -1

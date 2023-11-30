@@ -359,7 +359,7 @@ void fun_abs(void) {
 
 // return the ASCII value of the first character in a string (ie, its number value)
 // a = ASC(str$)
-void __not_in_flash_func(fun_asc)(void) {
+void fun_asc(void) {
 	unsigned char *s;
 
 	s = getstring(ep);
@@ -629,7 +629,7 @@ void fun_log(void) {
 
 // Returns a substring of ?string$? beginning at ?start? and continuing for ?nbr? characters.
 // S$ = MID$(s, spos [, nbr])
-void __not_in_flash_func(fun_mid)(void) {
+void fun_mid(void) {
 	unsigned char *s, *p1, *p2;
 	int spos, nbr = 0, i;
 	getargs(&ep, 5, (unsigned char *)",");

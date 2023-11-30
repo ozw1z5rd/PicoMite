@@ -159,7 +159,7 @@ struct option_s {
         char ipaddress[16];
         char mask[16];
         char gateway[16];
-        unsigned char x[16]; //108=256
+        unsigned char x[12]; //108=256
     #else
         unsigned char x[96]; //112=256
     #endif

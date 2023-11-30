@@ -611,7 +611,7 @@ int __not_in_flash_func(FindSubFun)(unsigned char *p, int type) {
 //   cmd      = pointer to the command name used by the caller (in program memory)
 //   index    = index into subfun[i] which points to the definition of the sub or funct
 //   fa, i64a, sa and typ are pointers to where the return value is to be stored (used by functions only)
-void __not_in_flash_func(DefinedSubFun)(int isfun, unsigned char *cmd, int index, MMFLOAT *fa, long long int  *i64a, unsigned char **sa, int *typ) {
+void MIPS16 __not_in_flash_func(DefinedSubFun)(int isfun, unsigned char *cmd, int index, MMFLOAT *fa, long long int  *i64a, unsigned char **sa, int *typ) {
 	unsigned char *p, *s, *tp, *ttp, tcmdtoken;
 	unsigned char *CallersLinePtr, *SubLinePtr = NULL;
     unsigned char *argbuf1; unsigned char **argv1; int argc1;
@@ -1098,6 +1098,9 @@ void  MIPS16 tokenise(int console) {
             } else if((tp2 = checkstring(p, (unsigned char *)"ELSE IF")) != NULL) {
                     match_i = GetCommandValue((unsigned char *)"ElseIf") - C_BASETOKEN;
                     match_p = p = tp2;
+            } else if((tp2 = checkstring(p, (unsigned char *)"BITBANG")) != NULL) {
+                    match_i = GetCommandValue((unsigned char *)"Device") - C_BASETOKEN;
+                    match_p = p = tp2;
             } else if((tp2 = checkstring(p, (unsigned char *)"END IF")) != NULL) {
                     match_i = GetCommandValue((unsigned char *)"EndIf") - C_BASETOKEN;
                     match_p = p = tp2;
@@ -1444,7 +1447,7 @@ unsigned char __not_in_flash_func(*doexpr)(unsigned char *p, MMFLOAT *fa, long l
 
 // get a value, either from a constant, function or variable
 // also returns the next operator to the right of the value or E_END if no operator
-unsigned char __not_in_flash_func(*getvalue)(unsigned char *p, MMFLOAT *fa, long long int  *ia, unsigned char **sa, int *oo, int *ta) {
+unsigned char MIPS16 __not_in_flash_func(*getvalue)(unsigned char *p, MMFLOAT *fa, long long int  *ia, unsigned char **sa, int *oo, int *ta) {
     MMFLOAT f = 0;
     long long int  i64 = 0;
     unsigned char *s = NULL;
@@ -1864,7 +1867,7 @@ void hashlabels(unsigned char *p,int ErrAbort){
 // search through program memory looking for a label.
 // returns a pointer to the T_NEWLINE token or throws an error if not found
 // non cached version
-unsigned char *__not_in_flash_func(findlabel)(unsigned char *labelptr) {
+unsigned char *findlabel(unsigned char *labelptr) {
 //    char *p, *lastp = (char *)ProgMemory + 1;
 	unsigned char  *tp, *ip;
     int i;
@@ -2056,7 +2059,7 @@ routines for storing and manipulating variables
 // storage of the variable's data:
 //      if it is type T_NBR or T_INT the value is held in the variable slot
 //      for T_STR a block of memory of MAXSTRLEN size (or size determined by the LENGTH keyword) will be malloc'ed and the pointer stored in the variable slot.
-void __not_in_flash_func(*findvar)(unsigned char *p, int action) {
+void  __not_in_flash_func(*findvar)(unsigned char *p, int action) {
     unsigned char name[MAXVARLEN + 1];
     int i=0, j, size, ifree, globalifree, localifree, nbr, vtype, vindex, namelen, tmp;
     unsigned char *s, *x, u;

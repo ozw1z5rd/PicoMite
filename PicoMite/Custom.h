@@ -64,7 +64,7 @@ extern char *pioTXinterrupts[4];
 	extern void checkTCPOptions(void);
     extern void open_tcp_server(void);
     extern void open_udp_server(void);
-    extern volatile int TCPreceived;
+    extern volatile bool TCPreceived;
     extern char *TCPreceiveInterrupt;
     extern void TelnetPutC(int c,int flush);
     extern int cmd_mqtt(void);
@@ -122,7 +122,7 @@ extern char *pioTXinterrupts[4];
     extern void tcp_dns_found(const char *hostname, const ip_addr_t *ipaddr, void *arg);
     extern void starttelnet(struct tcp_pcb *client_pcb, int pcb, void *arg);
     extern char *UDPinterrupt;
-    extern volatile int UDPreceive;
+    extern volatile bool UDPreceive;
 #endif
 extern int piointerrupt;
 extern char *DMAinterruptRX;

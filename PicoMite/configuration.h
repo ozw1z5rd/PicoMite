@@ -29,8 +29,8 @@ extern "C" {
 #ifdef PICOMITEVGA
 #define MAXVARS             512                     // 8 + MAXVARLEN + MAXDIM * 2  (ie, 56 bytes) - these do not incl array members
 #define FLASH_TARGET_OFFSET (672 * 1024) 
-#define MagicKey 0x14586342
-#define HEAPTOP 0x2003f000
+#define MagicKey 0x15486342
+#define HEAPTOP 0x20040000
 #define HEAP_MEMORY_SIZE (100*1024) 
 #define MAX_CPU     378000 
 #define MIN_CPU     126000
@@ -40,8 +40,8 @@ extern "C" {
 #include "lwipopts_examples_common.h"
 #define MAXVARS             480                    // 8 + MAXVARLEN + MAXDIM * 2  (ie, 56 bytes) - these do not incl array members
 #define FLASH_TARGET_OFFSET (992 * 1024) 
-#define MagicKey 0x23226327
-#define HEAPTOP 0x2003fc00
+#define MagicKey 0x51386327
+#define HEAPTOP 0x20040000
 #define HEAP_MEMORY_SIZE (80*1024+0x4000) 
 #define MaxPcb 8
 #define MAX_CPU     252000
@@ -51,8 +51,8 @@ extern "C" {
 #ifdef PICOMITE
 #define MAXVARS             512                     // 8 + MAXVARLEN + MAXDIM * 2  (ie, 56 bytes) - these do not incl array members
 #define FLASH_TARGET_OFFSET (720 * 1024) 
-#define MagicKey 0x67243427
-#define HEAPTOP 0x2003e570
+#define MagicKey 0x21343427
+#define HEAPTOP 0x2003f00 
 #define HEAP_MEMORY_SIZE (132*1024) 
 #define MAX_CPU     378000
 #define MIN_CPU     48000
@@ -125,7 +125,7 @@ extern "C" {
 #define MAXCAM  3
 #define MAX_POLYGON_VERTICES 10
 #define MAXBLITBUF 32
-#define MAXRESTORE          16
+#define MAXRESTORE          8
 #define CONFIG_TITLE		0
 #define CONFIG_LOWER		1
 #define CONFIG_UPPER		2
@@ -174,7 +174,7 @@ extern "C" {
 #define QVGA_PIO	pio0	// QVGA PIO
 #define QVGA_SM		0	// QVGA state machine
 #define MIPS16 __attribute__ ((optimize("-Os")))
-
+#define MIPS32 __attribute__ ((optimize("-O2")))
 // QVGA DMA channel
 #define QVGA_DMA_CB	0	// DMA control block of base layer
 #define QVGA_DMA_PIO	1	// DMA copy data to PIO (raises IRQ0 on quiet)

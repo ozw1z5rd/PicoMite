@@ -28,7 +28,7 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 #include "Hardware_Includes.h"
 #include "hardware/i2c.h"
 #include "hardware/irq.h"
-
+#define nunaddr 0xA4/2;
 #define PinRead(a)  gpio_get(PinDef[a].GPno)
 extern void DrawBufferMEM(int x1, int y1, int x2, int y2, unsigned char* p) ;
 extern void ReadBufferMEM(int x1, int y1, int x2, int y2, unsigned char* buff);
@@ -57,7 +57,7 @@ static unsigned int I2C_Addr;										// I2C device address
 static volatile unsigned int I2C_Sendlen;							// length of the master send buffer
 static volatile unsigned int I2C_Rcvlen;							// length of the master receive buffer
 static unsigned char I2C_Send_Buffer[256];                                   // I2C send buffer
-unsigned int I2C_enabled=0;									// I2C enable marker
+bool I2C_enabled=false;									// I2C enable marker
 unsigned int I2C_Timeout;									// master timeout value
 volatile unsigned int I2C_Status;										// status flags
 static int mmI2Cvalue;
@@ -69,7 +69,7 @@ static unsigned int I2C2_Addr;										// I2C device address
 static volatile unsigned int I2C2_Sendlen;							// length of the master send buffer
 static volatile unsigned int I2C2_Rcvlen;							// length of the master receive buffer
 static unsigned char I2C_Send_Buffer[256];                                   // I2C send buffer
-unsigned int I2C2_enabled=0;									// I2C enable marker
+bool  I2C2_enabled=false;									// I2C enable marker
 unsigned int I2C2_Timeout;									// master timeout value
 volatile unsigned int I2C2_Status;										// status flags
 //static char I2C_Rcv_Buffer[256];                                // I2C receive buffer
@@ -80,7 +80,7 @@ char *I2C_Slave_Receive_IntLine;                                // pointer to th
 char *I2C2_Slave_Send_IntLine;                                   // pointer to the slave send interrupt line number
 char *I2C2_Slave_Receive_IntLine;                                // pointer to the slave receive interrupt line number
 static unsigned int I2C2_Slave_Addr;                                 // slave address
-int noRTC=0, noI2C=0;
+bool  noRTC=false, noI2C=false;
 extern void SaveToBuffer(void);
 extern void CompareToBuffer(void);
 extern void DrawPixelMEM(int x1, int y1, int c);
@@ -92,7 +92,22 @@ void i2cReceiveSlave(unsigned char *p, int channel);
 int CameraSlice=-1;
 int CameraChannel=-1;
 extern void PWMoff(int slice);
-	/*******************************************************************************************
+const unsigned char nuninit[2]={0xF0,0x55};
+const unsigned char nuninit2[2]={0xFB,0x0};
+const unsigned char readcontroller[1]={0};
+const unsigned char nunid[1]={0xFC};
+volatile int classic1=0;
+uint8_t nunbuff[10];
+uint32_t swap32(uint32_t in)
+{
+  in = __builtin_bswap32(in);
+  return in;
+}
+volatile struct s_nunstruct nunstruct;
+char *nunInterruptc=NULL;
+bool nunfoundc=false;
+
+/*******************************************************************************************
 							  I2C related commands in MMBasic
                               ===============================
 These are the functions responsible for executing the I2C related commands in MMBasic
@@ -402,7 +417,7 @@ void CheckI2CKeyboard(int noerror, int read){
 					ConsoleRxBuf[ConsoleRxBufHead] = c; // store the byte in the ring buffer
 					if (ConsoleRxBuf[ConsoleRxBufHead] == keyselect && KeyInterrupt != NULL)
 					{
-						Keycomplete = 1;
+						Keycomplete = true;
 					}
 					else
 					{
@@ -902,7 +917,7 @@ void i2cReceive(unsigned char *p) {
 	I2C_Addr = addr;
 	rcvlen = getinteger(argv[4]);
 	if(rcvlen < 1 || rcvlen > 255) error("Number out of bounds");
-
+	
 	ptr = findvar(argv[6], V_FIND | V_EMPTY_OK);
     if(vartbl[VarIndex].type & T_CONST) error("Cannot change a constant");
 	if(ptr == NULL) error("Invalid variable");
@@ -1248,6 +1263,128 @@ void fun_mmi2c(void) {
 	iret = mmI2Cvalue;
     targ = T_INT;
 }
+void WiiSend(int nbr, char *p){
+	if(I2C0locked){
+        I2C_Sendlen = nbr;                                                // send one byte
+        I2C_Rcvlen = 0;
+		memcpy(I2C_Send_Buffer,p,nbr);
+        I2C_Addr = nunaddr;                                                // address of the device
+        i2c_masterCommand(1,NULL);
+	} else {
+        I2C2_Sendlen = nbr;                                                // send one byte
+        I2C2_Rcvlen = 0;
+		memcpy(I2C_Send_Buffer,p,nbr);
+        I2C2_Addr = nunaddr;                                                // address of the device
+        i2c2_masterCommand(1,NULL);
+	}
+}
+
+void WiiReceive(int nbr, char *p){
+	if(I2C0locked){
+		I2C_Rcvbuf_Float = NULL;
+		I2C_Rcvbuf_Int = NULL;
+        I2C_Sendlen = 0;                                                // send one byte
+        I2C_Rcvlen = nbr;
+        I2C_Addr = nunaddr;                                                // address of the device
+        i2c_masterCommand(1,(unsigned char *)p);
+	} else {
+		I2C2_Rcvbuf_Float = NULL;
+		I2C2_Rcvbuf_Int = NULL;
+        I2C2_Sendlen = 0;                                                // send one byte
+        I2C2_Rcvlen = nbr;
+        I2C2_Addr = nunaddr;                                                // address of the device
+        i2c2_masterCommand(1,(unsigned char *)p);
+	}
+}
+
+void MIPS16 cmd_Classic(unsigned char *p){
+	unsigned char *tp=NULL;
+	uint32_t id=0;
+	if((tp=checkstring(p,(unsigned char *)"OPEN"))){
+		getargs(&tp,3,(unsigned char *)",");
+		if(!(I2C0locked || I2C1locked))error("SYSTEM I2C not configured");
+		if(classic1)error("Already open");
+		memset((void*)&nunstruct.x,0,sizeof(nunstruct));
+		int retry=5;
+		do {
+			WiiSend(sizeof(nuninit),(char *)nuninit);
+			uSec(5000);
+		} while(mmI2Cvalue && retry--);
+		if(mmI2Cvalue)error("Wii device not connected1");
+		WiiSend(sizeof(nuninit2),(char *)nuninit2);
+		if(mmI2Cvalue)error("Wii device not connected2");
+		uSec(5000);
+		WiiSend(sizeof(nunid),(char *)nunid);
+		if(mmI2Cvalue)error("Wii device not connected3");
+		WiiReceive(4,(char *)&id);
+		if(mmI2Cvalue)error("Wii device not connected4");
+		nunstruct.type=swap32(id);
+		uSec(5000);
+		retry=5;
+		nunbuff[0]=0;
+		while((nunbuff[0]==0 || nunbuff[0]==255) && retry--){
+			WiiSend(sizeof(readcontroller),(char *)readcontroller);
+			if(mmI2Cvalue)error("Classic not connected");
+			uSec(16000);
+			memset(nunbuff,0,6);
+			WiiReceive(6, (char *)nunbuff);
+			if(mmI2Cvalue)error("Classic not connected");
+			uSec(16000);
+		}
+		if(nunbuff[0]==0 || nunbuff[0]==255){
+			classic1=0;
+			error("Classic not responding");
+		}
+		if(argc>=1){
+			nunInterruptc = (char *)GetIntAddress(argv[0]);					// get the interrupt location
+			InterruptUsed = true;
+			nunstruct.x1=0b111111111111111;
+			if(argc==3)nunstruct.x1=getint(argv[2],0,0b111111111111111);
+		}
+		classic1=1;
+		while(classic1==1)routinechecks();
+		classicproc();
+		return;
+	} else if((tp = checkstring(p, (unsigned char *)"CLOSE"))){
+		if(!classic1)error("Not open");
+		classic1=0;
+		nunInterruptc=NULL;
+	}
+}
+
+void classicproc(void){
+//	int ax; //classic left x
+//	int ay; //classic left y
+//	int az; //classic centre
+//	int Z;  //classic right x
+//	int C;  //classic right y
+//	int L;  //classic left analog
+//	int R;  //classic right analog
+//	unsigned short x0; //classic buttons
+	static unsigned short buttonlast=0;
+	unsigned short inttest=(((nunbuff[4]>>1) | (nunbuff[5]<<7)) ^ 0b111111111111111) & nunstruct.x1;
+	nunstruct.classic[0]=nunbuff[0];
+	nunstruct.classic[1]=nunbuff[1];
+	nunstruct.classic[2]=nunbuff[2];
+	nunstruct.classic[3]=nunbuff[3];
+	nunstruct.classic[4]=nunbuff[4];
+	nunstruct.classic[5]=nunbuff[5];
+	if(inttest!=buttonlast){
+		nunfoundc=1;
+	}
+	buttonlast=inttest;
+	nunstruct.ax=(nunbuff[0] & 0b111111)<<2;
+	nunstruct.ay=(nunbuff[1] & 0b111111)<<2;
+	nunstruct.Z=(((nunbuff[2] & 0b10000000)>>7) |
+			((nunbuff[1] & 0b11000000)>>5) |
+			((nunbuff[0] & 0b11000000)>>3))<<3;
+	nunstruct.C=(nunbuff[2] & 0b11111)<<3;
+	nunstruct.R=((nunbuff[3] & 0b00011111))<<3;
+	nunstruct.L=(((nunbuff[3] & 0b11100000)>>5) |
+			((nunbuff[2] & 0b01100000)>>2))<<3;
+	nunstruct.x0=((nunbuff[4]>>1) | (nunbuff[5]<<7)) ^ 0b111111111111111;
+}
+
 #ifndef PICOMITEVGA
 #define ov7670_address 0x21
 #define top 120
@@ -1320,6 +1457,7 @@ int readregister(int reg){
 	uSec(1000);
 	return buff[0];
 }
+
 void ov7670_set(char a, char b){
 	//send the command
 	if(I2C0locked){
@@ -1575,7 +1713,7 @@ void MIPS16 cmd_camera(unsigned char *p){
 		XCLK=pin1;
 		PCLK=pin2; 
 		HREF=pin3; 
-		VSYNC=pin4;
+		VSYNC=pin4; 
 		RESET=pin5; 
 		D0=pin6;
 		setpwm(pin1, &CameraChannel, &CameraSlice, 12000000.0, 50.0);
@@ -1861,16 +1999,9 @@ void MIPS16 cmd_camera(unsigned char *p){
 			int xs=0,ys=0;
 			if(!XCLK)error("Camera not open");
 			int scale=1;
-			void *ptr2 = findvar(argv[0], V_FIND | V_EMPTY_OK | V_NOFIND_ERR);
-			if(vartbl[VarIndex].type &  (T_NBR | T_INT)) {
-				if(vartbl[VarIndex].dims[1] != 0) error("Target must be 1D a numerical point array");
-				if(vartbl[VarIndex].dims[0] <= 0) {		// Not an array
-					error("Target must be 1D a numerical point array");
-				}
-				size=vartbl[VarIndex].dims[0]-OptionBase+1;
-				cp = (unsigned char *)ptr2;
-				if((uint32_t)ptr2!=(uint32_t)vartbl[VarIndex].val.s)error("Syntax");
-			} else error("Target must be 1D a numerical point array");
+			int64_t *aint;
+			size=parseintegerarray(argv[0],&aint,1,1,NULL,true);
+			cp = (unsigned char *)aint;
     // get the two variables
 			MMFLOAT *outdiff = findvar(argv[2], V_FIND);
 			if(!(vartbl[VarIndex].type & T_NBR)) error("Invalid variable");

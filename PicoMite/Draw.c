@@ -101,25 +101,26 @@ typedef struct _BMPDECODER
 /***************************************************************************/
 // the default function for DrawRectangle() and DrawBitmap()
 
-int gui_font;
+short gui_font;
 int gui_fcolour;
 int gui_bcolour;
-int low_y=480, high_y=0, low_x=800, high_x=0;
+short low_y=480, high_y=0, low_x=800, high_x=0;
 int PrintPixelMode=0;
 
-int CurrentX=0, CurrentY=0;                                             // the current default position for the next char to be written
-int DisplayHRes, DisplayVRes;                                       // the physical characteristics of the display
+short CurrentX=0, CurrentY=0;                                             // the current default position for the next char to be written
+short DisplayHRes, DisplayVRes;                                       // the physical characteristics of the display
 struct blitbuffer blitbuff[MAXBLITBUF+1] = { 0 };	
-int CMM1=0;
+char CMM1=0;
 // the MMBasic programming characteristics of the display
 // note that HRes == 0 is an indication that a display is not configured
-int HRes = 0, VRes = 0;
-int lastx,lasty;
+short HRes = 0, VRes = 0;
+short lastx,lasty;
 const int CMM1map[16]={BLACK,BLUE,GREEN,CYAN,RED,MAGENTA,YELLOW,WHITE,MYRTLE,COBALT,MIDGREEN,CERULEAN,RUST,FUCHSIA,BROWN,LILAC};
 int RGB121map[16];
 // pointers to the drawing primitives
 #ifdef PICOMITEVGA
-int gui_font_width, gui_font_height, last_bcolour, last_fcolour;
+short gui_font_width, gui_font_height;
+int last_bcolour, last_fcolour;
 volatile int CursorTimer=0;               // used to time the flashing cursor
 extern volatile int QVgaScanLine;
 struct D3D* struct3d[MAX3D + 1] = { NULL };
@@ -127,25 +128,26 @@ s_camera camera[MAXCAM + 1];
 int layer_in_use[MAXLAYER + 1];
 unsigned char LIFO[MAXBLITBUF];
 unsigned char zeroLIFO[MAXBLITBUF];
-int LIFOpointer = 0;
-int zeroLIFOpointer = 0;
-int sprites_in_use = 0;
+uint8_t LIFOpointer = 0;
+uint8_t zeroLIFOpointer = 0;
+uint8_t sprites_in_use = 0;
 char* COLLISIONInterrupt = NULL;
-int CollisionFound = false;
+bool CollisionFound = false;
 int sprite_which_collided = -1;
-static int hideall = 0;
-int mergedread=0;
+static bool hideall = 0;
+bool mergedread=0;
 int transparenthigh=0,transparentlow=0;
 #else
     int map[16]={0};
     #ifdef PICOMITEWEB
-    int gui_font_width, gui_font_height, last_bcolour, last_fcolour;
+    short gui_font_width, gui_font_height;
+    int last_bcolour, last_fcolour;
     volatile int CursorTimer=0;               // used to time the flashing cursor
     int display_backlight;                  // the brightness of the backlight (1 to 100)
     #else
     extern int InvokingCtrl;
-    int mergerunning=0;
-    volatile int mergedone=0;
+    bool mergerunning=false;
+    volatile bool mergedone=false;
     uint32_t mergetimer=0;
     #endif
 #endif
@@ -360,7 +362,7 @@ void  getargaddress (unsigned char *p, long long int **ip, MMFLOAT **fp, int *n)
         return;
     }
     ptr = findvar((unsigned char *)pp, V_FIND | V_EMPTY_OK | V_NOFIND_NULL);
-    if(ptr && vartbl[VarIndex].type & T_NBR) {
+    if(ptr && vartbl[VarIndex].type & (T_NBR | T_INT)) {
         if(vartbl[VarIndex].dims[0] <= 0){ //simple variable
             *n=1;
             return;
@@ -382,30 +384,8 @@ void  getargaddress (unsigned char *p, long long int **ip, MMFLOAT **fp, int *n)
             }
         }
         if(vartbl[VarIndex].dims[1] != 0) error("Invalid variable");
-        *fp = (MMFLOAT*)ptr;
-    } else if(ptr && vartbl[VarIndex].type & T_INT) {
-        if(vartbl[VarIndex].dims[0] <= 0){
-            *n=1;
-            return;
-        } else {
-            if(*n == 0)*n=vartbl[VarIndex].dims[0] + 1 - OptionBase;
-            else *n = (vartbl[VarIndex].dims[0] + 1 - OptionBase)< *n ? (vartbl[VarIndex].dims[0] + 1 - OptionBase) : *n;
-            skipspace(p);
-            do {
-                p++;
-            } while(isnamechar(*p));
-            if(*p == '%') p++;
-            if(*p == '(') {
-                p++;
-                skipspace(p);
-                if(*p != ')') { //array element
-                    *n=1;
-                    return;
-                }
-            }
-        }
-        if(vartbl[VarIndex].dims[1] != 0) error("Invalid variable");
-        *ip = (long long int *)ptr;
+        if(vartbl[VarIndex].type & T_NBR)*fp = (MMFLOAT*)ptr;
+        else *ip = (long long int *)ptr;
     } else {
     	*n=1; //may be a function call
     }
@@ -1638,7 +1618,7 @@ void cmd_circle(void) {
     }
     if(Option.Refresh)Display_Refresh();
 }
-static int xb0,xb1,yb0,yb1;
+static short xb0,xb1,yb0,yb1;
 void drawAAPixel( int x , int y , MMFLOAT brightness, uint32_t c){
     union colourmap
     {
@@ -3861,7 +3841,6 @@ void loadarray(unsigned char* p) {
     int bnbr, w, h, size, i, toggle=0;
     int maxH = VRes;
     int maxW =HRes;
-    void* ptr1 = NULL;
     MMFLOAT* a3float = NULL;
     int64_t* a3int = NULL;
     char* q;
@@ -3873,23 +3852,7 @@ void loadarray(unsigned char* p) {
     if (blitbuff[bnbr].blitbuffptr == NULL) {
         w = (int)getint(argv[2], 1, maxW);
         h = (int)getint(argv[4], 1, maxH);
-        ptr1 = findvar(argv[6], V_FIND | V_EMPTY_OK | V_NOFIND_ERR);
-        if (vartbl[VarIndex].type & T_NBR) {
-            if (vartbl[VarIndex].dims[1] != 0) error((char *)"Invalid variable");
-            if (vartbl[VarIndex].dims[0] <= 0) {		// Not an array
-                error((char *)"Argument 1 must be array");
-            }
-            a3float = (MMFLOAT*)ptr1;
-        }
-        else if (vartbl[VarIndex].type & T_INT) {
-            if (vartbl[VarIndex].dims[1] != 0) error((char *)"Invalid variable");
-            if (vartbl[VarIndex].dims[0] <= 0) {		// Not an array
-                error((char *)"Argument 1 must be array");
-            }
-            a3int = (int64_t*)ptr1;
-        }
-        else error((char *)"Argument 1 must be array");
-        size = (vartbl[VarIndex].dims[0] - OptionBase);
+        size=parsenumberarray(argv[6],&a3float,&a3int,4,1,NULL,true)-1;
         if (size < w * h - 1)error((char *)"Array Dimensions");
         blitbuff[bnbr].blitbuffptr = (char *)GetMemory((w * h + 1)>>1);
         blitbuff[bnbr].blitstoreptr = (char *)GetMemory((w * h + 1)>>1);
@@ -5007,7 +4970,7 @@ void blitmerge (int x0, int y0, int w, int h, uint8_t colour){
     }
 #ifdef PICOMITE
     mutex_exit(&frameBufferMutex);
-    mergedone=1;
+    mergedone=true;
     __dmb();
 #endif
 }
@@ -5043,7 +5006,7 @@ void merge(uint8_t colour){
     }
 #ifdef PICOMITE
     mutex_exit(&frameBufferMutex);
-    mergedone=1;
+    mergedone=true;
     __dmb();
 #endif
 }
@@ -5096,8 +5059,8 @@ void cmd_framebuffer(void){
 #ifndef PICOMITEVGA
 #ifdef PICOMITE
     } else if((p=checkstring(cmdline, (unsigned char *)"SYNC"))) { //merge the layer onto the physical display
-        mergedone=0;
-        while(mergedone==0){CheckAbort();}
+        mergedone=false;
+        while(mergedone==false){CheckAbort();}
 #endif
     } else if((p=checkstring(cmdline, (unsigned char *)"MERGE"))) { //merge the layer onto the physical display
         if(!LayerBuf)error("Layer not created");
@@ -6960,66 +6923,18 @@ void cmd_3D(void){
 		int nf=getinteger(argv[4]);
 		if(nf<1)error("3D object must have a minimum of 1 face");
 		int cam=getint(argv[6],1,MAXCAM);
-		vertex = (MMFLOAT *)findvar(argv[8], V_FIND | V_EMPTY_OK | V_NOFIND_ERR);
-		if((uint32_t)vertex!=(uint32_t)vartbl[VarIndex].val.s)error("Vertex array must be a 2D floating point array");
-		if(vartbl[VarIndex].type & T_NBR) {
-			if(vartbl[VarIndex].dims[2] != 0) error("Vertex array must be a 2D floating point array");
-			if(vartbl[VarIndex].dims[0] - OptionBase!= 2) {		// Not an array
-				error("Vertex array must have 3 elements in first dimension");
-			}
-			if(vartbl[VarIndex].dims[1] - OptionBase < nv-1) {		// Not an array
-				error("Vertex array too small");
-			}
-		} else error("Vertex array must be a 2D floating point array");
-
-		facecount = (long long int *)findvar(argv[10], V_FIND | V_EMPTY_OK | V_NOFIND_ERR);
-		if((uint32_t)facecount!=(uint32_t)vartbl[VarIndex].val.s)error("Vertex count array must be a 1D integer array");
-		if(vartbl[VarIndex].type & T_INT) {
-			if(vartbl[VarIndex].dims[1] != 0) error("Vertex count array must be a 1D integer array");
-			if(vartbl[VarIndex].dims[0] - OptionBase< nf-1) {		// Not an array
-				error("Vertex count array too small");
-			}
-		} else error("Vertex count array must be a 1D integer array");
+        if(parsefloatrarray(argv[8],&vertex,5,2,NULL,false)<nv)error("Vertex array too small");
+        if(parseintegerarray(argv[10],&facecount,6,1,NULL,false)<nf)error("Vertex count array too small");
 		facecountindex=facecount;
 		for(f=0;f<nf;f++)fc += (*facecountindex++);
-
-		faces = (long long int *)findvar(argv[12], V_FIND | V_EMPTY_OK | V_NOFIND_ERR);
-		if((uint32_t)faces!=(uint32_t)vartbl[VarIndex].val.s)error("Face/vertex array must be a 1D integer array");
-		if(vartbl[VarIndex].type & T_INT) {
-			if(vartbl[VarIndex].dims[1] != 0) error("Face/vertex array must be a 1D integer array");
-			if(vartbl[VarIndex].dims[0] - OptionBase< fc-1) {		// Not an array
-				error("Face/vertex array too small");
-			}
-		} else error("Face/vertex array must be a 1D integer array");
-
-		colours = (long long int *)findvar(argv[14], V_FIND | V_EMPTY_OK | V_NOFIND_ERR);
-		if((uint32_t)colours!=(uint32_t)vartbl[VarIndex].val.s)error("Colour array must be a 1D integer array");
-		if(vartbl[VarIndex].type & T_INT) {
-			if(vartbl[VarIndex].dims[1] != 0) error("Colour array must be a 1D integer array");
-			colourcount=vartbl[VarIndex].dims[0] - OptionBase + 1;
-		} else error("Colour array must be a 1D integer array");
-
-
+        if(parseintegerarray(argv[12],&faces,7,1,NULL,false)<fc)error("Face/vertex array too small");
+        colourcount=parseintegerarray(argv[14],&colours,8,1,NULL,false);
 		if(argc>=17 && *argv[16]){
-			linecolour = (long long int *)findvar(argv[16], V_FIND | V_EMPTY_OK | V_NOFIND_ERR);
-			if((uint32_t)linecolour!=(uint32_t)vartbl[VarIndex].val.s)error("Line colour array must be a 1D integer array");
-			if(vartbl[VarIndex].type & T_INT) {
-				if(vartbl[VarIndex].dims[1] != 0) error("Line colour  array must be a 1D integer array");
-				if(vartbl[VarIndex].dims[0] - OptionBase< nf-1) {		// Not an array
-					error("Line colour  array too small");
-				}
-			} else error("Line colour must be a 1D integer array");
+            if(parseintegerarray(argv[16],&linecolour,9,1,NULL,false)<nf)error("Line colour  array too small");
 		}
 
 		if(argc==19){
-			fillcolour = (long long int *)findvar(argv[18], V_FIND | V_EMPTY_OK | V_NOFIND_ERR);
-			if((uint32_t)fillcolour!=(uint32_t)vartbl[VarIndex].val.s)error("Fill colour array must be a 1D integer array");
-			if(vartbl[VarIndex].type & T_INT) {
-				if(vartbl[VarIndex].dims[1] != 0) error("Fill colour array must be a 1D integer array");
-				if(vartbl[VarIndex].dims[0] - OptionBase< nf-1) {		// Not an array
-					error("Fill colour array too small");
-				}
-			} else error("Fill colour must be a 1D integer array");
+            if(parseintegerarray(argv[18],&fillcolour,10,1,NULL,false)<nf)error("Fill colour array too small");
 		}
 		// The data look valid so now create the object in memory
 		struct3d[n]=GetMemory(sizeof(struct D3D));
@@ -7204,22 +7119,12 @@ void cmd_3D(void){
 	        }
 	    }
 	} else if((p=checkstring(cmdline, (unsigned char *)"ROTATE"))) {
-		void *ptr1 = NULL;
 		int i, n, v, f;
 		s_quaternion q1;
 		MMFLOAT *q=NULL;
 		getargs(&p, (MAX_ARG_COUNT * 2) - 1, (unsigned char *)",");				// getargs macro must be the first executable stmt in a block
 		if((argc & 0x01 || argc<3) == 0) error("Argument count");
-		ptr1 = findvar(argv[0], V_FIND | V_EMPTY_OK | V_NOFIND_ERR);
-		if(vartbl[VarIndex].type & T_NBR) {
-			if(vartbl[VarIndex].dims[1] != 0) error("Invalid variable");
-			if(vartbl[VarIndex].dims[0] <= 0) {		// Not an array
-				error("Argument 1 must be a 5 element floating point array");
-			}
-			if(vartbl[VarIndex].dims[0] - OptionBase!=4)error("Argument 1 must be a 5 element floating point array");
-			q = (MMFLOAT *)ptr1;
-			if((uint32_t)ptr1!=(uint32_t)vartbl[VarIndex].val.s)error("Syntax");
-		} else error("Argument 1 must be a 5 element floating point array");
+        if(parsefloatrarray(argv[0],&q,1,1,NULL,true)!=5)error("Argument 1 must be a 5 element floating point array");
 		q1.w=(FLOAT3D)(*q++);
 		q1.x=(FLOAT3D)(*q++);
 		q1.y=(FLOAT3D)(*q++);
