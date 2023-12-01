@@ -763,12 +763,13 @@ void fun_LGetStr(void){
         int start,nbr,j;
         getargs(&ep, 5, (unsigned char *)",");
         if(argc != 5)error("Argument count");
-        j=(parseintegerarray(argv[2],&src,2,1,NULL,false)-1)*8;
+        j=(parseintegerarray(argv[0],&src,2,1,NULL,false)-1)*8;
         start = getint(argv[2],1,j);
         nbr = getinteger(argv[4]);
         if(nbr < 1 || nbr > MAXSTRLEN) error("Number out of bounds");
         if(start+nbr>src[0])nbr=src[0]-start+1;
         sret = GetTempMemory(STRINGSIZE);                                       // this will last for the life of the command
+        s=(char *)&src[1];
         s+=(start-1);
         p=(char *)sret+1;
         *sret=nbr;

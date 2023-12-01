@@ -62,6 +62,12 @@ volatile bool PS2int=false;
 #define R_SHFT 0x59
 #define CAPS 0x58
 #define NUML 0x77
+  static char LShift = 0;
+  static char RShift = 0;
+  static char PS2Ctrl = 0;
+  static char AltGrDown = 0;
+  static char KeyUpCode = false;
+  static char KeyE0 = false;
 
 // this is a map of the keycode characters and the character to be returned for the keycode
 const char keyCodes[8][128] =
@@ -555,73 +561,9 @@ void __not_in_flash_func(CheckKeyboard)(void)
     setLEDs(CapsLock, NumLock, 0);
   }
 }
-
-/***************************************************************************************************
-change notification interrupt service routine
-****************************************************************************************************/
-void __not_in_flash_func(CNInterrupt)(int dd)
-{
+void processcode(unsigned char Code){
   unsigned char c = 0;
   //	unsigned int dly;
-  static char LShift = 0;
-  static char RShift = 0;
-  static char Ctrl = 0;
-  static char AltGrDown = 0;
-  static char KeyUpCode = false;
-  static char KeyE0 = false;
-//  static char Key12 = false;
-  static unsigned char Code = 0;
-  int d = dd & (1<<PinDef[KEYBOARD_DATA].GPno);
-
-  // Make sure it was a falling edge
-  if (!(dd & (1<<PinDef[KEYBOARD_CLOCK].GPno)))
-  {
-    if(!Timer3)PS2State=PS2START;
-    switch (PS2State)
-    {
-    default:
-    case PS2ERROR: // this can happen if a timing or parity error occurs
-                   //            ClickTimer = 50;
-      LShift = 0;  // reset the CTRL, SHIFT and other keys
-      RShift = 0;
-      Ctrl = 0;
-      AltGrDown = 0;
-      KeyUpCode = false;
-      KeyE0 = false;
-      // fall through to PS2START
-
-    case PS2START:
-      if (!d)
-      {              // PS2DAT == 0
-        KCount = 8;  // init bit counter
-        KParity = 0; // init parity check
-        Code = 0;
-        PS2State = PS2BIT;
-        Timer3=5;
-      }
-      break;
-
-    case PS2BIT:
-      Code >>= 1; // shift in data bit
-      if (d)
-        Code |= 0x80;  // PS2DAT == 1
-      KParity ^= Code; // calculate parity
-      if (--KCount <= 0)
-        PS2State = PS2PARITY; // all bit read
-      break;
-
-    case PS2PARITY:
-      if (d)
-        KParity ^= 0x80;  // PS2DAT == 1
-      if (KParity & 0x80) // parity odd, continue
-        PS2State = PS2STOP;
-      else
-        PS2State = PS2ERROR;
-      break;
-
-    case PS2STOP:
-      if (d)
-      { // PS2DAT == 1
         if(!(Code==0xe0 || Code==0xf0 || (Code==0x12 && KeyE0) || (Code==0x12 && KeyUpCode)) && Code){
           PS2int=true;
           PS2code=Code;
@@ -656,7 +598,7 @@ void __not_in_flash_func(CNInterrupt)(int dd)
             else if (Code == R_SHFT)
               RShift = 0; // right shift button is released
             else if (Code == CTRL)
-              Ctrl = 0; // left control button is released
+              PS2Ctrl = 0; // left control button is released
             else if (KeyE0 && Code == 0x11)
               AltGrDown = 0; // release the AltGr key on non US keyboards
             else if (Code == KeyDownCode)
@@ -677,7 +619,7 @@ void __not_in_flash_func(CNInterrupt)(int dd)
           } // right shift button is pressed
           if (Code == CTRL)
           {
-            Ctrl = 1;
+            PS2Ctrl = 1;
             goto SkipOut;
           } // left control button is pressed
           if (Code == CAPS)
@@ -714,7 +656,7 @@ void __not_in_flash_func(CNInterrupt)(int dd)
               c = keyE0Codes_ES[Code - 104];
             else
               c = keyE0Codes[Code - 104];
-            if (Ctrl)
+            if (PS2Ctrl)
             { // special for PB
               if (c == UP)
                 c = PUP; // CTRL-UP to page up
@@ -1012,7 +954,7 @@ void __not_in_flash_func(CNInterrupt)(int dd)
           { // a normal character
             if (CapsLock && c >= 'a' && c <= 'z')
               c -= 32; // adj for caps lock
-            if (Ctrl)
+            if (PS2Ctrl)
               c &= 0x1F; // adj for control
           }
           else
@@ -1020,7 +962,7 @@ void __not_in_flash_func(CNInterrupt)(int dd)
             if (LShift || RShift)
               c |= 0b00100000;
             // NOTE: Special for PB, CTRL-UP to page up, CTRL-DOWN to page down, CTRL-LEFT to home, CTRL-RIGHT to end
-            if (Ctrl && !(c == PUP || c == PDOWN || c == HOME || c == END))
+            if (PS2Ctrl && !(c == PUP || c == PDOWN || c == HOME || c == END))
               c |= 0b01000000;
           }
 
@@ -1059,7 +1001,67 @@ void __not_in_flash_func(CNInterrupt)(int dd)
           KeyUpCode = false;
           KeyE0 = false;
         }
+}
+/***************************************************************************************************
+change notification interrupt service routine
+****************************************************************************************************/
+void __not_in_flash_func(CNInterrupt)(int dd)
+{
+//  static char Key12 = false;
+  static unsigned char Code = 0;
+  int d = dd & (1<<PinDef[KEYBOARD_DATA].GPno);
+
+  // Make sure it was a falling edge
+  if (!(dd & (1<<PinDef[KEYBOARD_CLOCK].GPno)))
+  {
+    if(!Timer3)PS2State=PS2START;
+    switch (PS2State)
+    {
+    default:
+    case PS2ERROR: // this can happen if a timing or parity error occurs
+                   //            ClickTimer = 50;
+      LShift = 0;  // reset the CTRL, SHIFT and other keys
+      RShift = 0;
+      PS2Ctrl = 0;
+      AltGrDown = 0;
+      KeyUpCode = false;
+      KeyE0 = false;
+      // fall through to PS2START
+
+    case PS2START:
+      if (!d)
+      {              // PS2DAT == 0
+        KCount = 8;  // init bit counter
+        KParity = 0; // init parity check
         Code = 0;
+        PS2State = PS2BIT;
+        Timer3=5;
+      }
+      break;
+
+    case PS2BIT:
+      Code >>= 1; // shift in data bit
+      if (d)
+        Code |= 0x80;  // PS2DAT == 1
+      KParity ^= Code; // calculate parity
+      if (--KCount <= 0)
+        PS2State = PS2PARITY; // all bit read
+      break;
+
+    case PS2PARITY:
+      if (d)
+        KParity ^= 0x80;  // PS2DAT == 1
+      if (KParity & 0x80) // parity odd, continue
+        PS2State = PS2STOP;
+      else
+        PS2State = PS2ERROR;
+      break;
+
+    case PS2STOP:
+      if (d)
+      { // PS2DAT == 1
+      processcode(Code);
+      Code = 0;
       }
       PS2State = PS2START;
       break;

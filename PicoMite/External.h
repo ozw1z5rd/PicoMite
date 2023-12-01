@@ -272,7 +272,7 @@ extern uint8_t I2C1locked;
 extern volatile int CallBackEnabled;
 extern int ADCopen; 
 extern volatile MMFLOAT * volatile a1float, * volatile a2float, * volatile a3float, * volatile a4float;
-extern uint8_t ADCmax;
+extern uint32_t ADCmax;
 extern bool dmarunning;
 extern bool ADCDualBuffering;
 extern char *ADCInterrupt;

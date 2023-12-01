@@ -30,7 +30,7 @@ extern "C" {
 #define MAXVARS             512                     // 8 + MAXVARLEN + MAXDIM * 2  (ie, 56 bytes) - these do not incl array members
 #define FLASH_TARGET_OFFSET (672 * 1024) 
 #define MagicKey 0x15486342
-#define HEAPTOP 0x20040000
+#define HEAPTOP 0x2003F900
 #define HEAP_MEMORY_SIZE (100*1024) 
 #define MAX_CPU     378000 
 #define MIN_CPU     126000
@@ -41,7 +41,7 @@ extern "C" {
 #define MAXVARS             480                    // 8 + MAXVARLEN + MAXDIM * 2  (ie, 56 bytes) - these do not incl array members
 #define FLASH_TARGET_OFFSET (992 * 1024) 
 #define MagicKey 0x51386327
-#define HEAPTOP 0x20040000
+#define HEAPTOP 0x2003f600
 #define HEAP_MEMORY_SIZE (80*1024+0x4000) 
 #define MaxPcb 8
 #define MAX_CPU     252000
@@ -52,7 +52,7 @@ extern "C" {
 #define MAXVARS             512                     // 8 + MAXVARLEN + MAXDIM * 2  (ie, 56 bytes) - these do not incl array members
 #define FLASH_TARGET_OFFSET (720 * 1024) 
 #define MagicKey 0x21343427
-#define HEAPTOP 0x2003f00 
+#define HEAPTOP 0x2003e800
 #define HEAP_MEMORY_SIZE (132*1024) 
 #define MAX_CPU     378000
 #define MIN_CPU     48000

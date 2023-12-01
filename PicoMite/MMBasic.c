@@ -3362,7 +3362,8 @@ void __not_in_flash_func(checkend)(unsigned char *p) {
 unsigned char __not_in_flash_func(*checkstring)(unsigned char *p, unsigned char *tkn) {
     skipspace(p);                                           // skip leading spaces
     while(*tkn && (mytoupper(*tkn) == mytoupper(*p))) { tkn++; p++; }   // compare the strings
-    if(*tkn == 0 && (*p == (unsigned char)' ' || *p == (unsigned char)',' || *p == (unsigned char)'\'' || *p == 0|| *p == (unsigned char)'(' )) {
+//    if(*tkn == 0 && (*p == (unsigned char)' ' || *p == (unsigned char)',' || *p == (unsigned char)'\'' || *p == 0 || *p == (unsigned char)'('  || *p == (unsigned char)'=')) {
+    if(*tkn == 0 && !namein[*p]){
         skipspace(p);
         return p;                                                   // if successful return a pointer to the next non space character after the matched string
     }

@@ -907,7 +907,8 @@ void cmd_math(void){
 			numcols2++;
 			numrows2++;
 			MMFLOAT **matrix1=alloc2df(numcols1,numrows1);
-			MMFLOAT **matrix2=alloc2df(numrows2,numcols2);
+			//MMFLOAT **matrix2=alloc2df(numrows2,numcols2);
+			MMFLOAT **matrix2=alloc2df(numcols2,numrows2);
 			for(i=0;i<numrows1;i++){
 				for(j=0;j<numcols1;j++){
 					matrix1[j][i]=*a1float++;
@@ -1303,7 +1304,7 @@ void cmd_math(void){
 			parsenumberarray(argv[i*2 +2],&afloat,&a2int,i+1,1,dims,true);
 			if(!a2int)a2int=(int64_t *)afloat;
 			if(target==-1)return;
-			if(dim[target]!=dims[0])error("Size mismatch between insert and target array");
+			if(dim[target]+OptionBase!=dims[0])error("Size mismatch between insert and target array");
 			i=dimcount-1;
 			while(i>=0){
 				off[i]=1;
@@ -1355,6 +1356,7 @@ void fun_math(void){
 			z=atan2(y,x);
 			if (z < 0.0) z = z + M_TWOPI;
 			fret=z;
+	 		fret *=optionangle;
 			targ = T_NBR;
 			return;
 		}
