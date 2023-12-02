@@ -514,14 +514,7 @@ void  MIPS16 cmd_continue(void) {
 }
 
 void MIPS16 cmd_new(void) {
-#ifdef PICOMITEVGA
-	WriteBuf=(unsigned char *)FRAMEBUFFER;
-	DisplayBuf=(unsigned char *)FRAMEBUFFER;
-	LayerBuf=(unsigned char *)FRAMEBUFFER;
-	FrameBuf=(unsigned char *)FRAMEBUFFER;
-#else
 	closeframebuffer();
-#endif	
 	checkend(cmdline);
 	ClearProgram();
 	FlashLoad=0;
@@ -814,10 +807,7 @@ void cmd_end(void) {
     InterruptReturn = NULL ; 
     memset(inpbuf,0,STRINGSIZE);
 	CloseAudio(1);
-#ifdef PICOMITEVGA
-	WriteBuf=(unsigned char *)FRAMEBUFFER;
-	DisplayBuf=(unsigned char *)FRAMEBUFFER;
-#endif
+	closeframebuffer();
     ADCDualBuffering=0;
 	WatchdogSet = false;
 	dmarunning = false;

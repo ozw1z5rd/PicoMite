@@ -778,6 +778,7 @@ void cmd_math(void){
 			parsefloatrarray(argv[4],&a3float,1,1,dims,true);
 			if((dims[0] - OptionBase) != numrows)error("Array size mismatch");
 			if(a3float==a1float || a3float==a2float)error("Destination array same as source");
+			a2sfloat=a2float;
 			numcols++;
 			numrows++;
 			for(i=0;i<numrows;i++){
@@ -798,6 +799,7 @@ void cmd_math(void){
 			getargs(&tp, 3,(unsigned char *)",");
 			if(!(argc == 3)) error("Argument count");
 			numrows=parsefloatrarray(argv[0],&a1float,1,1, dims, false);
+			a1sfloat=a1float;
 			card2=parsefloatrarray(argv[2],&a2float,2,1, dims, true);
 			if(numrows!=card2)error("Array size mismatch");
 			for(j=0;j<numrows;j++){
@@ -1096,7 +1098,7 @@ void cmd_math(void){
 			MMFLOAT x=getnumber(argv[2]);
 			MMFLOAT y=getnumber(argv[4]);
 			MMFLOAT z=getnumber(argv[6]);
-			card=parsefloatrarray(argv[6],&q,4,1, dims, true);
+			card=parsefloatrarray(argv[8],&q,5,1, dims, true);
 			if(card!=5)error("Argument 4 must be a 5 element floating point array");
 			MMFLOAT sineterm= sin(theta/2.0/optionangle);
 			q[0]=cos(theta/2.0);
@@ -1845,7 +1847,7 @@ void fun_math(void){
 			MMFLOAT *a1float=NULL;
 			getargs(&tp, 1,(unsigned char *)",");
 			if(!(argc == 1)) error("Argument count");
-			parsefloatrarray(argv[0],&a1float,1,1,dims, false);
+			parsefloatrarray(argv[0],&a1float,1,2,dims, false);
 			numcols=dims[0];
 			numrows=dims[1];
 			if(numcols!=numrows)error("Array must be square");

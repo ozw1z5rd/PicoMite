@@ -671,30 +671,19 @@ void cmd_longString(void){
     if(tp){
         int64_t *dest=NULL;
         char *q=NULL;
-        int i, j, fnbr;
-        getargs(&tp, 5, (unsigned char *)",;");
-        if(argc < 1 || argc > 4)error("Argument count");
-        if(argc > 0 && *argv[0] == '#') {                                // check if the first arg is a file number
-            argv[0]++;
+        int j, fnbr=0;
+        getargs(&tp, 3, (unsigned char *)",");
+        if(argc == 3){
+            if(*argv[0] == '#')argv[0]++;                                 // check if the first arg is a file number
             fnbr = getinteger(argv[0]);                                 // get the number
-            i = 1;
-            if(argc >= 2 && *argv[1] == ',') i = 2;                      // and set the next argument to be looked at
-        }
-        else {
-            fnbr = 0;                                                   // no file number so default to the standard output
-            i = 0;
-        }
-        if(argc>=1){
+            parseintegerarray(argv[2],&dest,2,1,NULL,true);
+        } else {
             parseintegerarray(argv[0],&dest,1,1,NULL,true);
-            q=(char *)&dest[1];
-            j=dest[0];
-            while(j--){
-                MMfputc(*q++, fnbr);
-            }
-            i++;
         }
-        if(argc > i){
-            if(*argv[i] == ';') return;
+        q=(char *)&dest[1];
+        j=dest[0];
+        while(j--){
+            MMfputc(*q++, fnbr);
         }
         MMfputs((unsigned char *)"\2\r\n", fnbr);
         return;
@@ -721,15 +710,16 @@ void cmd_longString(void){
        int64_t *dest=NULL, *src=NULL;
         char *p=NULL;
         char *q=NULL;
-        int i=0,j,k;
+        int i=0,j;
         getargs(&tp, 3, (unsigned char *)",");
         if(argc != 3)error("Argument count");
         j=parseintegerarray(argv[0],&dest,1,1,NULL,true);
         q=(char *)&dest[1];
         dest[0]=0;
-        k=parseintegerarray(argv[2],&src,2,1,NULL,false);
+        parseintegerarray(argv[2],&src,2,1,NULL,false);
         p=(char *)&src[1];
-        if(j<k)error("Destination array too small");
+        if((j-i)*8 < src[0])error("Destination array too small");
+        i=src[0];
         while(i--)*q++=*p++;
         dest[0]=src[0];
         return;
@@ -3630,7 +3620,7 @@ void fun_info(void){
     } 
 #endif
 	else if(checkstring(ep, (unsigned char *)"TRACK")){
-		if(CurrentlyPlaying == P_MP3 || CurrentlyPlaying == P_FLAC || CurrentlyPlaying == P_WAV|| CurrentlyPlaying == P_MP3 || CurrentlyPlaying == P_MIDI) strcpy((char *)sret,alist[trackplaying].fn);
+		if(CurrentlyPlaying == P_MP3 || CurrentlyPlaying == P_FLAC || CurrentlyPlaying == P_WAV|| CurrentlyPlaying == P_MP3 || CurrentlyPlaying == P_MIDI) strcpy((char *)sret,WAVfilename);
 		else strcpy((char *)sret,"OFF");
         CtoM(sret);
         targ=T_STR;

@@ -35,6 +35,8 @@
 #include "VS1053.h"
 #include "vs1053b-patches.h"
 #define LOG(...)
+extern void __not_in_flash_func(spi_write_fast)(spi_inst_t *spi, const uint8_t *src, size_t len);
+extern void __not_in_flash_func(spi_finish)(spi_inst_t *spi);
 //#define LOG printf
 #define _BV( bit ) ( 1<<(bit) )
 uint8_t cs_pin;                         // Pin where CS line is connected
@@ -153,9 +155,13 @@ void __not_in_flash_func(sdi_send_buffer)(uint8_t *data, size_t len) {
             chunk_length = vs1053_chunk_size;
         }
         len -= chunk_length;
-        xmit_multi(data, chunk_length);
+        if(PinDef[Option.AUDIO_CLK_PIN].mode & SPI0SCK)spi_write_fast(spi0, data, chunk_length);
+        else spi_write_fast(spi1, data, chunk_length);
+//        xmit_multi(data, chunk_length);
         data += chunk_length;
     }
+	if(PinDef[Option.AUDIO_CLK_PIN].mode & SPI0SCK)spi_finish(spi0);
+	else spi_finish(spi1);
     gpio_put(dcs_pin,GPIO_PIN_SET);
 }
 

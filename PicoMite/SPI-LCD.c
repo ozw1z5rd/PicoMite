@@ -69,6 +69,29 @@ const struct Displays display_details[]={
 		{38,"VS1053fast", 4000000, 0, 0, 0, 0, SPI_POLARITY_LOW, SPI_PHASE_1EDGE},
 
 };
+void __not_in_flash_func(spi_write_fast)(spi_inst_t *spi, const uint8_t *src, size_t len) {
+    // Write to TX FIFO whilst ignoring RX, then clean up afterward. When RX
+    // is full, PL022 inhibits RX pushes, and sets a sticky flag on
+    // push-on-full, but continues shifting. Safe if SSPIMSC_RORIM is not set.
+    for (size_t i = 0; i < len; ++i) {
+        while (!spi_is_writable(spi))
+            tight_loop_contents();
+        spi_get_hw(spi)->dr = (uint32_t)src[i];
+    }
+}
+void __not_in_flash_func(spi_finish)(spi_inst_t *spi){
+    // Drain RX FIFO, then wait for shifting to finish (which may be *after*
+    // TX FIFO drains), then drain RX FIFO again
+    while (spi_is_readable(spi))
+        (void)spi_get_hw(spi)->dr;
+    while (spi_get_hw(spi)->sr & SPI_SSPSR_BSY_BITS)
+        tight_loop_contents();
+    while (spi_is_readable(spi))
+        (void)spi_get_hw(spi)->dr;
+
+    // Don't leave overrun flag set
+    spi_get_hw(spi)->icr = SPI_SSPICR_RORIC_BITS;
+}
 #ifndef PICOMITEVGA
 int LCD_CS_PIN=0;
 int LCD_CD_PIN=0;
@@ -804,29 +827,6 @@ void SetCS(void) {
     else gpio_put(LCD_CS_PIN,GPIO_PIN_SET);
 }
 
-void __not_in_flash_func(spi_write_fast)(spi_inst_t *spi, const uint8_t *src, size_t len) {
-    // Write to TX FIFO whilst ignoring RX, then clean up afterward. When RX
-    // is full, PL022 inhibits RX pushes, and sets a sticky flag on
-    // push-on-full, but continues shifting. Safe if SSPIMSC_RORIM is not set.
-    for (size_t i = 0; i < len; ++i) {
-        while (!spi_is_writable(spi))
-            tight_loop_contents();
-        spi_get_hw(spi)->dr = (uint32_t)src[i];
-    }
-}
-void __not_in_flash_func(spi_finish)(spi_inst_t *spi){
-    // Drain RX FIFO, then wait for shifting to finish (which may be *after*
-    // TX FIFO drains), then drain RX FIFO again
-    while (spi_is_readable(spi))
-        (void)spi_get_hw(spi)->dr;
-    while (spi_get_hw(spi)->sr & SPI_SSPSR_BSY_BITS)
-        tight_loop_contents();
-    while (spi_is_readable(spi))
-        (void)spi_get_hw(spi)->dr;
-
-    // Don't leave overrun flag set
-    spi_get_hw(spi)->icr = SPI_SSPICR_RORIC_BITS;
-}
 
 
 void spi_write_data(unsigned char data){

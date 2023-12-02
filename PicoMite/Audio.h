@@ -81,7 +81,7 @@ extern int streamsize;
 extern int *streamwritepointer;
 extern int *streamreadpointer;
 extern char *streambuffer;
-
+extern char WAVfilename[FF_MAX_LFN];
 typedef struct sa_flist {
     char fn[FF_MAX_LFN];
 } a_flist;

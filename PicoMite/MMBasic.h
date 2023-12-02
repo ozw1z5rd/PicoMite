@@ -296,6 +296,7 @@ extern unsigned char *cmdline;                           // Command line termina
 extern unsigned char *nextstmt;                          // Pointer to the next statement to be executed.
 extern unsigned char PromptString[MAXPROMPTLEN];                                    // the prompt for input, an empty string means use the default
 extern int multi; 
+extern void str_replace(char *target, const char *needle, const char *replacement);
 #if defined(MMFAMILY)
 extern unsigned char FunKey[NBRPROGKEYS][MAXKEYLEN + 1]; // used by the programmable function keys
 #endif

@@ -145,6 +145,7 @@ int streamsize=0;
 int *streamwritepointer=NULL;
 int *streamreadpointer=NULL;
 char *streambuffer=NULL;
+char WAVfilename[FF_MAX_LFN]={0};
 void* my_malloc(size_t sz, void* pUserData)
 {
     return GetMemory(sz);
@@ -1239,6 +1240,7 @@ void wavcallback(char *p){
     }
     WAV_fnbr = FindFreeFileNbr();
     if(!BasicFileOpen(p, WAV_fnbr, FA_READ)) return;
+	strcpy(WAVfilename,p);
 	if(Option.AUDIO_MISO_PIN){
 		playvs1053(P_WAV);
 		return;
@@ -1284,13 +1286,15 @@ void wavcallback(char *p){
     playreadcomplete=0;
 	pwm_set_irq_enabled(AUDIO_SLICE, true);
 }
-void mp3callback(char *p){
+void mp3callback(char *p, int position){
     if(strchr((char *)p, '.') == NULL) strcat((char *)p, ".mp3");
     if(CurrentlyPlaying == P_MP3){
     	CloseAudio(0);
     }
     WAV_fnbr = FindFreeFileNbr();
+	strcpy(WAVfilename,p);
     if(!BasicFileOpen(p, WAV_fnbr, FA_READ)) return;
+	positionfile(WAV_fnbr, position);
 	playvs1053(P_MP3);
 }
 void midicallback(char *p){
@@ -1300,6 +1304,7 @@ void midicallback(char *p){
     }
     WAV_fnbr = FindFreeFileNbr();
     if(!BasicFileOpen(p, WAV_fnbr, FA_READ)) return;
+	strcpy(WAVfilename,p);
 	playvs1053(P_MIDI);
 }
 void flaccallback(char *p){
@@ -1310,6 +1315,7 @@ void flaccallback(char *p){
     }
     WAV_fnbr = FindFreeFileNbr();
     if(!BasicFileOpen(p, WAV_fnbr, FA_READ)) return;
+	strcpy(WAVfilename,p);
 	if(Option.AUDIO_MISO_PIN){
 		playvs1053(P_FLAC);
 		return;
@@ -1458,7 +1464,7 @@ void MIPS16 cmd_play(void) {
 				return;
 			}
 			trackplaying++;
-			mp3callback(alist[trackplaying].fn);
+			mp3callback(alist[trackplaying].fn,0);
 		} else if(CurrentlyPlaying == P_MIDI){
 			if(trackplaying==trackstoplay){
 				if(!CurrentLinePtr)MMPrintString("Last track is playing\r\n");
@@ -1491,7 +1497,7 @@ void MIPS16 cmd_play(void) {
 				return;
 			}
 			trackplaying--;
-			mp3callback(alist[trackplaying].fn);
+			mp3callback(alist[trackplaying].fn,0);
 		} else if(CurrentlyPlaying == P_MIDI){
 			if(trackplaying==0){
 				if(!CurrentLinePtr)MMPrintString("First track is playing\r\n");
@@ -1763,6 +1769,8 @@ void MIPS16 cmd_play(void) {
 						strcat(alist[trackstoplay].fn,q);
 						strcat(alist[trackstoplay].fn,"/");
 						strcat(alist[trackstoplay].fn,fno.fname);
+						str_replace(alist[trackstoplay].fn, "//", "/");
+						str_replace(alist[trackstoplay].fn, "/./", "/");
 						if(!CurrentLinePtr){
 							MMPrintString(fno.fname);
 							PRet();
@@ -1779,7 +1787,8 @@ void MIPS16 cmd_play(void) {
         // open the file
         trackstoplay=0;
         trackplaying=0;
-        wavcallback(p);
+		str_replace(q,"/",FatFSFileSystem ? "B:/" : "A:/");
+        wavcallback(q);
         return;
     }
 	if((tp = checkstring(cmdline, (unsigned char *)"FLAC"))) {
@@ -1824,6 +1833,8 @@ void MIPS16 cmd_play(void) {
 						strcat(alist[trackstoplay].fn,q);
 						strcat(alist[trackstoplay].fn,"/");
 						strcat(alist[trackstoplay].fn,fno.fname);
+						str_replace(alist[trackstoplay].fn, "//", "/");
+						str_replace(alist[trackstoplay].fn, "/./", "/");
 						if(!CurrentLinePtr){
 							MMPrintString(fno.fname);
 							PRet();
@@ -1840,7 +1851,8 @@ void MIPS16 cmd_play(void) {
         // open the file
         trackstoplay=0;
         trackplaying=0;
-        flaccallback(p);
+		str_replace(q,"/",FatFSFileSystem ? "B:/" : "A:/");
+        flaccallback(q);
         return;
 	}
 	if((tp = checkstring(cmdline, (unsigned char *)"NOTE"))) {
@@ -1981,6 +1993,8 @@ void MIPS16 cmd_play(void) {
 						strcat(alist[trackstoplay].fn,q);
 						strcat(alist[trackstoplay].fn,"/");
 						strcat(alist[trackstoplay].fn,fno.fname);
+						str_replace(alist[trackstoplay].fn, "//", "/");
+						str_replace(alist[trackstoplay].fn, "/./", "/");
 						if(!CurrentLinePtr){
 							MMPrintString(fno.fname);
 							PRet();
@@ -1997,7 +2011,60 @@ void MIPS16 cmd_play(void) {
         // open the file
         trackstoplay=0;
         trackplaying=0;
-        midicallback(p);
+		str_replace(q,"/",FatFSFileSystem ? "B:/" : "A:/");
+        midicallback(q);
+        return;
+	}
+	if((tp = checkstring(cmdline, (unsigned char *)"HALT"))) {
+        if(CurrentlyPlaying != P_MP3) error("Not playing an MP3");
+    	int fnbr = FindFreeFileNbr();
+		char *buff=GetTempMemory(STRINGSIZE);
+		char *p=&WAVfilename[strlen(WAVfilename)];
+		while(*p-- != '/'){}
+		p+=2;
+		strcpy(buff,"A:/");
+		strcat(buff,p);
+		str_replace(buff,".mp3",".mem");
+		str_replace(buff,".MP3",".mem");
+		str_replace(buff,".Mp3",".mem");
+		str_replace(buff,".mP3",".mem");
+    	if(!BasicFileOpen(buff, fnbr,  FA_WRITE | FA_CREATE_ALWAYS)) return;
+		int i;
+		if(filesource[WAV_fnbr]==FLASHFILE)i = lfs_file_tell(&lfs,FileTable[fnbr].lfsptr) + 1;
+        else i = (*(FileTable[WAV_fnbr].fptr)).fptr + 1;
+		i-=418;
+		if(i<0)i=0;
+		IntToStr(buff,i,10);
+		FilePutStr(strlen(buff),buff,fnbr);
+		FilePutChar(',',fnbr);
+		FilePutStr(strlen(WAVfilename),WAVfilename,fnbr);
+		FileClose(fnbr);
+		CloseAudio(1);
+		return;
+	}
+
+	if((tp = checkstring(cmdline, (unsigned char *)"CONTINUE"))) {
+		if(!Option.AUDIO_MISO_PIN)error("Only available with VS1053 audio");
+    	int fnbr = FindFreeFileNbr();
+		char *p=(char *)getFstring(tp);
+		char *buff=GetTempMemory(STRINGSIZE);
+		if(strchr(p,'/') || strchr(p,':') || strchr(p,'\\') || strchr(p,'.'))error("Track name");
+		strcpy(buff, "A:/");
+		strcat(buff,p);
+		strcat(buff,".mem");
+		if(!ExistsFile(buff))error("Track name");
+    	if(!BasicFileOpen(buff, fnbr,  FA_READ)) return;
+		memset(buff,0,STRINGSIZE);
+		lfs_file_read(&lfs, FileTable[fnbr].lfsptr, buff, 255);
+		FileClose(fnbr);
+		p=strchr(buff,',');
+		p++;
+		int num=atoi(buff);
+        WAVInterrupt = NULL;
+        WAVcomplete = 0;
+        trackstoplay=0;
+        trackplaying=0;
+		mp3callback(p,num);
         return;
 	}
 	if((tp = checkstring(cmdline, (unsigned char *)"MP3"))) {
@@ -2014,7 +2081,6 @@ void MIPS16 cmd_play(void) {
 		char q[FF_MAX_LFN]={0};
 		getfullfilename(p,q);
         WAVInterrupt = NULL;
-
         WAVcomplete = 0;
         if(argc == 3) {
 			if(!CurrentLinePtr)error("No program running");
@@ -2043,6 +2109,8 @@ void MIPS16 cmd_play(void) {
 						strcat(alist[trackstoplay].fn,q);
 						strcat(alist[trackstoplay].fn,"/");
 						strcat(alist[trackstoplay].fn,fno.fname);
+						str_replace(alist[trackstoplay].fn, "//", "/");
+						str_replace(alist[trackstoplay].fn, "/./", "/");
 						if(!CurrentLinePtr){
 							MMPrintString(fno.fname);
 							PRet();
@@ -2052,14 +2120,15 @@ void MIPS16 cmd_play(void) {
 				}
 				trackstoplay--;
 				f_closedir(&djd);
-				mp3callback(alist[trackplaying].fn);
+				mp3callback(alist[trackplaying].fn,0);
 				return;
     	    }
 		}
         // open the file
         trackstoplay=0;
         trackplaying=0;
-        mp3callback(p);
+		str_replace(q,"/",FatFSFileSystem ? "B:/" : "A:/");
+        mp3callback(q,0);
         return;
 	}
     if((tp = checkstring(cmdline, (unsigned char *)"MODFILE"))) {
@@ -2304,7 +2373,7 @@ void checkWAVinput(void){
     			flaccallback(alist[trackplaying].fn);
     		} else if(CurrentlyPlaying == P_MP3){
     			trackplaying++;
-    			mp3callback(alist[trackplaying].fn);
+    			mp3callback(alist[trackplaying].fn,0);
     		} else if(CurrentlyPlaying == P_MIDI){
 				if(Option.AUDIO_MISO_PIN && VSbuffer>32)return;
     			trackplaying++;

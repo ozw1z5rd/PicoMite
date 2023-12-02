@@ -7293,8 +7293,11 @@ void closeframebuffer(void){
         LayerBuf=DisplayBuf;
         FreeMemory(temp);
     }
-    FrameBuf=DisplayBuf;
-    WriteBuf=DisplayBuf;
+	WriteBuf=(unsigned char *)FRAMEBUFFER;
+	DisplayBuf=(unsigned char *)FRAMEBUFFER;
+	LayerBuf=(unsigned char *)FRAMEBUFFER;
+	FrameBuf=(unsigned char *)FRAMEBUFFER;
+    transparentlow=transparenthigh=0;
 }
 void cmd_framebuffer(void){
     unsigned char *p;
@@ -7306,14 +7309,26 @@ void cmd_framebuffer(void){
         else error("Framebuffer already exists");
     } else if((p=checkstring(cmdline, (unsigned char *)"WRITE"))) {
         if(checkstring(p, (unsigned char *)"N"))WriteBuf=DisplayBuf;
-        else if(checkstring(p, (unsigned char *)"L"))WriteBuf=LayerBuf;
-        else if(checkstring(p, (unsigned char *)"F"))WriteBuf=FrameBuf;
+        else if(checkstring(p, (unsigned char *)"L")){
+            if(LayerBuf==DisplayBuf)error("Layer not created");
+            WriteBuf=LayerBuf;
+        }
+        else if(checkstring(p, (unsigned char *)"F")){
+            if(FrameBuf==DisplayBuf)error("Frame buffer not created");
+             WriteBuf=FrameBuf;
+        }
         else {
             getargs(&p,1,(unsigned char *)",");
             char *q=(char *)getCstring(argv[0]);
             if(strcasecmp(q,"N")==0)WriteBuf=DisplayBuf;
-            else if(strcasecmp(q,"L")==0)WriteBuf=LayerBuf;
-            else if(strcasecmp(q,"F")==0)WriteBuf=FrameBuf;
+            else if(strcasecmp(q,"L")==0){
+                if(LayerBuf==DisplayBuf)error("Layer not created");
+                WriteBuf=LayerBuf;
+            }
+            else if(strcasecmp(q,"F")==0){
+                if(FrameBuf==DisplayBuf)error("Frame buffer not created");
+                WriteBuf=FrameBuf;
+            }
             else error("Syntax");
         }
     } else if((p=checkstring(cmdline, (unsigned char *)"WAIT"))) {
