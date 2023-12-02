@@ -298,13 +298,14 @@ void cmd_edit(void) {
             fnbr1 = FindFreeFileNbr();
             BasicFileOpen(name, fnbr1, FA_READ);
             p=EdBuff;
-            while (!FileEOF(fnbr1))
+            do
             { // while waiting for the end of file
                 c = FileGetChar(fnbr1);
                 if(c=='\n')nbrlines++;
                 if(c=='\r')continue;
                 *p++=c;
-            }
+            } while (!FileEOF(fnbr1));
+            p++;
             FileClose(fnbr1);
         }
         txtp=EdBuff;
@@ -708,12 +709,12 @@ void FullScreenEditor(int xx, int yy, char *fname) {
                                 fnbr1=FindFreeFileNbr();
                                 BasicFileOpen(fname, fnbr1, FA_WRITE | FA_CREATE_ALWAYS);
                                 p=EdBuff;
-                                while (*p)
+                                do
                                 { // while waiting for the end of file
                                     c = *p++;
                                     if(c=='\n')FilePutChar('\r',fnbr1);
                                     FilePutChar(c,fnbr1);
-                                }
+                                } while (*p);
                                 FileClose(fnbr1);
                             }
                             if(c == ESC || c == CTRLKEY('Q') || c == F1 || fname) cmd_end();

@@ -1848,10 +1848,10 @@ void fun_math(void){
 			getargs(&tp, 1,(unsigned char *)",");
 			if(!(argc == 1)) error("Argument count");
 			parsefloatrarray(argv[0],&a1float,1,2,dims, false);
-			numcols=dims[0];
-			numrows=dims[1];
+			numcols=dims[0]+1-OptionBase;
+			numrows=dims[1]+1-OptionBase;
 			if(numcols!=numrows)error("Array must be square");
-			n=numrows+1;
+			n=numrows;
 			MMFLOAT **matrix=alloc2df(n,n);
 			for(i=0;i<n;i++){ //load the matrix
 				for(j=0;j<n;j++){
