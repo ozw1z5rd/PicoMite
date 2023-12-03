@@ -3631,7 +3631,7 @@ void fun_info(void){
     } 
 #endif
 	else if(checkstring(ep, (unsigned char *)"TRACK")){
-		if(CurrentlyPlaying == P_MP3 || CurrentlyPlaying == P_FLAC || CurrentlyPlaying == P_WAV|| CurrentlyPlaying == P_MP3 || CurrentlyPlaying == P_MIDI) strcpy((char *)sret,WAVfilename);
+		if(CurrentlyPlaying == P_MP3 || CurrentlyPlaying == P_FLAC || CurrentlyPlaying == P_WAV|| CurrentlyPlaying == P_MOD || CurrentlyPlaying == P_MIDI) strcpy((char *)sret,WAVfilename);
 		else strcpy((char *)sret,"OFF");
         CtoM(sret);
         targ=T_STR;

@@ -1142,6 +1142,7 @@ void CloseAudio(int all){
 		trackstoplay=0;
 		trackplaying=0;
 	}
+	memset(WAVfilename,0,sizeof(WAVfilename));
 	WAVcomplete = true;
 	FSerror = 0;
 	memset(mywav,0,sizeof(drwav));
@@ -1787,7 +1788,11 @@ void MIPS16 cmd_play(void) {
         // open the file
         trackstoplay=0;
         trackplaying=0;
-		str_replace(q,"/",FatFSFileSystem ? "B:/" : "A:/");
+		memset(q,0,sizeof(q));
+		getfullfilename(p,q);
+		memmove(&q[2],q,strlen(q));
+		q[1]=':';
+		q[0]=FatFSFileSystem ? 'B' : 'A';
         wavcallback(q);
         return;
     }
@@ -1804,7 +1809,6 @@ void MIPS16 cmd_play(void) {
 		char q[FF_MAX_LFN]={0};
 		getfullfilename(p,q);
         WAVInterrupt = NULL;
-
         WAVcomplete = 0;
         if(argc == 3) {
 			if(!CurrentLinePtr)error("No program running");
@@ -1851,7 +1855,11 @@ void MIPS16 cmd_play(void) {
         // open the file
         trackstoplay=0;
         trackplaying=0;
-		str_replace(q,"/",FatFSFileSystem ? "B:/" : "A:/");
+		memset(q,0,sizeof(q));
+		getfullfilename(p,q);
+		memmove(&q[2],q,strlen(q));
+		q[1]=':';
+		q[0]=FatFSFileSystem ? 'B' : 'A';
         flaccallback(q);
         return;
 	}
@@ -1935,6 +1943,7 @@ void MIPS16 cmd_play(void) {
 			return;
 		}
 		if(!Option.AUDIO_MISO_PIN)error("Only available with VS1053 audio");
+		checkend();
 		if(CurrentlyPlaying==P_WAVOPEN)CloseAudio(1);
         if(CurrentlyPlaying != P_NOTHING) error("Sound output in use for $",PlayingStr[CurrentlyPlaying]);
 		WAVInterrupt = NULL;
@@ -2011,7 +2020,11 @@ void MIPS16 cmd_play(void) {
         // open the file
         trackstoplay=0;
         trackplaying=0;
-		str_replace(q,"/",FatFSFileSystem ? "B:/" : "A:/");
+		memset(q,0,sizeof(q));
+		getfullfilename(p,q);
+		memmove(&q[2],q,strlen(q));
+		q[1]=':';
+		q[0]=FatFSFileSystem ? 'B' : 'A';
         midicallback(q);
         return;
 	}
@@ -2127,7 +2140,11 @@ void MIPS16 cmd_play(void) {
         // open the file
         trackstoplay=0;
         trackplaying=0;
-		str_replace(q,"/",FatFSFileSystem ? "B:/" : "A:/");
+		memset(q,0,sizeof(q));
+		getfullfilename(p,q);
+		memmove(&q[2],q,strlen(q));
+		q[1]=':';
+		q[0]=FatFSFileSystem ? 'B' : 'A';
         mp3callback(q,0);
         return;
 	}
@@ -2149,6 +2166,12 @@ void MIPS16 cmd_play(void) {
         WAVcomplete = 0;
         // open the file
         if(strchr((char *)p, '.') == NULL) strcat((char *)p, ".MOD");
+		char q[FF_MAX_LFN]={0};
+		getfullfilename(p,q);
+		memmove(&q[2],q,strlen(q));
+		q[1]=':';
+		q[0]=FatFSFileSystem ? 'B' : 'A';
+		strcpy(WAVfilename,q);
         WAV_fnbr = FindFreeFileNbr();
         if(!BasicFileOpen(p, WAV_fnbr, FA_READ)) return;
 		if(argc==3){
