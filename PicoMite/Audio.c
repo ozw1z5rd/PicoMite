@@ -1741,7 +1741,6 @@ void MIPS16 cmd_play(void) {
 		char q[FF_MAX_LFN]={0};
 		getfullfilename(p,q);
         WAVInterrupt = NULL;
-
         WAVcomplete = 0;
         if(argc == 3) {
 			if(!CurrentLinePtr)error("No program running");
@@ -1809,6 +1808,7 @@ void MIPS16 cmd_play(void) {
 		char q[FF_MAX_LFN]={0};
 		getfullfilename(p,q);
         WAVInterrupt = NULL;
+
         WAVcomplete = 0;
         if(argc == 3) {
 			if(!CurrentLinePtr)error("No program running");
@@ -1943,7 +1943,6 @@ void MIPS16 cmd_play(void) {
 			return;
 		}
 		if(!Option.AUDIO_MISO_PIN)error("Only available with VS1053 audio");
-		checkend();
 		if(CurrentlyPlaying==P_WAVOPEN)CloseAudio(1);
         if(CurrentlyPlaying != P_NOTHING) error("Sound output in use for $",PlayingStr[CurrentlyPlaying]);
 		WAVInterrupt = NULL;
@@ -2078,7 +2077,7 @@ void MIPS16 cmd_play(void) {
         trackstoplay=0;
         trackplaying=0;
 		mp3callback(p,num);
-        return;
+		return;
 	}
 	if((tp = checkstring(cmdline, (unsigned char *)"MP3"))) {
         char *p;

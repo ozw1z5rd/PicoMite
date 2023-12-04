@@ -991,8 +991,8 @@ void cmd_math(void){
 			getargs(&tp, 1,(unsigned char *)",");
 			if(!(argc == 1)) error("Argument count");
 			parsenumberarray(argv[0],&a1float,&a1int,1,2,dims, false);
-			numcols=dims[0]+1;
-			numrows=dims[1]+1;
+			numcols=dims[0]+1-OptionBase;
+			numrows=dims[1]+1-OptionBase;
 			MMFLOAT **matrix=alloc2df(numcols,numrows);
 			int64_t **imatrix= (int64_t **)matrix;
 			if(a1float!=NULL){
