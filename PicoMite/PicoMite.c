@@ -136,7 +136,7 @@ char id_out[12];
 MMFLOAT VCC=3.3;
 int PromptFont, PromptFC=0xFFFFFF, PromptBC=0;                             // the font and colours selected at the prompt
 volatile int DISPLAY_TYPE;
-volatile int processtick = 1;
+volatile bool processtick = true;
 unsigned char WatchdogSet = false;
 unsigned char IgnorePIN = false;
 unsigned char SPIatRisk = false;
@@ -166,6 +166,7 @@ extern void CallCFuncmSec(void);
 void executelocal(char *p);
 #define CFUNCRAM_SIZE   256
 int CFuncRam[CFUNCRAM_SIZE/sizeof(int)];
+repeating_timer_t timer;
 MMFLOAT IntToFloat(long long int a){ return a; }
 MMFLOAT FMul(MMFLOAT a, MMFLOAT b){ return a * b; }
 MMFLOAT FAdd(MMFLOAT a, MMFLOAT b){ return a + b; }
@@ -856,11 +857,11 @@ void SSPrintString(char* s) {
      fflush(stdout);
 }*/
 
-void mT4IntEnable(int status){
+void __not_in_flash_func(mT4IntEnable)(int status){
 	if(status){
-		processtick=1;
+		processtick=true;
 	} else{
-		processtick=0;
+		processtick=false;
 	}
 }
 
@@ -1039,29 +1040,27 @@ void __not_in_flash_func(uSec)(int us) {
 }
 #ifdef PICOMITEWEB
 void __not_in_flash_func(ProcessWeb)(void){
+    static uint64_t flushtimer=0;
+    static uint64_t lastmsec=0;
+    static int testcount=0;  
+    static int lastonoff=0;
+    static uint64_t lastheartmsec=0;
     TCP_SERVER_T *state = (TCP_SERVER_T*)TCPstate;
     if(!(state && WIFIconnected))return;
-    static uint64_t flushtimer=0;
-    static long long int lastmsec=0;
-    static int testcount=0;     
-    if(testcount == 0 || lastmsec>=mSecTimer){
-        lastmsec=mSecTimer+2;
+    uint64_t timenow=time_us_64();   
+    if(testcount == 0 || timenow>lastmsec){
+        lastmsec=timenow+2000;
         testcount = 0 ;
         {if(startupcomplete)cyw43_arch_poll();}
     }
     testcount++;
     if(testcount==500)testcount=0;
-    if(state->telnet_pcb_no==99)return;
-    if(time_us_64() > flushtimer){
-        TelnetPutC(0,-1);
-        flushtimer=time_us_64()+5000;
+    if(state->telnet_pcb_no!=99){
+        if(timenow > flushtimer){
+            TelnetPutC(0,-1);
+            flushtimer=timenow+5000;
+        }
     }
-}
-#endif
-void __not_in_flash_func(CheckAbort)(void) {
-#ifdef PICOMITEWEB
-    static int lastonoff=0;
-    static uint64_t lastmsec=0;
     if(Option.NoHeartbeat){
         if(lastonoff!=2){
             if(startupcomplete){
@@ -1071,13 +1070,17 @@ void __not_in_flash_func(CheckAbort)(void) {
         }
     } else {
         if(lastonoff==2)lastonoff=0;
-        if(mSecTimer-lastmsec>(WIFIconnected ? 500:1000) && startupcomplete){
-            lastmsec=mSecTimer;
+        if(timenow-lastheartmsec>(WIFIconnected ? 500000:1000000) && startupcomplete){
+            lastheartmsec=timenow;
             if(lastonoff)cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, 1);
             else cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, 0);
             lastonoff^=1;
         }
     }
+}
+#endif
+void __not_in_flash_func(CheckAbort)(void) {
+#ifdef PICOMITEWEB
     ProcessWeb();
 #endif
     routinechecks();
@@ -1231,6 +1234,7 @@ void sigbus(void){
 // - H sync = 238 PIO clk
 // - H back = 114 PIO clk
 
+extern volatile int VGAscrolly;
 
 // PIO command (jmp=program address, num=loop counter)
 #define QVGACMD(jmp, num) ( ((uint32_t)((jmp)+QVGAOff)<<27) | (uint32_t)(num))
@@ -1259,9 +1263,9 @@ uint16_t fbuff[2][160]={0};
 int X_TILE=80, Y_TILE=40;
 // saved integer divider state
 // VGA DMA handler - called on end of every scanline
+static int VGAnextbuf=0,VGAnowbuf=1, tile=0, tc=0;
 void __not_in_flash_func(QVgaLine0)()
 {
-    static int nextbuf=0,nowbuf=1, tile=0, tc=0;
     int i,line;
 	// Clear the interrupt request for DMA control channel
 	dma_hw->ints0 = (1u << QVGA_DMA_PIO);
@@ -1313,7 +1317,7 @@ void __not_in_flash_func(QVgaLine0)()
 		{
         // prepare image line
             if(DISPLAY_TYPE==MONOVGA){
-                uint16_t *q=&fbuff[nextbuf][0];
+                uint16_t *q=&fbuff[VGAnextbuf][0];
                 unsigned char *p=&DisplayBuf[line * 80];
                 if(tc==ytilecount){
                     tile++;
@@ -1337,15 +1341,15 @@ void __not_in_flash_func(QVgaLine0)()
                 line>>=1;
                 register unsigned char *p=&DisplayBuf[line * 160];
 //                register unsigned char *q=&LayerBuf[line * 160];
-                register uint16_t *r=fbuff[nextbuf];
+                register uint16_t *r=fbuff[VGAnextbuf];
                 for(int i=0;i<160;i++){
                     register int low= *p & 0xF;
                     register int high=*p++ >>4;
                     *r++=(low | (low<<4) | (high<<8) | (high<<12));
                 }
             }
-            nextbuf ^=1;
-            nowbuf ^=1;
+            VGAnextbuf ^=1;
+            VGAnowbuf ^=1;
 
 			// HSYNC ... back porch ... image command
 			*cb++ = 3;
@@ -1353,7 +1357,7 @@ void __not_in_flash_func(QVgaLine0)()
 
 			// image data
 			*cb++ = 80;
-			*cb++ = (uint32_t)fbuff[nowbuf];
+			*cb++ = (uint32_t)fbuff[VGAnowbuf];
 
 			// front porch
 			*cb++ = 1;
@@ -1370,7 +1374,6 @@ void __not_in_flash_func(QVgaLine0)()
 }
 void __not_in_flash_func(QVgaLine1)()
 {
-    static int nextbuf=0,nowbuf=1, tile=0, tc=0;
     int i,line,bufinx;
 	// Clear the interrupt request for DMA control channel
 	dma_hw->ints0 = (1u << QVGA_DMA_PIO);
@@ -1425,7 +1428,8 @@ void __not_in_flash_func(QVgaLine1)()
 		{
 			// prepare image line
             if(DISPLAY_TYPE==MONOVGA){
-                uint16_t *q=&fbuff[nextbuf][0];
+                uint16_t *q=&fbuff[VGAnextbuf][0];
+                line=((line-VGAscrolly+480) % 480);
                 unsigned char *p=&DisplayBuf[line * 80];
                 if(tc==ytilecount){
                     tile++;
@@ -1447,9 +1451,10 @@ void __not_in_flash_func(QVgaLine1)()
                 }
             } else {
                 line>>=1;
+                line=((line-VGAscrolly+240) % 240);
                 register unsigned char *p=&DisplayBuf[line * 160];
                 register unsigned char *q=&LayerBuf[line * 160];
-                register uint16_t *r=fbuff[nextbuf];
+                register uint16_t *r=fbuff[VGAnextbuf];
                 for(int i=0;i<160;i++){
                     register int low= *p & 0xF;
                     register int high=*p++ & 0xF0;
@@ -1460,8 +1465,8 @@ void __not_in_flash_func(QVgaLine1)()
                     *r++=(low | (low<<4) | (high<<4) | (high<<8));
                 }
             }
-            nextbuf ^=1;
-            nowbuf ^=1;
+            VGAnextbuf ^=1;
+            VGAnowbuf ^=1;
 
 			// HSYNC ... back porch ... image command
 			*cb++ = 3;
@@ -1469,7 +1474,7 @@ void __not_in_flash_func(QVgaLine1)()
 
 			// image data
 			*cb++ = 80;
-			*cb++ = (uint32_t)fbuff[nowbuf];
+			*cb++ = (uint32_t)fbuff[VGAnowbuf];
 
 			// front porch
 			*cb++ = 1;
@@ -2022,7 +2027,6 @@ void WebConnect(void){
 
 int MIPS16 main(){
    static int ErrorInPrompt;
-    repeating_timer_t timer;
     int i;
     char savewatchdog=false;
     LoadOptions();

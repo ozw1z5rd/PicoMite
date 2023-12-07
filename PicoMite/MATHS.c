@@ -637,15 +637,21 @@ void cmd_math(void){
 		if(tp) {
 			int i, card1=1, card2=1;
 			int64_t *a1int=NULL, *a2int=NULL;
-			getargs(&tp, 5,(unsigned char *)",");
-			if(!(argc == 5)) error("Argument count");
+			getargs(&tp, 7,(unsigned char *)",");
+			if(!(argc == 5 || argc==7)) error("Argument count");
 			card1=parseintegerarray(argv[0],&a1int,1,0, dims, false);
 		    evaluate(argv[2], &f, &i64, &s, &t, false);
 		    int shift=getint(argv[2], -63,63);
 			card2=parseintegerarray(argv[4],&a2int,3,0, dims, true);
 			if(card1 != card2)error("Size mismatch");
-			if(shift>0)for(i=0; i< card1;i++)*a2int++ = ((*a1int++)<<shift);
-			else for(i=0; i< card1;i++)*a2int++ = ((*a1int++)>>(-shift));
+				if(shift>0)for(i=0; i< card1;i++)*a2int++ = (((uint64_t)*a1int++)<<shift);
+				else {
+					if(argc==7 && checkstring(argv[6],(unsigned char *)"U")){
+						for(i=0; i< card1;i++)*a2int++ = ((uint64_t)(*a1int++)>>(-shift));
+					} else {
+						for(i=0; i< card1;i++)*a2int++ = ((*a1int++)>>(-shift));
+					}
+				}
 			return;
 		}
 

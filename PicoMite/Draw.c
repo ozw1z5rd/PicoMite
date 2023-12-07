@@ -137,6 +137,7 @@ int sprite_which_collided = -1;
 static bool hideall = 0;
 bool mergedread=0;
 int transparenthigh=0,transparentlow=0;
+volatile int VGAscrolly=0;
 #else
     int map[16]={0};
     #ifdef PICOMITEWEB
@@ -7297,7 +7298,7 @@ void closeframebuffer(void){
 	DisplayBuf=(unsigned char *)FRAMEBUFFER;
 	LayerBuf=(unsigned char *)FRAMEBUFFER;
 	FrameBuf=(unsigned char *)FRAMEBUFFER;
-    transparentlow=transparenthigh=0;
+    transparentlow=transparenthigh=VGAscrolly=0;
 }
 void cmd_framebuffer(void){
     unsigned char *p;
@@ -7334,7 +7335,7 @@ void cmd_framebuffer(void){
     } else if((p=checkstring(cmdline, (unsigned char *)"WAIT"))) {
             while(QVgaScanLine!=480){}
     } else if((p=checkstring(cmdline, (unsigned char *)"LAYER"))) {
-        if(Option.CPU_Speed==126000)error("CPUSPEED >=252000 for layers");
+        if(Option.CPU_Speed==126000)error("CPUSPEED =252000 for layers");
         getargs(&p,1,(unsigned char *)",");
         int transparent=0;
         if(argc==1)transparent=getint(argv[0],0,15);
@@ -7373,6 +7374,12 @@ void cmd_framebuffer(void){
             else error("Syntax");
         }
         if(d!=s)memcpy(d,s,38400);
+    } else if((p=checkstring(cmdline, (unsigned char *)"SCROLL VGA"))) {
+        getargs(&p,1,(unsigned char *)",");
+        if(Option.CPU_Speed==126000)error("CPUSPEED =252000 for scroll");
+        int y=getint(argv[0],-(VRes-1), VRes-1);
+        while(QVgaScanLine!=480){}
+        VGAscrolly=y;
     } else error("Syntax");
 }
 #endif

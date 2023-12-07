@@ -2697,7 +2697,6 @@ void MIPS16 ClearExternalIO(void) {
     	blitbuff[i].blitbuffptr = NULL;
     }
     CallBackEnabled=0;
-    irq_set_enabled(ALARM_IRQ, false);
     KeypadClose();
     if(*lcd_pins){
         for(i = 0; i < 6; i++) {

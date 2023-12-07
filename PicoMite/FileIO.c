@@ -39,6 +39,7 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 #include "hardware/structs/clocks.h"
 #include "sys/stat.h"
 #include "picojpeg.h"
+#include "hardware/sync.h"
 #ifdef PICOMITE
 	#include "pico/multicore.h"
 	extern mutex_t	frameBufferMutex;
@@ -250,27 +251,14 @@ FATFS FatFs;
 union uFileTable FileTable[MAXOPENFILES + 1];
 volatile BYTE SDCardStat = STA_NOINIT | STA_NODISK;
 int OptionFileErrorAbort = true;
-bool irqs[32];
+static uint32_t irqs;
 void disable_interrupts(void)
 {
-    int i;
-    for (i = 0; i < 31; i++)
-    {
-        irqs[i] = irq_is_enabled(i);
-        if (irqs[i])
-        {
-            irq_set_enabled(i, false);
-        }
-    }
+  irqs=save_and_disable_interrupts();
 }
 void enable_interrupts(void)
 {
-    int i;
-    for (i = 0; i < 31; i++)
-    {
-        if (irqs[i])
-            irq_set_enabled(i, true);
-    }
+    restore_interrupts(irqs);
 }
 void ErrorThrow(int e, int type)
 {
@@ -3613,7 +3601,7 @@ void ResetOptions(void)
     disable_audio();
     disable_systemi2c();
     disable_systemspi();
-    memset((void *)&Option.Magic, 0, sizeof(struct option_s));
+    memset((void *)&Option, 0, sizeof(struct option_s));
     Option.Magic = MagicKey;
     Option.Height = SCREENHEIGHT;
     Option.Width = SCREENWIDTH;
@@ -3989,6 +3977,6 @@ void SaveOptions(void)
     enable_interrupts();
     uSec(10000);
     disable_interrupts();
-    flash_range_program(FLASH_TARGET_OFFSET, (const uint8_t *)&Option, 768);
+    flash_range_program(FLASH_TARGET_OFFSET, (const uint8_t *)&Option, sizeof(struct option_s));
     enable_interrupts();
 }

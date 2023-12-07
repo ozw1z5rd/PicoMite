@@ -1807,6 +1807,7 @@ void printoptions(void){
     if(*Option.F7key)PO2Str("F7", (const char *)Option.F7key);
     if(*Option.F8key)PO2Str("F8", (const char *)Option.F8key);
     if(*Option.F9key)PO2Str("F9", (const char *)Option.F9key);
+    if(*Option.platform && *Option.platform!=0xFF)PO2Str("PLATFORM", (const char *)Option.platform);
     if(Option.DefaultFont!=1)PO3Int("DEFAULT FONT",(Option.DefaultFont>>4)+1, Option.DefaultFont & 0xF);
 
 }
@@ -1914,6 +1915,23 @@ void disable_audio(void){
     Option.AUDIO_MISO_PIN=0;
     Option.AUDIO_SLICE=99;
 }
+#ifndef PICOMITEVGA
+void ConfigDisplayUser(unsigned char *tp){
+    getargs(&tp, 13, (unsigned char *)",");
+    if(str_equal(argv[0], (unsigned char *)"USER")) {
+        if(Option.DISPLAY_TYPE) error("Display already configured");
+        if(argc != 5) error("Argument count");
+        HRes = DisplayHRes = getint(argv[2], 1, 10000);
+        VRes = DisplayVRes = getint(argv[4], 1, 10000);
+        Option.DISPLAY_TYPE = DISP_USER;
+        // setup the pointers to the drawing primitives
+        DrawRectangle = DrawRectangleUser;
+        DrawBitmap = DrawBitmapUser;
+        return;
+    }  
+
+}
+#endif
 void MIPS16 cmd_option(void) {
     unsigned char *tp;
 
@@ -2012,6 +2030,15 @@ void MIPS16 cmd_option(void) {
 		strcpy(p,(char *)getCstring(tp));
 		if(strlen(p)>=sizeof(Option.F9key))error("Maximum % characters",MAXKEYLEN-1);
 		else strcpy((char *)Option.F9key, p);
+		SaveOptions();
+		return;
+	}
+    tp = checkstring(cmdline, (unsigned char *)"PLATFORM");
+	if(tp) {
+		char p[STRINGSIZE];
+		strcpy(p,(char *)getCstring(tp));
+		if(strlen(p)>=sizeof(Option.platform))error("Maximum % characters",sizeof(Option.platform)-1);
+		else strcpy((char *)Option.platform, p);
 		SaveOptions();
 		return;
 	}
@@ -2446,8 +2473,8 @@ void MIPS16 cmd_option(void) {
     
     tp = checkstring(cmdline, (unsigned char *)"LCDPANEL");
     if(tp) {
-    	if(CurrentLinePtr) error("Invalid in a program");
         if(checkstring(tp, (unsigned char *)"DISABLE")) {
+    	if(CurrentLinePtr) error("Invalid in a program");
             Option.LCD_CD = Option.LCD_CS = Option.LCD_Reset = Option.DISPLAY_TYPE = HRes = VRes = 0;
             DrawRectangle = (void (*)(int , int , int , int , int ))DisplayNotSet;
             DrawBitmap =  (void (*)(int , int , int , int , int , int , int , unsigned char *))DisplayNotSet;
@@ -2457,7 +2484,10 @@ void MIPS16 cmd_option(void) {
 			Option.DISPLAY_CONSOLE = false;
 		} else {
             if(Option.DISPLAY_TYPE && !CurrentLinePtr) error("Display already configured");
-            ConfigDisplaySPI(tp);
+            ConfigDisplayUser(tp);
+            if(Option.DISPLAY_TYPE)return;
+    	    if(CurrentLinePtr) error("Invalid in a program");
+            if(!Option.DISPLAY_TYPE)ConfigDisplaySPI(tp);
             if(!Option.DISPLAY_TYPE)ConfigDisplayVirtual(tp);
             if(!Option.DISPLAY_TYPE)ConfigDisplaySSD(tp);
             if(!Option.DISPLAY_TYPE)ConfigDisplayI2C(tp);
@@ -3003,7 +3033,7 @@ void MIPS16 cmd_option(void) {
         if (!BasicFileOpen((char *)pp, fnbr, FA_READ)) return;
 		if(filesource[fnbr]!=FLASHFILE)  fsize = f_size(FileTable[fnbr].fptr);
 		else fsize = lfs_file_size(&lfs,FileTable[fnbr].lfsptr);
-        if(fsize!=sizeof(Option))error("File size incorrect");
+        if(!(fsize==sizeof(Option) || fsize==sizeof(Option)-128))error("File size incorrect");
         char *s=(char *)&Option.Magic;
         for(int k = 0; k < fsize; k++){        // write to the flash byte by byte
            *s++=FileGetChar(fnbr);
@@ -3575,6 +3605,11 @@ void fun_info(void){
                     else break;
                 }
             } else strcpy((char *)sret,"NONE");
+            CtoM(sret);
+            targ=T_STR;
+            return;
+        } else if(checkstring(ep, (unsigned char *)"PLATFORM")){
+			strcpy((char *)sret,(char *)Option.platform);
             CtoM(sret);
             targ=T_STR;
             return;

@@ -184,6 +184,8 @@ struct option_s {
     unsigned char F9key[MAXKEYLEN]; //524
     unsigned char SSID[MAXKEYLEN];  //588
     unsigned char PASSWORD[MAXKEYLEN]; //652=768
+    unsigned char platform[32];
+    unsigned char extensions[96];
     // To enable older CFunctions to run any new options *MUST* be added at the end of the list
 } __attribute__((packed));
 extern unsigned char *CFunctionFlash, *CFunctionLibrary;

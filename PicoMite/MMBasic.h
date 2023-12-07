@@ -254,7 +254,7 @@ int CheckEmpty(char *p);
 unsigned char *evaluate(unsigned char *p, MMFLOAT *fa, long long int  *ia, unsigned char **sa, int *ta, int noerror);
 unsigned char *doexpr(unsigned char *p, MMFLOAT *fa, long long int  *ia, unsigned char **sa, int *oo, int *t);
 void DefinedSubFun(int iscmd, unsigned char *cmd, int index, MMFLOAT *fa, long long int  *i64, unsigned char **sa, int *t);
-MMFLOAT getnumber(unsigned char *p);
+MMFLOAT getnumber(unsigned char *p); 
 long long int  getinteger(unsigned char *p);
 long long int getint(unsigned char *p, long long int min, long long int max);
 unsigned char *getstring(unsigned char *p);
@@ -295,7 +295,7 @@ extern int PSize;                               // size of the program in progra
 extern unsigned char *cmdline;                           // Command line terminated with a zero unsigned char and trimmed of spaces
 extern unsigned char *nextstmt;                          // Pointer to the next statement to be executed.
 extern unsigned char PromptString[MAXPROMPTLEN];                                    // the prompt for input, an empty string means use the default
-extern int multi;
+extern int multi; 
 extern void str_replace(char *target, const char *needle, const char *replacement);
 #if defined(MMFAMILY)
 extern unsigned char FunKey[NBRPROGKEYS][MAXKEYLEN + 1]; // used by the programmable function keys
