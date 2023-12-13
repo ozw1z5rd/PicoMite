@@ -137,7 +137,6 @@ int sprite_which_collided = -1;
 static bool hideall = 0;
 bool mergedread=0;
 int transparenthigh=0,transparentlow=0;
-volatile int VGAscrolly=0;
 #else
     int map[16]={0};
     #ifdef PICOMITEWEB
@@ -326,7 +325,7 @@ void MIPS16 cmd_guiMX170(void) {
             t = ((HRes > VRes) ? HRes : VRes) / 7;
             while(getConsole() < '\r') {
         #ifdef PICOMITEWEB
-                {if(startupcomplete)cyw43_arch_poll();}
+                {if(startupcomplete)ProcessWeb(0);}
         #endif
                 DrawCircle(rand() % HRes, rand() % VRes, (rand() % t) + t/5, 1, 1, rgb((rand() % 8)*256/8, (rand() % 8)*256/8, (rand() % 8)*256/8), 1);
             }
@@ -3220,7 +3219,7 @@ void cmd_cls(void) {
 #endif
     } else {
 #ifdef PICOMITEVGA
-        if(WriteBuf==LayerBuf && DISPLAY_TYPE==COLOURVGA){
+        if(WriteBuf==LayerBuf && DISPLAY_TYPE==COLOURVGA && LayerBuf!=DisplayBuf){
             uint8_t colour=transparentlow|transparenthigh;
             memset(WriteBuf,colour,HRes*VRes/2);
         } else
@@ -7298,7 +7297,7 @@ void closeframebuffer(void){
 	DisplayBuf=(unsigned char *)FRAMEBUFFER;
 	LayerBuf=(unsigned char *)FRAMEBUFFER;
 	FrameBuf=(unsigned char *)FRAMEBUFFER;
-    transparentlow=transparenthigh=VGAscrolly=0;
+    transparentlow=transparenthigh=0;
 }
 void cmd_framebuffer(void){
     unsigned char *p;
@@ -7374,12 +7373,6 @@ void cmd_framebuffer(void){
             else error("Syntax");
         }
         if(d!=s)memcpy(d,s,38400);
-    } else if((p=checkstring(cmdline, (unsigned char *)"SCROLL VGA"))) {
-        getargs(&p,1,(unsigned char *)",");
-        if(Option.CPU_Speed==126000)error("CPUSPEED =252000 for scroll");
-        int y=getint(argv[0],-(VRes-1), VRes-1);
-        while(QVgaScanLine!=480){}
-        VGAscrolly=y;
     } else error("Syntax");
 }
 #endif

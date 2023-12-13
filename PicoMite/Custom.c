@@ -1393,7 +1393,7 @@ void cmd_web(void){
                     MMPrintString(buff);
                 }
                 Timer4=500;
-                while (Timer4)if(startupcomplete)cyw43_arch_poll();
+                while (Timer4)if(startupcomplete)ProcessWeb(0);
                 if(scan_dest){
                         uint64_t *p=(uint64_t *)scan_dest;
                         *p=strlen(&scan_dest[8]);

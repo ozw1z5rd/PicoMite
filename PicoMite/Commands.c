@@ -1624,7 +1624,7 @@ void MIPS16 cmd_read(void) {
 search_again:
     while(1) {
         if(*p == 0) p++;                                            // if it is at the end of an element skip the zero marker
-        if(*p == 0 || *p == 0xff) error("No DATA to read");         // end of the program and we still need more data
+        if(*p == 0/* || *p == 0xff*/) error("No DATA to read");         // end of the program and we still need more data
         if(*p == T_NEWLINE) lineptr = p++;
         if(*p == T_LINENBR) p += 3;
         skipspace(p);

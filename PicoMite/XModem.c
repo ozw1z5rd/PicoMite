@@ -169,7 +169,7 @@ static void flushinput(void)
 {
   while (_inbyte(((DLY_1S)*3)>>1) >= 0)
 #ifdef PICOMITEWEB
-  ProcessWeb()
+  ProcessWeb(1)
 #endif
   ;
 }

@@ -167,7 +167,7 @@ extern uint16_t __attribute__ ((aligned (256))) tilebcols[80*40];
 	extern volatile int WIFIconnected;
 	extern volatile int scantimer;
 	extern int startupcomplete;
-	extern void ProcessWeb(void);
+	extern void ProcessWeb(int mode);
 	extern void WebConnect(void);
 	extern void close_tcpclient(void);
 #endif

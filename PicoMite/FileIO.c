@@ -2760,7 +2760,7 @@ void cmd_files(void)
             while (FSerror == FR_OK && fnod.fname[0])
             {
             #ifdef PICOMITEWEB
-                ProcessWeb();
+                ProcessWeb(1);
             #endif
                 if (fcnt >= MAXFILES)
                 {
@@ -2879,7 +2879,7 @@ void cmd_files(void)
         } else {
             while(1){
             #ifdef PICOMITEWEB
-                ProcessWeb();
+                ProcessWeb(1);
             #endif
                 int found=0;
                 FSerror=lfs_dir_read(&lfs, &lfs_dir, &lfs_info);
@@ -3016,7 +3016,7 @@ void cmd_files(void)
         for (i = dirs = 0; i < fcnt; i++)
         {
             #ifdef PICOMITEWEB
-                ProcessWeb();
+                ProcessWeb(1);
             #endif
             routinechecks();
             if (MMAbort)
@@ -3060,7 +3060,7 @@ void cmd_files(void)
                 {
                     ShowCursor(1);
                 #ifdef PICOMITEWEB
-                    ProcessWeb();
+                    ProcessWeb(1);
                 #endif
                     routinechecks();
                     if (MMAbort)

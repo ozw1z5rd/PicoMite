@@ -70,7 +70,7 @@ extern "C" {
 					"Copyright " YEAR2 " Peter Mather\r\n\r\n"
 volatile int WIFIconnected=0;
 int startupcomplete=0;
-void ProcessWeb(void);
+void ProcessWeb(int mode);
 #endif
 #ifdef PICOMITE
 #define MES_SIGNON  "\rPicoMite MMBasic Version " VERSION "\r\n"\
@@ -357,7 +357,7 @@ void __not_in_flash_func(routinechecks)(void){
 int __not_in_flash_func(getConsole)(void) {
     int c=-1;
 #ifdef PICOMITEWEB
-    ProcessWeb();
+    ProcessWeb(1);
 #endif
     CheckAbort();
     if(ConsoleRxBufHead != ConsoleRxBufTail) {                            // if the queue has something in it
@@ -397,7 +397,7 @@ char SerialConsolePutC(char c, int flush) {
 #ifdef PICOMITEWEB
     }
     TelnetPutC(c,flush);
-    ProcessWeb();
+    ProcessWeb(1);
 #endif
     return c;
 }
@@ -1031,7 +1031,7 @@ void __not_in_flash_func(uSec)(int us) {
 	} else {
     	uint64_t end=time_us_64()+us;
     	while(time_us_64()<end){
-        if(time_us_64() % 500 ==0)ProcessWeb();
+        if(time_us_64() % 500 ==0)ProcessWeb(1);
     }
 }
 #else
@@ -1039,7 +1039,7 @@ void __not_in_flash_func(uSec)(int us) {
 #endif
 }
 #ifdef PICOMITEWEB
-void __not_in_flash_func(ProcessWeb)(void){
+void __not_in_flash_func(ProcessWeb)(int mode){
     static uint64_t flushtimer=0;
     static uint64_t lastmsec=0;
     static int testcount=0;  
@@ -1048,13 +1048,35 @@ void __not_in_flash_func(ProcessWeb)(void){
     TCP_SERVER_T *state = (TCP_SERVER_T*)TCPstate;
     if(!(state && WIFIconnected))return;
     uint64_t timenow=time_us_64();   
+    int t=0;
+    for(int i=0;i<MaxPcb;i++){
+        if(state->client_pcb[i]==NULL){
+                t++;
+        } else if(state->client_pcb[i]==(struct tcp_pcb *)44){
+            if(timenow-state->pcbopentime[i] > 1000*(uint32_t)Option.ServerResponceTime + 20000000 && !state->keepalive[i]){
+                state->client_pcb[i]=NULL;
+//                    printf("PCB %d should be closed by now\r\n", i);
+            }
+        } else {
+            if(timenow-state->pcbopentime[i] > 1000*(uint32_t)Option.ServerResponceTime && !state->keepalive[i]){
+//                    printf("Warning PCB %d still open\r\n", i);
+                    if(state->buffer_recv[i]){
+                            tcp_server_close(state,i);
+                            error("No response to request from connection no. %",i+1);
+                    }
+                    tcp_server_close(state,i);
+                    state->client_pcb[i]=(struct tcp_pcb *)44;
+            }
+        }
+    }
     if(testcount == 0 || timenow>lastmsec){
         lastmsec=timenow+2000;
         testcount = 0 ;
-        {if(startupcomplete)cyw43_arch_poll();}
+        if(startupcomplete)cyw43_arch_poll();
     }
     testcount++;
-    if(testcount==500)testcount=0;
+    if(testcount==200)testcount=0;
+    if(!mode)return;
     if(state->telnet_pcb_no!=99){
         if(timenow > flushtimer){
             TelnetPutC(0,-1);
@@ -1081,7 +1103,7 @@ void __not_in_flash_func(ProcessWeb)(void){
 #endif
 void __not_in_flash_func(CheckAbort)(void) {
 #ifdef PICOMITEWEB
-    ProcessWeb();
+    ProcessWeb(1);
 #endif
     routinechecks();
     if(MMAbort) {
@@ -1429,7 +1451,6 @@ void __not_in_flash_func(QVgaLine1)()
 			// prepare image line
             if(DISPLAY_TYPE==MONOVGA){
                 uint16_t *q=&fbuff[VGAnextbuf][0];
-                line=((line-VGAscrolly+480) % 480);
                 unsigned char *p=&DisplayBuf[line * 80];
                 if(tc==ytilecount){
                     tile++;
@@ -1451,7 +1472,6 @@ void __not_in_flash_func(QVgaLine1)()
                 }
             } else {
                 line>>=1;
-                line=((line-VGAscrolly+240) % 240);
                 register unsigned char *p=&DisplayBuf[line * 160];
                 register unsigned char *q=&LayerBuf[line * 160];
                 register uint16_t *r=fbuff[VGAnextbuf];

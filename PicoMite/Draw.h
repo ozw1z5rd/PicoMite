@@ -139,7 +139,6 @@ extern void (*ReadBufferFast)(int x1, int y1, int x2, int y2, unsigned char *c);
 #ifndef PICOMITEVGA
     extern void DrawRectangleUser(int x1, int y1, int x2, int y2, int c);
     extern void DrawBitmapUser(int x1, int y1, int width, int height, int scale, int fc, int bc, unsigned char *bitmap);
-    extern volatile int VGAscrolly;
 #endif
 extern void DisplayPutC(char c);
 extern void GUIPrintString(int x, int y, int fnt, int jh, int jv, int jo, int fc, int bc, char *str);

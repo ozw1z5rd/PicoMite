@@ -2244,10 +2244,10 @@ void MIPS16 cmd_play(void) {
 		while(Timer1){
 			checkWAVinput();
 		#ifdef PICOMITEWEB
-			ProcessWeb();
+			ProcessWeb(1);
 		#endif
 		}
-        return;
+        return; 
     }
     if((tp = checkstring(cmdline, (unsigned char *)"MODSAMPLE"))) {
         unsigned short sampnum, seffectnum;
