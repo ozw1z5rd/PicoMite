@@ -423,6 +423,7 @@ void fun_dev(void);
   	{ (unsigned char *)"GUI",            T_CMD,                      0, cmd_gui   },
 	{ (unsigned char *)"Backlight",		T_CMD,		0, cmd_backlight		},
 	{ (unsigned char *)"CtrlVal(",       T_CMD | T_FUN,              0, cmd_ctrlval    },
+    { (unsigned char *)"Draw3D",         T_CMD,                      0, cmd_3D },
 #endif
 #ifdef PICOMITEWEB
   	{ (unsigned char *)"GUI",            T_CMD,                      0, cmd_guiMX170   },

@@ -118,13 +118,15 @@ short lastx,lasty;
 const int CMM1map[16]={BLACK,BLUE,GREEN,CYAN,RED,MAGENTA,YELLOW,WHITE,MYRTLE,COBALT,MIDGREEN,CERULEAN,RUST,FUCHSIA,BROWN,LILAC};
 int RGB121map[16];
 // pointers to the drawing primitives
+#ifndef PICOMITEWEB
+struct D3D* struct3d[MAX3D + 1] = { NULL };
+s_camera camera[MAXCAM + 1];
+#endif
 #ifdef PICOMITEVGA
 short gui_font_width, gui_font_height;
 int last_bcolour, last_fcolour;
 volatile int CursorTimer=0;               // used to time the flashing cursor
 extern volatile int QVgaScanLine;
-struct D3D* struct3d[MAX3D + 1] = { NULL };
-s_camera camera[MAXCAM + 1];
 int layer_in_use[MAXLAYER + 1];
 unsigned char LIFO[MAXBLITBUF];
 unsigned char zeroLIFO[MAXBLITBUF];
@@ -6579,7 +6581,7 @@ void ShowCursor(int show) {
   visible = newstate;                                               // draw the cursor BELOW the font
   DrawLine(CurrentX, CurrentY + gui_font_height-1, CurrentX + gui_font_width-1, CurrentY + gui_font_height-1, (gui_font_height<=12 ? 1 : 2), visible ? gui_fcolour : (DISPLAY_TYPE==MONOVGA ? 0 :gui_bcolour));
 }
-#ifdef PICOMITEVGA
+#ifndef PICOMITEWEB
 #define ABS(X) ((X)>0 ? (X) : (-(X)))
 
 void DrawPolygon(int n, short *xcoord, short *ycoord, int face){
@@ -7286,6 +7288,8 @@ void fun_3D(void){
 	} else error("Syntax");
 	targ=T_NBR;
 }
+#endif
+#ifdef PICOMITEVGA
 void closeframebuffer(void){
     if(FrameBuf!=DisplayBuf)FreeMemory(FrameBuf);
     if(DisplayBuf!=LayerBuf){
