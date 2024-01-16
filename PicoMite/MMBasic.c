@@ -2745,7 +2745,14 @@ void error(char *msg, ...) {
     // copy the error message into the global MMErrMsg truncating at any tokens or if the string is too long
     for(p = MMErrMsg, tp = tstr; *tp < 127 && (tp - tstr) < MAXERRMSG - 1; ) *p++ = *tp++;
     *p = 0;
-    
+    if(optionlogging){
+        lfs_file_t lfs_file;
+        char crlf[]="\r\n";
+        lfs_file_open(&lfs, &lfs_file, "log.txt", LFS_O_APPEND | LFS_O_CREAT);
+        lfs_file_write(&lfs, &lfs_file, MMErrMsg, sizeof(MMErrMsg));
+        lfs_file_write(&lfs, &lfs_file, crlf, sizeof(crlf));
+        lfs_file_close(&lfs, &lfs_file);	
+    }
     if(OptionErrorSkip) longjmp(ErrNext, 1);                       // if OPTION ERROR SKIP/IGNORE is in force
 #ifdef PICOMITE
         multicore_fifo_push_blocking(0xFF);
@@ -3131,6 +3138,7 @@ void MIPS16 ClearRuntime(void) {
     OptionErrorSkip = 0;
 	optionangle=1.0;
     optionfastaudio=0;
+    optionlogging=false;
     MMerrno = 0;                                                    // clear the error flags
    *MMErrMsg = 0;
     InitHeap();

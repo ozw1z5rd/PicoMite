@@ -124,6 +124,17 @@ extern const char *FErrorMsg[];
         SaveOptions();
     }
 #endif
+#ifdef PICOMITEVGA
+void VGArecovery(int pin){
+        ExtCurrentConfig[Option.VGA_BLUE]=EXT_BOOT_RESERVED;
+        ExtCurrentConfig[Option.VGA_HSYNC]=EXT_BOOT_RESERVED;
+        ExtCurrentConfig[PINMAP[PinDef[Option.VGA_BLUE].GPno+1]]=EXT_BOOT_RESERVED;
+        ExtCurrentConfig[PINMAP[PinDef[Option.VGA_BLUE].GPno+2]]=EXT_BOOT_RESERVED;
+        ExtCurrentConfig[PINMAP[PinDef[Option.VGA_BLUE].GPno+3]]=EXT_BOOT_RESERVED;
+        ExtCurrentConfig[PINMAP[PinDef[Option.VGA_HSYNC].GPno+1]]=EXT_BOOT_RESERVED;
+        if(pin)error("Pin %/| is in use",pin,pin);
+ }
+#endif
 extern const uint8_t *flash_target_contents;
 int TickPeriod[NBRSETTICKS]={0};
 volatile int TickTimer[NBRSETTICKS]={0};
@@ -150,6 +161,7 @@ extern void WriteData(int data);
 char *CSubInterrupt;
 MMFLOAT optionangle=1.0;
 bool optionfastaudio=false;
+bool optionlogging=false;
 volatile bool CSubComplete=false;
 uint64_t timeroffset=0;
 int SaveOptionErrorSkip=0;
@@ -1762,6 +1774,10 @@ void printoptions(void){
         }
         MMPrintString("\r\n");
     }
+    if(Option.VGA_BLUE!=24 || Option.VGA_HSYNC!=21 ){
+        PO("VGA PINS"); MMPrintString((char *)PinDef[Option.VGA_HSYNC].pinname);
+        MMputchar(',',1);;MMPrintString((char *)PinDef[Option.VGA_BLUE].pinname);PRet();
+    }
 #endif
     if(Option.AUDIO_L || Option.AUDIO_CLK_PIN){
         PO("AUDIO");
@@ -1973,6 +1989,11 @@ void MIPS16 cmd_option(void) {
         if(checkstring(tp, (unsigned char *)"NONE"))     { DefaultType = T_NOTYPE;   return; }
     }
 
+	tp = checkstring(cmdline, (unsigned char *)"LOGGING");
+	if(tp) {
+		if(checkstring(tp, (unsigned char *)"OFF"))	{ optionlogging=0; return; }
+		if(checkstring(tp, (unsigned char *)"ON"))	{ optionlogging=1; return; }
+	}
 
     tp = checkstring(cmdline, (unsigned char *)"BREAK");
     if(tp) {
@@ -2344,6 +2365,42 @@ void MIPS16 cmd_option(void) {
 #endif
 
 #ifdef PICOMITEVGA
+    tp = checkstring(cmdline, (unsigned char *)"VGA PINS");
+    if(tp) {
+        int pin1,pin2,testpin;
+        getargs(&tp,3,(unsigned char *)",");
+   	    if(CurrentLinePtr) error("Invalid in a program");
+        char code;
+        if(!(code=codecheck(argv[0])))argv[0]+=2;
+        pin1 = getinteger(argv[0]);
+        if(!code)pin1=codemap(pin1);
+        if(!(code=codecheck(argv[2])))argv[2]+=2;
+        pin2 = getinteger(argv[2]);
+        if(!code)pin2=codemap(pin2);
+        // now de-allocate the existing VGA pins temporarily 
+        ExtCurrentConfig[Option.VGA_BLUE]=EXT_NOT_CONFIG;
+        ExtCurrentConfig[Option.VGA_HSYNC]=EXT_NOT_CONFIG;
+        ExtCurrentConfig[PINMAP[PinDef[Option.VGA_BLUE].GPno+1]]=EXT_NOT_CONFIG;
+        ExtCurrentConfig[PINMAP[PinDef[Option.VGA_BLUE].GPno+2]]=EXT_NOT_CONFIG;
+        ExtCurrentConfig[PINMAP[PinDef[Option.VGA_BLUE].GPno+3]]=EXT_NOT_CONFIG;
+        ExtCurrentConfig[PINMAP[PinDef[Option.VGA_HSYNC].GPno+1]]=EXT_NOT_CONFIG;
+        if(ExtCurrentConfig[pin1] != EXT_NOT_CONFIG)VGArecovery(pin1);
+        if(ExtCurrentConfig[pin2] != EXT_NOT_CONFIG)VGArecovery(pin2);
+        testpin=PINMAP[PinDef[pin1].GPno+1];
+        if(ExtCurrentConfig[testpin] != EXT_NOT_CONFIG)VGArecovery(testpin);
+        testpin=PINMAP[PinDef[pin2].GPno+1];
+        if(ExtCurrentConfig[testpin] != EXT_NOT_CONFIG)VGArecovery(testpin);
+        testpin=PINMAP[PinDef[pin2].GPno+2];
+        if(ExtCurrentConfig[testpin] != EXT_NOT_CONFIG)VGArecovery(testpin);
+        testpin=PINMAP[PinDef[pin2].GPno+3];
+        if(ExtCurrentConfig[testpin] != EXT_NOT_CONFIG)VGArecovery(testpin);
+        Option.VGA_HSYNC=pin1;
+        Option.VGA_BLUE=pin2;
+        SaveOptions();
+        _excep_code = RESET_COMMAND;
+        SoftReset();
+        return;
+    }
     tp = checkstring(cmdline, (unsigned char *)"CPUSPEED");
     if(tp) {
    	    if(CurrentLinePtr) error("Invalid in a program");
@@ -3065,9 +3122,6 @@ void MIPS16 cmd_option(void) {
         _excep_code = RESET_COMMAND;
         SoftReset();
     }
-#ifdef PICOMITEWEB
-    checkTCPOptions();
-#endif     
     error("Invalid Option");
 }
 

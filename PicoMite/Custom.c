@@ -1420,18 +1420,6 @@ void cmd_web(void){
         error("Syntax");
 }
 
-void checkTCPOptions(void){
-    unsigned char *tp = checkstring(cmdline, (unsigned char *)"TCP SERVER");
-    if(tp) {
-   	if(CurrentLinePtr) error("Invalid in a program");
-        getargs(&cmdline, 1, (unsigned char *)",");
-        if(argc!=1)error("Syntax");
-        Option.TCP_PORT=getint(argv[0],1,65535);
-        return;
-        _excep_code = RESET_COMMAND;
-        SoftReset();
-    }
-}
 void fun_json(void){
     char *json_string=NULL;
     const cJSON *root = NULL;

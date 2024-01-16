@@ -159,10 +159,12 @@ struct option_s {
         char ipaddress[16];
         char mask[16];
         char gateway[16];
-        unsigned char x[12]; //108=256
+        unsigned char x[10]; //108=256
     #else
-        unsigned char x[96]; //112=256
+        unsigned char x[94]; //112=256
     #endif
+    unsigned char VGA_HSYNC;
+    unsigned char VGA_BLUE;
     unsigned char AUDIO_MISO_PIN;
     unsigned char AUDIO_DCS_PIN;
     unsigned char AUDIO_DREQ_PIN;

@@ -291,7 +291,9 @@ void cmd_edit(void) {
         char *fname = (char *)getFstring(argv[0]);
         char c;
         strcpy(name,fname);
-        if (strchr(name, '.') == NULL) strcat(name, ".bas");
+        if(!ExistsFile(name)){
+            if (strchr(name, '.') == NULL) strcat(name, ".bas");
+        }
         if(!fstrstr(name,".bas"))Option.ColourCode=0;
         if(ExistsFile(name)){
             int fnbr1;
@@ -681,6 +683,7 @@ void FullScreenEditor(int xx, int yy, char *fname) {
                             gui_bcolour = PromptBC;
                             MX470Cursor(0, 0);                                // home the cursor
                             MX470Display(DISPLAY_CLS);                        // clear screen on the MX470 display only
+                            MMPrintString("\033[0m");
                             BreakKey = BreakKeySave;
                             Option.ColourCode=optioncolourcodesave;
 #ifdef PICOMITEVGA

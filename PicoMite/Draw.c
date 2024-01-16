@@ -46,6 +46,7 @@ void RestoreTriangle(int bnbr, char *buff);
 void ReadLine(int x1,int y1,int x2,int y2, char *buff);
 void cmd_RestoreTriangle(unsigned char *p);
 void copyframetoscreen(uint8_t *s,int xstart, int xend, int ystart, int yend, int odd);
+void polygon(unsigned char *p, int close);
 typedef struct _BMPDECODER
 {
         LONG lWidth;
@@ -1804,6 +1805,14 @@ void cmd_line(void) {
                 if(y2>=VRes)y2=VRes-1;
                 DrawLine(x1, y1, x2, y2, w, c);
             }
+		} else if((p=checkstring(cmdline,(unsigned char *)"GRAPH"))){
+            unsigned char *pp=GetTempMemory(STRINGSIZE);
+            strcpy((char *)pp,(char *)p);
+            memmove(&pp[2],pp,strlen((char *)p)+1);
+            pp[0]='0';
+            pp[1]=',';
+            polygon(pp,0);
+            return;
 		} else if((p=checkstring(cmdline,(unsigned char *)"AA"))){
 			MMFLOAT x1, y1, x2, y2;
 			getargs(&p, 11,(unsigned char *)",");
@@ -2260,20 +2269,22 @@ static void fill_end_fill(int count, int ystart, int yend)
     FreeMemory((void *)nodeX);
 }
 
-
-void cmd_polygon(void){
+void polygon(unsigned char *p, int close){
 	int xcount=0;
 	long long int *xptr=NULL, *yptr=NULL,xptr2=0, yptr2=0, *polycount=NULL, *cptr=NULL, *fptr=NULL;
 	MMFLOAT *polycountf=NULL, *cfptr=NULL, *ffptr=NULL, *xfptr=NULL, *yfptr=NULL, xfptr2=0, yfptr2=0;
 	int i, f=0, c, xtot=0, ymax=0, ymin=1000000;
     int n=0, nx=0, ny=0, nc=0, nf=0;
-    getargs(&cmdline, 9,(unsigned char *)",");
+    getargs(&p, 9,(unsigned char *)",");
     if(Option.DISPLAY_TYPE == 0) error("Display not configured");
     getargaddress(argv[0], &polycount, &polycountf, &n);
     if(n==1){
     	xcount = xtot = getinteger(argv[0]);
-    	if(xcount<3 || xcount>9999)error("Invalid number of vertices");
+    	if((xcount<3 || xcount>9999) && xcount!=0)error("Invalid number of vertices");
         getargaddress(argv[2], &xptr, &xfptr, &nx);
+        if(xcount==0){
+            xcount = xtot = nx;
+        }
         if(nx<xtot)error("X Dimensions %", nx);
         getargaddress(argv[4], &yptr, &yfptr, &ny);
         if(ny<xtot)error("Y Dimensions %", ny);
@@ -2331,7 +2342,7 @@ void cmd_polygon(void){
 			} else {
 				DrawTriangle(main_fill_polyX[0],main_fill_polyY[0],main_fill_polyX[1],main_fill_polyY[1],main_fill_polyX[2],main_fill_polyY[2],c,f);
         	}
-       } else {
+       } else if(close){
     		int x1=(xfptr==NULL ? *xptr : (int)*xfptr);
     		int x2=(xfptr==NULL ? xptr2 : (int)xfptr2);
     		int y1=(yfptr==NULL ? *yptr : (int)*yfptr);
@@ -2449,6 +2460,9 @@ void cmd_polygon(void){
     }
 }
 
+void cmd_polygon(void){
+    polygon(cmdline,1);
+}
 
 void cmd_rbox(void) {
     int x1, y1, wi, h, w=0, c=0, f=0,  r=0, n=0 ,i, nc=0, nw=0, nf=0,hmod,wmod;

@@ -2328,6 +2328,7 @@ void cmd_bitbang(void){
         writeusclock(0);
         int bittime=16777215 + 12  - (ticks_per_second/baudrate) ;
         int half = 16777215 + 12  - (ticks_per_second/(baudrate<<1)) ;
+        if(!(gpio_get_all() & gppin))error("Framing error");
         disable_interrupts();
         int istat=serialrx(gppin, string, timeout, bittime, half, maxchars, termchars);
         enable_interrupts();

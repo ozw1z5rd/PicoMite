@@ -175,7 +175,7 @@ void __not_in_flash_func(on_pwm_wrap)(void) {
 		if(!(gpio_get(PinDef[Option.AUDIO_DREQ_PIN].GPno)))return;
 		if(!(CurrentlyPlaying == P_TONE || CurrentlyPlaying == P_SOUND)){
 			VSbuffer=VS1053free();
-			if(VSbuffer>500)return;
+			if(VSbuffer>1023-64)return;
 		}
     	if(CurrentlyPlaying == P_FLAC || CurrentlyPlaying == P_WAV ||CurrentlyPlaying == P_MP3 || CurrentlyPlaying == P_MIDI || CurrentlyPlaying==P_MOD) {
 			if(bcount[1]==0 && bcount[2]==0 && playreadcomplete==1){
@@ -183,7 +183,7 @@ void __not_in_flash_func(on_pwm_wrap)(void) {
 				return;
 			}
 			if(swingbuf){ //buffer is primed
-				int sendlen=((bcount[swingbuf]-ppos)>=32 ? 32 : bcount[swingbuf]-ppos);
+				int sendlen=((bcount[swingbuf]-ppos)>=64 ? 64 : bcount[swingbuf]-ppos);
 				if(swingbuf==1)sdi_send_buffer((uint8_t *)&sbuff1[ppos],sendlen);
 				else sdi_send_buffer((uint8_t *)&sbuff2[ppos],sendlen);
 				ppos+=sendlen;
@@ -1204,12 +1204,7 @@ void dobacklight(void){
 }
 void InitReservedIO(void) {
 #ifdef PICOMITEVGA
-		ExtCfg(PINMAP[QVGA_GPIO_HSYNC], EXT_BOOT_RESERVED, 0);
-		ExtCfg(PINMAP[QVGA_GPIO_VSYNC], EXT_BOOT_RESERVED, 0);
-		ExtCfg(PINMAP[QVGA_GPIO_FIRST], EXT_BOOT_RESERVED, 0);
-		ExtCfg(PINMAP[QVGA_GPIO_FIRST+1], EXT_BOOT_RESERVED, 0);
-		ExtCfg(PINMAP[QVGA_GPIO_FIRST+2], EXT_BOOT_RESERVED, 0);
-		ExtCfg(PINMAP[QVGA_GPIO_FIRST+3], EXT_BOOT_RESERVED, 0);
+	VGArecovery(0);
 #else
 	if(Option.DISPLAY_TYPE>=SSDPANEL && Option.DISPLAY_TYPE<VIRTUAL){
 		ExtCfg(SSD1963_DC_PIN, EXT_BOOT_RESERVED, 0);gpio_init(SSD1963_DC_GPPIN);gpio_put(SSD1963_DC_GPPIN,GPIO_PIN_SET);gpio_set_dir(SSD1963_DC_GPPIN, GPIO_OUT);

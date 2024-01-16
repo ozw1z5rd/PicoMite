@@ -2023,8 +2023,10 @@ void CloseAllFiles(void)
 {
     int i;
 #ifdef PICOMITEVGA
-    closeall3d();
     closeallsprites();
+#endif
+#ifndef PICOMITEWEB
+    closeall3d();
 #endif
     closeframebuffer();
     for (i = 1; i <= MAXOPENFILES; i++)
@@ -2739,6 +2741,8 @@ void cmd_files(void)
         FreeMemorySafe((void **)&flist);
 #ifdef PICOMITEVGA
     closeallsprites();
+#endif
+#ifndef PICOMITEWEB
     closeframebuffer();
     closeall3d();
 #endif
@@ -3639,6 +3643,8 @@ void ResetOptions(void)
     Option.DefaultBrightness = 100;
     Option.numlock = 1;
     Option.repeat = 0b101100;
+    Option.VGA_HSYNC=21;
+    Option.VGA_BLUE=24;
     uint8_t txbuf[4] = {0x9f};
     uint8_t rxbuf[4] = {0};
     disable_interrupts();

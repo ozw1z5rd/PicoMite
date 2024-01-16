@@ -1194,7 +1194,7 @@ void playvs1053(int mode){
 	loadDefaultVs1053Patches(); 
 	setVolumes(vol_left,vol_right);
 	//playing a file
-	setrate(20000); //32KHz should be fast enough
+	setrate(6000); //32KHz should be fast enough
 	if(mode==P_MOD){
 		memcpy((char *)sbuff1,wavheader,sizeof(wavheader));
 //		hxcmod_fillbuffer( mcontext, (msample*)((char *)&sbuff1[44]), WAV_BUFFER_SIZE/4-11, NULL, noloop );
@@ -1515,6 +1515,7 @@ void MIPS16 cmd_play(void) {
         else if(CurrentlyPlaying == P_SOUND) CurrentlyPlaying = P_PAUSE_SOUND;
         else if(CurrentlyPlaying == P_WAV)  CurrentlyPlaying = P_PAUSE_WAV;
         else if(CurrentlyPlaying == P_FLAC)  CurrentlyPlaying = P_PAUSE_FLAC;
+        else if(CurrentlyPlaying == P_MP3)  CurrentlyPlaying = P_PAUSE_MP3;
         else
             error("Nothing playing");
         return;
@@ -1525,6 +1526,7 @@ void MIPS16 cmd_play(void) {
         else if(CurrentlyPlaying == P_PAUSE_SOUND) CurrentlyPlaying = P_SOUND;
         else if(CurrentlyPlaying == P_PAUSE_WAV) CurrentlyPlaying = P_WAV;
         else if(CurrentlyPlaying == P_PAUSE_FLAC) CurrentlyPlaying = P_FLAC;
+        else if(CurrentlyPlaying == P_PAUSE_MP3)  CurrentlyPlaying = P_MP3;
         else
             error("Nothing to resume");  
         return;
@@ -2410,6 +2412,7 @@ void audio_checks(void){
 			if(Option.AUDIO_MISO_PIN && VSbuffer>32)return;
             if(CurrentlyPlaying == P_FLAC)drflac_close(myflac);
 			if(CurrentlyPlaying == P_MOD)FreeMemory((void *)mcontext);
+            if(CurrentlyPlaying == P_WAV)FreeMemorySafe((void **)&mywav);
             FreeMemorySafe((void **)&sbuff1);
             FreeMemorySafe((void **)&sbuff2);
             FreeMemorySafe((void **)&alist);
@@ -2420,7 +2423,6 @@ void audio_checks(void){
             FileClose(WAV_fnbr);
             WAVcomplete = true;
 //            playreadcomplete = 0;
-            if(CurrentlyPlaying == P_FLAC)FreeMemorySafe((void **)&mywav);
         }
     }
 }

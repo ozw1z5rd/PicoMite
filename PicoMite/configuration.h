@@ -42,7 +42,7 @@ extern "C" {
 #define FLASH_TARGET_OFFSET (1024 * 1024) 
 #define MagicKey 0x51386327
 #define HEAPTOP 0x2003f600
-#define HEAP_MEMORY_SIZE (92*1024) 
+#define HEAP_MEMORY_SIZE (88*1024) 
 #define MaxPcb 8
 #define MAX_CPU     252000
 #define MIN_CPU     126000

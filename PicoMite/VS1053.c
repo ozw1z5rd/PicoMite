@@ -276,7 +276,8 @@ void VS1053(uint8_t _cs_pin, uint8_t _dcs_pin, uint8_t _dreq_pin, uint8_t _reset
         // The next clocksetting allows SPI clocking at 5 MHz, 4 MHz is safe then.
         writeRegister(SCI_CLOCKF, 0xE000); // Normal clock settings multiplyer 3.0 = 12.2 MHz
         // SPI Clock to 4 MHz. Now you can set high speed SPI clock.
-        spi_init((AUDIO_SPI==1 ? spi0 : spi1), 5000000);
+        spi_init((AUDIO_SPI==1 ? spi0 : spi1), 5400000);
+//        PInt(spi_get_baudrate(AUDIO_SPI==1 ? spi0 : spi1));PRet();
         spi_set_format((AUDIO_SPI==1 ? spi0 : spi1), 8, 0,0, SPI_MSB_FIRST);
         uSec(5000);
         writeRegister(SCI_MODE, _BV(SM_SDINEW) | _BV(SM_LINE1) | _BV(SM_LAYER12));
@@ -381,7 +382,7 @@ void LoadUserCode(void) {
 
 void softReset() {
     LOG("Performing soft-reset\r\n");
-    writeRegister(SCI_MODE, _BV(SM_SDINEW) | _BV(SM_RESET));
+    writeRegister(SCI_MODE, _BV(SM_SDINEW) | _BV(SM_RESET | _BV(SM_LAYER12)));
     uSec(10000);
     await_data_request();
 }

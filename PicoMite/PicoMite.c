@@ -947,7 +947,7 @@ bool __not_in_flash_func(timer_callback)(repeating_timer_t *rt)
             if(!TouchState) {                                       // yes, it is.  If we have not reported this before
                 TouchState = TouchDown = true;                      // set the flags
 //                TouchUp = false;
-            }
+           }
         } else {
             if(TouchState) {                                        // the pen is not down.  If we have not reported this before
                 TouchState/* = TouchDown*/ = false;                     // set the flags
@@ -1041,7 +1041,7 @@ void __not_in_flash_func(uSec)(int us) {
 #ifdef PICOMITEWEB
 void __not_in_flash_func(ProcessWeb)(int mode){
     static uint64_t flushtimer=0;
-    static uint64_t lastmsec=0;
+    static uint64_t lastusec=0;
     static int testcount=0;  
     static int lastonoff=0;
     static uint64_t lastheartmsec=0;
@@ -1069,13 +1069,13 @@ void __not_in_flash_func(ProcessWeb)(int mode){
             }
         }
     }
-    if(testcount == 0 || timenow>lastmsec){
-        lastmsec=timenow+2000;
+    if(testcount == 0 || timenow>lastusec){
+        lastusec=timenow+1000;
         testcount = 0 ;
         if(startupcomplete)cyw43_arch_poll();
     }
     testcount++;
-    if(testcount==200)testcount=0;
+    if(testcount==100)testcount=0;
     if(!mode)return;
     if(state->telnet_pcb_no!=99){
         if(timenow > flushtimer){
@@ -1362,7 +1362,6 @@ void __not_in_flash_func(QVgaLine0)()
             } else {
                 line>>=1;
                 register unsigned char *p=&DisplayBuf[line * 160];
-//                register unsigned char *q=&LayerBuf[line * 160];
                 register uint16_t *r=fbuff[VGAnextbuf];
                 for(int i=0;i<160;i++){
                     register int low= *p & 0xF;
@@ -1452,6 +1451,7 @@ void __not_in_flash_func(QVgaLine1)()
             if(DISPLAY_TYPE==MONOVGA){
                 uint16_t *q=&fbuff[VGAnextbuf][0];
                 unsigned char *p=&DisplayBuf[line * 80];
+                unsigned char *pp=&LayerBuf[line * 80];
                 if(tc==ytilecount){
                     tile++;
                     tc=0;
@@ -1459,13 +1459,13 @@ void __not_in_flash_func(QVgaLine1)()
                 tc++;
                 register int pos=tile*X_TILE;
                 for(i=0;i<40;i++){
-                    register int low= *p & 0xF;
-                    register int high=*p++ >>4;
+                    register int low= (*p & 0xF) | (*pp & 0xF);
+                    register int high=(*p++ >>4) | (*pp++ >>4);
                     *q++=(M_Foreground[low] & tilefcols[pos]) | (M_Background[low] & tilebcols[pos]) ;
                     *q++=(M_Foreground[high]& tilefcols[pos]) | (M_Background[high] & tilebcols[pos]) ;
                     pos++;
-                    low= *p & 0xF;
-                    high=*p++ >>4;
+                    low= (*p & 0xF) | (*pp & 0xF);
+                    high=(*p++ >>4) | (*pp++ >>4);
                     *q++=(M_Foreground[low] & tilefcols[pos]) | (M_Background[low] & tilebcols[pos]) ;
                     *q++=(M_Foreground[high]& tilefcols[pos]) | (M_Background[high] & tilebcols[pos]) ;
                     pos++;
@@ -2059,10 +2059,16 @@ int MIPS16 main(){
         ){
         ResetAllFlash();              // init the options if this is the very first startup
         _excep_code=0;
-        SoftReset();
+        watchdog_enable(1, 1);
+        while(1);
     }
 //    Option.CPU_Speed=252000;
 //    SaveOptions();
+    if(Option.VGA_HSYNC==0){
+        Option.VGA_HSYNC=21;
+        Option.VGA_BLUE=24;
+        SaveOptions();
+    }
     m_alloc(M_PROG);                                           // init the variables for program memory
     LibMemory = (uint8_t *)flash_libmemory;
     uSec(100);
@@ -2144,7 +2150,7 @@ int MIPS16 main(){
     ResetDisplay();
     if(!(_excep_code == RESTART_NOAUTORUN || _excep_code == WATCHDOG_TIMEOUT || (_excep_code==POSSIBLE_WATCHDOG && watchdog_caused_reboot()))){
         if(Option.Autorun==0 ){
-            if(!(_excep_code == RESET_COMMAND))MMPrintString(MES_SIGNON); //MMPrintString(b);                                 // print sign on message
+            if(!(_excep_code == RESET_COMMAND || _excep_code == SOFT_RESET))MMPrintString(MES_SIGNON); //MMPrintString(b);                                 // print sign on message
         } else {
             if(Option.Autorun!=MAXFLASHSLOTS+1){
                 ProgMemory=(unsigned char *)(flash_target_contents+(Option.Autorun-1)*MAX_PROG_SIZE);

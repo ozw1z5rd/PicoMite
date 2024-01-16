@@ -84,6 +84,7 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 	extern int ExistsDir(char *p, char *q, int *filesystem);
 	extern MMFLOAT optionangle;
 	extern bool optionfastaudio;
+	extern bool optionlogging;
 	extern bool optionsuppressstatus;
 #endif
 #endif

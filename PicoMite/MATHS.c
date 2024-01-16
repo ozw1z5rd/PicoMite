@@ -212,12 +212,10 @@ static void dealloc2df (MMFLOAT** array, int m, int n)
 {
     int i;
     for (i = 0; i < m; i++) {
-        FreeMemory((void *)array[i]);
-		array[i]=NULL;
+        FreeMemorySafe((void **)&array[i]);
     }
 
-    FreeMemory((void *)array);
-	array=NULL;
+    FreeMemorySafe((void **)&array);
 }
 
 void Q_Mult(MMFLOAT *q1, MMFLOAT *q2, MMFLOAT *n){
@@ -737,6 +735,54 @@ void cmd_math(void){
 			}
 			return;
 		}
+		tp = checkstring(cmdline, (unsigned char *)"C_AND");
+		if(tp) {
+			MMFLOAT *a1float=NULL,*a2float=NULL,*a3float=NULL;
+			int64_t *a1int=NULL,*a2int=NULL,*a3int=NULL;
+			int card=parsearrays(tp, &a1float, &a2float, &a3float, &a1int, &a2int, &a3int);
+			if(a1float){
+				while(card--){
+					*a3float++ = (MMFLOAT)((int64_t)*a1float++ & (int64_t)*a2float++);
+				}
+			} else {
+				while(card--){
+					*a3int++ = *a1int++ & *a2int++;
+				}
+			}
+			return;
+		}
+		tp = checkstring(cmdline, (unsigned char *)"C_XOR");
+		if(tp) {
+			MMFLOAT *a1float=NULL,*a2float=NULL,*a3float=NULL;
+			int64_t *a1int=NULL,*a2int=NULL,*a3int=NULL;
+			int card=parsearrays(tp, &a1float, &a2float, &a3float, &a1int, &a2int, &a3int);
+			if(a1float){
+				while(card--){
+					*a3float++ = (MMFLOAT)((int64_t)*a1float++ ^ (int64_t)*a2float++);
+				}
+			} else {
+				while(card--){
+					*a3int++ = *a1int++ & *a2int++;
+				}
+			}
+			return;
+		}
+		tp = checkstring(cmdline, (unsigned char *)"C_OR");
+		if(tp) {
+			MMFLOAT *a1float=NULL,*a2float=NULL,*a3float=NULL;
+			int64_t *a1int=NULL,*a2int=NULL,*a3int=NULL;
+			int card=parsearrays(tp, &a1float, &a2float, &a3float, &a1int, &a2int, &a3int);
+			if(a1float){
+				while(card--){
+					*a3float++ = (MMFLOAT)((int64_t)*a1float++ | (int64_t)*a2float++);
+				}
+			} else {
+				while(card--){
+					*a3int++ = *a1int++ & *a2int++;
+				}
+			}
+			return;
+		}
 		tp = checkstring(cmdline, (unsigned char *)"C_SUB");
 		if(tp) {
 			MMFLOAT *a1float=NULL,*a2float=NULL,*a3float=NULL;
@@ -798,6 +844,38 @@ void cmd_math(void){
 			return;
 		}
 
+		tp = checkstring(cmdline, (unsigned char *)"V_ROTATE");
+		if(tp) {
+	    // xorigin!, yorigin!,angle!,xin!(), yin!(),xout(1), yout!()
+			getargs(&tp, 13,(unsigned char *)",");
+			if(!(argc == 13)) error("Argument count");
+			MMFLOAT xorigin=getnumber(argv[0]);
+			MMFLOAT yorigin=getnumber(argv[2]);
+			MMFLOAT angle=getnumber(argv[4])/optionangle;
+			MMFLOAT *a1float=NULL, *xfout=NULL, *yfout=NULL, cangle=cos(angle), sangle=sin(angle),x,y;
+			int64_t *a1int=NULL, *xiout=NULL, *yiout=NULL;
+			int numpoints=parsenumberarray(argv[6],&a1float,&a1int,4,1,dims, false);
+			MMFLOAT *xin=GetTempMemory(numpoints * sizeof(MMFLOAT));
+			for(int i=0;i<numpoints;i++)xin[i]=(a1float!=NULL ? a1float[i]-xorigin : (MMFLOAT)a1int[i]-xorigin);
+			a1float=NULL;
+			a1int=NULL;
+			if(parsenumberarray(argv[8],&a1float,&a1int,5,1,dims, false)!=numpoints)error("Array size mismatch");
+			MMFLOAT *yin=GetTempMemory(numpoints * sizeof(MMFLOAT));
+			for(int i=0;i<numpoints;i++)yin[i]=(a1float!=NULL ? a1float[i]-yorigin : (MMFLOAT)a1int[i]-yorigin);
+			a1float=NULL;
+			a1int=NULL;
+			if(parsenumberarray(argv[10],&xfout,&xiout,6,1,dims, false)!=numpoints)error("Array size mismatch");
+			if(parsenumberarray(argv[12],&yfout,&yiout,7,1,dims, false)!=numpoints)error("Array size mismatch");
+			for(int i=0;i<numpoints;i++){
+				x= xin[i] * cangle - yin[i] * sangle + xorigin;
+				y= yin[i] * cangle + xin[i] * sangle + yorigin;
+				if(xfout)xfout[i]=x;
+				else xiout[i]=round(x);
+				if(yfout)yfout[i]=y;
+				else yiout[i]=round(y);
+			}
+			return;
+		}
 		tp = checkstring(cmdline, (unsigned char *)"V_NORMALISE");
 		if(tp) {
 			int j, numrows=0, card2;
@@ -915,7 +993,6 @@ void cmd_math(void){
 			numcols2++;
 			numrows2++;
 			MMFLOAT **matrix1=alloc2df(numcols1,numrows1);
-			//MMFLOAT **matrix2=alloc2df(numrows2,numcols2);
 			MMFLOAT **matrix2=alloc2df(numcols2,numrows2);
 			for(i=0;i<numrows1;i++){
 				for(j=0;j<numcols1;j++){
@@ -1806,10 +1883,8 @@ void fun_math(void){
 				}
 				dealloc2df(observed,numcols,numrows);
 				dealloc2df(expected,numcols,numrows);
-				FreeMemory((void *)rows);
-				FreeMemory((void *)cols);
-				rows=NULL;
-				cols=NULL;
+				FreeMemorySafe((void **)&rows);
+				FreeMemorySafe((void **)&cols);
 				targ=T_NBR;
 				fret=(chi_p ? chi_prob*100 : chi);
 				return;

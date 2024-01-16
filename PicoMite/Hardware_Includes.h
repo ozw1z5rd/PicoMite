@@ -162,6 +162,7 @@ extern uint32_t __attribute__ ((aligned (256))) M_Foreground[16];
 extern uint32_t __attribute__ ((aligned (256))) M_Background[16];
 extern uint16_t __attribute__ ((aligned (256))) tilefcols[80*40];
 extern uint16_t __attribute__ ((aligned (256))) tilebcols[80*40];
+extern void VGArecovery(int pin);
 #endif
 #ifdef PICOMITEWEB
 	extern volatile int WIFIconnected;

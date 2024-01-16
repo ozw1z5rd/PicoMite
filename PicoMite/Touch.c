@@ -131,19 +131,19 @@ void MIPS16 GetCalibration(int x, int y, int *xval, int *yval) {
 // a return of TOUCH_ERROR means that the pen is not down
 int __not_in_flash_func(GetTouch)(int y) {
     int i;
-    static int lastx, lasty;
+//    static int lastx, lasty;
 
     if(Option.TOUCH_CS == 0) error("Touch option not set");
     if(!Option.TOUCH_XZERO && !Option.TOUCH_YZERO) error("Touch not calibrated");
         if(PinRead(Option.TOUCH_IRQ)) return TOUCH_ERROR;
         if(y) {
             i = ((MMFLOAT)(GetTouchAxis(Option.TOUCH_SWAPXY? CMD_MEASURE_X:CMD_MEASURE_Y) - Option.TOUCH_YZERO) * Option.TOUCH_YSCALE);
-            if(i < lasty - CAL_ERROR_MARGIN || i > lasty + CAL_ERROR_MARGIN) { lasty = i; i = -1; }
+//            if(i < lasty - CAL_ERROR_MARGIN || i > lasty + CAL_ERROR_MARGIN) { lasty = i; i = TOUCH_ERROR; }
         } else {
             i = ((MMFLOAT)(GetTouchAxis(Option.TOUCH_SWAPXY? CMD_MEASURE_Y:CMD_MEASURE_X) - Option.TOUCH_XZERO) * Option.TOUCH_XSCALE);
-            if(i < lastx - CAL_ERROR_MARGIN || i > lastx + CAL_ERROR_MARGIN) { lastx = i; i = -1; }
+//            if(i < lastx - CAL_ERROR_MARGIN || i > lastx + CAL_ERROR_MARGIN) { lastx = i; i = TOUCH_ERROR; }
         }
-	if(i < 0 || i >= (y ? VRes : HRes))i=-1;
+	if(i < 0 || i >= (y ? VRes : HRes))i=TOUCH_ERROR;
     return i;
 }
 
@@ -220,7 +220,7 @@ int __not_in_flash_func(GetTouchValue)(int cmd) {
     val |= (lb >> 3) & 0b11111;          // the bottom 5 bits
     ClearCS(Option.TOUCH_CS);
     #ifdef PICOMITEWEB
-            ProcessWeb();
+            ProcessWeb(1);
     #endif
    return val;
 }
