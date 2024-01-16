@@ -6452,6 +6452,7 @@ void ResetDisplay(void) {
 #ifdef PICOMITEVGA
         HRes=DISPLAY_TYPE == COLOURVGA ? 320 : 640;
         VRes=DISPLAY_TYPE == COLOURVGA ? 240 : 480;
+        VGAxoffset=0,VGAyoffset=0;
         if(DISPLAY_TYPE == COLOURVGA){
             DrawRectangle=DrawRectangleColour;
             DrawBitmap= DrawBitmapColour;
@@ -7351,6 +7352,26 @@ void cmd_framebuffer(void){
         }
     } else if((p=checkstring(cmdline, (unsigned char *)"WAIT"))) {
             while(QVgaScanLine!=480){}
+    } else if((p=checkstring(cmdline, (unsigned char *)"OFFSET"))) {
+        int x=0,y=0;
+        getargs(&p,5,(unsigned char *)",");
+        if(Option.CPU_Speed==126000)error("CPUSPEED =252000 for offsets");
+        if(DISPLAY_TYPE==COLOURVGA){
+            x=getint(argv[0],0,318);
+            if(x & 1)error("Multiples of 2 only");
+            x/=2;
+            if(argc>=3 && *argv[2])y=getint(argv[2],0,238);
+        } else {
+            x=getint(argv[0],0,632);
+            if(x & 15)error("Multiples of 16 only");
+            x/=8;
+            if(argc>=3 && *argv[2])y=getint(argv[2],0,479);
+        }
+        if(argc==5){
+            if(checkstring(argv[4],(unsigned char *)"B")) while(QVgaScanLine!=480){}
+        }
+        VGAxoffset=x;
+        VGAyoffset=y;
     } else if((p=checkstring(cmdline, (unsigned char *)"LAYER"))) {
         if(Option.CPU_Speed==126000)error("CPUSPEED =252000 for layers");
         getargs(&p,1,(unsigned char *)",");

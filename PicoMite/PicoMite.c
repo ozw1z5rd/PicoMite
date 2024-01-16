@@ -173,6 +173,9 @@ MMFLOAT FAdd(MMFLOAT a, MMFLOAT b){ return a + b; }
 MMFLOAT FSub(MMFLOAT a, MMFLOAT b){ return a - b; }
 MMFLOAT FDiv(MMFLOAT a, MMFLOAT b){ return a / b; }
 uint32_t CFunc_delay_us;
+#ifdef PICOMITEVGA
+volatile int VGAxoffset=0,VGAyoffset=0;
+#endif
 void PIOExecute(int pion, int sm, uint32_t ins){
     PIO pio = (pion ? pio1: pio0);
     pio_sm_exec(pio, sm, ins);
@@ -1449,7 +1452,8 @@ void __not_in_flash_func(QVgaLine1)()
 		{
 			// prepare image line
             if(DISPLAY_TYPE==MONOVGA){
-                uint16_t *q=&fbuff[VGAnextbuf][0];
+                line-=VGAyoffset;
+                if(line<0)line+=480;
                 unsigned char *p=&DisplayBuf[line * 80];
                 unsigned char *pp=&LayerBuf[line * 80];
                 if(tc==ytilecount){
@@ -1457,32 +1461,46 @@ void __not_in_flash_func(QVgaLine1)()
                     tc=0;
                 }
                 tc++;
-                register int pos=tile*X_TILE;
-                for(i=0;i<40;i++){
-                    register int low= (*p & 0xF) | (*pp & 0xF);
-                    register int high=(*p++ >>4) | (*pp++ >>4);
-                    *q++=(M_Foreground[low] & tilefcols[pos]) | (M_Background[low] & tilebcols[pos]) ;
-                    *q++=(M_Foreground[high]& tilefcols[pos]) | (M_Background[high] & tilebcols[pos]) ;
-                    pos++;
+                register int pos=tile*X_TILE, low, high;
+                for(i=VGAxoffset;i<160;i+=2){
                     low= (*p & 0xF) | (*pp & 0xF);
                     high=(*p++ >>4) | (*pp++ >>4);
-                    *q++=(M_Foreground[low] & tilefcols[pos]) | (M_Background[low] & tilebcols[pos]) ;
-                    *q++=(M_Foreground[high]& tilefcols[pos]) | (M_Background[high] & tilebcols[pos]) ;
+                    fbuff[VGAnextbuf][i]=(M_Foreground[low] & tilefcols[pos]) | (M_Background[low] & tilebcols[pos]) ;
+                    fbuff[VGAnextbuf][i+1]=(M_Foreground[high]& tilefcols[pos]) | (M_Background[high] & tilebcols[pos]) ;
+                    pos++;
+                }
+                for(i=0;i<VGAxoffset;i+=2){
+                    low= (*p & 0xF) | (*pp & 0xF);
+                    high=(*p++ >>4) | (*pp++ >>4);
+                    fbuff[VGAnextbuf][i]=(M_Foreground[low] & tilefcols[pos]) | (M_Background[low] & tilebcols[pos]) ;
+                    fbuff[VGAnextbuf][i+1]=(M_Foreground[high]& tilefcols[pos]) | (M_Background[high] & tilebcols[pos]) ;
                     pos++;
                 }
             } else {
                 line>>=1;
+                line-=VGAyoffset;
+                if(line<0)line+=240;
                 register unsigned char *p=&DisplayBuf[line * 160];
                 register unsigned char *q=&LayerBuf[line * 160];
-                register uint16_t *r=fbuff[VGAnextbuf];
-                for(int i=0;i<160;i++){
-                    register int low= *p & 0xF;
-                    register int high=*p++ & 0xF0;
-                    register int low2= *q & 0xF;
-                    register int high2=*q++ &0xF0;
+                register int low, high, low2, high2;
+//                register uint16_t *r=fbuff[VGAnextbuf];
+                for(int i=VGAxoffset;i<160;i++){
+                    low= *p & 0xF;
+                    high=*p++ & 0xF0;
+                    low2= *q & 0xF;
+                    high2=*q++ &0xF0;
                     if(low2!=transparentlow)low=low2;
                     if(high2!=transparenthigh)high=high2;
-                    *r++=(low | (low<<4) | (high<<4) | (high<<8));
+                    fbuff[VGAnextbuf][i]=(low | (low<<4) | (high<<4) | (high<<8));
+                }
+                for(int i=0;i<VGAxoffset;i++){
+                    low= *p & 0xF;
+                    high=*p++ & 0xF0;
+                    low2= *q & 0xF;
+                    high2=*q++ &0xF0;
+                    if(low2!=transparentlow)low=low2;
+                    if(high2!=transparenthigh)high=high2;
+                    fbuff[VGAnextbuf][i]=(low | (low<<4) | (high<<4) | (high<<8));
                 }
             }
             VGAnextbuf ^=1;

@@ -811,7 +811,9 @@ void cmd_end(void) {
     ADCDualBuffering=0;
 	WatchdogSet = false;
 	dmarunning = false;
-
+#ifdef PICOMITEVGA
+	VGAxoffset=0,VGAyoffset=0;
+#endif
 	if(g_myrand)FreeMemory((void *)g_myrand);
 	g_myrand=NULL;
 #ifdef PICOMITEWEB
