@@ -328,7 +328,7 @@ void MIPS16 cmd_guiMX170(void) {
             t = ((HRes > VRes) ? HRes : VRes) / 7;
             while(getConsole() < '\r') {
         #ifdef PICOMITEWEB
-                {if(startupcomplete)ProcessWeb(0);}
+                {if(startupcomplete)ProcessWeb(1);}
         #endif
                 DrawCircle(rand() % HRes, rand() % VRes, (rand() % t) + t/5, 1, 1, rgb((rand() % 8)*256/8, (rand() % 8)*256/8, (rand() % 8)*256/8), 1);
             }

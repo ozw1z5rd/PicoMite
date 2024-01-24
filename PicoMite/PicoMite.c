@@ -1048,9 +1048,10 @@ void __not_in_flash_func(ProcessWeb)(int mode){
     static int testcount=0;  
     static int lastonoff=0;
     static uint64_t lastheartmsec=0;
-    TCP_SERVER_T *state = (TCP_SERVER_T*)TCPstate;
-    if(!(state && WIFIconnected))return;
     uint64_t timenow=time_us_64();   
+    if(!WIFIconnected && startupcomplete)goto flashonly;
+    TCP_SERVER_T *state = (TCP_SERVER_T*)TCPstate;
+    if(!state)return;
     int t=0;
     for(int i=0;i<MaxPcb;i++){
         if(state->client_pcb[i]==NULL){
@@ -1086,6 +1087,7 @@ void __not_in_flash_func(ProcessWeb)(int mode){
             flushtimer=timenow+5000;
         }
     }
+    flashonly:;
     if(Option.NoHeartbeat){
         if(lastonoff!=2){
             if(startupcomplete){
@@ -2059,6 +2061,7 @@ void WebConnect(void){
         cyw43_arch_enable_sta_mode();
         cyw43_wifi_pm(&cyw43_state, CYW43_NO_POWERSAVE_MODE);        
     }
+    cyw43_wifi_pm(&cyw43_state, CYW43_DEFAULT_PM & ~0xf);
 }
 #endif
 
