@@ -4608,70 +4608,197 @@ void cmd_blit(void) {
         if(y2 + h > VRes) h = VRes - y2;
         if(w < 1 || h < 1 || x1 < 0 || x1 + w > HRes || x2 < 0 || x2 + w > HRes || y1 < 0 || y1 + h > VRes || y2 < 0 || y2 + h > VRes) return;
         ww=w;
-        if(x1 >= x2) {
-            max_x = 1;
-            buff = GetMemory((max_x * h)>>1);
-            while(w > max_x){
-                ReadBufferFast(x1, y1, x1 + max_x - 1, y1 + h - 1, buff);
-                DrawBufferFast(x2, y2, x2 + max_x - 1, y2 + h - 1, -1, buff);
-                x1 += max_x;
-                x2 += max_x;
-                w -= max_x;
-            }
-            ReadBufferFast(x1, y1, x1 + w - 1, y1 + h - 1, buff);
-            DrawBufferFast(x2, y2, x2 + w - 1, y2 + h - 1, -1, buff);
-            FreeMemory(buff);
-            if(DISPLAY_TYPE==MONOVGA && (x1 % 8==0) && (x2 % 8 ==0) && (y1 % ytilecount==0) && (y2 % ytilecount ==0) && (ww % 8==0) && (h % ytilecount==0)){
-                int tx1=x1/8;
-                int xc=ww/8;
-                int ty1=y1/ytilecount;
-                int yc=h/ytilecount;
-                int tx2=x2/8;
-                int ty2=y2/ytilecount;
-                for (int x=0;x<xc;x++){
-                    for(int y=0;y<yc;y++){
-                        int s=(y+ty1)*X_TILE+x+tx1;
-                        int d=(y+ty2)*X_TILE+x+tx2;
-                        tilefcols[d]=tilefcols[s];
-                        tilebcols[d]=tilebcols[s];
+        if((DISPLAY_TYPE==COLOURVGA)){
+            if((w & 1)==0 && (x1 & 1)==0 && (x2 & 1)==0){ //Easiest case - byte move in the x direction with w even
+                if(y1<y2){
+                    for(int y=h-1; y>=0;y--){
+                        uint8_t *in=WriteBuf + ((y+y1)*HRes + x1)/2;
+                        uint8_t *out=WriteBuf + ((y+y2)*HRes + x2)/2;
+                        memcpy(out,in,w/2);
+                    }
+                } else if(y1>y2){
+                    for(int y=0;y<h;y++){
+                        uint8_t *in=WriteBuf + ((y+y1)*HRes + x1)/2;
+                        uint8_t *out=WriteBuf + ((y+y2)*HRes + x2)/2;
+                        memcpy(out,in,w/2);
+                    }
+                } else {
+                    for(int y=0;y<h;y++){
+                        uint8_t *in=WriteBuf + ((y+y1)*HRes + x1)/2;
+                        uint8_t *out=WriteBuf + ((y+y2)*HRes + x2)/2;
+                        memmove(out,in,w/2);
                     }
                 }
-            }
                 return;
-        }
-        if(x1 < x2) {
-            int start_x1, start_x2;
-            max_x = 1;
-            buff = GetMemory(max_x * h);
-            start_x1 = x1 + w - max_x;
-            start_x2 = x2 + w - max_x;
-            while(w > max_x){
-                ReadBufferFast(start_x1, y1, start_x1 + max_x - 1, y1 + h - 1, buff);
-                DrawBufferFast(start_x2, y2, start_x2 + max_x - 1, y2 + h - 1, -1, buff);
-                w -= max_x;
-                start_x1 -= max_x;
-                start_x2 -= max_x;
-            }
-            ReadBufferFast(x1, y1, x1 + w - 1, y1 + h - 1, buff);
-            DrawBufferFast(x2, y2, x2 + w - 1, y2 + h - 1, -1, buff);
-            FreeMemory(buff);
-            if(DISPLAY_TYPE==MONOVGA && (x1 % 8==0) && (x2 % 8 ==0) && (y1 % ytilecount==0) && (y2 % ytilecount ==0) && (ww % 8==0) && (h % ytilecount==0)){
-                int tx1=x1/8;
-                int xc=ww/8;
-                int ty1=y1/ytilecount;
-                int yc=h/ytilecount;
-                int tx2=x2/8;
-                int ty2=y2/ytilecount;
-                for (int x=xc-1;x>=0;x--){
-                    for(int y=0;y<yc;y++){
-                        int s=(y+ty1)*X_TILE+x+tx1;
-                        int d=(y+ty2)*X_TILE+x+tx2;
-                        tilefcols[d]=tilefcols[s];
-                        tilebcols[d]=tilebcols[s];
+            } else { //nibble move not as easy
+                uint8_t *inbuff=GetTempMemory(HRes/2);
+                int intoggle=x1 & 1;
+                int outtoggle=x2 & 1;
+                int n=w/2;
+                if(w & 1)n++;
+                if(y1>y2){
+                    for(int y=0;y<h;y++){
+                        if(!intoggle)memcpy(inbuff,WriteBuf + ((y+y1)*HRes + x1)/2, n);
+                        else {
+                            int toggle=1;
+                            uint8_t *in=WriteBuf + ((y+y1)*HRes + x1)/2;
+                            uint8_t *out=inbuff;
+                            for(int x=0;x<w;x++){
+                                if(toggle){
+                                    uint8_t t=*in >>4 ;
+                                    *out =t ;
+                                    in++;
+                                } else {
+                                    uint8_t t=(*in & 0xf)<<4;
+                                    *out|= t;
+                                    out++;
+                                }
+                                toggle ^=1;
+                            }
+                        }
+                        if(!outtoggle){
+                            memcpy(WriteBuf + ((y+y2)*HRes + x2)/2, inbuff, w/2);
+                            if(w & 1){
+                                uint8_t *lastnibble=WriteBuf + ((y+y2) * HRes + x2 + w)/2;
+                                *lastnibble  &= 0xf0;
+                                *lastnibble |= (inbuff[w/2] & 0xf);
+                            }
+                        } else {
+                            int toggle=1;
+                            uint8_t *in=inbuff;
+                            uint8_t *out=WriteBuf + ((y+y2) * HRes + x2)/2;
+                            for(int x=0;x<w;x++){
+                                if(toggle){
+                                    uint8_t t=(*in & 0xf)<<4;
+                                    *out &=0x0f; //clear the top byte of the output
+                                    *out |=t;
+                                    out++;
+                                } else {
+                                    uint8_t t=(*in >>4);
+                                    *out &=0xf0;
+                                    *out|= t;
+                                    in++;
+                                }
+                                toggle ^=1;
+                            }
+                        }
+                    }
+                } else {
+                    for(int y=h-1;y>=0;y--){
+                        if(!intoggle)memcpy(inbuff,WriteBuf + ((y+y1)*HRes + x1)/2, n);
+                        else {
+                            int toggle=1;
+                            uint8_t *in=WriteBuf + ((y+y1)*HRes + x1)/2;
+                            uint8_t *out=inbuff;
+                            for(int x=0;x<w;x++){
+                                if(toggle){
+                                    uint8_t t=*in >>4 ;
+                                    *out =t ;
+                                    in++;
+                                } else {
+                                    uint8_t t=(*in & 0xf)<<4;
+                                    *out|= t;
+                                    out++;
+                                }
+                                toggle ^=1;
+                            }
+                        }
+                        if(!outtoggle){
+                            memcpy(WriteBuf + ((y+y2)*HRes + x2)/2, inbuff, w/2);
+                            if(w & 1){
+                                uint8_t *lastnibble=WriteBuf + ((y+y2) * HRes + x2 + w)/2;
+                                *lastnibble  &= 0xf0;
+                                *lastnibble |= (inbuff[w/2] & 0xf);
+                            }
+                        } else {
+                            int toggle=1;
+                            uint8_t *in=inbuff;
+                            uint8_t *out=WriteBuf + ((y+y2) * HRes + x2)/2;
+                            for(int x=0;x<w;x++){
+                                if(toggle){
+                                    uint8_t t=(*in & 0xf)<<4;
+                                    *out &=0x0f; //clear the top byte of the output
+                                    *out |=t;
+                                    out++;
+                                } else {
+                                    uint8_t t=(*in >>4);
+                                    *out &=0xf0;
+                                    *out|= t;
+                                    in++;
+                                }
+                                toggle ^=1;
+                            }
+                        }
                     }
                 }
+                return;
             }
-            return;
+        } else {
+            if(x1 >= x2) {
+                max_x = 1;
+                buff = GetMemory((max_x * h)>>1);
+                while(w > max_x){
+                    ReadBufferFast(x1, y1, x1 + max_x - 1, y1 + h - 1, buff);
+                    DrawBufferFast(x2, y2, x2 + max_x - 1, y2 + h - 1, -1, buff);
+                    x1 += max_x;
+                    x2 += max_x;
+                    w -= max_x;
+                }
+                ReadBufferFast(x1, y1, x1 + w - 1, y1 + h - 1, buff);
+                DrawBufferFast(x2, y2, x2 + w - 1, y2 + h - 1, -1, buff);
+                FreeMemory(buff);
+                if((x1 % 8==0) && (x2 % 8 ==0) && (y1 % ytilecount==0) && (y2 % ytilecount ==0) && (ww % 8==0) && (h % ytilecount==0)){
+                    int tx1=x1/8;
+                    int xc=ww/8;
+                    int ty1=y1/ytilecount;
+                    int yc=h/ytilecount;
+                    int tx2=x2/8;
+                    int ty2=y2/ytilecount;
+                    for (int x=0;x<xc;x++){
+                        for(int y=0;y<yc;y++){
+                            int s=(y+ty1)*X_TILE+x+tx1;
+                            int d=(y+ty2)*X_TILE+x+tx2;
+                            tilefcols[d]=tilefcols[s];
+                            tilebcols[d]=tilebcols[s];
+                        }
+                    }
+                }
+                    return;
+            }
+            if(x1 < x2) {
+                int start_x1, start_x2;
+                max_x = 1;
+                buff = GetMemory(max_x * h);
+                start_x1 = x1 + w - max_x;
+                start_x2 = x2 + w - max_x;
+                while(w > max_x){
+                    ReadBufferFast(start_x1, y1, start_x1 + max_x - 1, y1 + h - 1, buff);
+                    DrawBufferFast(start_x2, y2, start_x2 + max_x - 1, y2 + h - 1, -1, buff);
+                    w -= max_x;
+                    start_x1 -= max_x;
+                    start_x2 -= max_x;
+                }
+                ReadBufferFast(x1, y1, x1 + w - 1, y1 + h - 1, buff);
+                DrawBufferFast(x2, y2, x2 + w - 1, y2 + h - 1, -1, buff);
+                FreeMemory(buff);
+                if((x1 % 8==0) && (x2 % 8 ==0) && (y1 % ytilecount==0) && (y2 % ytilecount ==0) && (ww % 8==0) && (h % ytilecount==0)){
+                    int tx1=x1/8;
+                    int xc=ww/8;
+                    int ty1=y1/ytilecount;
+                    int yc=h/ytilecount;
+                    int tx2=x2/8;
+                    int ty2=y2/ytilecount;
+                    for (int x=xc-1;x>=0;x--){
+                        for(int y=0;y<yc;y++){
+                            int s=(y+ty1)*X_TILE+x+tx1;
+                            int d=(y+ty2)*X_TILE+x+tx2;
+                            tilefcols[d]=tilefcols[s];
+                            tilebcols[d]=tilebcols[s];
+                        }
+                    }
+                }
+                return;
+            }
         }
     }
 }
@@ -5480,39 +5607,166 @@ void cmd_blit(void) {
         if(y1 + h > VRes) h = VRes - y1;
         if(y2 + h > VRes) h = VRes - y2;
         if(w < 1 || h < 1 || x1 < 0 || x1 + w > HRes || x2 < 0 || x2 + w > HRes || y1 < 0 || y1 + h > VRes || y2 < 0 || y2 + h > VRes) return;
-        if(x1 >= x2) {
-            max_x = 1;
-            buff = GetMemory(max_x * h * 3);
-            while(w > max_x){
-                ReadBuffer(x1, y1, x1 + max_x - 1, y1 + h - 1, buff);
-                DrawBuffer(x2, y2, x2 + max_x - 1, y2 + h - 1, buff);
-                x1 += max_x;
-                x2 += max_x;
-                w -= max_x;
+        if((WriteBuf==LayerBuf || WriteBuf==FrameBuf)){
+            if((w & 1)==0 && (x1 & 1)==0 && (x2 & 1)==0){ //Easiest case - byte move in the x direction with w even
+                if(y1<y2){
+                    for(int y=h-1; y>=0;y--){
+                        uint8_t *in=WriteBuf + ((y+y1)*HRes + x1)/2;
+                        uint8_t *out=WriteBuf + ((y+y2)*HRes + x2)/2;
+                        memcpy(out,in,w/2);
+                    }
+                } else if(y1>y2){
+                    for(int y=0;y<h;y++){
+                        uint8_t *in=WriteBuf + ((y+y1)*HRes + x1)/2;
+                        uint8_t *out=WriteBuf + ((y+y2)*HRes + x2)/2;
+                        memcpy(out,in,w/2);
+                    }
+                } else {
+                    for(int y=0;y<h;y++){
+                        uint8_t *in=WriteBuf + ((y+y1)*HRes + x1)/2;
+                        uint8_t *out=WriteBuf + ((y+y2)*HRes + x2)/2;
+                        memmove(out,in,w/2);
+                    }
+                }
+                return;
+            } else { //nibble move not as easy
+                uint8_t *inbuff=GetTempMemory(HRes/2);
+                int intoggle=x1 & 1;
+                int outtoggle=x2 & 1;
+                int n=w/2;
+                if(w & 1)n++;
+                if(y1>y2){
+                    for(int y=0;y<h;y++){
+                        if(!intoggle)memcpy(inbuff,WriteBuf + ((y+y1)*HRes + x1)/2, n);
+                        else {
+                            int toggle=1;
+                            uint8_t *in=WriteBuf + ((y+y1)*HRes + x1)/2;
+                            uint8_t *out=inbuff;
+                            for(int x=0;x<w;x++){
+                                if(toggle){
+                                    uint8_t t=*in >>4 ;
+                                    *out =t ;
+                                    in++;
+                                } else {
+                                    uint8_t t=(*in & 0xf)<<4;
+                                    *out|= t;
+                                    out++;
+                                }
+                                toggle ^=1;
+                            }
+                        }
+                        if(!outtoggle){
+                            memcpy(WriteBuf + ((y+y2)*HRes + x2)/2, inbuff, w/2);
+                            if(w & 1){
+                                uint8_t *lastnibble=WriteBuf + ((y+y2) * HRes + x2 + w)/2;
+                                *lastnibble  &= 0xf0;
+                                *lastnibble |= (inbuff[w/2] & 0xf);
+                            }
+                        } else {
+                            int toggle=1;
+                            uint8_t *in=inbuff;
+                            uint8_t *out=WriteBuf + ((y+y2) * HRes + x2)/2;
+                            for(int x=0;x<w;x++){
+                                if(toggle){
+                                    uint8_t t=(*in & 0xf)<<4;
+                                    *out &=0x0f; //clear the top byte of the output
+                                    *out |=t;
+                                    out++;
+                                } else {
+                                    uint8_t t=(*in >>4);
+                                    *out &=0xf0;
+                                    *out|= t;
+                                    in++;
+                                }
+                                toggle ^=1;
+                            }
+                        }
+                    }
+                } else {
+                    for(int y=h-1;y>=0;y--){
+                        if(!intoggle)memcpy(inbuff,WriteBuf + ((y+y1)*HRes + x1)/2, n);
+                        else {
+                            int toggle=1;
+                            uint8_t *in=WriteBuf + ((y+y1)*HRes + x1)/2;
+                            uint8_t *out=inbuff;
+                            for(int x=0;x<w;x++){
+                                if(toggle){
+                                    uint8_t t=*in >>4 ;
+                                    *out =t ;
+                                    in++;
+                                } else {
+                                    uint8_t t=(*in & 0xf)<<4;
+                                    *out|= t;
+                                    out++;
+                                }
+                                toggle ^=1;
+                            }
+                        }
+                        if(!outtoggle){
+                            memcpy(WriteBuf + ((y+y2)*HRes + x2)/2, inbuff, w/2);
+                            if(w & 1){
+                                uint8_t *lastnibble=WriteBuf + ((y+y2) * HRes + x2 + w)/2;
+                                *lastnibble  &= 0xf0;
+                                *lastnibble |= (inbuff[w/2] & 0xf);
+                            }
+                        } else {
+                            int toggle=1;
+                            uint8_t *in=inbuff;
+                            uint8_t *out=WriteBuf + ((y+y2) * HRes + x2)/2;
+                            for(int x=0;x<w;x++){
+                                if(toggle){
+                                    uint8_t t=(*in & 0xf)<<4;
+                                    *out &=0x0f; //clear the top byte of the output
+                                    *out |=t;
+                                    out++;
+                                } else {
+                                    uint8_t t=(*in >>4);
+                                    *out &=0xf0;
+                                    *out|= t;
+                                    in++;
+                                }
+                                toggle ^=1;
+                            }
+                        }
+                    }
+                }
+                return;
             }
-            ReadBuffer(x1, y1, x1 + w - 1, y1 + h - 1, buff);
-            DrawBuffer(x2, y2, x2 + w - 1, y2 + h - 1, buff);
-            FreeMemory(buff);
-            return;
-        }
-        if(x1 < x2) {
-            int start_x1, start_x2;
-            max_x = 1;
-            buff = GetMemory(max_x * h * 3);
-            start_x1 = x1 + w - max_x;
-            start_x2 = x2 + w - max_x;
-            while(w > max_x){
-                ReadBuffer(start_x1, y1, start_x1 + max_x - 1, y1 + h - 1, buff);
-                DrawBuffer(start_x2, y2, start_x2 + max_x - 1, y2 + h - 1, buff);
-                w -= max_x;
-                start_x1 -= max_x;
-                start_x2 -= max_x;
+        } else {
+            if(x1 >= x2) {
+                max_x = 1;
+                buff = GetMemory(max_x * h * 3);
+                while(w > max_x){
+                    ReadBuffer(x1, y1, x1 + max_x - 1, y1 + h - 1, buff);
+                    DrawBuffer(x2, y2, x2 + max_x - 1, y2 + h - 1, buff);
+                    x1 += max_x;
+                    x2 += max_x;
+                    w -= max_x;
+                }
+                ReadBuffer(x1, y1, x1 + w - 1, y1 + h - 1, buff);
+                DrawBuffer(x2, y2, x2 + w - 1, y2 + h - 1, buff);
+                FreeMemory(buff);
+                return;
             }
-            ReadBuffer(x1, y1, x1 + w - 1, y1 + h - 1, buff);
-            DrawBuffer(x2, y2, x2 + w - 1, y2 + h - 1, buff);
-            FreeMemory(buff);
-            if(Option.Refresh)Display_Refresh();
-            return;
+            if(x1 < x2) {
+                int start_x1, start_x2;
+                max_x = 1;
+                buff = GetMemory(max_x * h * 3);
+                start_x1 = x1 + w - max_x;
+                start_x2 = x2 + w - max_x;
+                while(w > max_x){
+                    ReadBuffer(start_x1, y1, start_x1 + max_x - 1, y1 + h - 1, buff);
+                    DrawBuffer(start_x2, y2, start_x2 + max_x - 1, y2 + h - 1, buff);
+                    w -= max_x;
+                    start_x1 -= max_x;
+                    start_x2 -= max_x;
+                }
+                ReadBuffer(x1, y1, x1 + w - 1, y1 + h - 1, buff);
+                DrawBuffer(x2, y2, x2 + w - 1, y2 + h - 1, buff);
+                FreeMemory(buff);
+                if(Option.Refresh)Display_Refresh();
+                return;
+            }
         }
     }
 }

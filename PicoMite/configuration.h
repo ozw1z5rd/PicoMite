@@ -50,7 +50,7 @@ extern "C" {
 #endif
 #ifdef PICOMITE
 #define MAXVARS             512                     // 8 + MAXVARLEN + MAXDIM * 2  (ie, 56 bytes) - these do not incl array members
-#define FLASH_TARGET_OFFSET (720 * 1024) 
+#define FLASH_TARGET_OFFSET (752 * 1024) 
 #define MagicKey 0x21343427
 #define HEAPTOP 0x2003e800
 #define HEAP_MEMORY_SIZE (132*1024) 
