@@ -3197,10 +3197,18 @@ void MIPS16 cmd_option(void) {
 void fun_device(void){
     sret = GetTempMemory(STRINGSIZE);                                        // this will last for the life of the command
 #ifdef PICOMITEVGA
+#ifdef USBKEYBOARD
+    strcpy((char *)sret, "PicoMiteVGAUSB");
+#else
     strcpy((char *)sret, "PicoMiteVGA");
 #endif
+#endif
 #ifdef PICOMITE
+#ifdef USBKEYBOARD
+    strcpy((char *)sret, "PicoMiteUSB");
+#else
     strcpy((char *)sret, "PicoMite");
+#endif
 #endif
 #ifdef PICOMITEWEB
     strcpy((char *)sret, "WebMite");

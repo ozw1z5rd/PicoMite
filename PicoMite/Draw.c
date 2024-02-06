@@ -4381,40 +4381,6 @@ void cmd_sprite(void) {
             BlitShowBuffer(bnbr, x1, y1, mode);
         }
         else error((char *)"Buffer not in use");
-    } else if ((p = checkstring(cmdline, (unsigned char*)"CLOSE"))) {
-        getargs(&p, 1, (unsigned char*)",");
-        if (hideall)error((char *)"Sprites are hidden");
-        if (*argv[0] == '#') argv[0]++;
-        bnbr = (int)getint(argv[0], 1, MAXBLITBUF);
-        if (spritebuff[bnbr].master > 0) error((char *)"Copies still open");
-        if (spritebuff[bnbr].spritebuffptr != NULL) {
-            if (spritebuff[bnbr].active) {
-               blithide(bnbr, 1);
-                if (spritebuff[bnbr].layer == 0)zeroLIFOremove(bnbr);
-                else LIFOremove(bnbr);
-                layer_in_use[spritebuff[bnbr].layer]--;
-                sprites_in_use--;
-            }
-            if (spritebuff[bnbr].mymaster == -1)FreeMemorySafe((void**)&spritebuff[bnbr].spritebuffptr);
-            else spritebuff[spritebuff[bnbr].mymaster].master &= ~(1 << bnbr);
-            FreeMemorySafe((void**)&spritebuff[bnbr].blitstoreptr);
-            spritebuff[bnbr].spritebuffptr = NULL;
-            spritebuff[bnbr].blitstoreptr = NULL;
-            spritebuff[bnbr].master = -1;
-            spritebuff[bnbr].mymaster = -1;
-            spritebuff[bnbr].x = 10000;
-            spritebuff[bnbr].y = 10000;
-            spritebuff[bnbr].w = 0;
-            spritebuff[bnbr].h = 0;
-            spritebuff[bnbr].next_x = 10000;
-            spritebuff[bnbr].next_y = 10000;
-            spritebuff[bnbr].bc = 0;
-            spritebuff[bnbr].layer = -1;
-            spritebuff[bnbr].active = false;
-            spritebuff[bnbr].edges = 0;
-        }
-        else error((char *)"Buffer not in use");
-        if (sprites_in_use != LIFOpointer + zeroLIFOpointer || sprites_in_use != sumlayer())error((char *)"sprite internal error");
     }
     else if((p = checkstring(cmdline, (unsigned char *)"LOADBMP"))) {
         int fnbr,toggle=0;
