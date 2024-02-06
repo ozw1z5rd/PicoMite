@@ -1071,7 +1071,7 @@ void MIPS16 cmd_trace(void) {
 
 
 // FOR command
-#ifdef PICOMITEWEB
+#ifndef PICOMITE
 void cmd_for(void) {
 #else
 void __not_in_flash_func(cmd_for)(void) {
@@ -1191,7 +1191,7 @@ void __not_in_flash_func(cmd_for)(void) {
 
 
 
-#ifdef PICOMITEWEB
+#ifndef PICOMITE
 void cmd_next(void) {
 #else
 void __not_in_flash_func(cmd_next)(void) {

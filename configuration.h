@@ -34,10 +34,10 @@ extern "C" {
 #define HEAP_MEMORY_SIZE (92*1024) 
 #define MagicKey 0x15486343
 #else
-#define HEAP_MEMORY_SIZE (96*1024) 
+#define HEAP_MEMORY_SIZE (100*1024) 
 #define MagicKey 0x15486342
 #endif
-#define HEAPTOP 0x2003F900
+#define HEAPTOP 0x2003FE00
 #define MAX_CPU     378000 
 #define MIN_CPU     126000
 #define MAXSUBFUN           256                     // each entry takes up 4 bytes

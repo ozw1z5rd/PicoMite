@@ -214,7 +214,6 @@ struct spritebuffer {
     short y;
     short next_x; //set to 1000 if not in use
     short next_y;
-    int bc; //background colour;
     signed char layer; //defaults to 1 if not specified. If zero then scrolls with background
     signed char mymaster; //number of master if this is a copy
     char rotation;

@@ -301,9 +301,9 @@ void   MIPS16 InitBasic(void) {
     cmdCSUB = GetCommandValue( (unsigned char *)"CSub");
     cmdComment = GetCommandValue( (unsigned char *)"/*");
     cmdEndComment = GetCommandValue( (unsigned char *)"*/");
-    SInt(CommandTableSize);
-    SIntComma(TokenTableSize);
-    SSPrintString("\r\n");
+//    SInt(CommandTableSize);
+//    SIntComma(TokenTableSize);
+//    SSPrintString("\r\n");
 
 }
 

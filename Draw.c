@@ -3381,7 +3381,6 @@ void closeallsprites(void) {
         spritebuff[i].h = 0;
         spritebuff[i].next_x = 10000;
         spritebuff[i].next_y = 10000;
-        spritebuff[i].bc = 0;
         spritebuff[i].layer = -1;
         spritebuff[i].active = false;
         spritebuff[i].edges = 0;
@@ -3779,7 +3778,6 @@ void loadsprite(unsigned char* p) {
                 newsprite = 0;
                 if (spritebuff[bnbr].spritebuffptr == NULL)spritebuff[bnbr].spritebuffptr = (char *)GetMemory((width * height + 1)>>1);
                 if (spritebuff[bnbr].blitstoreptr == NULL)spritebuff[bnbr].blitstoreptr = (char*)GetMemory((width * height + 1)>>1);
-                spritebuff[bnbr].bc = 0;
                 spritebuff[bnbr].w = width;
                 spritebuff[bnbr].h = height;
                 spritebuff[bnbr].master = 0;
@@ -3873,7 +3871,6 @@ void loadarray(unsigned char* p) {
         if (size < w * h - 1)error((char *)"Array Dimensions");
         spritebuff[bnbr].spritebuffptr = (char *)GetMemory((w * h + 1)>>1);
         spritebuff[bnbr].blitstoreptr = (char *)GetMemory((w * h + 1)>>1);
-        spritebuff[bnbr].bc = 0;
         spritebuff[bnbr].w = w;
         spritebuff[bnbr].h = h;
         spritebuff[bnbr].master = 0;
@@ -4233,11 +4230,9 @@ void cmd_sprite(void) {
         w = (int)getinteger(argv[6]);
         h = (int)getinteger(argv[8]);
         if (w < 1 || h < 1) return;
-        spritebuff[bnbr].bc = 0;
         if (spritebuff[bnbr].spritebuffptr == NULL) {
             spritebuff[bnbr].spritebuffptr = (char *)GetMemory((w * h +1)>>1 );
             spritebuff[bnbr].blitstoreptr = (char*)GetMemory((w * h +1)>>1 );
-            spritebuff[bnbr].bc = 0;
             spritebuff[bnbr].w = w;
             spritebuff[bnbr].h = h;
             spritebuff[bnbr].master = 0;
@@ -4280,7 +4275,6 @@ void cmd_sprite(void) {
                 spritebuff[cpy].w = spritebuff[bnbr].w;
                 spritebuff[cpy].h = spritebuff[bnbr].h;
                 spritebuff[cpy].blitstoreptr = (char *)GetMemory((spritebuff[cpy].w * spritebuff[cpy].h +1)>>1);
-                spritebuff[cpy].bc = spritebuff[bnbr].bc;
                 spritebuff[cpy].x = 10000;
                 spritebuff[cpy].y = 10000;
                 spritebuff[cpy].next_x = 10000;
@@ -4346,7 +4340,6 @@ void cmd_sprite(void) {
             spritebuff[bnbr].h = 0;
             spritebuff[bnbr].next_x = 10000;
             spritebuff[bnbr].next_y = 10000;
-            spritebuff[bnbr].bc = 0;
             spritebuff[bnbr].layer = -1;
             spritebuff[bnbr].active = false;
             spritebuff[bnbr].edges = 0;
@@ -4419,7 +4412,6 @@ void cmd_sprite(void) {
         BMP_bDecode_memory(xOrigin, yOrigin, xlen, ylen, fnbr, q);
         spritebuff[bnbr].w=xlen;
         spritebuff[bnbr].h=ylen;
-        spritebuff[bnbr].bc = 0;
         spritebuff[bnbr].master = 0;
         spritebuff[bnbr].mymaster = -1;
         spritebuff[bnbr].x = 10000;
