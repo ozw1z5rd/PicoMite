@@ -14,6 +14,9 @@ Compiled version and documentation is available on https://geoffg.net/picomite.h
 
 Change list from V5.07.00
 **********************************************************************************************************************
+PicoMite V5.09.00b0
+Rationalisation of SPRITE AND BLIT. SPRITE SET TRANSPARENT RGB121colour. PRINT to VGA or LCD screen respects OPTION TAB
+
 PicoMite V5.08.00
 
 -Wall enabled and all warnings in PicoMite code fixed (not sdk)
