@@ -105,7 +105,7 @@ void cmd_port(void);
 void cmd_adc(void);
 void cmd_ir(void);
 void cmd_lcd(unsigned char *p);
-void cmd_keypad(void);
+void cmd_keypad(unsigned char *p);
 void cmd_backlight(void);
 void cmd_bitbang(void);
 void cmd_sync(void);
@@ -141,8 +141,8 @@ void cmd_spi2(void);
 void cmd_xmodem(void);
 void cmd_ctrlval(void);
 void cmd_GUIpage(unsigned char *p);
-
-
+void cmd_gamepad(unsigned char *tp);
+void cmd_sprite(void);
 #ifdef PICOMITEWEB
     void cmd_web(void);
 #endif
@@ -371,7 +371,7 @@ void fun_dev(void);
 	{ (unsigned char *)"Arc",            T_CMD,                      0, cmd_arc	},
 	{ (unsigned char *)"Polygon",        T_CMD,                  	 0, cmd_polygon	},
   	{ (unsigned char *)"FRAMEBUFFER",     T_CMD,                     0, cmd_framebuffer   },
-	{ (unsigned char *)"Refresh",        T_CMD,                      0, cmd_refresh	},
+	{ (unsigned char *)"Sprite",           T_CMD,                      0, cmd_sprite	},
 	{ (unsigned char *)"Blit",           T_CMD,                      0, cmd_blit	},
     { (unsigned char *)"Edit",   T_CMD,              0, cmd_edit     },
     { (unsigned char *)"ADC",		T_CMD,			0, cmd_adc        },
@@ -380,7 +380,11 @@ void fun_dev(void);
 	{ (unsigned char *)"Pulse",		T_CMD,			0, cmd_pulse        },
 	{ (unsigned char *)"Port(",		T_CMD | T_FUN,		0, cmd_port	    },
 	{ (unsigned char *)"IR",                 T_CMD,			0, cmd_ir           },
-	{ (unsigned char *)"KeyPad",             T_CMD,			0, cmd_keypad       },
+#ifdef PICOMITE
+  	{ (unsigned char *)"GUI",            T_CMD,                      0, cmd_gui   },
+#else
+  	{ (unsigned char *)"GUI",            T_CMD,                      0, cmd_guiMX170   },
+#endif
 	{ (unsigned char *)"Device",              T_CMD,			0, cmd_bitbang        },
 	{ (unsigned char *)"PWM",		T_CMD,		0, cmd_pwm		},
 	{ (unsigned char *)"CSub",           T_CMD,              0, cmd_cfunction},
@@ -413,20 +417,17 @@ void fun_dev(void);
 	{ (unsigned char *)"SPI2",	T_CMD,					0, cmd_spi2	},
     { (unsigned char *)"XModem",     T_CMD,              0, cmd_xmodem   },
 #ifdef PICOMITEVGA
-  	{ (unsigned char *)"GUI",            T_CMD,                      0, cmd_guiMX170   },
   	{ (unsigned char *)"TILE",            T_CMD,                     0, cmd_tile   },
   	{ (unsigned char *)"MODE",            T_CMD,                     0, cmd_mode   },
     { (unsigned char *)"Draw3D",         T_CMD,                      0, cmd_3D },
-	{ (unsigned char *)"Sprite",           T_CMD,                      0, cmd_blit	},
 #endif
 #ifdef PICOMITE
-  	{ (unsigned char *)"GUI",            T_CMD,                      0, cmd_gui   },
 	{ (unsigned char *)"Backlight",		T_CMD,		0, cmd_backlight		},
 	{ (unsigned char *)"CtrlVal(",       T_CMD | T_FUN,              0, cmd_ctrlval    },
     { (unsigned char *)"Draw3D",         T_CMD,                      0, cmd_3D },
 #endif
 #ifdef PICOMITEWEB
-  	{ (unsigned char *)"GUI",            T_CMD,                      0, cmd_guiMX170   },
+    { (unsigned char *)"NOP", T_CMD,				0, cmd_null 	}, //padding to keep tokens the same
 	{ (unsigned char *)"Backlight",		T_CMD,		0, cmd_backlight		},
     { (unsigned char *)"WEB",       T_CMD,              0, cmd_web	    },
 #endif
@@ -559,15 +560,18 @@ void fun_dev(void);
 	{ (unsigned char*)"DRAW3D(",	    T_FUN | T_INT,		0, fun_3D, },
 	{ (unsigned char *)"GetScanLine",	    	T_FNA | T_INT,		0, fun_getscanline 	    },
 	{ (unsigned char*)"sprite(",	    T_FUN | T_INT | T_NBR,		0, fun_sprite },
+#ifdef USBKEYBOARD
+	{ (unsigned char*)"KeyDown(",    T_FUN | T_INT,		0, fun_keydown	},
+#endif	
 #endif
 #ifdef PICOMITEWEB
 	{ (unsigned char *)"Json$(",		T_FUN | T_STR,          0, fun_json		},
+	{ (unsigned char*)"sprite(",	    T_FUN | T_INT | T_NBR,		0, fun_sprite },
 #endif
 #ifdef PICOMITE
 	  { (unsigned char *)"MsgBox(",        T_FUN | T_INT,              0, fun_msgbox     },
 	  { (unsigned char *)"CtrlVal(",       T_FUN | T_NBR | T_STR,      0, fun_ctrlval    },
-	  { (unsigned char *)"MM.HPos",        T_FNA | T_INT,              0, fun_mmhpos     },
-	  { (unsigned char *)"MM.VPos",        T_FNA | T_INT,              0, fun_mmvpos     },
+	  { (unsigned char*)"sprite(",	    T_FUN | T_INT | T_NBR,		0, fun_sprite },
 #endif
 	{ (unsigned char *)"DEVICE(",	T_FUN | T_INT| T_NBR | T_STR,		0, fun_dev,	},
 

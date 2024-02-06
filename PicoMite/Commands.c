@@ -327,7 +327,7 @@ void MIPS16 cmd_list(void) {
    } else if((p = checkstring(cmdline, (unsigned char *)"COMMANDS"))) {
     	step=5;
     	m=0;
-		int x=9;
+		int x=10;
 		char** c=GetTempMemory((CommandTableSize+x)*sizeof(*c)+(CommandTableSize+x)*18);
 		for(i=0;i<CommandTableSize+x;i++){
 				c[m]= (char *)((int)c + sizeof(char *) * (CommandTableSize+x) + m*18);
@@ -340,6 +340,7 @@ void MIPS16 cmd_list(void) {
 				else if(m==CommandTableSize+5)strcpy(c[m],"Autosave");
 				else if(m==CommandTableSize+6)strcpy(c[m],"Files");
 				else if(m==CommandTableSize+7)strcpy(c[m],"Update Firmware");
+				else if(m==CommandTableSize+8)strcpy(c[m],"Refresh");
     			else strcpy(c[m],"Cat");
     			m++;
 		}
@@ -357,18 +358,16 @@ void MIPS16 cmd_list(void) {
     } else if((p = checkstring(cmdline, (unsigned char *)"FUNCTIONS"))) {
     	m=0;
     	step=5;
-		int x=5;
+		int x=7;
 		char** c=GetTempMemory((TokenTableSize+x)*sizeof(*c)+(TokenTableSize+x)*18);
 		for(i=0;i<TokenTableSize+x;i++){
 				c[m]= (char *)((int)c + sizeof(char *) * (TokenTableSize+x) + m*18);
 				if(m<TokenTableSize)strcpy(c[m],(char *)tokentbl[i].name);
 	   			else if(m==TokenTableSize)strcpy(c[m],"=>");
     			else if(m==TokenTableSize+1)strcpy(c[m],"=<");
-/*    			else if(m==TokenTableSize+2)strcpy(c[m],"OCT$(");
-    			else if(m==TokenTableSize+3)strcpy(c[m],"HEX$(");
-    			else if(m==TokenTableSize+4)strcpy(c[m],"MM.I2C");
-*/    			else if(m==TokenTableSize+2)strcpy(c[m],"MM.Fontheight");
-    			else if(m==TokenTableSize+3)strcpy(c[m],"MM.Fontwidth");
+    			else if(m==TokenTableSize+2)strcpy(c[m],"MM.Fontwidth");
+    			else if(m==TokenTableSize+3)strcpy(c[m],"MM.HPOS");
+    			else if(m==TokenTableSize+4)strcpy(c[m],"MM.VPOS");
     			else strcpy(c[m],"MM.Info$(");
 				m++;
 		}

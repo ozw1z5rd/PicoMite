@@ -113,7 +113,7 @@ extern void SetFont(int fnt);
 extern void ResetDisplay(void);
 extern int GetFontWidth(int fnt);
 extern int GetFontHeight(int fnt);
-//extern char * blitbuffptr[MAXBLITBUF];                                  //Buffer pointers for the BLIT command
+//extern char * spritebuffptr[MAXBLITBUF];                                  //Buffer pointers for the BLIT command
 extern int rgb(int r, int g, int b);
 extern void (*DrawRectangle)(int x1, int y1, int x2, int y2, int c);
 extern void (*DrawBitmap)(int x1, int y1, int width, int height, int scale, int fc, int bc, unsigned char *bitmap);
@@ -135,7 +135,7 @@ void restorepanel(void);
 #define FONT_TABLE_SIZE      16
 extern void (*DrawPixel)(int x1, int y1, int c);
 extern void (*ReadBufferFast)(int x1, int y1, int x2, int y2, unsigned char *c);
-
+extern uint8_t sprite_transparent;
 #ifndef PICOMITEVGA
     extern void DrawRectangleUser(int x1, int y1, int x2, int y2, int c);
     extern void DrawBitmapUser(int x1, int y1, int width, int height, int scale, int fc, int bc, unsigned char *bitmap);
@@ -202,11 +202,10 @@ typedef struct {
 }s_camera;
 extern struct D3D* struct3d[MAX3D + 1];
 extern s_camera camera[MAXCAM + 1];
-struct blitbuffer {
-    char* blitbuffptr; //points to the sprite image, set to NULL if not in use
+struct spritebuffer {
+    char* spritebuffptr; //points to the sprite image, set to NULL if not in use
     short w;
     short h;
-#ifdef PICOMITEVGA
     char* blitstoreptr; //points to the stored background, set to NULL if not in use
     char  collisions[MAXCOLLISIONS + 1]; //set to NULL if not in use, otherwise contains current collisions
     int64_t master; //bitmask of which sprites are copies
@@ -221,8 +220,13 @@ struct blitbuffer {
     char rotation;
     char active;
     char edges;
-#endif
 };
+struct blitbuffer {
+    char* blitbuffptr; //points to the sprite image, set to NULL if not in use
+    short w;
+    short h;
+};
+extern struct spritebuffer spritebuff[MAXBLITBUF+1];
 extern struct blitbuffer blitbuff[MAXBLITBUF+1];
 //extern int layer_in_use[MAXLAYER + 1];
 extern void closeall3d(void);

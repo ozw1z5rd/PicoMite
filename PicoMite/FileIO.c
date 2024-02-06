@@ -884,6 +884,9 @@ void LoadJPGImage(unsigned char *p)
         }
     }
     FileClose(jpgfnbr);
+#ifdef USBKEYBOARD
+	clearrepeat();
+#endif
     if (Option.Refresh)
         Display_Refresh();
 }
@@ -2022,9 +2025,7 @@ int FindFreeFileNbr(void)
 void CloseAllFiles(void)
 {
     int i;
-#ifdef PICOMITEVGA
     closeallsprites();
-#endif
 #ifndef PICOMITEWEB
     closeall3d();
 #endif
@@ -2179,7 +2180,9 @@ int BasicFileOpen(char *fname, int fnbr, int mode)
 	    ErrorCheck(fnbr);
         filesource[fnbr] = FLASHFILE;
     }
-
+#ifdef USBKEYBOARD
+	clearrepeat();
+#endif
     if (FSerror)
     {
         ForceFileClose(fnbr);
@@ -2739,9 +2742,7 @@ void cmd_files(void)
         error("Invalid in a program");
     if (flist)
         FreeMemorySafe((void **)&flist);
-#ifdef PICOMITEVGA
     closeallsprites();
-#endif
 #ifndef PICOMITEWEB
     closeframebuffer();
     closeall3d();
@@ -3403,27 +3404,29 @@ void cmd_flush(void)
     int fnbr;
     getargs(&cmdline, 1, (unsigned char *)",");
     if (argc == 0)
-        error("Syntax");
-    if (*argv[0] == '#')
-        argv[0]++;
-    fnbr = getinteger(argv[0]);
-    if (fnbr == 0) // accessing the console
-        return;
-    else
-    {
-        if (fnbr < 1 || fnbr > MAXOPENFILES)
-            error("File number");
-        if (FileTable[fnbr].com == 0)
-            error("File number is not open");
-        if (FileTable[fnbr].com > MAXCOMPORTS )
-        {
-            if(filesource[fnbr]==FATFSFILE)f_sync(FileTable[fnbr].fptr);
-            else lfs_file_sync(&lfs, FileTable[fnbr].lfsptr);
-        }
+        cmd_refresh();
+    else {
+        if (*argv[0] == '#')
+            argv[0]++;
+        fnbr = getinteger(argv[0]);
+        if (fnbr == 0) // accessing the console
+            return;
         else
         {
-            while (SerialTxStatus(FileTable[fnbr].com))
+            if (fnbr < 1 || fnbr > MAXOPENFILES)
+                error("File number");
+            if (FileTable[fnbr].com == 0)
+                error("File number is not open");
+            if (FileTable[fnbr].com > MAXCOMPORTS )
             {
+                if(filesource[fnbr]==FATFSFILE)f_sync(FileTable[fnbr].fptr);
+                else lfs_file_sync(&lfs, FileTable[fnbr].lfsptr);
+            }
+            else
+            {
+                while (SerialTxStatus(FileTable[fnbr].com))
+                {
+                }
             }
         }
     }
@@ -3615,16 +3618,42 @@ void ResetOptions(void)
     Option.Baudrate = CONSOLE_BAUDRATE;
     Option.PROG_FLASH_SIZE=MAX_PROG_SIZE;
 #ifdef PICOMITEVGA
-    Option.CPU_Speed = 126000;
     Option.DISPLAY_CONSOLE = 1;
     Option.DISPLAY_TYPE = MONOVGA;
-    Option.KeyboardConfig = CONFIG_US;
     Option.VGAFC = 0xFFFF;
     Option.X_TILE=80;
     Option.Y_TILE=40;
+#ifdef USBKEYBOARD
+    Option.CPU_Speed = 252000;
+    Option.USBKeyboard = CONFIG_US;
+	Option.RepeatStart=600;
+	Option.RepeatRate=150;
+    Option.SerialConsole = 2; 
+    Option.SerialTX = 11;
+    Option.SerialRX = 12;
+    Option.capslock=0;
+    Option.numlock=1;
+    Option.ColourCode=1;
+#else
+    Option.CPU_Speed = 126000;
+    Option.KeyboardConfig = CONFIG_US;
+#endif
+#else
+#ifdef USBKEYBOARD
+    Option.CPU_Speed = 252000;
+    Option.USBKeyboard = CONFIG_US;
+	Option.RepeatStart=600;
+	Option.RepeatRate=150;
+    Option.SerialConsole = 2; 
+    Option.SerialTX = 11;
+    Option.SerialRX = 12;
+    Option.capslock=0;
+    Option.numlock=1;
+    Option.ColourCode=1;
 #else
     Option.CPU_Speed = 133000;
     Option.KeyboardConfig = NO_KEYBOARD;
+#endif
 #endif
 #ifdef PICOMITEWEB
     Option.ServerResponceTime=5000;

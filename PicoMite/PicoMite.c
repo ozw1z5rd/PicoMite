@@ -43,10 +43,12 @@ extern "C" {
 #include "hardware/vreg.h"
 #include "hardware/structs/ssi.h"
 #include "hardware/structs/bus_ctrl.h"
+#ifndef USBKEYBOARD
 #include "pico/unique_id.h"
+#include "class/cdc/cdc_device.h" 
+#endif
 #include <pico/bootrom.h>
 #include "hardware/irq.h"
-#include "class/cdc/cdc_device.h" 
 #include "hardware/pio.h"
 #include "hardware/pio_instructions.h"
 #ifdef PICOMITEWEB
@@ -60,9 +62,21 @@ extern "C" {
 #endif
 #ifdef PICOMITEVGA
 #include "Include.h"
+#ifdef USBKEYBOARD
+#include "tusb.h"
+#define MES_SIGNON  "\rPicoMiteVGA MMBasic USB Edition " VERSION "\r\n"\
+					"Copyright " YEAR " Geoff Graham\r\n"\
+					"Copyright " YEAR2 " Peter Mather\r\n\r\n"
+extern void hid_app_task(void);
+volatile int keytimer=0;
+extern void USB_bus_reset(void);
+bool USBenabled=false;
+#else
 #define MES_SIGNON  "\rPicoMiteVGA MMBasic Version " VERSION "\r\n"\
 					"Copyright " YEAR " Geoff Graham\r\n"\
 					"Copyright " YEAR2 " Peter Mather\r\n\r\n"
+#endif
+
 #endif
 #ifdef PICOMITEWEB
 #define MES_SIGNON  "\rWebMite MMBasic Version " VERSION "\r\n"\
@@ -73,13 +87,25 @@ int startupcomplete=0;
 void ProcessWeb(int mode);
 #endif
 #ifdef PICOMITE
+#ifdef USBKEYBOARD
+#include "tusb.h"
+#define MES_SIGNON  "\rPicoMite MMBasic USB Edition " VERSION "\r\n"\
+					"Copyright " YEAR " Geoff Graham\r\n"\
+					"Copyright " YEAR2 " Peter Mather\r\n\r\n"
+extern void hid_app_task(void);
+volatile int keytimer=0;
+extern void USB_bus_reset(void);
+bool USBenabled=false;
+#include "pico/multicore.h"
+mutex_t	frameBufferMutex;					// mutex to lock frame buffer
+#else
 #define MES_SIGNON  "\rPicoMite MMBasic Version " VERSION "\r\n"\
 					"Copyright " YEAR " Geoff Graham\r\n"\
 					"Copyright " YEAR2 " Peter Mather\r\n\r\n"
 #include "pico/multicore.h"
 mutex_t	frameBufferMutex;					// mutex to lock frame buffer
 #endif
-
+#endif
 #define KEYCHECKTIME 16
 int ListCnt;
 int MMCharPos;
@@ -293,7 +319,7 @@ const struct s_PinDef PinDef[NBRPINS + 1]={
 char alive[]="\033[?25h";
 const char DaysInMonth[] = { 0, 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31 };
 void __not_in_flash_func(routinechecks)(void){
-    static int c,when=0, read=0, classicread=0;
+    static int when=0, classicread=0;
     if (CurrentlyPlaying == P_WAV || CurrentlyPlaying == P_FLAC || CurrentlyPlaying==P_MP3 || CurrentlyPlaying==P_MIDI ){
 #ifdef PICOMITE
         if(SPIatRisk)mutex_enter_blocking(&frameBufferMutex);			// lock the frame buffer
@@ -305,7 +331,14 @@ void __not_in_flash_func(routinechecks)(void){
     }
     if(CurrentlyPlaying == P_MOD) checkWAVinput();
     if(++when & 7 && CurrentLinePtr) return;
-    if(tud_cdc_connected() && (Option.SerialConsole==0 || Option.SerialConsole>4) && Option.Telnet!=-1){
+#ifdef USBKEYBOARD
+    if(USBenabled){
+        tuh_task();
+        if(mSecTimer>2000)hid_app_task();
+    }
+#else
+	 static int c, read=0;
+     if(tud_cdc_connected() && (Option.SerialConsole==0 || Option.SerialConsole>4) && Option.Telnet!=-1){
         while(( c=tud_cdc_read_char())!=-1){
             ConsoleRxBuf[ConsoleRxBufHead] = c;
             if(BreakKey && ConsoleRxBuf[ConsoleRxBufHead] == BreakKey) {// if the user wants to stop the progran
@@ -321,6 +354,7 @@ void __not_in_flash_func(routinechecks)(void){
             }
         }
     }
+#endif
 	if(GPSchannel)processgps();
     if(diskchecktimer == 0)CheckSDCard();
 #ifdef PICOMITE
@@ -333,6 +367,7 @@ void __not_in_flash_func(routinechecks)(void){
         RtcGetTime(0);
         clocktimer=(1000*60*60);
     }
+#ifndef USBKEYBOARD
     if(Option.KeyboardConfig==CONFIG_I2C && KeyCheck==0){
         if(read==0){
             CheckI2CKeyboard(0,0);
@@ -343,6 +378,7 @@ void __not_in_flash_func(routinechecks)(void){
         }
         KeyCheck=KEYCHECKTIME;
     }
+#endif
     if(classic1 && ClassicTimer>=10){
         if(classicread==0){
 			WiiSend(sizeof(readcontroller),(char *)readcontroller);
@@ -379,6 +415,7 @@ char SerialConsolePutC(char c, int flush) {
 #ifdef PICOMITEWEB
     if(Option.Telnet!=-1){
 #endif
+#ifndef USBKEYBOARD
     if(Option.SerialConsole==0 || Option.SerialConsole>4){
         if(tud_cdc_connected()){
             putc(c,stdout);
@@ -387,6 +424,7 @@ char SerialConsolePutC(char c, int flush) {
             }
         }
     } 
+#endif
     if(Option.SerialConsole){
         int empty=uart_is_writable((Option.SerialConsole & 3)==1 ? uart0 : uart1);
 		while(ConsoleTxBufTail == ((ConsoleTxBufHead + 1) % CONSOLE_TX_BUF_SIZE)); //wait if buffer full
@@ -438,7 +476,9 @@ int __not_in_flash_func(MMInkey)(void) {
     }
 
     c = getConsole();                                               // do discarded chars so get the char
+#ifndef USBKEYBOARD
     if(c==-1)CheckKeyboard();
+#endif
     if(!(c==0x1b))return c;
     InkeyTimer = 0;                                             // start the timer
     while((c = getConsole()) == -1 && InkeyTimer < 30);         // get the second char with a delay of 30mS to allow the next char to arrive
@@ -882,6 +922,14 @@ bool __not_in_flash_func(timer_callback)(repeating_timer_t *rt)
         ds18b20Timer++;
 		GPSTimer++;
         I2CTimer++;
+#ifdef USBKEYBOARD
+		keytimer++;
+        for(int i=0;i<4;i++){
+            if(HID[i].Device_type){ 
+                HID[i].report_timer++;
+            }
+        }
+#endif
         if(clocktimer)clocktimer--;
         if(Timer4)Timer4--;
         if(Timer3)Timer3--;
@@ -896,13 +944,13 @@ bool __not_in_flash_func(timer_callback)(repeating_timer_t *rt)
             int i;
             for(i = 0; i < NBRSETTICKS; i++) if(TickActive[i])TickTimer[i]++;			// used in the interrupt tick
          }
-        if(WDTimer) {
-            if(--WDTimer == 0) {
-                _excep_code = WATCHDOG_TIMEOUT;
-                watchdog_enable(1, 1);
-                while(1);
-            }
+    if(WDTimer) {
+        if(--WDTimer == 0) {
+            _excep_code = WATCHDOG_TIMEOUT;
+            watchdog_enable(1, 1);
+            while(1);
         }
+    }
         if (ScrewUpTimer) {
             if (--ScrewUpTimer == 0) {
                 _excep_code = SCREWUP_TIMEOUT;
@@ -950,7 +998,7 @@ bool __not_in_flash_func(timer_callback)(repeating_timer_t *rt)
             if(!TouchState) {                                       // yes, it is.  If we have not reported this before
                 TouchState = TouchDown = true;                      // set the flags
 //                TouchUp = false;
-           }
+            }
         } else {
             if(TouchState) {                                        // the pen is not down.  If we have not reported this before
                 TouchState/* = TouchDown*/ = false;                     // set the flags
@@ -2097,7 +2145,9 @@ int MIPS16 main(){
     uSec(100);
     set_sys_clock_khz(Option.CPU_Speed, true);
     PWM_FREQ=44100;
+#ifndef USBKEYBOARD
     pico_get_unique_board_id_string (id_out,12);
+#endif
     clock_configure(
         clk_peri,
         0,                                                // No glitchless mux
@@ -2118,15 +2168,21 @@ int MIPS16 main(){
     ticks_per_second = Option.CPU_Speed*1000;
     // The serial clock won't vary from this point onward, so we can configure
     // the UART etc.
+#ifndef USBKEYBOARD
     stdio_set_translate_crlf(&stdio_usb, false);
+#endif
     LoadOptions();
 	stdio_init_all();
     adc_init();
     adc_set_temp_sensor_enabled(true);
     add_repeating_timer_us(-1000, timer_callback, NULL, &timer);
+#ifndef USBKEYBOARD
     if(!(Option.SerialConsole==1 || Option.SerialConsole==2) || Option.Telnet==-1) while (!tud_cdc_connected() && mSecTimer<5000) {}
+#endif
     InitReservedIO();
+#ifndef USBKEYBOARD
     initKeyboard();
+#endif
     ClearExternalIO();
     ConsoleRxBufHead = 0;
     ConsoleRxBufTail = 0;
@@ -2206,10 +2262,30 @@ int MIPS16 main(){
     updatebootcount();
     *tknbuf = 0;
      ContinuePoint = nextstmt;                               // in case the user wants to use the continue command
+#ifdef USBKEYBOARD
+    uSec(1000000); //wait for any hub to power up
+	clearrepeat();
+     for(int i=0;i<4;i++){
+        HID[i].Device_type=0;
+        HID[i].report_rate=0;
+        HID[i].report_timer=0;
+        HID[i].Device_address=0;
+        HID[i].Device_instance=0;
+        HID[i].active=false;
+        HID[i].report_requested=true;
+    }
+    USB_bus_reset();
+    tuh_init(BOARD_TUH_RHPORT);
+    USBenabled=true;
+
+#endif
 	if(setjmp(mark) != 0) {
      // we got here via a long jump which means an error or CTRL-C or the program wants to exit to the command prompt
         FlashLoad = 0;
         LoadOptions();
+#ifdef USBKEYBOARD
+	    clearrepeat();
+#endif	    
         ScrewUpTimer = 0;
         ProgMemory=(uint8_t *)flash_progmemory;
         ContinuePoint = nextstmt;                               // in case the user wants to use the continue command
@@ -2353,7 +2429,9 @@ void MIPS16 testlocal(char *p, char *command, void (*func)()){
 
 void executelocal(char *p){
     testlocal(p,"FILES",cmd_files);
-    testlocal(p,"UPDATE FIRMWARE",cmd_update);
+#ifndef USBKEYBOARD
+   testlocal(p,"UPDATE FIRMWARE",cmd_update);
+#endif   
     testlocal(p,"NEW",cmd_new);
     testlocal(p,"AUTOSAVE",cmd_autosave);
 }
@@ -2364,6 +2442,9 @@ void MIPS16 SaveProgramToFlash(unsigned char *pm, int msg) {
     multi=false;
     uint32_t storedupdates[MAXCFUNCTION], updatecount=0, realflashsave;
     initFonts();
+#ifdef USBKEYBOARD
+	clearrepeat();
+#endif	
     memcpy(buf, tknbuf, STRINGSIZE);                                // save the token buffer because we are going to use it
     FlashWriteInit(PROGRAM_FLASH);
     flash_range_erase(realflashpointer, MAX_PROG_SIZE);
@@ -2635,6 +2716,9 @@ void MIPS16 SaveProgramToFlash(unsigned char *pm, int msg) {
     }
     memcpy(tknbuf, buf, STRINGSIZE);                                // restore the token buffer in case there are other commands in it
 //    initConsole();
+#ifdef USBKEYBOARD
+	clearrepeat();
+#endif
     enable_interrupts();
     return;
 

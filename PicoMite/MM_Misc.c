@@ -44,6 +44,12 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 #include "hardware/pio_instructions.h"
 #include <malloc.h>
 #include "xregex.h"
+#ifdef USBKEYBOARD
+extern int caps_lock;
+extern int num_lock;
+extern int scroll_lock;
+extern int KeyDown[7];
+#endif
 extern int last_adc;
 uint32_t getTotalHeap(void) {
    extern char __StackLimit, __bss_end__;
@@ -1605,6 +1611,16 @@ void printoptions(void){
     if(Option.PWM == true) PO2Str("POWER PWM", "ON");
     if(Option.Listcase != CONFIG_TITLE) PO2Str("CASE", CaseList[(int)Option.Listcase]);
     if(Option.Tab != 2) PO2Int("TAB", Option.Tab);
+#ifdef USBKEYBOARD
+    if(!(Option.USBKeyboard == NO_KEYBOARD)){
+        PO("KEYBOARD"); MMPrintString((char *)KBrdList[(int)Option.USBKeyboard]); 
+        if(Option.capslock || Option.numlock!=1 || Option.repeat!=0b00101100){
+            PIntComma(Option.capslock);PIntComma(Option.numlock);PIntComma(Option.RepeatStart);
+            PIntComma(Option.RepeatRate);
+        }
+        PRet();
+    } 
+#else
     if(!(Option.KeyboardConfig == NO_KEYBOARD ||Option.KeyboardConfig == CONFIG_I2C)){
         PO("KEYBOARD"); MMPrintString((char *)KBrdList[(int)Option.KeyboardConfig]); 
         if(Option.capslock || Option.numlock!=1 || Option.repeat!=0b00101100){
@@ -1613,6 +1629,7 @@ void printoptions(void){
         }
         PRet();
     } 
+#endif   
     if(Option.KeyboardConfig == CONFIG_I2C)PO2Str("KEYBOARD", "I2C");
     if(Option.NoHeartbeat)PO2Str("HEARTBEAT", "OFF");
     if(Option.AllPins)PO2Str("PICO", "OFF");
@@ -1779,6 +1796,13 @@ void printoptions(void){
         MMputchar(',',1);;MMPrintString((char *)PinDef[Option.VGA_BLUE].pinname);PRet();
     }
 #endif
+#ifdef USBKEYBOARD
+    if(!(Option.RepeatStart==600 && Option.RepeatRate==150)){
+    	char buff[40]={0};
+    	sprintf(buff,"OPTION KEYBOARD REPEAT %d,%d\r\n",Option.RepeatStart, Option.RepeatRate);
+    	MMPrintString(buff);
+    }
+#endif
     if(Option.AUDIO_L || Option.AUDIO_CLK_PIN){
         PO("AUDIO");
         if(Option.AUDIO_L){
@@ -1843,11 +1867,30 @@ void setterminal(void){
 	  strcat(sp,"t");
 	  SSPrintString(sp);						//
 }
-
+#ifdef USBKEYBOARD
+void fun_keydown(void) {
+	int i,n=getint(ep,0,8);
+	iret=0;
+	while(MMInkey() != -1); // clear anything in the input buffer
+	if(n==8){
+		iret=(caps_lock ? 1: 0) |
+				(num_lock ? 2: 0) |
+				(scroll_lock ? 4: 0);
+	} else if(n){
+		iret = KeyDown[n-1];											        // this is the character
+	} else {
+		for(i=0;i<6;i++){
+			if(KeyDown[i])iret++;
+		}
+	}
+	targ=T_INT;
+}
+#else
 void cmd_update(void){
     uint gpio_mask = 0u;
     reset_usb_boot(gpio_mask, PICO_STDIO_USB_RESET_BOOTSEL_INTERFACE_DISABLE_MASK);
 }
+#endif
 void disable_systemspi(void){
     if(!IsInvalidPin(Option.SYSTEM_MOSI))ExtCurrentConfig[Option.SYSTEM_MOSI] = EXT_DIG_IN ;   
     if(!IsInvalidPin(Option.SYSTEM_MISO))ExtCurrentConfig[Option.SYSTEM_MISO] = EXT_DIG_IN ;   
@@ -2063,9 +2106,21 @@ void MIPS16 cmd_option(void) {
 		SaveOptions();
 		return;
 	}
+#ifdef USBKEYBOARD
+    tp = checkstring(cmdline, (unsigned char *)"KEYBOARD REPEAT");
+	if(tp) {
+		getargs(&tp,3,(unsigned char *)",");
+		Option.RepeatStart=getint(argv[0],100,2000);
+		Option.RepeatRate=getint(argv[2],25,2000);
+		SaveOptions();
+		return;
+	}
+
+#endif
     tp = checkstring(cmdline, (unsigned char *)"KEYBOARD");
 	if(tp) {
     	if(CurrentLinePtr) error("Invalid in a program");
+#ifndef USBKEYBOARD
 		if(checkstring(tp, (unsigned char *)"DISABLE")){
 			Option.KeyboardConfig = NO_KEYBOARD;
             Option.capslock=0;
@@ -2074,21 +2129,32 @@ void MIPS16 cmd_option(void) {
             _excep_code = RESET_COMMAND;
             SoftReset();
 		} else {
+#endif
         getargs(&tp,9,(unsigned char *)",");
+#ifndef USBKEYBOARD
         if(ExtCurrentConfig[KEYBOARD_CLOCK] != EXT_NOT_CONFIG && Option.KeyboardConfig == NO_KEYBOARD)  error("Pin %/| is in use",KEYBOARD_CLOCK,KEYBOARD_CLOCK);
         if(ExtCurrentConfig[KEYBOARD_DATA] != EXT_NOT_CONFIG && Option.KeyboardConfig == NO_KEYBOARD)  error("Pin %/| is in use",KEYBOARD_DATA,KEYBOARD_DATA);
-        else if(checkstring(argv[0], (unsigned char *)"US"))	Option.KeyboardConfig = CONFIG_US;
+        if(checkstring(argv[0], (unsigned char *)"US"))	Option.USBKeyboard = CONFIG_US;
 		else if(checkstring(argv[0], (unsigned char *)"FR"))	Option.KeyboardConfig = CONFIG_FR;
 		else if(checkstring(argv[0], (unsigned char *)"GR"))	Option.KeyboardConfig = CONFIG_GR;
 		else if(checkstring(argv[0], (unsigned char *)"IT"))	Option.KeyboardConfig = CONFIG_IT;
-		else if(checkstring(argv[0], (unsigned char *)"BE"))	Option.KeyboardConfig = CONFIG_BE;
 		else if(checkstring(argv[0], (unsigned char *)"UK"))	Option.KeyboardConfig = CONFIG_UK;
 		else if(checkstring(argv[0], (unsigned char *)"ES"))	Option.KeyboardConfig = CONFIG_ES;
+		else if(checkstring(argv[0], (unsigned char *)"BE"))	Option.KeyboardConfig = CONFIG_BE;
 		else if(checkstring(argv[0], (unsigned char *)"BR"))	Option.KeyboardConfig = CONFIG_BR;
 		else if(checkstring(argv[0], (unsigned char *)"I2C")) Option.KeyboardConfig = CONFIG_I2C;
+#else
+        if(checkstring(argv[0], (unsigned char *)"US"))	Option.USBKeyboard = CONFIG_US;
+		else if(checkstring(argv[0], (unsigned char *)"FR"))	Option.USBKeyboard = CONFIG_FR;
+		else if(checkstring(argv[0], (unsigned char *)"GR"))	Option.USBKeyboard = CONFIG_GR;
+		else if(checkstring(argv[0], (unsigned char *)"IT"))	Option.USBKeyboard = CONFIG_IT;
+		else if(checkstring(argv[0], (unsigned char *)"UK"))	Option.USBKeyboard = CONFIG_UK;
+		else if(checkstring(argv[0], (unsigned char *)"ES"))	Option.USBKeyboard = CONFIG_ES;
+#endif
         else error("Syntax");
         Option.capslock=0;
         Option.numlock=1;
+#ifndef USBKEYBOARD
         int rs=0b00100000;
         int rr=0b00001100;
         if(Option.KeyboardConfig!=CONFIG_I2C){
@@ -2100,11 +2166,14 @@ void MIPS16 cmd_option(void) {
         } else {
             if(!Option.SYSTEM_I2C_SCL)error("Option System I2C not set");
         }
+#endif        
         SaveOptions();
         _excep_code = RESET_COMMAND;
         SoftReset();
-        }
+		}
+#ifndef USBKEYBOARD
 	}
+#endif
 
     tp = checkstring(cmdline, (unsigned char *)"BAUDRATE");
     if(tp) {
@@ -2401,7 +2470,7 @@ void MIPS16 cmd_option(void) {
         SoftReset();
         return;
     }
-    tp = checkstring(cmdline, (unsigned char *)"CPUSPEED");
+     tp = checkstring(cmdline, (unsigned char *)"CPUSPEED");
     if(tp) {
    	    if(CurrentLinePtr) error("Invalid in a program");
          int CPU_Speed=getint(tp, MIN_CPU, MAX_CPU);
@@ -3460,6 +3529,15 @@ void fun_info(void){
         return;
     } 
 #endif
+#ifdef USBKEYBOARD
+    else if((tp=checkstring(ep, (unsigned char *)"USB"))){
+        int n=getint((unsigned char *)tp,0,4);
+        if(n==0)iret=Current_USB_devices;
+        else iret=HID[n-1].Device_type;
+        targ=T_INT;
+        return;
+    }
+#endif
     else if (checkstring(ep, (unsigned char *)"LINE")) {
         if (!CurrentLinePtr) {
             strcpy((char *)sret, "UNKNOWN");
@@ -3647,10 +3725,12 @@ void fun_info(void){
             iret = (int64_t)(uint32_t)ProgMemory;
             targ = T_INT;
             return;
+#ifndef USBKEYBOARD
         } else if(checkstring(ep, (unsigned char *)"PS2")){
             iret = (int64_t)(uint32_t)PS2code;
             targ = T_INT;
             return;
+#endif            
         } else if(checkstring(ep, (unsigned char *)"PATH")){
             if(ProgMemory[0]==1 && ProgMemory[1]==39 && ProgMemory[2]==35){
                 strcpy((char *)sret,(char *)&ProgMemory[3]);
@@ -4182,11 +4262,13 @@ int checkdetailinterrupts(void) {
         intaddr = (char *)OnKeyGOSUB;                                       // set the next stmt to the interrupt location
         goto GotAnInterrupt;
     }
+#ifndef USBKEYBOARD
     if(OnPS2GOSUB && PS2int) {
         intaddr = (char *)OnPS2GOSUB;                                       // set the next stmt to the interrupt location
         PS2int=false;
         goto GotAnInterrupt;
     }
+#endif    
     if(piointerrupt){  // have any PIO interrupts been set
 #ifdef PICOMITE
         for(int pio=0 ;pio<2;pio++){
@@ -4294,10 +4376,12 @@ int checkdetailinterrupts(void) {
         goto GotAnInterrupt;
     }
 #endif
-    if(nunInterruptc !=NULL && nunfoundc){
-        nunfoundc=false;
-        intaddr=nunInterruptc;
-        goto GotAnInterrupt;
+    for(int i=0;i<5;i++){
+        if(nunInterruptc[i] !=NULL && nunfoundc[i]){
+            nunfoundc[i]=false;
+            intaddr=nunInterruptc[i];
+            goto GotAnInterrupt;
+        }
     }
 
     if(ADCInterrupt && dmarunning){
@@ -4443,7 +4527,9 @@ int __not_in_flash_func(check_interrupt)(void) {
         if(CheckGuiFlag) CheckGui();                                    // This implements a LED flash
     }
 #endif
+#ifndef USBKEYBOARD
     if(Option.KeyboardConfig)CheckKeyboard();
+#endif    
     if(!InterruptUsed) return 0;                                    // quick exit if there are no interrupts set
     if(InterruptReturn != NULL || CurrentLinePtr == NULL) return 0; // skip if we are in an interrupt or in immediate mode
     return checkdetailinterrupts();

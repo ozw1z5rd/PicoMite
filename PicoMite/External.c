@@ -191,6 +191,10 @@ int codecheck(unsigned char *line){
 }
 void SoftReset(void){
     _excep_code = SOFT_RESET;
+#ifdef USBKEYBOARD
+    USBenabled=false;
+    uSec(50000); //wait for outstanding requests to complete
+#endif
 	watchdog_enable(1, 1);
 	while(1);
 }
@@ -1821,13 +1825,13 @@ MMFLOAT *KeypadVar;
 unsigned char *KeypadInterrupt = NULL;
 void KeypadClose(void);
 
-void cmd_keypad(void) {
+void cmd_keypad(unsigned char *p) {
     int i, j, code;
 
-    if(checkstring(cmdline, (unsigned char *)"CLOSE"))
+    if(checkstring(p, (unsigned char *)"CLOSE"))
         KeypadClose();
     else {
-        getargs(&cmdline, 19, (unsigned char *)",");
+        getargs(&p, 19, (unsigned char *)",");
         if(argc%2 == 0 || argc < 17) error("Invalid syntax");
         if(KeypadInterrupt != NULL) error("Already open");
         KeypadVar = findvar(argv[0], V_FIND);
@@ -2125,14 +2129,66 @@ void fun_dev(void){
         //	unsigned short x0; //classic buttons
         getargs(&tp,1,(unsigned char *)",");
 		if(!classic1)error("Not open");
-         if(checkstring(argv[0], (unsigned char *)"LX"))iret=nunstruct.ax;
-        else if(checkstring(argv[0], (unsigned char *)"LY"))iret=nunstruct.ay;
-        else if(checkstring(argv[0], (unsigned char *)"RX"))iret=nunstruct.Z;
-        else if(checkstring(argv[0], (unsigned char *)"RY"))iret=nunstruct.C;
-        else if(checkstring(argv[0], (unsigned char *)"L"))iret=nunstruct.L;
-        else if(checkstring(argv[0], (unsigned char *)"R"))iret=nunstruct.R;
-        else if(checkstring(argv[0], (unsigned char *)"B"))iret=nunstruct.x0;
-        else if(checkstring(argv[0], (unsigned char *)"T"))iret=nunstruct.type;
+         if(checkstring(argv[0], (unsigned char *)"LX"))iret=nunstruct[0].ax;
+        else if(checkstring(argv[0], (unsigned char *)"LY"))iret=nunstruct[0].ay;
+        else if(checkstring(argv[0], (unsigned char *)"RX"))iret=nunstruct[0].Z;
+        else if(checkstring(argv[0], (unsigned char *)"RY"))iret=nunstruct[0].C;
+        else if(checkstring(argv[0], (unsigned char *)"L"))iret=nunstruct[0].L;
+        else if(checkstring(argv[0], (unsigned char *)"R"))iret=nunstruct[0].R;
+        else if(checkstring(argv[0], (unsigned char *)"B"))iret=nunstruct[0].x0;
+        else if(checkstring(argv[0], (unsigned char *)"T"))iret=nunstruct[0].type;
+        else iret=0;
+        targ=T_INT;
+    } else if((tp=checkstring(ep,(unsigned char *)"GAMEPAD"))){
+      //	int ax; //classic left x
+        //	int ay; //classic left y
+        //	int az; //classic centre
+        //	int Z;  //classic right x
+        //	int C;  //classic right y
+        //	int L;  //classic left analog
+        //	int R;  //classic right analog
+        //	unsigned short x0; //classic buttons
+         getargs(&tp,3,(unsigned char *)",");
+         int n=getint(argv[0],1,4);
+         if(checkstring(argv[2], (unsigned char *)"LX"))iret=nunstruct[n].ax;
+        else if(checkstring(argv[2], (unsigned char *)"LY"))iret=nunstruct[n].ay;
+        else if(checkstring(argv[2], (unsigned char *)"RX"))iret=nunstruct[n].Z;
+        else if(checkstring(argv[2], (unsigned char *)"RY"))iret=nunstruct[n].C;
+        else if(checkstring(argv[2], (unsigned char *)"L"))iret=nunstruct[n].L;
+        else if(checkstring(argv[2], (unsigned char *)"R"))iret=nunstruct[n].R;
+        else if(checkstring(argv[2], (unsigned char *)"B"))iret=nunstruct[n].x0;
+        else if(checkstring(argv[2], (unsigned char *)"GX"))iret=nunstruct[n].gyro[0];
+        else if(checkstring(argv[2], (unsigned char *)"GY"))iret=nunstruct[n].gyro[1];
+        else if(checkstring(argv[2], (unsigned char *)"GZ"))iret=nunstruct[n].gyro[2];
+        else if(checkstring(argv[2], (unsigned char *)"AX"))iret=nunstruct[n].accs[0];
+        else if(checkstring(argv[2], (unsigned char *)"AY"))iret=nunstruct[n].accs[1];
+        else if(checkstring(argv[2], (unsigned char *)"AZ"))iret=nunstruct[n].accs[2];
+        else if(checkstring(argv[2], (unsigned char *)"T"))iret=nunstruct[n].type;
+        else iret=0;
+        targ=T_INT;
+    } else if((tp=checkstring(ep,(unsigned char *)"MOUSE"))){
+/*        Returns data from a PS2 mouse
+        'funct' is a 1 letter code indicating the information to return as follows:
+        X returns the value of the mouse X-position
+        Y returns the value of the mouse Y-position
+        L returns the value of the left mouse button (1 if pressed)
+        R returns the value of the right mouse button (1 if pressed)
+        W returns the value of the scroll wheel mouse button (1 if pressed)
+        D This allows you to detect a double click of the left mouse button. The
+        algorithm requires that the two clicks must occur between 100 and
+        500 milliseconds apart. The report via MOUSE(D) is then valid for
+        500mSec before it times out or until it is read.
+        T This returns 3 if a PS2 mouse has a scroll wheel or 0 if not.*/
+
+         getargs(&tp,3,(unsigned char *)",");
+         int n=getint(argv[0],1,4);
+         if(checkstring(argv[2], (unsigned char *)"X"))iret=nunstruct[n].ax;
+        else if(checkstring(argv[2], (unsigned char *)"Y"))iret=nunstruct[n].ay;
+        else if(checkstring(argv[2], (unsigned char *)"L"))iret=nunstruct[n].L;
+        else if(checkstring(argv[2], (unsigned char *)"R"))iret=nunstruct[n].R;
+        else if(checkstring(argv[2], (unsigned char *)"M"))iret=nunstruct[n].C;
+        else if(checkstring(argv[2], (unsigned char *)"W"))iret=nunstruct[n].az;
+        else if(checkstring(argv[2], (unsigned char *)"D")){iret=nunstruct[n].Z;nunstruct[n].Z=0;}
         else iret=0;
         targ=T_INT;
     } else error("Syntax");
@@ -2279,6 +2335,11 @@ void cmd_bitbang(void){
 		WS2812(tp);
 		return;
 	}
+	tp = checkstring(cmdline, (unsigned char *)"KEYPAD");
+	if(tp) {
+		cmd_keypad(tp);
+		return;
+	}
 	tp = checkstring(cmdline, (unsigned char *)"LCD");
 	if(tp) {
 		cmd_lcd(tp);
@@ -2296,6 +2357,18 @@ void cmd_bitbang(void){
 		cmd_Classic(tp);
 		return;
 	}
+#ifdef USBKEYBOARD
+	tp = checkstring(cmdline, (unsigned char *)"MOUSE");
+	if(tp) {
+		cmd_mouse(tp);
+		return;
+	}
+	tp = checkstring(cmdline, (unsigned char *)"GAMEPAD");
+	if(tp) {
+		cmd_gamepad(tp);
+		return;
+	}
+#endif
 	tp = checkstring(cmdline, (unsigned char *)"HUMID");
 	if(tp) {
 		DHT22(tp);
@@ -2695,6 +2768,7 @@ void MIPS16 ClearExternalIO(void) {
     }
     CallBackEnabled &= (~32);
     for(i=0;i<MAXBLITBUF;i++){
+    	spritebuff[i].spritebuffptr = NULL;
     	blitbuff[i].blitbuffptr = NULL;
     }
     CallBackEnabled=0;
@@ -2710,6 +2784,7 @@ void MIPS16 ClearExternalIO(void) {
     SerialClose(2);                                 // same for serial ports
     if(!I2C0locked)i2c_disable();   
     if(!I2C1locked)i2c2_disable();   
+    sprite_transparent=0;
     SPIClose();
     SPI2Close();
     if(IRpin!=99){
@@ -2794,11 +2869,13 @@ void MIPS16 ClearExternalIO(void) {
     adc_set_clkdiv(0);
     KeyInterrupt=NULL;
     OnKeyGOSUB=NULL;
+#ifndef USBKEYBOARD
     OnPS2GOSUB=NULL;
-    nunInterruptc=NULL;
-    classic1=0;
     PS2code=0;
     PS2int=false;
+#endif 
+    for (int i=0; i<5;i++)nunInterruptc[i]=NULL;
+    classic1=0;
 #ifdef PICOMITEWEB
     MQTTInterrupt=NULL;
     MQTTComplete=0;
@@ -2992,7 +3069,9 @@ void __not_in_flash_func(IRHandler)(void) {
         }
     }
 void __not_in_flash_func(gpio_callback)(uint gpio, uint32_t events) {
+#ifndef USBKEYBOARD
     if(!(Option.KeyboardConfig == NO_KEYBOARD || Option.KeyboardConfig == CONFIG_I2C ) && gpio==PinDef[KEYBOARD_CLOCK].GPno) CNInterrupt(gpio_get_all());
+#endif
     if(gpio==PinDef[IRpin].GPno)IRHandler();
     if(gpio==PinDef[Option.INT1pin].GPno)TM_EXTI_Handler_1();
     if(gpio==PinDef[Option.INT2pin].GPno)TM_EXTI_Handler_2();

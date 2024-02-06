@@ -301,9 +301,9 @@ void   MIPS16 InitBasic(void) {
     cmdCSUB = GetCommandValue( (unsigned char *)"CSub");
     cmdComment = GetCommandValue( (unsigned char *)"/*");
     cmdEndComment = GetCommandValue( (unsigned char *)"*/");
-//    SInt(CommandTableSize);
-//    SIntComma(TokenTableSize);
-//    SSPrintString("\r\n");
+    SInt(CommandTableSize);
+    SIntComma(TokenTableSize);
+    SSPrintString("\r\n");
 
 }
 
@@ -1002,6 +1002,8 @@ void  MIPS16 tokenise(int console) {
     STR_REPLACE((char *)inpbuf,"MM.FONTHEIGHT","MM.INFO(FONTHEIGHT)");
     STR_REPLACE((char *)inpbuf,"MM.FONTWIDTH","MM.INFO(FONTWIDTH)");
     STR_REPLACE((char *)inpbuf,"MM.PS2","MM.INFO(PS2)");
+    STR_REPLACE((char *)inpbuf,"MM.HPOS","MM.INFO(HPOS)");
+    STR_REPLACE((char *)inpbuf,"MM.VPOS","MM.INFO(VPOS)");
     // setup the input and output buffers
     p = inpbuf;
     op = tknbuf;
@@ -1101,21 +1103,15 @@ void  MIPS16 tokenise(int console) {
             } else if((tp2 = checkstring(p, (unsigned char *)"BITBANG")) != NULL) {
                     match_i = GetCommandValue((unsigned char *)"Device") - C_BASETOKEN;
                     match_p = p = tp2;
+            } else if((tp2 = checkstring(p, (unsigned char *)"REFRESH")) != NULL) {
+                    match_i = GetCommandValue((unsigned char *)"Flush") - C_BASETOKEN;
+                    match_p = p = tp2;
             } else if((tp2 = checkstring(p, (unsigned char *)"END IF")) != NULL) {
                     match_i = GetCommandValue((unsigned char *)"EndIf") - C_BASETOKEN;
                     match_p = p = tp2;
             } else if((tp2 = checkstring(p, (unsigned char *)"EXIT DO")) != NULL) {
                     match_i = GetCommandValue((unsigned char *)"Exit") - C_BASETOKEN;
                     match_p = p = tp2;
-#ifdef PICOMITEVGA
-            } else if((tp2 = checkstring(p, (unsigned char *)"BLIT")) != NULL) {
-                    match_i = GetCommandValue((unsigned char *)"SPRITE") - C_BASETOKEN;
-                    match_p = p = tp2;
-#else
-            } else if((tp2 = checkstring(p, (unsigned char *)"SPRITE")) != NULL) {
-                    match_i = GetCommandValue((unsigned char *)"Blit") - C_BASETOKEN;
-                    match_p = p = tp2;
-#endif
             } else if((tp2 = checkstring(p, (unsigned char *)"CAT")) != NULL) {
                     match_i = GetCommandValue((unsigned char *)"Inc") - C_BASETOKEN;
                     match_p = p = tp2;
@@ -2059,7 +2055,7 @@ routines for storing and manipulating variables
 // storage of the variable's data:
 //      if it is type T_NBR or T_INT the value is held in the variable slot
 //      for T_STR a block of memory of MAXSTRLEN size (or size determined by the LENGTH keyword) will be malloc'ed and the pointer stored in the variable slot.
-void  __not_in_flash_func(*findvar)(unsigned char *p, int action) {
+void __not_in_flash_func(*findvar)(unsigned char *p, int action) {
     unsigned char name[MAXVARLEN + 1];
     int i=0, j, size, ifree, globalifree, localifree, nbr, vtype, vindex, namelen, tmp;
     unsigned char *s, *x, u;
@@ -3130,6 +3126,9 @@ void MIPS16 ClearRuntime(void) {
     CloseAllFiles();
     ClearExternalIO();                                              // this MUST come before InitHeap()
     ClearStack();
+#ifdef USBKEYBOARD
+	clearrepeat();
+#endif	
     OptionExplicit = false;
     OptionEscape = false;
     DefaultType = T_NBR;

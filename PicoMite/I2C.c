@@ -103,9 +103,9 @@ uint32_t swap32(uint32_t in)
   in = __builtin_bswap32(in);
   return in;
 }
-volatile struct s_nunstruct nunstruct;
-char *nunInterruptc=NULL;
-bool nunfoundc=false;
+volatile struct s_nunstruct nunstruct[5];
+char *nunInterruptc[5]={NULL};
+bool nunfoundc[5]={false};
 
 /*******************************************************************************************
 							  I2C related commands in MMBasic
@@ -360,7 +360,7 @@ int DoRtcI2C(int addr, unsigned char *buff) {
 	}
     return !mmI2Cvalue;
 }
-
+#ifndef USBKEYBOARD
 void CheckI2CKeyboard(int noerror, int read){
 	uint16_t buff;
 //	int readover=0; 
@@ -432,7 +432,6 @@ void CheckI2CKeyboard(int noerror, int read){
 //		} else readover=1;
 	}
 	return;
-
 i2c_error_exit:
 	if(noerror){
 		noI2C=1;
@@ -444,6 +443,7 @@ i2c_error_exit:
     	MMPrintString("\r\n");
 	}
 }
+#endif
 
 void RtcGetTime(int noerror) {
     char *buff=GetTempMemory(STRINGSIZE);                                                   // Received data is stored here
@@ -1304,7 +1304,7 @@ void MIPS16 cmd_Classic(unsigned char *p){
 		getargs(&tp,3,(unsigned char *)",");
 		if(!(I2C0locked || I2C1locked))error("SYSTEM I2C not configured");
 		if(classic1)error("Already open");
-		memset((void*)&nunstruct.x,0,sizeof(nunstruct));
+		memset((void*)&nunstruct[0].x,0,sizeof(nunstruct[0]));
 		int retry=5;
 		do {
 			WiiSend(sizeof(nuninit),(char *)nuninit);
@@ -1318,7 +1318,7 @@ void MIPS16 cmd_Classic(unsigned char *p){
 		if(mmI2Cvalue)error("Wii device not connected3");
 		WiiReceive(4,(char *)&id);
 		if(mmI2Cvalue)error("Wii device not connected4");
-		nunstruct.type=swap32(id);
+		nunstruct[0].type=swap32(id);
 		uSec(5000);
 		retry=5;
 		nunbuff[0]=0;
@@ -1336,10 +1336,10 @@ void MIPS16 cmd_Classic(unsigned char *p){
 			error("Classic not responding");
 		}
 		if(argc>=1){
-			nunInterruptc = (char *)GetIntAddress(argv[0]);					// get the interrupt location
+			nunInterruptc[0] = (char *)GetIntAddress(argv[0]);					// get the interrupt location
 			InterruptUsed = true;
-			nunstruct.x1=0b111111111111111;
-			if(argc==3)nunstruct.x1=getint(argv[2],0,0b111111111111111);
+			nunstruct[0].x1=0b111111111111111;
+			if(argc==3)nunstruct[0].x1=getint(argv[2],0,0b111111111111111);
 		}
 		classic1=1;
 		while(classic1==1)routinechecks();
@@ -1348,7 +1348,7 @@ void MIPS16 cmd_Classic(unsigned char *p){
 	} else if((tp = checkstring(p, (unsigned char *)"CLOSE"))){
 		if(!classic1)error("Not open");
 		classic1=0;
-		nunInterruptc=NULL;
+		nunInterruptc[0]=NULL;
 	}
 }
 
@@ -1362,27 +1362,27 @@ void classicproc(void){
 //	int R;  //classic right analog
 //	unsigned short x0; //classic buttons
 	static unsigned short buttonlast=0;
-	unsigned short inttest=(((nunbuff[4]>>1) | (nunbuff[5]<<7)) ^ 0b111111111111111) & nunstruct.x1;
-	nunstruct.classic[0]=nunbuff[0];
-	nunstruct.classic[1]=nunbuff[1];
-	nunstruct.classic[2]=nunbuff[2];
-	nunstruct.classic[3]=nunbuff[3];
-	nunstruct.classic[4]=nunbuff[4];
-	nunstruct.classic[5]=nunbuff[5];
+	unsigned short inttest=(((nunbuff[4]>>1) | (nunbuff[5]<<7)) ^ 0b111111111111111) & nunstruct[0].x1;
+	nunstruct[0].classic[0]=nunbuff[0];
+	nunstruct[0].classic[1]=nunbuff[1];
+	nunstruct[0].classic[2]=nunbuff[2];
+	nunstruct[0].classic[3]=nunbuff[3];
+	nunstruct[0].classic[4]=nunbuff[4];
+	nunstruct[0].classic[5]=nunbuff[5];
 	if(inttest!=buttonlast){
-		nunfoundc=1;
+		nunfoundc[0]=1;
 	}
 	buttonlast=inttest;
-	nunstruct.ax=(nunbuff[0] & 0b111111)<<2;
-	nunstruct.ay=(nunbuff[1] & 0b111111)<<2;
-	nunstruct.Z=(((nunbuff[2] & 0b10000000)>>7) |
+	nunstruct[0].ax=(nunbuff[0] & 0b111111)<<2;
+	nunstruct[0].ay=(nunbuff[1] & 0b111111)<<2;
+	nunstruct[0].Z=(((nunbuff[2] & 0b10000000)>>7) |
 			((nunbuff[1] & 0b11000000)>>5) |
 			((nunbuff[0] & 0b11000000)>>3))<<3;
-	nunstruct.C=(nunbuff[2] & 0b11111)<<3;
-	nunstruct.R=((nunbuff[3] & 0b00011111))<<3;
-	nunstruct.L=(((nunbuff[3] & 0b11100000)>>5) |
+	nunstruct[0].C=(nunbuff[2] & 0b11111)<<3;
+	nunstruct[0].R=((nunbuff[3] & 0b00011111))<<3;
+	nunstruct[0].L=(((nunbuff[3] & 0b11100000)>>5) |
 			((nunbuff[2] & 0b01100000)>>2))<<3;
-	nunstruct.x0=((nunbuff[4]>>1) | (nunbuff[5]<<7)) ^ 0b111111111111111;
+	nunstruct[0].x0=((nunbuff[4]>>1) | (nunbuff[5]<<7)) ^ 0b111111111111111;
 }
 
 #ifndef PICOMITEVGA

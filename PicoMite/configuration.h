@@ -21,7 +21,8 @@ INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, B
 LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, 
 OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. 
 
-************************************************************************************************************************/#ifndef __CONFIGURATION_H
+************************************************************************************************************************/
+#ifndef __CONFIGURATION_H
 #define __CONFIGURATION_H
 #ifdef __cplusplus
 extern "C" {
@@ -29,9 +30,14 @@ extern "C" {
 #ifdef PICOMITEVGA
 #define MAXVARS             512                     // 8 + MAXVARLEN + MAXDIM * 2  (ie, 56 bytes) - these do not incl array members
 #define FLASH_TARGET_OFFSET (688 * 1024) 
+#ifdef USBKEYBOARD
+#define HEAP_MEMORY_SIZE (92*1024) 
+#define MagicKey 0x15486343
+#else
+#define HEAP_MEMORY_SIZE (96*1024) 
 #define MagicKey 0x15486342
+#endif
 #define HEAPTOP 0x2003F900
-#define HEAP_MEMORY_SIZE (100*1024) 
 #define MAX_CPU     378000 
 #define MIN_CPU     126000
 #define MAXSUBFUN           256                     // each entry takes up 4 bytes
@@ -49,9 +55,13 @@ extern "C" {
 #define MAXSUBFUN           256                     // each entry takes up 4 bytes
 #endif
 #ifdef PICOMITE
+#ifdef USBKEYBOARD
+#define MagicKey 0x15486343
+#else
+#define MagicKey 0x21343427
+#endif
 #define MAXVARS             512                     // 8 + MAXVARLEN + MAXDIM * 2  (ie, 56 bytes) - these do not incl array members
 #define FLASH_TARGET_OFFSET (752 * 1024) 
-#define MagicKey 0x21343427
 #define HEAPTOP 0x2003e800
 #define HEAP_MEMORY_SIZE (132*1024) 
 #define MAX_CPU     378000
@@ -124,7 +134,7 @@ extern "C" {
 #define MAX3D   8
 #define MAXCAM  3
 #define MAX_POLYGON_VERTICES 10
-#define MAXBLITBUF 32
+#define MAXBLITBUF 64
 #define MAXRESTORE          8
 #define CONFIG_TITLE		0
 #define CONFIG_LOWER		1

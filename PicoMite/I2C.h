@@ -123,14 +123,15 @@ typedef struct s_nunstruct {
     	uint32_t type;
     	uint8_t calib[16];
     	uint8_t classic[6];
+		int16_t gyro[3], accs[3];
 } a_nunstruct;
 extern volatile int classic1;
-extern char *nunInterruptc;
-extern bool nunfoundc;
+extern char *nunInterruptc[];
+extern bool nunfoundc[];
 extern void classicproc(void);
 extern uint8_t nunbuff[];
 extern const unsigned char readcontroller[1];
-extern volatile struct s_nunstruct nunstruct;
+extern volatile struct s_nunstruct nunstruct[5];
 extern void WiiReceive(int nbr, char *p);
 extern void WiiSend(int nbr, char *p);
 #define REG_GAIN                    0x00         // Gain lower 8 bits (rest in vref 

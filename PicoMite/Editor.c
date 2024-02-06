@@ -733,6 +733,9 @@ void FullScreenEditor(int xx, int yy, char *fname) {
                             cleanserver();
                         #endif
                             nextstmt = ProgMemory;
+#ifdef USBKEYBOARD
+	                        clearrepeat();
+#endif	                        
                             return;
 
               // Search

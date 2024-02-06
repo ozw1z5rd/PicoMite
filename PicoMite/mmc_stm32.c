@@ -1289,12 +1289,14 @@ void InitReservedIO(void) {
 			I2C2_Timeout=500;
 		}
 		if(Option.RTC)RtcGetTime(1);
+#ifndef USBKEYBOARD
 		if(Option.KeyboardConfig==CONFIG_I2C){
 			CheckI2CKeyboard(1,0);
 			uSec(2000);
 			CheckI2CKeyboard(1,1);
 			uSec(2000);
 		}
+#endif	
 	}
 	if(Option.SYSTEM_CLK){
 		SPI_CLK_PIN=PinDef[Option.SYSTEM_CLK].GPno;
@@ -1503,6 +1505,7 @@ void InitReservedIO(void) {
 		irq_set_enabled((Option.SerialConsole & 3)==1  ? UART0_IRQ : UART1_IRQ, true);
 		uart_set_irq_enables((Option.SerialConsole & 3)==1  ? uart0: uart1, true, false);
 	}
+#ifndef USBKEYBOARD
 	if(!(Option.KeyboardConfig==NO_KEYBOARD || Option.KeyboardConfig==CONFIG_I2C)){
 		ExtCfg(KEYBOARD_CLOCK, EXT_BOOT_RESERVED, 0);
     	ExtCfg(KEYBOARD_DATA, EXT_BOOT_RESERVED, 0);
@@ -1514,6 +1517,7 @@ void InitReservedIO(void) {
 		gpio_set_pulls(PinDef[KEYBOARD_DATA].GPno,true,false);
 		gpio_set_dir(PinDef[KEYBOARD_DATA].GPno, GPIO_IN);
 	}
+#endif	
 }
 
 

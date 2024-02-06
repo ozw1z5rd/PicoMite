@@ -105,6 +105,19 @@ struct s_PinDef {
     unsigned char ADCpin;
 	unsigned char slice;
 };
+typedef struct s_HID {
+	uint8_t Device_address;
+	uint8_t Device_instance;
+	uint8_t Device_type;
+	int16_t report_timer;
+	uint8_t report_rate;
+	bool active;
+	bool report_requested;
+	uint8_t motorleft;
+	uint8_t motorright;
+	uint8_t r,g,b;
+} a_HID;
+extern volatile struct s_HID HID[4];
 extern uint32_t _excep_code;
 extern const struct s_PinDef PinDef[NBRPINS + 1];
 #define VCHARS  25					// nbr of lines in the DOS box (used in LIST)
@@ -174,6 +187,12 @@ extern volatile int VGAxoffset,VGAyoffset;
 	extern void close_tcpclient(void);
 #endif
 // console related I/O
+#ifdef USBKEYBOARD
+	extern void clearrepeat(void);
+	extern uint8_t Current_USB_devices;
+	extern void cmd_mouse(unsigned char *p);
+	extern bool USBenabled;
+#endif
 int __not_in_flash_func(MMInkey)(void);
 int MMgetchar(void);
 char MMputchar(char c, int flush);
@@ -196,7 +215,6 @@ void seedRand(unsigned long seed);
 unsigned long genRandLong(MTRand* rand);
 double genRand(MTRand* rand);
 extern struct tagMTRand *g_myrand;
-
 #if defined(MSVCC)
 #define mkdir _mkdir
 #define rmdir _rmdir
