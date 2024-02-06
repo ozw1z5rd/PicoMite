@@ -1743,7 +1743,6 @@ void MIPS16 cmd_play(void) {
 		char q[FF_MAX_LFN]={0};
 		getfullfilename(p,q);
         WAVInterrupt = NULL;
-
         WAVcomplete = 0;
         if(argc == 3) {
 			if(!CurrentLinePtr)error("No program running");
@@ -1811,6 +1810,7 @@ void MIPS16 cmd_play(void) {
 		char q[FF_MAX_LFN]={0};
 		getfullfilename(p,q);
         WAVInterrupt = NULL;
+
         WAVcomplete = 0;
         if(argc == 3) {
 			if(!CurrentLinePtr)error("No program running");
@@ -2079,7 +2079,7 @@ void MIPS16 cmd_play(void) {
         trackstoplay=0;
         trackplaying=0;
 		mp3callback(p,num);
-        return;
+		return;
 	}
 	if((tp = checkstring(cmdline, (unsigned char *)"MP3"))) {
         char *p;
@@ -2249,7 +2249,7 @@ void MIPS16 cmd_play(void) {
 			ProcessWeb(1);
 		#endif
 		}
-        return; 
+        return;
     }
     if((tp = checkstring(cmdline, (unsigned char *)"MODSAMPLE"))) {
         unsigned short sampnum, seffectnum;
@@ -2423,6 +2423,6 @@ void audio_checks(void){
             FileClose(WAV_fnbr);
             WAVcomplete = true;
 //            playreadcomplete = 0;
-        }
+         }
     }
 }

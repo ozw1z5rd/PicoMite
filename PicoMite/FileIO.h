@@ -159,10 +159,11 @@ struct option_s {
         char ipaddress[16];
         char mask[16];
         char gateway[16];
-        unsigned char x[10]; //108=256
+        unsigned char x[5]; //108=256
     #else
-        unsigned char x[94]; //112=256
+        unsigned char x[89]; //112=256
     #endif
+    unsigned char USBKeyboard;
     unsigned char VGA_HSYNC;
     unsigned char VGA_BLUE;
     unsigned char AUDIO_MISO_PIN;
@@ -177,6 +178,8 @@ struct option_s {
     unsigned char NoReset;
     unsigned char AllPins;
     unsigned char modbuff;
+	short RepeatStart;
+	short RepeatRate;
     int modbuffsize;
     unsigned char F1key[MAXKEYLEN]; //204
     unsigned char F5key[MAXKEYLEN]; //268

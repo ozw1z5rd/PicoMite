@@ -389,7 +389,6 @@ uint16_t crc16_CCITT(uint8_t *array, uint16_t length)
   return crc16(array, length, 0x1021, 0xFFFF,0,0,0);
 }
 
-
 // CRC-32 POLYNOME =  x32 + ..... + 1
 uint32_t crc32(const uint8_t *array, uint16_t length, const uint32_t polynome, 
                const uint32_t startmask, const uint32_t endmask, 
