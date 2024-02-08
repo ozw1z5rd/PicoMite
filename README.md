@@ -1,6 +1,7 @@
 Files to build the PicoMite. MMBasic running on the Raspberry Pi Pico
 
 NB: This should be built against pico-sdk version 1.5.1 with gpio.c replaced with the attached.
+NB: TinyUSB 0.16.0 is needed for USB builds
 
 The file layout should be:
 
