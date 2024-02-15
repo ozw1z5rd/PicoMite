@@ -159,10 +159,11 @@ struct option_s {
         char ipaddress[16];
         char mask[16];
         char gateway[16];
-        unsigned char x[5]; //108=256
+        unsigned char x[4]; //108=256
     #else
-        unsigned char x[89]; //112=256
+        unsigned char x[88]; //112=256
     #endif
+    unsigned char CombinedCS;
     unsigned char USBKeyboard;
     unsigned char VGA_HSYNC;
     unsigned char VGA_BLUE;
@@ -173,7 +174,7 @@ struct option_s {
     unsigned char SSD_DC;
     unsigned char SSD_WR;
     unsigned char SSD_RD;
-    unsigned char SSD_RESET;
+    signed char SSD_RESET;
     unsigned char BackLightLevel;
     unsigned char NoReset;
     unsigned char AllPins;

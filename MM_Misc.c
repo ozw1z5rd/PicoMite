@@ -1556,7 +1556,11 @@ void PO5Int(char *s1, int n1, int n2, int n3, int n4) {
 void printoptions(void){
 //	LoadOptions();
 #ifdef PICOMITEVGA
+#ifdef USBKEYBOARD
+    MMPrintString("\rPicoMiteVGA MMBasic USB Edition  " VERSION "\r\n");
+#else
     MMPrintString("\rPicoMiteVGA MMBasic Version " VERSION "\r\n");
+#endif
 #endif    
 #ifdef PICOMITEWEB
     int i=Option.DISPLAY_ORIENTATION;
@@ -1564,7 +1568,11 @@ void printoptions(void){
 #endif 
 #ifdef PICOMITE
     int i=Option.DISPLAY_ORIENTATION;
+#ifdef USBKEYBOARD
+    MMPrintString("\rPicoMite MMBasic USB Edition  " VERSION "\r\n");
+#else
     MMPrintString("\rPicoMite MMBasic Version " VERSION "\r\n");
+#endif
 #endif     
 
     if(Option.SerialConsole){
@@ -1709,8 +1717,13 @@ void printoptions(void){
 		if(Option.DISPLAY_BL){
             MMputchar(',',1);MMPrintString((char *)PinDef[Option.DISPLAY_BL].pinname);
 		}
-		if(Option.SSD_DC!=13){
+		if(Option.SSD_DC!=(Option.DISPLAY_TYPE> SSD_PANEL_8 ? 16: 13)){
+            if(!Option.DISPLAY_BL )MMputchar(',',1);
             MMputchar(',',1);MMPrintString((char *)PinDef[PINMAP[Option.SSD_DC]].pinname);
+		}
+		if(Option.SSD_RESET!=(Option.DISPLAY_TYPE > SSD_PANEL_8 ? 19: 16)){
+            if(!Option.SSD_DC)MMputchar(',',1);
+            MMputchar(',',1);MMPrintString((char *)PinDef[PINMAP[Option.SSD_RESET]].pinname);
 		}
         PRet();
     }
@@ -1796,6 +1809,7 @@ void printoptions(void){
         MMputchar(',',1);;MMPrintString((char *)PinDef[Option.VGA_BLUE].pinname);PRet();
     }
 #endif
+    if(Option.CombinedCS)PO2Str("SDCARD", "COMBINED CS");
 #ifdef USBKEYBOARD
     if(!(Option.RepeatStart==600 && Option.RepeatRate==150)){
     	char buff[40]={0};
@@ -1923,6 +1937,7 @@ void disable_sd(void){
     if(!IsInvalidPin(Option.SD_MISO_PIN))ExtCurrentConfig[Option.SD_MISO_PIN] = EXT_DIG_IN ;   
     if(!IsInvalidPin(Option.SD_MISO_PIN))ExtCfg(Option.SD_MISO_PIN, EXT_NOT_CONFIG, 0);
     Option.SD_MISO_PIN=0;
+    Option.CombinedCS=0;
 #ifdef PICOMITEVGA
     if(!IsInvalidPin(Option.SYSTEM_CLK))ExtCurrentConfig[Option.SYSTEM_CLK] = EXT_DIG_IN ;   
     if(!IsInvalidPin(Option.SYSTEM_CLK))ExtCfg(Option.SYSTEM_CLK, EXT_NOT_CONFIG, 0);
@@ -2602,6 +2617,9 @@ void MIPS16 cmd_option(void) {
         if(checkstring(tp, (unsigned char *)"DISABLE")) {
     	if(CurrentLinePtr) error("Invalid in a program");
             Option.LCD_CD = Option.LCD_CS = Option.LCD_Reset = Option.DISPLAY_TYPE = HRes = VRes = 0;
+            Option.SSD_DC = Option.SSD_WR = Option.SSD_RD;
+    		Option.TOUCH_XZERO = Option.TOUCH_YZERO = 0;                    // record the touch feature as not calibrated
+            Option.SSD_RESET = -1;
             DrawRectangle = (void (*)(int , int , int , int , int ))DisplayNotSet;
             DrawBitmap =  (void (*)(int , int , int , int , int , int , int , unsigned char *))DisplayNotSet;
             ScrollLCD = (void (*)(int ))DisplayNotSet;
@@ -2627,6 +2645,7 @@ void MIPS16 cmd_option(void) {
     if(tp) {
       if(CurrentLinePtr) error("Invalid in a program");
       if(checkstring(tp, (unsigned char *)"DISABLE")) {
+            if(Option.CombinedCS)error("Touch CS in use for SDcard");
             TouchIrqPortAddr = 0;
             Option.TOUCH_Click = Option.TOUCH_CS = Option.TOUCH_IRQ = false;
         } else  {
@@ -3019,7 +3038,7 @@ void MIPS16 cmd_option(void) {
         int pin1,pin2,pin3;
         if(checkstring(tp, (unsigned char *)"DISABLE")){
    	    if(CurrentLinePtr) error("Invalid in a program");
-         if((Option.SD_CS && Option.SD_CLK_PIN==0) || Option.TOUCH_CS || Option.LCD_CS)error("In use");
+         if((Option.SD_CS && Option.SD_CLK_PIN==0) || Option.TOUCH_CS || Option.LCD_CS || Option.CombinedCS)error("In use");
             disable_systemspi();
             SaveOptions();
             _excep_code = RESET_COMMAND;
@@ -3029,7 +3048,7 @@ void MIPS16 cmd_option(void) {
     	getargs(&tp,5,(unsigned char *)",");
    	    if(CurrentLinePtr) error("Invalid in a program");
          if(argc!=5)error("Syntax");
-        if(Option.SYSTEM_CLK)error("SDcard already configured");
+        if(Option.SYSTEM_CLK)error("SYSTEM SPI already configured");
         unsigned char code;
         if(!(code=codecheck(argv[0])))argv[0]+=2;
         pin1 = getinteger(argv[0]);
@@ -3068,6 +3087,19 @@ void MIPS16 cmd_option(void) {
             SaveOptions();
             return;                                // this will restart the processor ? only works when not in debug
         }
+#ifndef PICOMITEVGA
+        if(checkstring(tp, (unsigned char *)"COMBINED CS")){
+            if(Option.SD_CS || Option.CombinedCS)error("SDcard already configured");
+            if(!Option.SYSTEM_CLK)error("System SPI not configured");
+            if(!Option.TOUCH_CS)error("Touch CS pin not configured");
+            Option.CombinedCS=1;
+            Option.SD_CS=0;
+            SaveOptions();
+            _excep_code = RESET_COMMAND;
+            SoftReset();
+            return;
+        }
+#endif
     	getargs(&tp,7,(unsigned char *)",");
 #ifdef PICOMITEVGA
         if(!(argc==7))error("Syntax");
@@ -3075,7 +3107,7 @@ void MIPS16 cmd_option(void) {
         if(!(argc==1 || argc==7))error("Syntax");
 #endif
    	    if(CurrentLinePtr) error("Invalid in a program");
-         if(Option.SD_CS)error("SDcard already configured");
+         if(Option.SD_CS || Option.CombinedCS)error("SDcard already configured");
         if(argc==1 && !Option.SYSTEM_CLK)error("System SPI not configured");
         unsigned char code;
         if(!(code=codecheck(argv[0])))argv[0]+=2;

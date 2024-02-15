@@ -151,6 +151,8 @@ extern short CurrentX, CurrentY;
 extern int PrintPixelMode;
 extern char CMM1;
 extern int transparenthigh,transparentlow;
+extern char LCDAttrib;
+
 typedef struct SVD {
 	FLOAT3D x;
 	FLOAT3D y;

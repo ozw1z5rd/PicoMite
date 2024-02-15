@@ -211,14 +211,18 @@ int __not_in_flash_func(GetTouchValue)(int cmd) {
     unsigned int lb, hb;
 	if(Option.DISPLAY_TYPE<SSDPANEL)SPISpeedSet(TOUCH);
     else SPISpeedSet(SLOWTOUCH);
-    gpio_put(TOUCH_CS_PIN,GPIO_PIN_RESET);  // set CS low
+    if(Option.CombinedCS){
+        gpio_put(TOUCH_CS_PIN,GPIO_PIN_RESET);
+        gpio_set_dir(TOUCH_CS_PIN, GPIO_OUT);
+    } else gpio_put(TOUCH_CS_PIN,GPIO_PIN_RESET);  // set CS low
     TDelay();
     val=xchg_byte(cmd);    //    SpiChnPutC(TOUCH_SPI_CHANNEL, cmd);
     hb=xchg_byte(0);                             // send the read command (also selects the axis)
 	val = (hb & 0b1111111) << 5;         // the top 7 bits
     lb=xchg_byte(0);                             // send the read command (also selects the axis)
     val |= (lb >> 3) & 0b11111;          // the bottom 5 bits
-    ClearCS(Option.TOUCH_CS);
+    if(Option.CombinedCS)gpio_set_dir(TOUCH_CS_PIN, GPIO_IN);
+    else ClearCS(Option.TOUCH_CS);
     #ifdef PICOMITEWEB
             ProcessWeb(1);
     #endif

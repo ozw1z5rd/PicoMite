@@ -618,7 +618,7 @@ int wait_ready (void)
 	BYTE d;
 
 	Timer2 = 500;	/* Wait for ready in timeout of 500ms */
-	do{
+	do {
 		d = xchg_byte(0xFF);
         busy_wait_us_32(5);
 	} while ((d != 0xFF) && Timer2);
@@ -634,9 +634,16 @@ int wait_ready (void)
 
 static void __not_in_flash_func(deselect)(void)
 {
-//	asm("NOP");asm("NOP");//asm("NOP");
-	gpio_put(SD_CS_PIN,GPIO_PIN_SET);
-//	asm("NOP");//asm("NOP");
+#ifndef PICOMITEVGA
+	if(Option.CombinedCS){
+		gpio_set_dir(TOUCH_CS_PIN, GPIO_IN);
+	} else {
+#endif
+		gpio_put(SD_CS_PIN,GPIO_PIN_SET);
+#ifndef PICOMITEVGA
+	}
+	nop;nop;nop;nop;nop;
+#endif
 	xchg_byte(0xFF);		/* Dummy clock (force DO hi-z for multiple slave SPI) */
 }
 
@@ -652,7 +659,14 @@ int __not_in_flash_func(selectSD)(void)	/* 1:Successful, 0:Timeout */
 {
 	if(SD_SPI_SPEED==SD_SLOW_SPI_SPEED)	SPISpeedSet(SDSLOW);
 	else SPISpeedSet(SDFAST);
+#ifndef PICOMITEVGA
+	if(Option.CombinedCS){
+		gpio_put(TOUCH_CS_PIN,GPIO_PIN_SET);
+		gpio_set_dir(TOUCH_CS_PIN, GPIO_OUT);
+	} else gpio_put(SD_CS_PIN,GPIO_PIN_RESET);
+#else
 	gpio_put(SD_CS_PIN,GPIO_PIN_RESET);
+#endif
     busy_wait_us_32(5);
     xchg_byte(0xFF);		/* Dummy clock (force DO enabled) */
 
@@ -1208,7 +1222,9 @@ void InitReservedIO(void) {
 #else
 	if(Option.DISPLAY_TYPE>=SSDPANEL && Option.DISPLAY_TYPE<VIRTUAL){
 		ExtCfg(SSD1963_DC_PIN, EXT_BOOT_RESERVED, 0);gpio_init(SSD1963_DC_GPPIN);gpio_put(SSD1963_DC_GPPIN,GPIO_PIN_SET);gpio_set_dir(SSD1963_DC_GPPIN, GPIO_OUT);
-		ExtCfg(SSD1963_RESET_PIN, EXT_BOOT_RESERVED, 0);gpio_init(SSD1963_RESET_GPPIN);gpio_put(SSD1963_RESET_GPPIN,GPIO_PIN_SET);gpio_set_dir(SSD1963_RESET_GPPIN, GPIO_OUT);
+		if(Option.SSD_RESET!=-1){
+			ExtCfg(SSD1963_RESET_PIN, EXT_BOOT_RESERVED, 0);gpio_init(SSD1963_RESET_GPPIN);gpio_put(SSD1963_RESET_GPPIN,GPIO_PIN_SET);gpio_set_dir(SSD1963_RESET_GPPIN, GPIO_OUT);
+		}
 		ExtCfg(SSD1963_WR_PIN, EXT_BOOT_RESERVED, 0);gpio_init(SSD1963_WR_GPPIN);gpio_put(SSD1963_WR_GPPIN,GPIO_PIN_SET);gpio_set_dir(SSD1963_WR_GPPIN, GPIO_OUT);
 		ExtCfg(SSD1963_RD_PIN, EXT_BOOT_RESERVED, 0);gpio_init(SSD1963_RD_GPPIN);gpio_put(SSD1963_RD_GPPIN,GPIO_PIN_SET);gpio_set_dir(SSD1963_RD_GPPIN, GPIO_OUT);
 		ExtCfg(SSD1963_DAT1, EXT_BOOT_RESERVED, 0);gpio_init(SSD1963_GPDAT1);gpio_put(SSD1963_GPDAT1,GPIO_PIN_SET);gpio_set_dir(SSD1963_GPDAT1, GPIO_OUT);
@@ -1219,6 +1235,16 @@ void InitReservedIO(void) {
 		ExtCfg(SSD1963_DAT6, EXT_BOOT_RESERVED, 0);gpio_init(SSD1963_GPDAT6);gpio_put(SSD1963_GPDAT6,GPIO_PIN_SET);gpio_set_dir(SSD1963_GPDAT6, GPIO_OUT);
 		ExtCfg(SSD1963_DAT7, EXT_BOOT_RESERVED, 0);gpio_init(SSD1963_GPDAT7);gpio_put(SSD1963_GPDAT7,GPIO_PIN_SET);gpio_set_dir(SSD1963_GPDAT7, GPIO_OUT);
 		ExtCfg(SSD1963_DAT8, EXT_BOOT_RESERVED, 0);gpio_init(SSD1963_GPDAT8);gpio_put(SSD1963_GPDAT8,GPIO_PIN_SET);gpio_set_dir(SSD1963_GPDAT8, GPIO_OUT);
+        if(Option.DISPLAY_TYPE>SSD_PANEL_8){
+			ExtCfg(SSD1963_DAT9, EXT_BOOT_RESERVED, 0);gpio_init(SSD1963_GPDAT9);gpio_put(SSD1963_GPDAT9,GPIO_PIN_SET);gpio_set_dir(SSD1963_GPDAT9, GPIO_OUT);
+			ExtCfg(SSD1963_DAT10, EXT_BOOT_RESERVED, 0);gpio_init(SSD1963_GPDAT10);gpio_put(SSD1963_GPDAT10,GPIO_PIN_SET);gpio_set_dir(SSD1963_GPDAT10, GPIO_OUT);
+			ExtCfg(SSD1963_DAT11, EXT_BOOT_RESERVED, 0);gpio_init(SSD1963_GPDAT11);gpio_put(SSD1963_GPDAT11,GPIO_PIN_SET);gpio_set_dir(SSD1963_GPDAT11, GPIO_OUT);
+			ExtCfg(SSD1963_DAT12, EXT_BOOT_RESERVED, 0);gpio_init(SSD1963_GPDAT12);gpio_put(SSD1963_GPDAT12,GPIO_PIN_SET);gpio_set_dir(SSD1963_GPDAT12, GPIO_OUT);
+			ExtCfg(SSD1963_DAT13, EXT_BOOT_RESERVED, 0);gpio_init(SSD1963_GPDAT13);gpio_put(SSD1963_GPDAT13,GPIO_PIN_SET);gpio_set_dir(SSD1963_GPDAT13, GPIO_OUT);
+			ExtCfg(SSD1963_DAT14, EXT_BOOT_RESERVED, 0);gpio_init(SSD1963_GPDAT14);gpio_put(SSD1963_GPDAT14,GPIO_PIN_SET);gpio_set_dir(SSD1963_GPDAT14, GPIO_OUT);
+			ExtCfg(SSD1963_DAT15, EXT_BOOT_RESERVED, 0);gpio_init(SSD1963_GPDAT15);gpio_put(SSD1963_GPDAT15,GPIO_PIN_SET);gpio_set_dir(SSD1963_GPDAT15, GPIO_OUT);
+			ExtCfg(SSD1963_DAT16, EXT_BOOT_RESERVED, 0);gpio_init(SSD1963_GPDAT16);gpio_put(SSD1963_GPDAT16,GPIO_PIN_SET);gpio_set_dir(SSD1963_GPDAT16, GPIO_OUT);
+ 		}
 		dobacklight();
 	}
 	if(Option.LCD_CD){
@@ -1243,14 +1269,15 @@ void InitReservedIO(void) {
 	}
 	if(Option.TOUCH_CS){
 		ExtCfg(Option.TOUCH_CS, EXT_BOOT_RESERVED, 0);
-		ExtCfg(Option.TOUCH_IRQ, EXT_BOOT_RESERVED, 0);
 		TOUCH_CS_PIN=PinDef[Option.TOUCH_CS].GPno;
-		TOUCH_IRQ_PIN=PinDef[Option.TOUCH_IRQ].GPno;
 		gpio_init(TOUCH_CS_PIN);
 		gpio_set_drive_strength(TOUCH_CS_PIN,GPIO_DRIVE_STRENGTH_12MA);
-		gpio_put(TOUCH_CS_PIN,GPIO_PIN_SET);
-		gpio_set_dir(TOUCH_CS_PIN, GPIO_OUT);
 		gpio_set_slew_rate(TOUCH_CS_PIN, GPIO_SLEW_RATE_SLOW);
+		gpio_put(TOUCH_CS_PIN,GPIO_PIN_SET);
+		if(Option.CombinedCS)gpio_set_dir(TOUCH_CS_PIN, GPIO_IN);
+		else gpio_set_dir(TOUCH_CS_PIN, GPIO_OUT);
+		ExtCfg(Option.TOUCH_IRQ, EXT_BOOT_RESERVED, 0);
+		TOUCH_IRQ_PIN=PinDef[Option.TOUCH_IRQ].GPno;
 		gpio_init(TOUCH_IRQ_PIN);
 		gpio_pull_up(TOUCH_IRQ_PIN);
 		gpio_set_dir(TOUCH_IRQ_PIN, GPIO_IN);
@@ -1332,14 +1359,16 @@ void InitReservedIO(void) {
 		xmit_byte_multi=BitBangSendSPI;
 		rcvr_byte_multi=BitBangReadSPI;
 	}
-	if(Option.SD_CS){
-		ExtCfg(Option.SD_CS, EXT_BOOT_RESERVED, 0);
-		SD_CS_PIN=PinDef[Option.SD_CS].GPno;
-		gpio_init(SD_CS_PIN);
-		gpio_set_drive_strength(SD_CS_PIN,GPIO_DRIVE_STRENGTH_12MA);
-		gpio_put(SD_CS_PIN,GPIO_PIN_SET);
-		gpio_set_dir(SD_CS_PIN, GPIO_OUT);
-		gpio_set_slew_rate(SD_CS_PIN, GPIO_SLEW_RATE_SLOW);
+	if(Option.SD_CS || Option.CombinedCS){
+		if(!Option.CombinedCS){
+			ExtCfg(Option.SD_CS, EXT_BOOT_RESERVED, 0);
+			SD_CS_PIN=PinDef[Option.SD_CS].GPno;
+			gpio_init(SD_CS_PIN);
+			gpio_set_drive_strength(SD_CS_PIN,GPIO_DRIVE_STRENGTH_12MA);
+			gpio_put(SD_CS_PIN,GPIO_PIN_SET);
+			gpio_set_dir(SD_CS_PIN, GPIO_OUT);
+			gpio_set_slew_rate(SD_CS_PIN, GPIO_SLEW_RATE_SLOW);
+		}
 		CurrentSPISpeed=NONE_SPI_SPEED;
 		if(Option.SD_CLK_PIN){
 			SD_CLK_PIN=PinDef[Option.SD_CLK_PIN].GPno;

@@ -1231,7 +1231,6 @@ void GUIPrintChar(int fnt, int fc, int bc, char c, int orientation) {
     	fc=bc;
     	bc=-1;
     }
-
     // to get the +, - and = chars for font 6 we fudge them by scaling up font 1
     if((fnt & 0xf0) == 0x50 && (c == '-' || c == '+' || c == '=')) {
         fp = (unsigned char *)FontTable[0];
@@ -4684,8 +4683,8 @@ void restorepanel(void){
     } else if(Option.DISPLAY_TYPE>=SSDPANEL && Option.DISPLAY_TYPE < VIRTUAL){
         DrawRectangle= DrawRectangleSSD1963;
         DrawBitmap = DrawBitmapSSD1963;
-        if(Option .DISPLAY_TYPE != ILI9341_8)ScrollLCD = ScrollSSD1963;
-        else ScrollLCD=ScrollLCDSPI;
+        if(!(Option.DISPLAY_TYPE == ILI9341_8 || Option.DISPLAY_TYPE == ILI9341_16 || Option.DISPLAY_TYPE == IPS_4_16 ))ScrollLCD = ScrollSSD1963;
+            else ScrollLCD=ScrollLCDSPI;
         DrawBuffer = DrawBufferSSD1963;
         ReadBuffer = ReadBufferSSD1963;
         DrawPixel = DrawPixelNormal;
@@ -4723,11 +4722,21 @@ void closeframebuffer(void){
 void copyframetoscreen(uint8_t *s,int xstart, int xend, int ystart, int yend, int odd){
     unsigned char col[3]={0};
     int c;
-    if(Option.DISPLAY_TYPE>I2C_PANEL && Option.DISPLAY_TYPE<BufferedPanel)DefineRegionSPI(xstart,ystart,xend,yend, 1);
-    else if(Option.DISPLAY_TYPE>=SSDPANEL && Option.DISPLAY_TYPE<VIRTUAL && Option.DISPLAY_TYPE!=ILI9341_8){
-        SetAreaSSD1963(xstart,ystart,xend,yend);
+    if(Option.DISPLAY_TYPE == ILI9341_8){
+        SetAreaILI9341(xstart,ystart,xend,yend, 1);
+    } else if(Option.DISPLAY_TYPE == ILI9341_16 || Option.DISPLAY_TYPE == ILI9486_16) {
+        if(Option.DISPLAY_TYPE == ILI9486_16){
+            Write16bitCommand(ILI9341_PIXELFORMAT);
+            WriteData16bit(0x55);
+        }
+    	SetAreaILI9341(xstart,ystart,xend,yend, 1);
+    } else if(Option.DISPLAY_TYPE==IPS_4_16) {
+    	if(LCDAttrib==1)WriteCmdDataIPS_4_16(0x3A00,1,0x55);
+    	SetAreaIPS_4_16(xstart,ystart,xend,yend, 1);
+    } else {
+        SetAreaSSD1963(xstart,ystart,xend,yend);                                // setup the area to be filled
         WriteComand(CMD_WR_MEMSTART);
-    } else SetAreaILI9341(xstart,ystart,xend,yend,1);
+    }
     int i;
     int cnt=2;
     if(map[15]==0){
@@ -4737,11 +4746,15 @@ void copyframetoscreen(uint8_t *s,int xstart, int xend, int ystart, int yend, in
                 col[1]=(RGB121map[i]>>8) & 0xFF;
                 col[2]=(RGB121map[i] & 0xFF);
                 cnt=3;
-            } else if(Option.DISPLAY_TYPE>=SSDPANEL && Option.DISPLAY_TYPE<VIRTUAL){
+            } else if(Option.DISPLAY_TYPE>=SSDPANEL && Option.DISPLAY_TYPE<=SSD_PANEL_8){
                 col[2]=(RGB121map[i]>>16);
                 col[1]=(RGB121map[i]>>8) & 0xFF;
                 col[0]=(RGB121map[i] & 0xFF);
                 cnt=3;
+            } else if(Option.DISPLAY_TYPE>SSD_PANEL_8){
+                map[i]=((RGB121map[i]>>8) & 0xf800) | ((RGB121map[i]>>5) & 0x07e0) | ((RGB121map[i]>>3) & 0x001f);
+                cnt=3;
+                continue;
             } else {
                 col[0]= ((RGB121map[i] >> 16) & 0b11111000) | ((RGB121map[i] >> 13) & 0b00000111);
                 col[1] = ((RGB121map[i] >>  5) & 0b11100000) | ((RGB121map[i] >>  3) & 0b00011111);
@@ -4794,26 +4807,28 @@ void copyframetoscreen(uint8_t *s,int xstart, int xend, int ystart, int yend, in
         else spi_finish(spi1);
         ClearCS(Option.LCD_CS);                  //set CS high
     } else {
-        if(odd){
-            c=map[(*s & 0xF0)>>4];
-            gpio_put_masked(0b11111111,(c >> 16));
-            nop;gpio_put(SSD1963_WR_GPPIN,0);nop;nop;gpio_put(SSD1963_WR_GPPIN,1);
-            gpio_put_masked(0b11111111,(c >> 8));
-            nop;gpio_put(SSD1963_WR_GPPIN,0);nop;nop;gpio_put(SSD1963_WR_GPPIN,1);
-            nop;gpio_put_masked(0b11111111,c);
-            gpio_put(SSD1963_WR_GPPIN,0);nop;nop;gpio_put(SSD1963_WR_GPPIN,1);
-            s++;
-            i--;
-        }
-        while(i>0){
-            c=map[*s & 0xF];
-            gpio_put_masked(0b11111111,(c >> 16));
-            nop;gpio_put(SSD1963_WR_GPPIN,0);nop;nop;gpio_put(SSD1963_WR_GPPIN,1);
-            gpio_put_masked(0b11111111,(c >> 8));
-            nop;gpio_put(SSD1963_WR_GPPIN,0);nop;nop;gpio_put(SSD1963_WR_GPPIN,1);
-            nop;gpio_put_masked(0b11111111,c);
-            gpio_put(SSD1963_WR_GPPIN,0);nop;nop;gpio_put(SSD1963_WR_GPPIN,1);
-            if(i>1){
+        if(Option.DISPLAY_TYPE>SSD_PANEL_8){
+            if(odd){
+                c=map[(*s & 0xF0)>>4];
+                gpio_put_masked(0xFFFF,c);
+                nop;gpio_put(SSD1963_WR_GPPIN,0);nop;nop;gpio_put(SSD1963_WR_GPPIN,1);
+                s++;
+                i--;
+            }
+            while(i>0){
+                c=map[*s & 0xF];
+                gpio_put_masked(0xFFFF,c);
+                nop;gpio_put(SSD1963_WR_GPPIN,0);nop;nop;gpio_put(SSD1963_WR_GPPIN,1);
+                if(i>1){
+                    c=map[(*s & 0xF0)>>4];
+                    gpio_put_masked(0xFFFF,c);
+                    nop;gpio_put(SSD1963_WR_GPPIN,0);nop;nop;gpio_put(SSD1963_WR_GPPIN,1);
+                }
+                s++;
+                i-=2;
+            }
+        } else {
+            if(odd){
                 c=map[(*s & 0xF0)>>4];
                 gpio_put_masked(0b11111111,(c >> 16));
                 nop;gpio_put(SSD1963_WR_GPPIN,0);nop;nop;gpio_put(SSD1963_WR_GPPIN,1);
@@ -4821,9 +4836,29 @@ void copyframetoscreen(uint8_t *s,int xstart, int xend, int ystart, int yend, in
                 nop;gpio_put(SSD1963_WR_GPPIN,0);nop;nop;gpio_put(SSD1963_WR_GPPIN,1);
                 nop;gpio_put_masked(0b11111111,c);
                 gpio_put(SSD1963_WR_GPPIN,0);nop;nop;gpio_put(SSD1963_WR_GPPIN,1);
+                s++;
+                i--;
             }
-            s++;
-            i-=2;
+            while(i>0){
+                c=map[*s & 0xF];
+                gpio_put_masked(0b11111111,(c >> 16));
+                nop;gpio_put(SSD1963_WR_GPPIN,0);nop;nop;gpio_put(SSD1963_WR_GPPIN,1);
+                gpio_put_masked(0b11111111,(c >> 8));
+                nop;gpio_put(SSD1963_WR_GPPIN,0);nop;nop;gpio_put(SSD1963_WR_GPPIN,1);
+                nop;gpio_put_masked(0b11111111,c);
+                gpio_put(SSD1963_WR_GPPIN,0);nop;nop;gpio_put(SSD1963_WR_GPPIN,1);
+                if(i>1){
+                    c=map[(*s & 0xF0)>>4];
+                    gpio_put_masked(0b11111111,(c >> 16));
+                    nop;gpio_put(SSD1963_WR_GPPIN,0);nop;nop;gpio_put(SSD1963_WR_GPPIN,1);
+                    gpio_put_masked(0b11111111,(c >> 8));
+                    nop;gpio_put(SSD1963_WR_GPPIN,0);nop;nop;gpio_put(SSD1963_WR_GPPIN,1);
+                    nop;gpio_put_masked(0b11111111,c);
+                    gpio_put(SSD1963_WR_GPPIN,0);nop;nop;gpio_put(SSD1963_WR_GPPIN,1);
+                }
+                s++;
+                i-=2;
+            }
         }
     }
 }

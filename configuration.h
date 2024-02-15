@@ -31,7 +31,7 @@ extern "C" {
 #define MAXVARS             512                     // 8 + MAXVARLEN + MAXDIM * 2  (ie, 56 bytes) - these do not incl array members
 #define FLASH_TARGET_OFFSET (688 * 1024) 
 #ifdef USBKEYBOARD
-#define HEAP_MEMORY_SIZE (92*1024) 
+#define HEAP_MEMORY_SIZE (96*1024) 
 #define MagicKey 0x15486343
 #else
 #define HEAP_MEMORY_SIZE (100*1024) 

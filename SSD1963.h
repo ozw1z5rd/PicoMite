@@ -35,6 +35,7 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
     // define global functions
     extern void InitSSD1963(void);
     extern void InitILI9341(void);
+    extern void InitILI9341_8(void);
     extern void SetBacklightSSD1963(int intensity);
     extern void SetTearingCfg(int state, int mode);
     extern void DrawBitmapSSD1963(int x1, int y1, int width, int height, int scale, int fg, int bg, unsigned char *bitmap);
@@ -58,6 +59,10 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
     extern volatile int TouchTimer;                                 // used to time the response to touch
     extern void ScrollSSD1963(int lines);
     extern const uint8_t PINMAP[];
+    void WriteData16bit(int data);
+    void Write16bitCommand(int cmd) ;
+    void  SetAreaIPS_4_16(int xstart, int ystart, int xend, int yend, int rw);
+    void WriteCmdDataIPS_4_16(int cmd,int n,int data);
     #define GPIO3       3
     #define GPIO2       2
     #define GPIO1       1
@@ -177,6 +182,14 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
     #define SSD1963_DAT6    7
     #define SSD1963_DAT7    9
     #define SSD1963_DAT8    10
+    #define SSD1963_DAT9    11
+    #define SSD1963_DAT10    12
+    #define SSD1963_DAT11    14
+    #define SSD1963_DAT12    15
+    #define SSD1963_DAT13    16
+    #define SSD1963_DAT14    17
+    #define SSD1963_DAT15    19
+    #define SSD1963_DAT16   20
     #define SSD1963_DC_GPPIN  Option.SSD_DC
     #define SSD1963_WR_GPPIN  Option.SSD_WR
     #define SSD1963_RD_GPPIN  Option.SSD_RD
@@ -189,6 +202,14 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
     #define SSD1963_GPDAT6    5
     #define SSD1963_GPDAT7    6
     #define SSD1963_GPDAT8    7
+    #define SSD1963_GPDAT9    8
+    #define SSD1963_GPDAT10    9
+    #define SSD1963_GPDAT11    10
+    #define SSD1963_GPDAT12    11
+    #define SSD1963_GPDAT13    12
+    #define SSD1963_GPDAT14    13
+    #define SSD1963_GPDAT15    14
+    #define SSD1963_GPDAT16    15
 
     #define nop asm("NOP")
 #define ILI9341_PWCTR1  0xC0

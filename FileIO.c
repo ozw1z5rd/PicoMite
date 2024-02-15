@@ -345,7 +345,7 @@ void cmd_disk(void){
     }
     if(strcmp(b, "A:")==0)  { FatFSFileSystem = FatFSFileSystemSave = 0;  return; }
     if(strcmp(b, "B:")==0)    {
-        if(!Option.SD_CS)error("B: drive not enabled");
+        if(!(Option.SD_CS || Option.CombinedCS))error("B: drive not enabled");
         FatFSFileSystem = FatFSFileSystemSave = 1;
         return; 
     }
@@ -2087,7 +2087,7 @@ int InitSDCard(void)
     if(!FatFSFileSystem) return 1;
     int i;
     ErrorThrow(0,NONEFILE); // reset mm.errno to zero
-    if ((IsInvalidPin(Option.SD_CS) || (IsInvalidPin(Option.SYSTEM_MOSI) && IsInvalidPin(Option.SD_MOSI_PIN)) || (IsInvalidPin(Option.SYSTEM_MISO) && IsInvalidPin(Option.SD_MISO_PIN)) || (IsInvalidPin(Option.SYSTEM_CLK) && IsInvalidPin(Option.SD_CLK_PIN))))
+    if (((IsInvalidPin(Option.SD_CS) && !Option.CombinedCS) || (IsInvalidPin(Option.SYSTEM_MOSI) && IsInvalidPin(Option.SD_MOSI_PIN)) || (IsInvalidPin(Option.SYSTEM_MISO) && IsInvalidPin(Option.SD_MISO_PIN)) || (IsInvalidPin(Option.SYSTEM_CLK) && IsInvalidPin(Option.SD_CLK_PIN))))
         error("SDcard not configured");
     if (!(SDCardStat & STA_NOINIT))
         return 1; // if the card is present and has been initialised we have nothing to do
@@ -3653,6 +3653,7 @@ void ResetOptions(void)
 #else
     Option.CPU_Speed = 133000;
     Option.KeyboardConfig = NO_KEYBOARD;
+    Option.SSD_RESET = -1;
 #endif
 #endif
 #ifdef PICOMITEWEB

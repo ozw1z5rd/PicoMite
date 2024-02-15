@@ -170,6 +170,7 @@ extern int X_TILE, Y_TILE;
 extern int CameraSlice;
 extern int CameraChannel;
 extern char id_out[];
+extern uint16_t SD_CLK_PIN,SD_MOSI_PIN,SD_MISO_PIN, SD_CS_PIN;
 #ifdef PICOMITEVGA
 extern uint32_t __attribute__ ((aligned (256))) M_Foreground[16];
 extern uint32_t __attribute__ ((aligned (256))) M_Background[16];

@@ -85,6 +85,7 @@ bool USBenabled=false;
 volatile int WIFIconnected=0;
 int startupcomplete=0;
 void ProcessWeb(int mode);
+char LCDAttrib=0;
 #endif
 #ifdef PICOMITE
 #ifdef USBKEYBOARD
@@ -105,6 +106,7 @@ mutex_t	frameBufferMutex;					// mutex to lock frame buffer
 #include "pico/multicore.h"
 mutex_t	frameBufferMutex;					// mutex to lock frame buffer
 #endif
+char LCDAttrib=0;
 #endif
 #define KEYCHECKTIME 16
 int ListCnt;
@@ -274,7 +276,7 @@ const struct s_PinDef PinDef[NBRPINS + 1]={
 		{ 4,  2, "GP2",  DIGITAL_IN | DIGITAL_OUT | SPI0SCK | I2C1SDA | PWM1A ,99,1},   		    // pin 4
 		{ 5,  3, "GP3",  DIGITAL_IN | DIGITAL_OUT | SPI0TX | I2C1SCL | PWM1B ,99,129},    			// pin 5
 		{ 6,  4, "GP4",  DIGITAL_IN | DIGITAL_OUT | SPI0RX| UART1TX  | I2C0SDA | PWM2A ,99,2},  	// pin 6
-		{ 7,  5, "GP5",  DIGITAL_IN | DIGITAL_OUT | UART1RX | I2C0SCL | PWM2B	,99,130},    		// pin 7
+		{ 7,  5, "GP5",   DIGITAL_IN | DIGITAL_OUT | UART1RX | I2C0SCL | PWM2B	,99,130},    		// pin 7
 		{ 8, 99, "GND",  UNUSED  ,99, 99},                                                          // pin 8
 		{ 9,  6, "GP6",  DIGITAL_IN | DIGITAL_OUT | SPI0SCK | I2C1SDA | PWM3A	,99, 3},  			// pin 9
 		{ 10,  7, "GP7",  DIGITAL_IN | DIGITAL_OUT | SPI0TX | I2C1SCL | PWM3B	,99, 131}, 		    // pin 10
@@ -937,7 +939,7 @@ bool __not_in_flash_func(timer_callback)(repeating_timer_t *rt)
         if(Timer1)Timer1--;
         if(KeyCheck)KeyCheck--;
         ClassicTimer++;
-        if(diskchecktimer && Option.SD_CS)diskchecktimer--;
+        if(diskchecktimer && (Option.SD_CS || Option.CombinedCS))diskchecktimer--;
 	    if(++CursorTimer > CURSOR_OFF + CURSOR_ON) CursorTimer = 0;		// used to control cursor blink rate
         if(CFuncmSec) CallCFuncmSec();                                  // the 1mS tick for CFunctions (see CFunction.c)
         if(InterruptUsed) {
