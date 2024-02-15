@@ -19,6 +19,10 @@ Source files for all PicoMite variants
 
 PicoMite V5.09.00b0
 
+Support for 16-bit displays. Shared CS pin for touch and SDcard. Optional connection to reset pin for all parallel displays. 
+
+PicoMite V5.09.00b0
+
 Rationalisation of SPRITE AND BLIT. SPRITE SET TRANSPARENT RGB121colour. PRINT to VGA or LCD screen respects OPTION TAB
 
 PicoMite V5.08.00
