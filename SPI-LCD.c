@@ -249,8 +249,10 @@ void MIPS16 InitDisplaySPI(int InitOnly) {
         	DrawRectangle = DrawRectangleSPI;
         	DrawBitmap = DrawBitmapSPI;
         	DrawBuffer = DrawBufferSPI;
+        	DrawBLITBuffer = DrawBufferSPI;
         	if(Option.DISPLAY_TYPE == ILI9341 || Option.DISPLAY_TYPE == ILI9488 || Option.DISPLAY_TYPE == ST7789B){
 				ReadBuffer = ReadBufferSPI;
+				ReadBLITBuffer = ReadBufferSPI;
 				ScrollLCD = ScrollLCDSPI;
 			}
         } else {
@@ -258,6 +260,8 @@ void MIPS16 InitDisplaySPI(int InitOnly) {
             DrawBitmap = DrawBitmapMEM;
         	DrawBuffer = DrawBufferMEM;
 			ReadBuffer = ReadBufferMEM;
+        	DrawBLITBuffer = DrawBufferMEM;
+			ReadBLITBuffer = ReadBufferMEM;
         }
 		DrawPixel=DrawPixelNormal;
     }

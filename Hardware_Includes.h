@@ -170,7 +170,10 @@ extern int X_TILE, Y_TILE;
 extern int CameraSlice;
 extern int CameraChannel;
 extern char id_out[];
+extern uint8_t *buff320;
 extern uint16_t SD_CLK_PIN,SD_MOSI_PIN,SD_MISO_PIN, SD_CS_PIN;
+extern bool screen320;
+extern void clear320(void);
 #ifdef PICOMITEVGA
 extern uint32_t __attribute__ ((aligned (256))) M_Foreground[16];
 extern uint32_t __attribute__ ((aligned (256))) M_Background[16];
@@ -189,7 +192,7 @@ extern volatile int VGAxoffset,VGAyoffset;
 #endif
 // console related I/O
 #ifdef USBKEYBOARD
-	extern void clearrepeat(void);
+extern void clearrepeat(void);
 	extern uint8_t Current_USB_devices;
 	extern void cmd_mouse(unsigned char *p);
 	extern bool USBenabled;

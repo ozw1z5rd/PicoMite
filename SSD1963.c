@@ -40,7 +40,8 @@ int SSD1963PixelInterface, SSD1963PixelFormat;
 int SSD1963rgb;
 void WriteCmdDataIPS_4_16(int cmd,int n,int data);
 unsigned int ReadData(void);
-
+void ReadBLITBufferSSD1963(int x1, int y1, int x2, int y2, unsigned char* p);
+void DrawBLITBufferSSD1963(int x1, int y1, int x2, int y2, unsigned char* p);
 //#define dx(...) {char s[140];sprintf(s,  __VA_ARGS__); SerUSBPutS(s); SerUSBPutS("\r\n");}
 
 
@@ -142,6 +143,7 @@ void MIPS16 ConfigDisplaySSD(unsigned char *p) {
         int pin = getinteger(argv[6]);
         if(!code)pin=codemap(pin);
         if(IsInvalidPin(pin)) error("Invalid pin");
+        if(Option.DISPLAY_TYPE>SSD_PANEL_8 && PinDef[pin].GPno!=16)error("Must be GP16 for 16-bit displays");
         if(ExtCurrentConfig[pin] != EXT_NOT_CONFIG)  error("Pin %/| is in use",pin,pin);
         Option.SSD_DC = PinDef[pin].GPno;
         Option.SSD_WR=  Option.SSD_DC+1;
@@ -166,7 +168,7 @@ void MIPS16 ConfigDisplaySSD(unsigned char *p) {
     }
 
     CheckPin(SSD1963_DC_PIN, OptionErrorCheck);
-//    CheckPin(SSD1963_RESET_PIN, OptionErrorCheck);
+    if(Option.SSD_RESET!=-1) CheckPin(SSD1963_RESET_PIN, OptionErrorCheck);
     CheckPin(SSD1963_WR_PIN, OptionErrorCheck);
     CheckPin(SSD1963_RD_PIN, OptionErrorCheck);
 
@@ -672,6 +674,13 @@ void MIPS16 InitDisplaySSD(void) {
     else ScrollLCD=ScrollLCDSPI;
     DrawBuffer = DrawBufferSSD1963;
     ReadBuffer = ReadBufferSSD1963;
+    if(SSD16TYPE || Option.DISPLAY_TYPE==IPS_4_16){
+        DrawBLITBuffer= DrawBLITBufferSSD1963;
+        ReadBLITBuffer = ReadBLITBufferSSD1963;
+    } else {
+        DrawBLITBuffer= DrawBufferSSD1963;
+        ReadBLITBuffer = ReadBufferSSD1963;
+    }
     DrawPixel = DrawPixelNormal;
     if(Option.DISPLAY_TYPE==ILI9341_8)InitILI9341_8();
     else if(Option.DISPLAY_TYPE==ILI9341_16 || Option.DISPLAY_TYPE == ILI9486_16  )InitILI9341();
@@ -712,7 +721,7 @@ void WriteData(int data) {
 void WriteColor(unsigned int c) {
     if(Option.DISPLAY_TYPE>SSD_PANEL_8){
         gpio_put_masked(0xFFFF,c);
-        nop;gpio_put(SSD1963_WR_GPPIN,0);nop;nop;gpio_put(SSD1963_WR_GPPIN,1);
+        gpio_put(SSD1963_WR_GPPIN,0);nop;gpio_put(SSD1963_WR_GPPIN,1);
     } else {
         gpio_put_masked(0b11111111,(c >> 16));
         nop;gpio_put(SSD1963_WR_GPPIN,0);nop;nop;gpio_put(SSD1963_WR_GPPIN,1);
@@ -742,9 +751,8 @@ void WriteDataSlow(int data) {
 
 
 // Read a byte from the SSD1963
-unsigned int ReadData(void) {
+inline __attribute((always_inline)) unsigned int ReadData(void) {
     gpio_put(SSD1963_RD_GPPIN,0);nop;nop;nop;nop;nop;nop;gpio_put(SSD1963_RD_GPPIN,1);
-//    nop;nop;nop;nop;nop;
     return (gpio_get_all() & (Option.DISPLAY_TYPE>SSD_PANEL_8 ? 0xFFFF : 0xFF));
 }
 
@@ -1186,8 +1194,9 @@ void PhysicalDrawRect(int x1, int y1, int x2, int y2, int c) {
         c=((c>>8) & 0xf800) | ((c>>5) & 0x07e0) | ((c>>3) & 0x001f);
         i=(x2 - x1 + 1) * (y2 - y1 + 1);
         while(i--){
-            gpio_put_masked(0xFFFF,c);
-            nop;gpio_put(SSD1963_WR_GPPIN,0);nop;gpio_put(SSD1963_WR_GPPIN,1);
+            gpio_put_masked(0x2FFFF,c);
+            //nop;gpio_put(SSD1963_WR_GPPIN,0);
+            nop;gpio_put(SSD1963_WR_GPPIN,1);
         }
     } else {
         for(i = (x2 - x1 + 1) * (y2 - y1 + 1); i > 0; i--)
@@ -1244,6 +1253,31 @@ void DrawRectangleSSD1963(int x1, int y1, int x2, int y2, int c) {
     } else
         PhysicalDrawRect(x1, y1, x2, y2, c);                        // the whole box is within the frame buffer - much easier
 }
+void DrawRectangle320(int x1, int y1, int x2, int y2, int c) {
+    if(Option.DISPLAY_TYPE!=SSD1963_4_16){
+        y1*=2;
+        y2=y2*2+1;
+        HRes=720;
+        VRes=480;
+        x1=x1*2+80;
+        x2=x2*2+81;
+    } else {
+        HRes=400;
+        VRes=272;
+        x1+=80;
+        x2+=80;
+        y1+=16;
+        y2+=16;
+        if(y1<16 && y2<16)return;
+    }
+    if(x1<80 && x2<80)return;
+    if(x1<80)x1=80;
+    if(x2<80)x2=80;
+    DrawRectangleSSD1963(x1,y1,x2,y2,c);
+    HRes=320;
+    VRes=240;
+}
+
 
 
 // written by Peter Mather (matherp on the Back Shed forum)
@@ -1340,8 +1374,146 @@ void DrawBufferSSD1963(int x1, int y1, int x2, int y2, unsigned char* p) {
         }
     }
 }
+void DrawBuffer320(int x1, int y1, int x2, int y2, unsigned char* p){
+    int t;
+    if(x2 <= x1) { t = x1; x1 = x2; x2 = t; }
+    if(y2 <= y1) { t = y1; y1 = y2; y2 = t; }
+    if(x1 < 0) x1 = 0; 
+    if(x1 >= HRes) x1 = HRes - 1;
+    if(x2 < 0) x2 = 0; 
+    if(x2 >= HRes) x2 = HRes - 1;
+    if(y1 < 0) y1 = 0; 
+    if(y1 >= VRes) y1 = VRes - 1;
+    if(y2 < 0) y2 = 0; 
+    if(y2 >= VRes) y2 = VRes - 1;
+    if(Option.DISPLAY_TYPE!=SSD1963_4_16){
+        HRes=720;
+        VRes=480;
+    } else {
+        HRes=400;
+        VRes=256;
+    }
+    unsigned char *q = buff320;
+    for(int y=y1;y<=y2;y++){
+        int yo=y*2;
+        unsigned char *pp=q;
+        if(Option.DISPLAY_TYPE!=SSD1963_4_16){
+            for(int x=x1;x<=x2;x++){
+                pp[0]=pp[3]=*p++;
+                pp[1]=pp[4]=*p++;
+                pp[2]=pp[5]=*p++;
+                pp+=6;
+            }
+            DrawBufferSSD1963(x1*2+80,yo,x2*2+81,yo,q);
+            DrawBufferSSD1963(x1*2+80,yo+1,x2*2+81,yo+1,q);
+        } else {
+            for(int x=x1;x<=x2;x++){
+                pp[0]=*p++;
+                pp[1]=*p++;
+                pp[2]=*p++;
+                pp+=3;
+            }
+            DrawBufferSSD1963(x1+80,y+16,x2+80,y+16,q);
+        }
 
-
+    }
+    HRes=320;
+    VRes=240;
+}
+void DrawBLITBufferSSD1963(int x1, int y1, int x2, int y2, unsigned char* p) {
+    int i,t;
+    // make sure the coordinates are kept within the display area
+    if(x2 <= x1) { t = x1; x1 = x2; x2 = t; }
+    if(y2 <= y1) { t = y1; y1 = y2; y2 = t; }
+    if(x1 < 0) x1 = 0; 
+    if(x1 >= HRes) x1 = HRes - 1;
+    if(x2 < 0) x2 = 0; 
+    if(x2 >= HRes) x2 = HRes - 1;
+    if(y1 < 0) y1 = 0; 
+    if(y1 >= VRes) y1 = VRes - 1;
+    if(y2 < 0) y2 = 0; 
+    if(y2 >= VRes) y2 = VRes - 1;
+    uint16_t *pp = (uint16_t *)p;
+    t = y2 - y1;                                                    // get the distance between the top and bottom
+    if(Option.DISPLAY_TYPE!=ILI9341_8){
+        if(Option.DISPLAY_ORIENTATION == RLANDSCAPE)
+            y1 = (y1 + (VRes - ScrollStart)) % VRes;
+        else
+            y1 = (y1 + ScrollStart) % VRes;
+        y2 = y1 + t; 
+    }                                                   // and set y2 to the same
+    if(y2 >= VRes) {
+        SetAreaSSD1963(x1, y1, x2, VRes - 1);                       // if the box splits over the frame buffer boundary
+        WriteComand(CMD_WR_MEMSTART);
+        for(i = (x2 - x1 + 1) * ((VRes - 1) - y1 + 1); i > 0; i--){
+            gpio_put_masked(0x2FFFF,*pp++);
+            nop;gpio_put(SSD1963_WR_GPPIN,1);
+        }
+        SetAreaSSD1963(x1, 0, x2, y2 - VRes );
+        WriteComand(CMD_WR_MEMSTART);
+        for(i = (x2 - x1 + 1) * (y2 - VRes + 1); i > 0; i--) {
+            gpio_put_masked(0x2FFFF,*pp++);
+            nop;gpio_put(SSD1963_WR_GPPIN,1);
+        }
+    } else {
+        // the whole box is within the frame buffer - much easier
+        if(Option.DISPLAY_TYPE==IPS_4_16) {
+            SetAreaIPS_4_16(x1, y1 , x2, y2, 1);
+        }  else {
+            SetAreaSSD1963(x1, y1 , x2, y2);                                // setup the area to be filled
+            WriteComand(CMD_WR_MEMSTART);
+        }
+        for(int y=y1;y<=y2;y++){
+            for(int x=x1;x<=x2;x++){
+                if(x>=0 && x<HRes && y>=0 && y<VRes){
+                    gpio_put_masked(0x2FFFF,*pp++);
+                    nop;gpio_put(SSD1963_WR_GPPIN,1);
+                } else pp++;
+            }
+        }
+    }
+}
+void DrawBLITBuffer320(int x1, int y1, int x2, int y2, unsigned char* p){
+    int t;
+    if(x2 <= x1) { t = x1; x1 = x2; x2 = t; }
+    if(y2 <= y1) { t = y1; y1 = y2; y2 = t; }
+    if(x1 < 0) x1 = 0; 
+    if(x1 >= HRes) x1 = HRes - 1;
+    if(x2 < 0) x2 = 0; 
+    if(x2 >= HRes) x2 = HRes - 1;
+    if(y1 < 0) y1 = 0; 
+    if(y1 >= VRes) y1 = VRes - 1;
+    if(y2 < 0) y2 = 0; 
+    if(y2 >= VRes) y2 = VRes - 1;
+    if(Option.DISPLAY_TYPE!=SSD1963_4_16){
+        HRes=720;
+        VRes=480;
+    } else {
+        HRes=400;
+        VRes=256;
+    }
+    unsigned char *q = buff320;
+    for(int x=x1;x<=x2;x++){
+        unsigned char *pp=q;
+        if(Option.DISPLAY_TYPE!=SSD1963_4_16){
+            for(int y=y1;y<=y2;y++){
+                pp[0]=pp[2]=*p++;
+                pp[1]=pp[3]=*p++;
+                pp+=4;
+            }
+            DrawBLITBufferSSD1963(x*2+80,y1*2,x*2+80,y2*2,q);
+            DrawBLITBufferSSD1963(x*2+81,y1*2,x*2+81,y2*2,q);
+        } else {
+            for(int y=y1;y<=y2;y++){
+                *pp++=*p++;
+                *pp++=*p++;
+            }
+            DrawBLITBufferSSD1963(x+80,y1+16,x+80,y2+16,q);
+        }
+    }
+    HRes=320;
+    VRes=240;
+}
 // Read RGB colour over an 8 bit bus
 inline __attribute((always_inline)) unsigned int ReadColor(void) {
     if(Option.DISPLAY_TYPE>SSD_PANEL_8){
@@ -1495,7 +1667,167 @@ void ReadBufferSSD1963(int x1, int y1, int x2, int y2, unsigned char* p) {
         uSec(10);
     }
 }
+void ReadBuffer320(int x1, int y1, int x2, int y2, unsigned char* p) {
+    int t;
+    if(x2 <= x1) { t = x1; x1 = x2; x2 = t; }
+    if(y2 <= y1) { t = y1; y1 = y2; y2 = t; }
+    if(x1 < 0) x1 = 0; 
+    if(x1 >= HRes) x1 = HRes - 1;
+    if(x2 < 0) x2 = 0; 
+    if(x2 >= HRes) x2 = HRes - 1;
+    if(y1 < 0) y1 = 0; 
+    if(y1 >= VRes) y1 = VRes - 1;
+    if(y2 < 0) y2 = 0; 
+    if(y2 >= VRes) y2 = VRes - 1;
+    if(Option.DISPLAY_TYPE!=SSD1963_4_16){
+        HRes=720;
+        VRes=480;
+    } else {
+        HRes=400;
+        VRes=256;
+    }
+    unsigned char *q = buff320;
+    for(int y=y1;y<=y2;y++){
+        int yo=y*2;
+        if(Option.DISPLAY_TYPE!=SSD1963_4_16)ReadBufferSSD1963(x1*2+80,yo,x2*2+81,yo,q);
+        else ReadBufferSSD1963(x1+80,y+16,x2+80,y+16,q);
+        unsigned char *pp=q;
+        for(int x=x1;x<=x2;x++){
+            *p++=*pp++;
+            *p++=*pp++;
+            *p++=*pp++;
+            pp+=3;
+        }
+    }
+    HRes=320;
+    VRes=240;
+}
+void ReadBLITBufferSSD1963(int x1, int y1, int x2, int y2, unsigned char* p) {
+    int i, t;
+	int toggle=0,t1=0, nr=0 ;
+    union colourmap {
+      char rgbbytes[4];
+      unsigned int rgb;
+    } c;
+    // make sure the coordinates are kept within the display area
+    if(x2 <= x1) { t = x1; x1 = x2; x2 = t; }
+    if(y2 <= y1) { t = y1; y1 = y2; y2 = t; }
+    if(x1 < 0) x1 = 0; 
+    if(x1 >= HRes) x1 = HRes - 1;
+    if(x2 < 0) x2 = 0; 
+    if(x2 >= HRes) x2 = HRes - 1;
+    if(y1 < 0) y1 = 0; 
+    if(y1 >= VRes) y1 = VRes - 1;
+    if(y2 < 0) y2 = 0; 
+    if(y2 >= VRes) y2 = VRes - 1;
+    uint16_t *pp=(uint16_t *)p;
+    t = y2 - y1;                                                    // get the distance between the top and bottom
+    if(Option.DISPLAY_ORIENTATION == RLANDSCAPE)
+        y1 = (y1 + (VRes - ScrollStart)) % VRes;
+    else
+        y1 = (y1 + ScrollStart) % VRes;
+    y2 = y1 + t;  
 
+    if(y2 >= VRes) {
+        SetAreaSSD1963(x1, y1, x2, VRes - 1);                       // if the box splits over the frame buffer boundary
+        WriteComand(CMD_RD_MEMSTART);
+        gpio_set_dir_in_masked(0xFFFF);
+        i=(x2 - x1 + 1) * ((VRes - 1) - y1 + 1);
+        uSec(2);
+        for( ; i > 1; i--) {                                        // NB loop counter terminates 1 pixel earlier
+            gpio_put(SSD1963_RD_GPPIN,0);nop;nop;nop;nop;nop;nop;gpio_put(SSD1963_RD_GPPIN,1);
+            *pp++ =  (gpio_get_all() & 0xFFFF);
+        }
+        gpio_set_dir_out_masked(0xFFFF);
+        uSec(2);
+        SetAreaSSD1963(x1, 0, x2, y2 - VRes );
+        WriteComand(CMD_RD_MEMSTART);
+        gpio_set_dir_in_masked(0xFFFF);
+        uSec(2);
+        for(i = (x2 - x1 + 1) * (y2 - VRes + 1); i > 1; i--) {     // NB loop counter terminates 1 pixel earlier
+            gpio_put(SSD1963_RD_GPPIN,0);nop;nop;nop;nop;nop;nop;gpio_put(SSD1963_RD_GPPIN,1);
+            *pp++ =  (gpio_get_all() & 0xFFFF);
+        }
+        gpio_set_dir_out_masked(0xFFFF);
+        uSec(2);
+    } else {
+        if(Option.DISPLAY_TYPE==IPS_4_16) {
+            if(LCDAttrib==1)WriteCmdDataIPS_4_16(0x3A00,1,0x66);
+            SetAreaIPS_4_16(x1, y1 , x2, y2, 0);
+            ReadDataSlow();
+        } else {
+            SetAreaSSD1963(x1, y1 , x2, y2);                                // setup the area to be filled
+            WriteComand(CMD_RD_MEMSTART);
+        }
+        gpio_set_dir_in_masked(0xFFFF);
+        uSec(2);
+        for(i = (x2 - x1 + 1) * (y2 - y1 + 1); i > 0; i--){
+            if(Option.DISPLAY_TYPE==IPS_4_16) {
+                if(toggle==0){     //RGBR 8bit each
+                    t=ReadDataIPS(); 
+                    t1=ReadDataIPS(); 
+
+                    c.rgbbytes[0]=(t1 & 0xF800)>>8;  //BLUE
+                    c.rgbbytes[1]=(t & 0xFC);      //GREEN
+                    c.rgbbytes[2]=(t & 0xF800)>>8;   //RED
+                    *pp++=((c.rgb>>8) & 0xf800) | ((c.rgb>>5) & 0x07e0) | ((c.rgb>>3) & 0x001f);
+                    nr=(t1 & 0xF8);       //save next red
+
+                    if(LCDAttrib==1){  //NT35510 does not need toggle=1
+                        toggle=0;
+                    }else{
+                        toggle=1;
+
+                	}
+                } else {
+                    t=ReadDataIPS(); //get the second  GB
+                    c.rgbbytes[0]=(t & 0xF8);       //Blue
+                    c.rgbbytes[1]=(t & 0xFC00)>>8;  //Green   FIX  HERE
+                    c.rgbbytes[2]=nr ;              //add the red
+                    *pp++=((c.rgb>>8) & 0xf800) | ((c.rgb>>5) & 0x07e0) | ((c.rgb>>3) & 0x001f);
+                    toggle=0;
+                }
+            } else {
+                gpio_put(SSD1963_RD_GPPIN,0);nop;nop;nop;nop;nop;nop;gpio_put(SSD1963_RD_GPPIN,1);
+                *pp++ =  (gpio_get_all() & 0xFFFF);
+            }
+        }
+        gpio_set_dir_out_masked(0xFFFF);
+    }
+}
+void ReadBLITBuffer320(int x1, int y1, int x2, int y2, unsigned char* p) {
+    int t;
+    if(x2 <= x1) { t = x1; x1 = x2; x2 = t; }
+    if(y2 <= y1) { t = y1; y1 = y2; y2 = t; }
+    if(x1 < 0) x1 = 0; 
+    if(x1 >= HRes) x1 = HRes - 1;
+    if(x2 < 0) x2 = 0; 
+    if(x2 >= HRes) x2 = HRes - 1;
+    if(y1 < 0) y1 = 0; 
+    if(y1 >= VRes) y1 = VRes - 1;
+    if(y2 < 0) y2 = 0; 
+    if(y2 >= VRes) y2 = VRes - 1;
+    if(Option.DISPLAY_TYPE!=SSD1963_4_16){
+        HRes=720;
+        VRes=480;
+    } else {
+        HRes=400;
+        VRes=256;
+    }
+    unsigned char *q = buff320;
+    for(int x=x1;x<=x2;x++){
+        if(Option.DISPLAY_TYPE!=SSD1963_4_16)ReadBLITBufferSSD1963(x*2+80,y1*2,x*2+80,y2*2,q);
+        else ReadBLITBufferSSD1963(x1+80,y1+16,x2+80,y2+16,q);
+        unsigned char *pp=q;
+        for(int y=y1;y<=y2;y++){
+            *p++=*pp++;
+            *p++=*pp++;
+            if(Option.DISPLAY_TYPE!=SSD1963_4_16)pp+=2;
+        }
+    }
+    HRes=320;
+    VRes=240;
+}
 void fun_getscanline(void){
     if(Option.DISPLAY_TYPE < SSDPANEL && !(Option.DISPLAY_TYPE==ILI9341 || Option.DISPLAY_TYPE==ST7789B || Option.DISPLAY_TYPE==ILI9488)) {
         iret=-1;
@@ -1607,7 +1939,8 @@ void DrawBitmapSSD1963(int x1, int y1, int width, int height, int scale, int fg,
                                 c.rgbbytes[0] = buff[n];
                                 c.rgbbytes[1] = buff[n+1];
                                 c.rgbbytes[2] = buff[n+2];
-                                bg=((c.rgb>>8) & 0xf800) | ((c.rgb>>5) & 0x07e0) | ((c.rgb>>3) & 0x001f);
+                                if(Option.DISPLAY_TYPE>SSD_PANEL_8)bg=((c.rgb>>8) & 0xf800) | ((c.rgb>>5) & 0x07e0) | ((c.rgb>>3) & 0x001f);
+                                else bg=c.rgb;
                             } 
                             WriteColor(bg);
                         }
@@ -1619,7 +1952,31 @@ void DrawBitmapSSD1963(int x1, int y1, int width, int height, int scale, int fg,
     if(buff != NULL) FreeMemory((unsigned char *)buff);
 }
 
+void DrawBitmap320(int x1, int y1, int width, int height, int scale, int fg, int bg, unsigned char *bitmap ){
+    if(Option.DISPLAY_TYPE!=SSD1963_4_16){
+        y1*=2;
+        scale *=2;
+        HRes=720;
+        VRes=480;
+        x1=x1*2+80;
+    } else {
+        x1+=80;
+        y1+=16;
+        HRes=400;
+        VRes=256;
+    }
+    ReadBuffer=ReadBufferSSD1963;
+    if(x1<80){
+        unsigned char *p=GetTempMemory((80-x1)*height*scale*2);
+        ReadBLITBufferSSD1963(x1,y1,79,y1+(height*scale-1),p);
+        DrawBitmapSSD1963(x1, y1, width, height, scale, fg, bg, bitmap );
+        DrawBLITBufferSSD1963(x1,y1,79,y1+(height*scale-1),p);
+    } else DrawBitmapSSD1963(x1, y1, width, height, scale, fg, bg, bitmap );
+    ReadBuffer=ReadBuffer320;
+    HRes=320;
+    VRes=240;
 
+}
 /**********************************************************************************************
  Scroll the image by a number of scan lines
  Will only work in landscape or reverse landscape

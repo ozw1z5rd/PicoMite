@@ -180,6 +180,8 @@ void InitDisplayI2C(int InitOnly){
     DrawBuffer = DrawBufferMEM;
 	ReadBuffer = ReadBufferMEM;
 	DrawPixel  = DrawPixelMEM;
+	DrawBLITBuffer = DrawBufferMEM;
+	ReadBLITBuffer = ReadBufferMEM;
     DisplayHRes = display_details[Option.DISPLAY_TYPE].horizontal;
     DisplayVRes = display_details[Option.DISPLAY_TYPE].vertical;
     I2C_Send_Command(0xAE);//DISPLAYOFF

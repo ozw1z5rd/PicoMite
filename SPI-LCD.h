@@ -314,7 +314,8 @@ extern void __not_in_flash_func(spi_finish)(spi_inst_t *spi);
 #define VS1053fast      49
 #define TFT_NOP 0x00
 #define TFT_SWRST 0x01
-
+#define SSDTYPE (Option.DISPLAY_TYPE>=SSDPANEL && Option.DISPLAY_TYPE<VIRTUAL_C && !(Option.DISPLAY_TYPE==ILI9341_16 || Option.DISPLAY_TYPE==ILI9341_8 || Option.DISPLAY_TYPE==IPS_4_16 || Option.DISPLAY_TYPE==ILI9486_16))
+#define SSD16TYPE (Option.DISPLAY_TYPE>SSD_PANEL_8 && Option.DISPLAY_TYPE<VIRTUAL_C && !(Option.DISPLAY_TYPE==ILI9341_16 || Option.DISPLAY_TYPE==IPS_4_16 || Option.DISPLAY_TYPE==ILI9486_16))
 #define TFT_SLPIN 0x10
 #define TFT_SLPOUT 0x11
 
@@ -402,7 +403,7 @@ extern void __not_in_flash_func(spi_finish)(spi_inst_t *spi);
 #define FLASH_SPI_SPEED 20000000
 #define LCD_SPI_SPEED   25000000                                   // the speed of the SPI bus when talking to an SPI LCD display controller
 #define TOUCH_SPI_SPEED 300000
-#define SLOW_TOUCH_SPEED 240000
+#define SLOW_TOUCH_SPEED 120000
 #define NOKIA_SPI_SPEED 4000000
 #define ST7920_SPI_SPEED 1200000
 #define SDCARD_SPI_SPEED 12000000

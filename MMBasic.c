@@ -1004,6 +1004,7 @@ void  MIPS16 tokenise(int console) {
     STR_REPLACE((char *)inpbuf,"MM.PS2","MM.INFO(PS2)");
     STR_REPLACE((char *)inpbuf,"MM.HPOS","MM.INFO(HPOS)");
     STR_REPLACE((char *)inpbuf,"MM.VPOS","MM.INFO(VPOS)");
+    STR_REPLACE((char *)inpbuf,"SPRITE MEMORY","BLIT MEMORY");
     // setup the input and output buffers
     p = inpbuf;
     op = tknbuf;
@@ -3138,6 +3139,9 @@ void MIPS16 ClearRuntime(void) {
 	optionangle=1.0;
     optionfastaudio=0;
     optionlogging=false;
+#ifndef PICOMITEVGA
+    clear320();
+#endif
     MMerrno = 0;                                                    // clear the error flags
    *MMErrMsg = 0;
     InitHeap();

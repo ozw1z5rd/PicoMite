@@ -45,7 +45,6 @@ void SaveTriangle(int bnbr, char *buff);
 void RestoreTriangle(int bnbr, char *buff);
 void ReadLine(int x1,int y1,int x2,int y2, char *buff);
 void cmd_RestoreTriangle(unsigned char *p);
-void copyframetoscreen(uint8_t *s,int xstart, int xend, int ystart, int yend, int odd);
 void polygon(unsigned char *p, int close);
 typedef struct _BMPDECODER
 {
@@ -162,6 +161,8 @@ void (*DrawBitmap)(int x1, int y1, int width, int height, int scale, int fc, int
 void (*ScrollLCD) (int lines) = (void (*)(int ))DisplayNotSet;
 void (*DrawBuffer)(int x1, int y1, int x2, int y2, unsigned char *c) = (void (*)(int , int , int , int , unsigned char * ))DisplayNotSet;
 void (*ReadBuffer)(int x1, int y1, int x2, int y2, unsigned char *c) = (void (*)(int , int , int , int , unsigned char * ))DisplayNotSet;
+void (*DrawBLITBuffer)(int x1, int y1, int x2, int y2, unsigned char *c) = (void (*)(int , int , int , int , unsigned char * ))DisplayNotSet;
+void (*ReadBLITBuffer)(int x1, int y1, int x2, int y2, unsigned char *c) = (void (*)(int , int , int , int , unsigned char * ))DisplayNotSet;
 void (*DrawBufferFast)(int x1, int y1, int x2, int y2, int blank, unsigned char *c) = (void (*)(int , int , int , int , int, unsigned char * ))DisplayNotSet;
 void (*ReadBufferFast)(int x1, int y1, int x2, int y2, unsigned char *c) = (void (*)(int , int , int , int , unsigned char * ))DisplayNotSet;
 void (*DrawPixel)(int x1, int y1, int c) = (void (*)(int , int , int ))DisplayNotSet;
@@ -367,7 +368,7 @@ void  getargaddress (unsigned char *p, long long int **ip, MMFLOAT **fp, int *n)
         return;
     }
     ptr = findvar((unsigned char *)pp, V_FIND | V_EMPTY_OK | V_NOFIND_NULL);
-    if(ptr && vartbl[VarIndex].type & (T_NBR | T_INT)) {
+    if(ptr && vartbl[VarIndex].type & T_NBR) {
         if(vartbl[VarIndex].dims[0] <= 0){ //simple variable
             *n=1;
             return;
@@ -389,13 +390,34 @@ void  getargaddress (unsigned char *p, long long int **ip, MMFLOAT **fp, int *n)
             }
         }
         if(vartbl[VarIndex].dims[1] != 0) error("Invalid variable");
-        if(vartbl[VarIndex].type & T_NBR)*fp = (MMFLOAT*)ptr;
-        else *ip = (long long int *)ptr;
+        *fp = (MMFLOAT*)ptr;
+    } else if(ptr && vartbl[VarIndex].type & T_INT) {
+        if(vartbl[VarIndex].dims[0] <= 0){
+            *n=1;
+            return;
+        } else {
+            if(*n == 0)*n=vartbl[VarIndex].dims[0] + 1 - OptionBase;
+            else *n = (vartbl[VarIndex].dims[0] + 1 - OptionBase)< *n ? (vartbl[VarIndex].dims[0] + 1 - OptionBase) : *n;
+            skipspace(p);
+            do {
+                p++;
+            } while(isnamechar(*p));
+            if(*p == '%') p++;
+            if(*p == '(') {
+                p++;
+                skipspace(p);
+                if(*p != ')') { //array element
+                    *n=1;
+                    return;
+                }
+            }
+        }
+        if(vartbl[VarIndex].dims[1] != 0) error("Invalid variable");
+        *ip = (long long int *)ptr;
     } else {
     	*n=1; //may be a function call
     }
 }
-
 /****************************************************************************************************
 
  General purpose drawing routines
@@ -3096,8 +3118,9 @@ int blitother(void){
                 s+=y1*HRes/2;
                 copyframetoscreen(s,0,HRes-1,y2,y2+h-1,0);
             } else {
+                if(screen320 && Option.DISPLAY_TYPE!=SSD1963_4_16)x2*=2;
                 char tobuff[w/2], *to;
-                for(int y=y1;y<y1+h;y++){
+                for(int y=y1,yo=y2;y<y1+h;y++,yo++){
                     char *fc=(char *)s+y*HRes/2+x1/2;
                     getnextuncompressednibble(&fc,1+(x1&1)); //reset the decoder
                     int x=x1;
@@ -3136,11 +3159,15 @@ int blitother(void){
                         if(xx+ww>HRes){
                             ww=HRes-xx;
                         }
-                        if(xx>=0 && ww>0 && y>=0 && y<VRes)copyframetoscreen((unsigned char *)tobuff,xx, xx+ww-1, y, y, 0);
-                        if(xx<0 && xx+ww>=0){
-                            char *t=tobuff-(xx/2)-(xx&1);
-                            ww+=xx;
-                            if(ww>0)copyframetoscreen((unsigned char *)t,0, ww-1, y, y, xx&1);
+                        if(x2>=0 && ww>0 && yo>=0 && yo<VRes){
+                            copyframetoscreen((unsigned char *)tobuff,x2, x2+ww-1, yo, yo, 0);
+                        }
+                        if(x2<0 && x2+ww>=0){
+                            char *t=tobuff-((x2)/2)-(x2&1);
+                            ww+=x2;
+                            if(ww>0){
+                                copyframetoscreen((unsigned char *)t,0, ww-1, yo, yo, x2&1);
+                            }
                         }
                         if(x>=x1+w)break;
                     }           
@@ -4681,13 +4708,27 @@ void restorepanel(void){
             ScrollLCD = ScrollLCDSPI;
         }
     } else if(Option.DISPLAY_TYPE>=SSDPANEL && Option.DISPLAY_TYPE < VIRTUAL){
-        DrawRectangle= DrawRectangleSSD1963;
-        DrawBitmap = DrawBitmapSSD1963;
-        if(!(Option.DISPLAY_TYPE == ILI9341_8 || Option.DISPLAY_TYPE == ILI9341_16 || Option.DISPLAY_TYPE == IPS_4_16 ))ScrollLCD = ScrollSSD1963;
-            else ScrollLCD=ScrollLCDSPI;
-        DrawBuffer = DrawBufferSSD1963;
-        ReadBuffer = ReadBufferSSD1963;
+        if(screen320){
+            DrawRectangle = DrawRectangle320;
+            DrawBitmap = DrawBitmap320;
+            DrawBuffer = DrawBuffer320;
+            ReadBuffer = ReadBuffer320;
+        } else {
+            DrawRectangle= DrawRectangleSSD1963;
+            DrawBitmap = DrawBitmapSSD1963;
+            DrawBuffer = DrawBufferSSD1963;
+            ReadBuffer = ReadBufferSSD1963;
+            if(SSD16TYPE || Option.DISPLAY_TYPE==IPS_4_16){
+                DrawBLITBuffer= DrawBLITBufferSSD1963;
+                ReadBLITBuffer = ReadBLITBufferSSD1963;
+            } else {
+                DrawBLITBuffer= DrawBufferSSD1963;
+                ReadBLITBuffer = ReadBufferSSD1963;
+            }
+        }
         DrawPixel = DrawPixelNormal;
+        if(!(Option.DISPLAY_TYPE == ILI9341_8 || Option.DISPLAY_TYPE == ILI9341_16 || Option.DISPLAY_TYPE == IPS_4_16 ))ScrollLCD = ScrollSSD1963;
+        else ScrollLCD=ScrollLCDSPI;
     }
     WriteBuf=NULL;
 }
@@ -4697,6 +4738,8 @@ void setframebuffer(void){
     DrawBitmap= DrawBitmapColour;
     ScrollLCD=ScrollLCDColour;
     DrawBuffer=DrawBufferColour;
+    ReadBLITBuffer=ReadBufferColour;
+    DrawBLITBuffer=DrawBufferColour;
     ReadBuffer=ReadBufferColour;
     DrawBufferFast=DrawBufferColourFast;
     ReadBufferFast=ReadBufferColourFast;
@@ -4722,7 +4765,8 @@ void closeframebuffer(void){
 void copyframetoscreen(uint8_t *s,int xstart, int xend, int ystart, int yend, int odd){
     unsigned char col[3]={0};
     int c;
-    if(Option.DISPLAY_TYPE == ILI9341_8){
+    if(Option.DISPLAY_TYPE>I2C_PANEL && Option.DISPLAY_TYPE<BufferedPanel)DefineRegionSPI(xstart,ystart,xend,yend, 1);
+    else if(Option.DISPLAY_TYPE == ILI9341_8){
         SetAreaILI9341(xstart,ystart,xend,yend, 1);
     } else if(Option.DISPLAY_TYPE == ILI9341_16 || Option.DISPLAY_TYPE == ILI9486_16) {
         if(Option.DISPLAY_TYPE == ILI9486_16){
@@ -4732,13 +4776,22 @@ void copyframetoscreen(uint8_t *s,int xstart, int xend, int ystart, int yend, in
     	SetAreaILI9341(xstart,ystart,xend,yend, 1);
     } else if(Option.DISPLAY_TYPE==IPS_4_16) {
     	if(LCDAttrib==1)WriteCmdDataIPS_4_16(0x3A00,1,0x55);
-    	SetAreaIPS_4_16(xstart,ystart,xend,yend, 1);
+        if(screen320){
+           SetAreaIPS_4_16(xstart+80,ystart*2,xend*2-xstart+81,yend*2+1,1);                                // setup the area to be filled
+        } else {
+            SetAreaIPS_4_16(xstart,ystart,xend,yend, 1);                               // setup the area to be filled
+        }
     } else {
-        SetAreaSSD1963(xstart,ystart,xend,yend);                                // setup the area to be filled
+        if(screen320){
+            if(Option.DISPLAY_TYPE!=SSD1963_4_16)SetAreaSSD1963(xstart+80,ystart*2,xend*2-xstart+81,yend*2+1);                                // setup the area to be filled
+            else SetAreaSSD1963(xstart+80,ystart+16,xend+80,yend+16);
+        } else {
+            SetAreaSSD1963(xstart,ystart,xend,yend);                                // setup the area to be filled
+        }
         WriteComand(CMD_WR_MEMSTART);
     }
     int i;
-    int cnt=2;
+    int cnt=2; 
     if(map[15]==0){
         for(i=0;i<16;i++){
             if(Option.DISPLAY_TYPE==ILI9488 || Option.DISPLAY_TYPE==ILI9481IPS){
@@ -4807,47 +4860,99 @@ void copyframetoscreen(uint8_t *s,int xstart, int xend, int ystart, int yend, in
         else spi_finish(spi1);
         ClearCS(Option.LCD_CS);                  //set CS high
     } else {
-        if(Option.DISPLAY_TYPE>SSD_PANEL_8){
-            if(odd){
-                c=map[(*s & 0xF0)>>4];
-                gpio_put_masked(0xFFFF,c);
-                nop;gpio_put(SSD1963_WR_GPPIN,0);nop;nop;gpio_put(SSD1963_WR_GPPIN,1);
-                s++;
-                i--;
-            }
-            while(i>0){
-                c=map[*s & 0xF];
-                gpio_put_masked(0xFFFF,c);
-                nop;gpio_put(SSD1963_WR_GPPIN,0);nop;nop;gpio_put(SSD1963_WR_GPPIN,1);
-                if(i>1){
+        if(screen320  && Option.DISPLAY_TYPE!=SSD1963_4_16){
+            unsigned char *q = buff320;
+            HRes=720;
+            VRes=480;
+                uint16_t *pp=(uint16_t *)q;
+                if(odd){ //only used for a single line
+                    if(odd){
+                        c=map[(*s & 0xF0)>>4];
+                        *pp++=c;
+                        gpio_put_masked(0x2FFFF,c);
+                        nop;gpio_put(SSD1963_WR_GPPIN,1);
+                        nop;gpio_put(SSD1963_WR_GPPIN,0);nop;gpio_put(SSD1963_WR_GPPIN,1);
+                        s++;
+                        i--;
+                        int x=1;
+                        while(x<=xend-xstart){
+                            c=map[*s & 0xF];
+                            *pp++=c;
+                            gpio_put_masked(0x2FFFF,c);
+                            nop;gpio_put(SSD1963_WR_GPPIN,1);
+                            nop;gpio_put(SSD1963_WR_GPPIN,0);nop;gpio_put(SSD1963_WR_GPPIN,1);
+                            if(i>1){
+                                c=map[(*s & 0xF0)>>4];
+                                *pp++=c;
+                                gpio_put_masked(0x2FFFF,c);
+                                nop;gpio_put(SSD1963_WR_GPPIN,1);
+                                nop;gpio_put(SSD1963_WR_GPPIN,0);nop;gpio_put(SSD1963_WR_GPPIN,1);
+                            }
+                            s++;
+                            i-=2;
+                            x+=2;
+                        }
+                        pp=(uint16_t *)q;
+                        for(int x=xstart;x<=xend;x++){
+                            gpio_put_masked(0x2FFFF,*pp++);
+                            nop;gpio_put(SSD1963_WR_GPPIN,1);
+                            nop;gpio_put(SSD1963_WR_GPPIN,0);nop;gpio_put(SSD1963_WR_GPPIN,1);
+                        }
+                    }
+                } else {
+                    for(int y=ystart;y<=yend;y++){
+                        pp=(uint16_t *)q;
+                        int x=0;
+                        while(x<=xend-xstart){
+                            c=map[*s & 0xF];
+                            *pp++=c;
+                            gpio_put_masked(0x2FFFF,c);
+                            nop;gpio_put(SSD1963_WR_GPPIN,1);
+                            nop;gpio_put(SSD1963_WR_GPPIN,0);nop;gpio_put(SSD1963_WR_GPPIN,1);
+                            if(i>1){
+                                c=map[(*s & 0xF0)>>4];
+                                *pp++=c;
+                                gpio_put_masked(0x2FFFF,c);
+                                nop;gpio_put(SSD1963_WR_GPPIN,1);
+                                nop;gpio_put(SSD1963_WR_GPPIN,0);nop;gpio_put(SSD1963_WR_GPPIN,1);
+                            }
+                            s++;
+                            i-=2;
+                            x+=2;
+                        }
+                        pp=(uint16_t *)q;
+                        for(int x=xstart;x<=xend;x++){
+                            gpio_put_masked(0x2FFFF,*pp++);
+                            nop;gpio_put(SSD1963_WR_GPPIN,1);
+                            nop;gpio_put(SSD1963_WR_GPPIN,0);nop;gpio_put(SSD1963_WR_GPPIN,1);
+                        }
+                    }
+                }
+            HRes=320;
+            VRes=240;
+        } else {
+            if(Option.DISPLAY_TYPE>SSD_PANEL_8){
+                if(odd){
                     c=map[(*s & 0xF0)>>4];
                     gpio_put_masked(0xFFFF,c);
                     nop;gpio_put(SSD1963_WR_GPPIN,0);nop;nop;gpio_put(SSD1963_WR_GPPIN,1);
+                    s++;
+                    i--;
                 }
-                s++;
-                i-=2;
-            }
-        } else {
-            if(odd){
-                c=map[(*s & 0xF0)>>4];
-                gpio_put_masked(0b11111111,(c >> 16));
-                nop;gpio_put(SSD1963_WR_GPPIN,0);nop;nop;gpio_put(SSD1963_WR_GPPIN,1);
-                gpio_put_masked(0b11111111,(c >> 8));
-                nop;gpio_put(SSD1963_WR_GPPIN,0);nop;nop;gpio_put(SSD1963_WR_GPPIN,1);
-                nop;gpio_put_masked(0b11111111,c);
-                gpio_put(SSD1963_WR_GPPIN,0);nop;nop;gpio_put(SSD1963_WR_GPPIN,1);
-                s++;
-                i--;
-            }
-            while(i>0){
-                c=map[*s & 0xF];
-                gpio_put_masked(0b11111111,(c >> 16));
-                nop;gpio_put(SSD1963_WR_GPPIN,0);nop;nop;gpio_put(SSD1963_WR_GPPIN,1);
-                gpio_put_masked(0b11111111,(c >> 8));
-                nop;gpio_put(SSD1963_WR_GPPIN,0);nop;nop;gpio_put(SSD1963_WR_GPPIN,1);
-                nop;gpio_put_masked(0b11111111,c);
-                gpio_put(SSD1963_WR_GPPIN,0);nop;nop;gpio_put(SSD1963_WR_GPPIN,1);
-                if(i>1){
+                while(i>0){
+                    c=map[*s & 0xF];
+                    gpio_put_masked(0xFFFF,c);
+                    nop;gpio_put(SSD1963_WR_GPPIN,0);nop;nop;gpio_put(SSD1963_WR_GPPIN,1);
+                    if(i>1){
+                        c=map[(*s & 0xF0)>>4];
+                        gpio_put_masked(0xFFFF,c);
+                        nop;gpio_put(SSD1963_WR_GPPIN,0);nop;nop;gpio_put(SSD1963_WR_GPPIN,1);
+                    }
+                    s++;
+                    i-=2;
+                }
+            } else {
+                if(odd){
                     c=map[(*s & 0xF0)>>4];
                     gpio_put_masked(0b11111111,(c >> 16));
                     nop;gpio_put(SSD1963_WR_GPPIN,0);nop;nop;gpio_put(SSD1963_WR_GPPIN,1);
@@ -4855,9 +4960,29 @@ void copyframetoscreen(uint8_t *s,int xstart, int xend, int ystart, int yend, in
                     nop;gpio_put(SSD1963_WR_GPPIN,0);nop;nop;gpio_put(SSD1963_WR_GPPIN,1);
                     nop;gpio_put_masked(0b11111111,c);
                     gpio_put(SSD1963_WR_GPPIN,0);nop;nop;gpio_put(SSD1963_WR_GPPIN,1);
+                    s++;
+                    i--;
                 }
-                s++;
-                i-=2;
+                while(i>0){
+                    c=map[*s & 0xF];
+                    gpio_put_masked(0b11111111,(c >> 16));
+                    nop;gpio_put(SSD1963_WR_GPPIN,0);nop;nop;gpio_put(SSD1963_WR_GPPIN,1);
+                    gpio_put_masked(0b11111111,(c >> 8));
+                    nop;gpio_put(SSD1963_WR_GPPIN,0);nop;nop;gpio_put(SSD1963_WR_GPPIN,1);
+                    nop;gpio_put_masked(0b11111111,c);
+                    gpio_put(SSD1963_WR_GPPIN,0);nop;nop;gpio_put(SSD1963_WR_GPPIN,1);
+                    if(i>1){
+                        c=map[(*s & 0xF0)>>4];
+                        gpio_put_masked(0b11111111,(c >> 16));
+                        nop;gpio_put(SSD1963_WR_GPPIN,0);nop;nop;gpio_put(SSD1963_WR_GPPIN,1);
+                        gpio_put_masked(0b11111111,(c >> 8));
+                        nop;gpio_put(SSD1963_WR_GPPIN,0);nop;nop;gpio_put(SSD1963_WR_GPPIN,1);
+                        nop;gpio_put_masked(0b11111111,c);
+                        gpio_put(SSD1963_WR_GPPIN,0);nop;nop;gpio_put(SSD1963_WR_GPPIN,1);
+                    }
+                    s++;
+                    i-=2;
+                }
             }
         }
     }
@@ -5718,34 +5843,34 @@ void cmd_blit(void) {
         } else {
 	        if(x1 >= x2) {
 	            max_x = 1;
-	            buff = GetMemory(max_x * h * 3);
+	            buff = GetMemory(max_x * h * (SSD16TYPE  || Option.DISPLAY_TYPE==IPS_4_16 ? 2 : 3));
 	            while(w > max_x){
-	                ReadBuffer(x1, y1, x1 + max_x - 1, y1 + h - 1, buff);
-	                DrawBuffer(x2, y2, x2 + max_x - 1, y2 + h - 1, buff);
+	                ReadBLITBuffer(x1, y1, x1 + max_x - 1, y1 + h - 1, buff);
+	                DrawBLITBuffer(x2, y2, x2 + max_x - 1, y2 + h - 1, buff);
 	                x1 += max_x;
 	                x2 += max_x;
 	                w -= max_x;
 	            }
-	            ReadBuffer(x1, y1, x1 + w - 1, y1 + h - 1, buff);
-	            DrawBuffer(x2, y2, x2 + w - 1, y2 + h - 1, buff);
+	            ReadBLITBuffer(x1, y1, x1 + w - 1, y1 + h - 1, buff);
+	            DrawBLITBuffer(x2, y2, x2 + w - 1, y2 + h - 1, buff);
 	            FreeMemory(buff);
 	            return;
 	        }
 	        if(x1 < x2) {
 	            int start_x1, start_x2;
 	            max_x = 1;
-	            buff = GetMemory(max_x * h * 3);
+	            buff = GetMemory(max_x * h * (SSD16TYPE  || Option.DISPLAY_TYPE==IPS_4_16 ? 2 : 3));
 	            start_x1 = x1 + w - max_x;
 	            start_x2 = x2 + w - max_x;
 	            while(w > max_x){
-	                ReadBuffer(start_x1, y1, start_x1 + max_x - 1, y1 + h - 1, buff);
-	                DrawBuffer(start_x2, y2, start_x2 + max_x - 1, y2 + h - 1, buff);
+	                ReadBLITBuffer(start_x1, y1, start_x1 + max_x - 1, y1 + h - 1, buff);
+	                DrawBLITBuffer(start_x2, y2, start_x2 + max_x - 1, y2 + h - 1, buff);
 	                w -= max_x;
 	                start_x1 -= max_x;
 	                start_x2 -= max_x;
 	            }
-	            ReadBuffer(x1, y1, x1 + w - 1, y1 + h - 1, buff);
-	            DrawBuffer(x2, y2, x2 + w - 1, y2 + h - 1, buff);
+	            ReadBLITBuffer(x1, y1, x1 + w - 1, y1 + h - 1, buff);
+	            DrawBLITBuffer(x2, y2, x2 + w - 1, y2 + h - 1, buff);
 	            FreeMemory(buff);
 	            if(Option.Refresh)Display_Refresh();
 	            return;

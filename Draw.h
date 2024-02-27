@@ -120,6 +120,8 @@ extern void (*DrawBitmap)(int x1, int y1, int width, int height, int scale, int 
 extern void (*ScrollLCD) (int lines);
 extern void (*DrawBuffer)(int x1, int y1, int x2, int y2, unsigned char *c);
 extern void (*ReadBuffer)(int x1, int y1, int x2, int y2, unsigned char *c);
+extern void (*DrawBLITBuffer)(int x1, int y1, int x2, int y2, unsigned char *c);
+extern void (*ReadBLITBuffer)(int x1, int y1, int x2, int y2, unsigned char *c);
 void DrawPixelColour(int x, int y, int c);
 void DrawRectangleColour(int x1, int y1, int x2, int y2, int c);
 void DrawBitmapColour(int x1, int y1, int width, int height, int scale, int fc, int bc, unsigned char *bitmap);
@@ -130,6 +132,7 @@ void ReadBufferColour(int x1, int y1, int x2, int y2, unsigned char *c);
 void ReadBufferColourFast(int x1, int y1, int x2, int y2, unsigned char *c);
 void DrawPixelNormal(int x, int y, int c) ;
 void ReadBufferMono(int x1, int y1, int x2, int y2, unsigned char *c);
+void copyframetoscreen(uint8_t *s,int xstart, int xend, int ystart, int yend, int odd);
 void restorepanel(void);
 #define FONT_BUILTIN_NBR     8
 #define FONT_TABLE_SIZE      16

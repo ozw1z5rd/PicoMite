@@ -291,6 +291,7 @@ void __not_in_flash_func(on_pwm_wrap)(void) {
 				if(mono){
 					left=(((((SineTable[(int)PhaseAC_left]-2000)  * mapping[vol_left]) / 2000)+2000));
 					PhaseAC_left = PhaseAC_left + PhaseM_left;
+					PhaseAC_right=PhaseAC_left;
 					if(PhaseAC_left>=4096.0)PhaseAC_left-=4096.0;
 					right=left;
 				} else {
@@ -579,7 +580,7 @@ int HW0Clk(int speed, int polarity, int edge){
 	gpio_set_drive_strength(SPI_MOSI_PIN,GPIO_DRIVE_STRENGTH_12MA);
 	gpio_set_drive_strength(SPI_CLK_PIN,GPIO_DRIVE_STRENGTH_12MA);
 	gpio_set_input_hysteresis_enabled(SPI_MISO_PIN,true);
-	return speed;
+	return spi_get_baudrate(spi0);
 }
 BYTE __not_in_flash_func(HW1SwapSPI)(BYTE data_out){
 	BYTE data_in=0;
@@ -604,7 +605,7 @@ int HW1Clk(int speed, int polarity, int edge){
 	gpio_set_drive_strength(SPI_MOSI_PIN,GPIO_DRIVE_STRENGTH_12MA);
 	gpio_set_drive_strength(SPI_CLK_PIN,GPIO_DRIVE_STRENGTH_12MA);
 	gpio_set_input_hysteresis_enabled(SPI_MISO_PIN,true);
-	return speed;
+	return spi_get_baudrate(spi1);
 }
 
 

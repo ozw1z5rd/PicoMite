@@ -806,7 +806,7 @@ void cmd_end(void) {
     InterruptReturn = NULL ; 
     memset(inpbuf,0,STRINGSIZE);
 	CloseAudio(1);
-	closeframebuffer();
+//	closeframebuffer();
     ADCDualBuffering=0;
 	WatchdogSet = false;
 	dmarunning = false;

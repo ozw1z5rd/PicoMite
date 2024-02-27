@@ -80,6 +80,7 @@ extern const void * const CallTable[];
 struct s_inttbl inttbl[NBRINTERRUPTS];
 unsigned char *InterruptReturn;
 extern const char *FErrorMsg[];
+uint8_t *buff320=NULL;
 #ifdef PICOMITEWEB
 	char *MQTTInterrupt=NULL;
 	volatile bool MQTTComplete=false;
@@ -167,6 +168,7 @@ extern void WriteData(int data);
 char *CSubInterrupt;
 MMFLOAT optionangle=1.0;
 bool optionfastaudio=false;
+bool screen320=false;
 bool optionlogging=false;
 volatile bool CSubComplete=false;
 uint64_t timeroffset=0;
@@ -2005,6 +2007,24 @@ void ConfigDisplayUser(unsigned char *tp){
     }  
 
 }
+void clear320(void){
+    screen320=0;
+    DrawRectangle = DrawRectangleSSD1963;
+    DrawBitmap = DrawBitmapSSD1963;
+    DrawBuffer = DrawBufferSSD1963;
+    ReadBuffer = ReadBufferSSD1963;
+    if(SSD16TYPE || Option.DISPLAY_TYPE==IPS_4_16){
+        DrawBLITBuffer= DrawBLITBufferSSD1963;
+        ReadBLITBuffer = ReadBLITBufferSSD1963;
+    } else {
+        DrawBLITBuffer= DrawBufferSSD1963;
+        ReadBLITBuffer = ReadBufferSSD1963;
+    }
+    HRes=800;
+    VRes=480;
+    FreeMemorySafe((void **)&buff320);
+    return;
+}
 #endif
 void MIPS16 cmd_option(void) {
     unsigned char *tp;
@@ -2034,6 +2054,28 @@ void MIPS16 cmd_option(void) {
 		if(checkstring(tp, (unsigned char *)"ON"))	{ optionfastaudio=1; return; }
 	}
 
+#ifndef PICOMITEVGA
+	tp = checkstring(cmdline, (unsigned char *)"LCD320");
+	if(tp) {
+        if(!( SSD16TYPE || Option.DISPLAY_TYPE==IPS_4_16))error("Only available on SSD1963 and IPS_4_16 displays");
+		if(checkstring(tp, (unsigned char *)"OFF"))	{ 
+            clear320();
+        }
+		else if(checkstring(tp, (unsigned char *)"ON"))	{ 
+            screen320=1; 
+            DrawRectangle = DrawRectangle320;
+            DrawBitmap = DrawBitmap320;
+            DrawBuffer = DrawBuffer320;
+            ReadBuffer = ReadBuffer320;
+            DrawBLITBuffer= DrawBLITBuffer320;
+            ReadBLITBuffer = ReadBLITBuffer320;
+            HRes=320;
+            VRes=240;
+            buff320=GetMemory(320*6);
+            return; 
+        } else error("Syntax");
+	}
+#endif 
     tp = checkstring(cmdline, (unsigned char *)"ESCAPE");
     if(tp) {
         OptionEscape = true;
@@ -2321,7 +2363,7 @@ void MIPS16 cmd_option(void) {
     tp = checkstring(cmdline, (unsigned char *)"LCDPANEL CONSOLE");
     if(tp) {
         if(!(Option.DISPLAY_TYPE==ST7789B || Option.DISPLAY_TYPE==ILI9488 || Option.DISPLAY_TYPE==ILI9341 || Option.DISPLAY_TYPE==ILI9481IPS || Option.DISPLAY_TYPE>=VGADISPLAY))error("Display does not support console");
-        if(!(Option.DISPLAY_ORIENTATION == DISPLAY_LANDSCAPE)) error("Landscape only");
+        if(!(Option.DISPLAY_ORIENTATION == DISPLAY_LANDSCAPE) && Option.DISPLAY_TYPE==SSDTYPE) error("Landscape only");
         skipspace(tp);
         Option.DefaultFC = WHITE;
         Option.DefaultBC = BLACK;
@@ -3566,6 +3608,11 @@ void fun_info(void){
         strcpy((char *)sret,display_details[Option.DISPLAY_TYPE].name);
         CtoM(sret);
         targ=T_STR;
+        return;
+    } 
+    else if(checkstring(ep, (unsigned char *)"LCD320")){
+        iret=(SSD16TYPE || Option.DISPLAY_TYPE==IPS_4_16);
+        targ=T_INT;
         return;
     } 
 #endif

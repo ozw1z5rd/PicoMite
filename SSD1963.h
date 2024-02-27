@@ -39,12 +39,19 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
     extern void SetBacklightSSD1963(int intensity);
     extern void SetTearingCfg(int state, int mode);
     extern void DrawBitmapSSD1963(int x1, int y1, int width, int height, int scale, int fg, int bg, unsigned char *bitmap);
-
+    extern void DrawBitmap320(int x1, int y1, int width, int height, int scale, int fg, int bg, unsigned char *bitmap);
     extern void DisplayPutC(char c);
     extern void DisplayPutS(char *);
     extern void DrawBufferSSD1963(int x1, int y1, int x2, int y2, unsigned char* p);
+    extern void DrawBLITBufferSSD1963(int x1, int y1, int x2, int y2, unsigned char* p);
+    extern void DrawBuffer320(int x1, int y1, int x2, int y2, unsigned char* p);
+    extern void DrawBLITBuffer320(int x1, int y1, int x2, int y2, unsigned char* p);
     extern void ReadBufferSSD1963(int x1, int y1, int x2, int y2, unsigned char* p);
+    extern void ReadBLITBufferSSD1963(int x1, int y1, int x2, int y2, unsigned char* p);
+    extern void ReadBuffer320(int x1, int y1, int x2, int y2, unsigned char* p);
+    extern void ReadBLITBuffer320(int x1, int y1, int x2, int y2, unsigned char* p);
     extern void DrawRectangleSSD1963(int x1, int y1, int x2, int y2, int c);
+    extern void DrawRectangle320(int x1, int y1, int x2, int y2, int c);
     extern void InitDisplaySSD(void) ;
     extern void ConfigDisplaySSD(unsigned char *p);
     extern void SetAreaSSD1963(int x1, int y1, int x2, int y2);
