@@ -17,6 +17,10 @@ Change list from V5.07.00
 **********************************************************************************************************************
 Source files for all PicoMite variants
 
+PicoMite V5.09.00b
+
+Support for 16-bit command tokens - refactoring of various commands
+
 PicoMite V5.09.00b3
 
 Support for 16-bit displays. Shared CS pin for touch and SDcard. Optional connection to reset pin for all parallel displays. 
