@@ -25,10 +25,6 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 
 
 
-#ifdef USBKEYBOARD
-#define VERSION         "5.09.00b3"			    // define the version number
-#else
-#define VERSION         "5.09.00b3"			    // define the version number
-#endif
+#define VERSION         "5.09.00b6"			    // define the version number
 #define YEAR			"2011-2024"			    // and the year
 #define YEAR2          "2016-2024"

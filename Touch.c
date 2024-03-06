@@ -209,10 +209,10 @@ int __not_in_flash_func(GetTouchAxis)(int cmd) {
 int __not_in_flash_func(GetTouchValue)(int cmd) {
     int val;
     unsigned int lb, hb;
-	if(Option.DISPLAY_TYPE<SSDPANEL)SPISpeedSet(TOUCH);
+	if(!SSDTYPE)SPISpeedSet(TOUCH);
     else SPISpeedSet(SLOWTOUCH);
     if(Option.CombinedCS){
-        gpio_put(TOUCH_CS_PIN,GPIO_PIN_RESET);
+        gpio_put(TOUCH_CS_PIN,GPIO_PIN_SET);
         gpio_set_dir(TOUCH_CS_PIN, GPIO_OUT);
     } else gpio_put(TOUCH_CS_PIN,GPIO_PIN_RESET);  // set CS low
     TDelay();

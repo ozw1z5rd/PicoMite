@@ -143,6 +143,8 @@ void cmd_ctrlval(void);
 void cmd_GUIpage(unsigned char *p);
 void cmd_gamepad(unsigned char *tp);
 void cmd_sprite(void);
+void cmd_comment(void);
+void cmd_endcomment(void);
 #ifdef PICOMITEWEB
     void cmd_web(void);
 #endif
@@ -341,8 +343,8 @@ void fun_dev(void);
 	{ (unsigned char *)"Const",		T_CMD,				0, cmd_const	},
 	{ (unsigned char *)"Execute",	T_CMD,				0, cmd_execute	},
 	{ (unsigned char *)"MID$(",		T_CMD | T_FUN,		0, cmd_mid      },
-	{ (unsigned char *)"/*",		T_CMD,				0, cmd_subfun   },
-	{ (unsigned char *)"*/",		T_CMD,				0, cmd_null   },
+	{ (unsigned char *)"/*",		T_CMD,				0, cmd_comment   },
+	{ (unsigned char *)"*/",		T_CMD,				0, cmd_endcomment   },
 	{ (unsigned char *)"Open",		T_CMD,				0, cmd_open		},
 	{ (unsigned char *)"Close",		T_CMD,				0, cmd_close	},
 	{ (unsigned char *)"Kill",		T_CMD,				0, cmd_kill		},
@@ -416,21 +418,35 @@ void fun_dev(void);
 	{ (unsigned char *)"SPI",	T_CMD,				0, cmd_spi	},
 	{ (unsigned char *)"SPI2",	T_CMD,					0, cmd_spi2	},
     { (unsigned char *)"XModem",     T_CMD,              0, cmd_xmodem   },
+	{ (unsigned char *)"Cat",			T_CMD,				0, cmd_inc	},
+	{ (unsigned char *)"Color",         T_CMD,                      0, cmd_colour	},
+	{ (unsigned char *)"Else If",		T_CMD,				0, cmd_else	},
+	{ (unsigned char *)"End If",		T_CMD,				0, cmd_null	},
+	{ (unsigned char *)"Exit Do",		T_CMD,				0, cmd_exit	},
+	{ (unsigned char *)"Files",		T_CMD,				0, cmd_files	},
+	{ (unsigned char *)"New",		T_CMD,				0, cmd_new	},
+	{ (unsigned char *)"Autosave",		T_CMD,				0, cmd_autosave	},
 #ifdef PICOMITEVGA
   	{ (unsigned char *)"TILE",            T_CMD,                     0, cmd_tile   },
   	{ (unsigned char *)"MODE",            T_CMD,                     0, cmd_mode   },
-    { (unsigned char *)"Draw3D",         T_CMD,                      0, cmd_3D },
+#else
+    { (unsigned char *)"Refresh",         T_CMD,                      0, cmd_refresh },
 #endif
 #ifdef PICOMITE
 	{ (unsigned char *)"Backlight",		T_CMD,		0, cmd_backlight		},
 	{ (unsigned char *)"CtrlVal(",       T_CMD | T_FUN,              0, cmd_ctrlval    },
-    { (unsigned char *)"Draw3D",         T_CMD,                      0, cmd_3D },
 #endif
 #ifdef PICOMITEWEB
     { (unsigned char *)"NOP", T_CMD,				0, cmd_null 	}, //padding to keep tokens the same
 	{ (unsigned char *)"Backlight",		T_CMD,		0, cmd_backlight		},
     { (unsigned char *)"WEB",       T_CMD,              0, cmd_web	    },
+#else
+    { (unsigned char *)"Draw3D",         T_CMD,                      0, cmd_3D },
 #endif
+#ifndef USBKEYBOARD
+	{ (unsigned char *)"Update Firmware",		T_CMD,				0, cmd_update},
+#endif
+    { (unsigned char *)"",   0,                  0, cmd_null,    }                   // this dummy entry is always at the end
 #endif
 /**********************************************************************************
  All other tokens (keywords, functions, operators) should be inserted in this table
@@ -556,24 +572,23 @@ void fun_dev(void);
 	{ (unsigned char *)"TEMPR(",	T_FUN | T_NBR,	0, fun_ds18b20      },
 	{ (unsigned char *)"SPI(",	T_FUN | T_INT,		0, fun_spi,	},
 	{ (unsigned char *)"SPI2(",	T_FUN | T_INT,		0, fun_spi2,	},
-#ifdef PICOMITEVGA
-	{ (unsigned char*)"DRAW3D(",	    T_FUN | T_INT,		0, fun_3D, },
-	{ (unsigned char *)"GetScanLine",	    	T_FNA | T_INT,		0, fun_getscanline 	    },
+	{ (unsigned char *)"DEVICE(",	T_FUN | T_INT| T_NBR | T_STR,		0, fun_dev,	},
 	{ (unsigned char*)"sprite(",	    T_FUN | T_INT | T_NBR,		0, fun_sprite },
 #ifdef USBKEYBOARD
 	{ (unsigned char*)"KeyDown(",    T_FUN | T_INT,		0, fun_keydown	},
 #endif	
+#ifdef PICOMITEVGA
+	{ (unsigned char*)"DRAW3D(",	    T_FUN | T_INT,		0, fun_3D, },
+	{ (unsigned char *)"GetScanLine",	    	T_FNA | T_INT,		0, fun_getscanline 	    },
 #endif
 #ifdef PICOMITEWEB
 	{ (unsigned char *)"Json$(",		T_FUN | T_STR,          0, fun_json		},
-	{ (unsigned char*)"sprite(",	    T_FUN | T_INT | T_NBR,		0, fun_sprite },
 #endif
 #ifdef PICOMITE
 	  { (unsigned char *)"MsgBox(",        T_FUN | T_INT,              0, fun_msgbox     },
 	  { (unsigned char *)"CtrlVal(",       T_FUN | T_NBR | T_STR,      0, fun_ctrlval    },
-	  { (unsigned char*)"sprite(",	    T_FUN | T_INT | T_NBR,		0, fun_sprite },
 #endif
-	{ (unsigned char *)"DEVICE(",	T_FUN | T_INT| T_NBR | T_STR,		0, fun_dev,	},
+    { (unsigned char *)"",   0,                  0, cmd_null,    }                   // this dummy entry is always at the end
 
 #endif
 

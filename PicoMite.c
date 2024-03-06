@@ -191,7 +191,6 @@ static uint64_t __not_in_flash_func(uSecTimer)(void){ return time_us_64();}
 static int64_t PinReadFunc(int a){return gpio_get(PinDef[a].GPno);}
 extern void CallExecuteProgram(char *p);
 extern void CallCFuncmSec(void);
-void executelocal(char *p);
 #define CFUNCRAM_SIZE   256
 int CFuncRam[CFUNCRAM_SIZE/sizeof(int)];
 repeating_timer_t timer;
@@ -2107,13 +2106,7 @@ int MIPS16 main(){
     adc_init();
     adc_set_temp_sensor_enabled(true);
     add_repeating_timer_us(-1000, timer_callback, NULL, &timer);
-#ifndef USBKEYBOARD
-    if(!(Option.SerialConsole==1 || Option.SerialConsole==2) || Option.Telnet==-1) while (!tud_cdc_connected() && mSecTimer<5000) {}
-#endif
     InitReservedIO();
-#ifndef USBKEYBOARD
-    initKeyboard();
-#endif
     ClearExternalIO();
     ConsoleRxBufHead = 0;
     ConsoleRxBufTail = 0;
@@ -2124,6 +2117,16 @@ int MIPS16 main(){
     DISPLAY_TYPE = Option.DISPLAY_TYPE;
     // negative timeout means exact delay (rather than delay between callbacks)
 	OptionErrorSkip = false;
+#ifndef USBKEYBOARD
+    if(!(Option.SerialConsole==1 || Option.SerialConsole==2) || Option.Telnet==-1) {
+        uint64_t t=time_us_64();
+        while(1){
+            if(tud_cdc_connected())break;
+            if(time_us_64()-t>5000000)break;
+        }
+    }
+    initKeyboard();
+#endif
 	InitBasic();
 #ifndef PICOMITEVGA
     InitDisplaySSD();
@@ -2244,7 +2247,9 @@ int MIPS16 main(){
             PrepareProgram(true);
             if(*ProgMemory == 0x01 ){
                 memset(tknbuf,0,STRINGSIZE);
-                *tknbuf=GetCommandValue((unsigned char *)"RUN");
+                unsigned short tkn=GetCommandValue((unsigned char *)"RUN");
+                tknbuf[0] = (tkn & 0x7f ) + C_BASETOKEN;
+                tknbuf[1] = (tkn >> 7) + C_BASETOKEN; //tokens can be 14-bit
                 goto autorun;
             }  else {
                 Option.Autorun=0;
@@ -2297,7 +2302,7 @@ int MIPS16 main(){
         if(!*inpbuf) continue;                                      // ignore an empty line
         char *p=(char *)inpbuf;
         skipspace(p);
-        executelocal(p);
+//        executelocal(p);
         if(strlen(p)==2 && p[1]==':'){
             if(toupper(*p)=='A')strcpy(p,"drive \"a:\"");
             if(toupper(*p)=='B')strcpy(p,"drive \"b:\"");
@@ -2311,7 +2316,9 @@ int MIPS16 main(){
 autorun:
         i=0;
         WatchdogSet=savewatchdog;
-        if(*tknbuf==GetCommandValue((unsigned char *)"RUN"))i=1;
+        unsigned short tkn=tknbuf[0] & 0x7f;
+        tkn |= ((tknbuf[1] & 0x7f)>>9);
+         if(tkn==GetCommandValue((unsigned char *)"RUN"))i=1;
         if (setjmp(jmprun) != 0) {
             PrepareProgram(false);
             CurrentLinePtr = 0;
@@ -2336,39 +2343,11 @@ void stripcomment(char *p){
         q++;
     }
 }
-void MIPS16 testlocal(char *p, char *command, void (*func)()){
-    int len=strlen(command);
-    if((strncasecmp(p,command,len)==0) && (strlen(p)==len || p[len]==' ' || p[len]=='\'')){
-        p+=len;
-        skipspace(p);
-        cmdline=GetTempMemory(STRINGSIZE);
-        stripcomment(p);
-        strcpy((char *)cmdline,(const char *)p);
-        char *q=(char *)cmdline;
-        int toggle=0;
-        while(*q){
-            if(*q++ == '"') {
-            toggle ^=1;
-            }
-        }
-        if(toggle)cmdline[strlen((const char *)cmdline)]='"';
-        (*func)();
-        memset(inpbuf,0,STRINGSIZE);
-        longjmp(mark, 1);												// jump back to the input prompt
-    }
-}
 
-void executelocal(char *p){
-    testlocal(p,"FILES",cmd_files);
-#ifndef USBKEYBOARD
-   testlocal(p,"UPDATE FIRMWARE",cmd_update);
-#endif   
-    testlocal(p,"NEW",cmd_new);
-    testlocal(p,"AUTOSAVE",cmd_autosave);
-}
 // takes a pointer to RAM containing a program (in clear text) and writes it to memory in tokenised format
 void MIPS16 SaveProgramToFlash(unsigned char *pm, int msg) {
-    unsigned char *p, endtoken, fontnbr, prevchar = 0, buf[STRINGSIZE];
+    unsigned char *p, fontnbr, prevchar = 0, buf[STRINGSIZE];
+    unsigned short endtoken, tkn;
     int nbr, i, j, n, SaveSizeAddr;
     multi=false;
     uint32_t storedupdates[MAXCFUNCTION], updatecount=0, realflashsave;
@@ -2444,10 +2423,12 @@ void MIPS16 SaveProgramToFlash(unsigned char *pm, int msg) {
             p += p[1] + 2;                                          // skip over the label
             skipspace(p);                                           // and any following spaces
         }
-        if(*p == cmdCSUB || *p == GetCommandValue((unsigned char *)"DefineFont")) {      // found a CFUNCTION, CSUB or DEFINEFONT token
-            if(*p == GetCommandValue((unsigned char *)"DefineFont")) {
+        tkn=p[0] & 0x7f;
+        tkn |= ((unsigned short)(p[1] & 0x7f)<<7);
+        if(tkn == cmdCSUB || tkn == GetCommandValue((unsigned char *)"DefineFont")) {      // found a CFUNCTION, CSUB or DEFINEFONT token
+            if(tkn == GetCommandValue((unsigned char *)"DefineFont")) {
              endtoken = GetCommandValue((unsigned char *)"End DefineFont");
-             p++;                                                // step over the token
+             p+=2;                                                // step over the token
              skipspace(p);
              if(*p == '#') p++;
              fontnbr = getint(p, 1, FONT_TABLE_SIZE);
@@ -2464,15 +2445,16 @@ void MIPS16 SaveProgramToFlash(unsigned char *pm, int msg) {
                 realflashpointer+=4;
                 fontnbr = 0;
                 firsthex=0;
+                p++;
             }
              SaveSizeAddr = realflashpointer;                                // save where we are so that we can write the CFun size in here
              realflashpointer+=4;
              p++;
              skipspace(p);
-             if(!fontnbr) {
+             if(!fontnbr) { //process CSub 
                  if(!isnamestart((uint8_t)*p)){
-                    error("Function name");
                     enable_interrupts();
+                    error("Function name");
                  }  
                  do { p++; } while(isnamechar((uint8_t)*p));
                  skipspace(p);
@@ -2526,7 +2508,9 @@ void MIPS16 SaveProgramToFlash(unsigned char *pm, int msg) {
                  }
                  if(*p == T_LINENBR) p += 3;                         // skip over the line number
                  skipspace(p);
-             } while(*p != endtoken);
+                tkn=p[0] & 0x7f;
+                tkn |= ((unsigned short)(p[1] & 0x7f)<<7);
+             } while(tkn != endtoken);
              storedupdates[updatecount++]=realflashpointer - SaveSizeAddr - 4;
          }
          while(*p) p++;                                              // look for the zero marking the start of the next element
@@ -2549,10 +2533,12 @@ void MIPS16 SaveProgramToFlash(unsigned char *pm, int msg) {
              p += p[1] + 2;                                          // skip over the label
              skipspace(p);                                           // and any following spaces
          }
-         if(*p == cmdCSUB || *p == GetCommandValue((unsigned char *)"DefineFont")) {      // found a CFUNCTION, CSUB or DEFINEFONT token
-         if(*p == GetCommandValue((unsigned char *)"DefineFont")) {      // found a CFUNCTION, CSUB or DEFINEFONT token
+         tkn=p[0] & 0x7f;
+         tkn |= ((unsigned short)(p[1] & 0x7f)<<7);
+         if(tkn == cmdCSUB || tkn == GetCommandValue((unsigned char *)"DefineFont")) {      // found a CFUNCTION, CSUB or DEFINEFONT token
+         if(tkn == GetCommandValue((unsigned char *)"DefineFont")) {      // found a CFUNCTION, CSUB or DEFINEFONT token
              endtoken = GetCommandValue((unsigned char *)"End DefineFont");
-             p++;                                                // step over the token
+             p+=2;                                                // step over the token
              skipspace(p);
              if(*p == '#') p++;
              fontnbr = getint(p, 1, FONT_TABLE_SIZE);
@@ -2576,6 +2562,7 @@ void MIPS16 SaveProgramToFlash(unsigned char *pm, int msg) {
              endtoken = GetCommandValue((unsigned char *)"End CSub");
              FlashWriteWord((unsigned int)(p-flash_progmemory));               // if a CFunction/CSub save a relative pointer to the declaration
              fontnbr = 0;
+             p++;
          }
             SaveSizeAddr = realflashpointer;                                // save where we are so that we can write the CFun size in here
              FlashWriteWord(storedupdates[updatecount++]);                        // leave this blank so that we can later do the write
@@ -2632,7 +2619,9 @@ void MIPS16 SaveProgramToFlash(unsigned char *pm, int msg) {
                  }
                  if(*p == T_LINENBR) p += 3;                     // skip over a line number
                  skipspace(p);
-             } while(*p != endtoken);
+                tkn=p[0] & 0x7f;
+                tkn |= ((unsigned short)(p[1] & 0x7f)<<7);
+              } while(tkn != endtoken);
          }
          while(*p) p++;                                              // look for the zero marking the start of the next element
      }

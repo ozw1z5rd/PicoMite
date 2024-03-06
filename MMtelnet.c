@@ -92,7 +92,7 @@ err_t tcp_telnet_recv(void *arg, struct tcp_pcb *tpcb, struct pbuf *p, err_t err
         if (!p) {
                 return ERR_OK;
         }
-        cyw43_arch_lwip_check();
+//        cyw43_arch_lwip_check();
         if (p->tot_len > 0) {
                 tcp_recved(tpcb, p->tot_len);
                 if(((char *)p->payload)[0]==255){
@@ -139,7 +139,7 @@ void tcp_telnet_err(void *arg, err_t err) {
 
 /*static err_t tcp_telnet_poll(void *arg, struct tcp_pcb *tpcb) {
         TCP_SERVER_T *state = (TCP_SERVER_T*)arg;
-        cyw43_arch_lwip_check();
+//        cyw43_arch_lwip_check();
         int i=0;
         while(state->client_pcb[i]!=tpcb && i<=MaxPcb)i++;
         if(i==MaxPcb)error("Internal TCP receive error");

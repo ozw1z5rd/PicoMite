@@ -3403,30 +3403,26 @@ void cmd_flush(void)
 {
     int fnbr;
     getargs(&cmdline, 1, (unsigned char *)",");
-    if (argc == 0)
-        cmd_refresh();
-    else {
-        if (*argv[0] == '#')
-            argv[0]++;
-        fnbr = getinteger(argv[0]);
-        if (fnbr == 0) // accessing the console
-            return;
+    if (*argv[0] == '#')
+        argv[0]++;
+    fnbr = getinteger(argv[0]);
+    if (fnbr == 0) // accessing the console
+        return;
+    else
+    {
+        if (fnbr < 1 || fnbr > MAXOPENFILES)
+            error("File number");
+        if (FileTable[fnbr].com == 0)
+            error("File number is not open");
+        if (FileTable[fnbr].com > MAXCOMPORTS )
+        {
+            if(filesource[fnbr]==FATFSFILE)f_sync(FileTable[fnbr].fptr);
+            else lfs_file_sync(&lfs, FileTable[fnbr].lfsptr);
+        }
         else
         {
-            if (fnbr < 1 || fnbr > MAXOPENFILES)
-                error("File number");
-            if (FileTable[fnbr].com == 0)
-                error("File number is not open");
-            if (FileTable[fnbr].com > MAXCOMPORTS )
+            while (SerialTxStatus(FileTable[fnbr].com))
             {
-                if(filesource[fnbr]==FATFSFILE)f_sync(FileTable[fnbr].fptr);
-                else lfs_file_sync(&lfs, FileTable[fnbr].lfsptr);
-            }
-            else
-            {
-                while (SerialTxStatus(FileTable[fnbr].com))
-                {
-                }
             }
         }
     }

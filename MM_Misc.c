@@ -1159,7 +1159,8 @@ void MIPS16 cmd_library(void) {
     /********************************************************************************************************************
      ******* LIBRARY SAVE **********************************************************************************************/
     if(checkstring(cmdline, (unsigned char *)"SAVE")) {  
-        unsigned char *p=NULL,  *pp , *m, *MemBuff, *TempPtr, rem;
+        unsigned char *p=NULL,  *pp , *m, *MemBuff, *TempPtr;
+        unsigned short rem, tkn;
         int i, j, k, InCFun, InQuote, CmdExpected;
         unsigned int CFunDefAddr[100], *CFunHexAddr[100] ;
         if(CurrentLinePtr) error("Invalid in a program");
@@ -1190,7 +1191,6 @@ void MIPS16 cmd_library(void) {
         p = ProgMemory;
         while(*p != 0xff) {
             if(p[0] == 0 && p[1] == 0) break;                       // end of the program
-
             if(*p == T_NEWLINE) {
                 TempPtr = m;
                 CurrentLinePtr = p;
@@ -1215,8 +1215,10 @@ void MIPS16 cmd_library(void) {
 //                TempPtr = m;
                 skipspace(p);
             }
+            tkn=p[0] & 0x7f;
+            tkn |= ((unsigned short)(p[1] & 0x7f)<<7);
             //if(CmdExpected && ( *p == GetCommandValue("End CFunction") || *p == GetCommandValue("End CSub") || *p == GetCommandValue("End DefineFont"))) {
-            if(CmdExpected && (  *p == GetCommandValue((unsigned char *)"End CSub") || *p == GetCommandValue((unsigned char *)"End DefineFont"))) {
+            if(CmdExpected && (  tkn == GetCommandValue((unsigned char *)"End CSub") || tkn == GetCommandValue((unsigned char *)"End DefineFont"))) {
                 InCFun = false;                                     // found an  END CSUB or END DEFINEFONT token
             }
             if(InCFun) {
@@ -1225,13 +1227,17 @@ void MIPS16 cmd_library(void) {
                 continue;
             }
 
-            if(CmdExpected && ( *p == cmdCSUB || *p == GetCommandValue((unsigned char *)"DefineFont"))) {    // found a  CSUB or DEFINEFONT token
+            tkn=p[0] & 0x7f;
+            tkn |= ((unsigned short)(p[1] & 0x7f)<<7);
+            if(CmdExpected && ( tkn == cmdCSUB || tkn == GetCommandValue((unsigned char *)"DefineFont"))) {    // found a  CSUB or DEFINEFONT token
                 CFunDefAddr[++j] = (unsigned int)m;                 // save its address so that the binary copy in the library can point to it
                 while(*p) *m++ = *p++;                              // copy the declaration
                 InCFun = true;
             }
 
-            if(CmdExpected && *p == rem) {                          // found a REM token
+            tkn=p[0] & 0x7f;
+            tkn |= ((unsigned short)(p[1] & 0x7f)<<7);
+            if(CmdExpected && tkn == rem) {                          // found a REM token
                 skipline(p);
                 m = TempPtr;                                        // don't copy the new line tokens
                 continue;
@@ -2020,8 +2026,13 @@ void clear320(void){
         DrawBLITBuffer= DrawBufferSSD1963;
         ReadBLITBuffer = ReadBufferSSD1963;
     }
-    HRes=800;
-    VRes=480;
+    if(Option.DISPLAY_TYPE!=SSD1963_4_16){
+        HRes=800;
+        VRes=480;
+    } else {
+        HRes=480;
+        VRes=272;
+    }
     FreeMemorySafe((void **)&buff320);
     return;
 }
@@ -2223,6 +2234,9 @@ void MIPS16 cmd_option(void) {
         } else {
             if(!Option.SYSTEM_I2C_SCL)error("Option System I2C not set");
         }
+#else
+        if(argc>=3 && *argv[2])Option.capslock=getint(argv[2],0,1);
+        if(argc>=5 && *argv[4])Option.numlock=getint(argv[4],0,1);
 #endif        
         SaveOptions();
         _excep_code = RESET_COMMAND;
@@ -2367,12 +2381,15 @@ void MIPS16 cmd_option(void) {
         skipspace(tp);
         Option.DefaultFC = WHITE;
         Option.DefaultBC = BLACK;
+        int font;
         Option.DefaultBrightness = 100;
         if(!(*tp == 0 || *tp == '\'')) {
             getargs(&tp, 7, (unsigned char *)",");                              // this is a macro and must be the first executable stmt in a block
             if(argc > 0) {
                 if(*argv[0] == '#') argv[0]++;                  // skip the hash if used
-                Option.DefaultFont=(((getint(argv[0], 1, FONT_BUILTIN_NBR) - 1) << 4) | 1);
+                font = (((getint(argv[0], 1, FONT_BUILTIN_NBR) - 1) << 4) | 1);
+                if(FontTable[font >> 4][0]*29>HRes)error("Font too wide for console mode");
+                Option.DefaultFont=font;
             }
             if(argc > 2) Option.DefaultFC = getint(argv[2], BLACK, WHITE);
             if(argc > 4) Option.DefaultBC = getint(argv[4], BLACK, WHITE);
@@ -2530,7 +2547,7 @@ void MIPS16 cmd_option(void) {
      tp = checkstring(cmdline, (unsigned char *)"CPUSPEED");
     if(tp) {
    	    if(CurrentLinePtr) error("Invalid in a program");
-         int CPU_Speed=getint(tp, MIN_CPU, MAX_CPU);
+        int CPU_Speed=getinteger(tp);
         if(!(CPU_Speed==126000 || CPU_Speed==252000))error("CpuSpeed 126000, 252000 only");
         Option.CPU_Speed=CPU_Speed;
         Option.X_TILE=80;
@@ -3983,7 +4000,8 @@ void cmd_csubinterrupt(void){
     } else CSubComplete=1;  
 }
 void cmd_cfunction(void) {
-    char *p, EndToken;
+    char *p;
+    unsigned short EndToken, tkn;
     EndToken = GetCommandValue((unsigned char *)"End DefineFont");           // this terminates a DefineFont
     if(cmdtoken == cmdCSUB) EndToken = GetCommandValue((unsigned char *)"End CSub");                 // this terminates a CSUB
     p = (char *)cmdline;
@@ -3997,7 +4015,9 @@ void cmd_cfunction(void) {
             p += p[1] + 2;                                          // skip over the label
             skipspace(p);                                           // and any following spaces
         }
-        if(*p == EndToken) {                                        // found an END token
+        tkn=p[0] & 0x7f;
+        tkn |= ((unsigned short)(p[1] & 0x7f)<<7);
+        if(tkn == EndToken) {                                        // found an END token
             nextstmt = (unsigned char *)p;
             skipelement(nextstmt);
             return;
@@ -4593,17 +4613,18 @@ GotAnInterrupt:
     MMerrno = 0;
     InterruptReturn = nextstmt;                                     // for when IRETURN is executed
     // if the interrupt is pointing to a SUB token we need to call a subroutine
-    if(*intaddr == cmdSUB) {
-    	strncpy(CurrentInterruptName, intaddr + 1, MAXVARLEN);
-    	rti[0] = cmdIRET;                                           // setup a dummy IRETURN command
-        rti[1] = 0;
+    unsigned short tkn=intaddr[0] & 0x7f;
+    tkn |= (((unsigned short)intaddr[1] & 0x7f)<<7);
+    if(tkn == cmdSUB) {
+    	strncpy(CurrentInterruptName, intaddr + 2, MAXVARLEN);
+        rti[0] = (cmdIRET & 0x7f ) + C_BASETOKEN;
+        rti[1] = (cmdIRET >> 7) + C_BASETOKEN; //tokens can be 14-bit
         if(gosubindex >= MAXGOSUB) error("Too many SUBs for interrupt");
         errorstack[gosubindex] = CurrentLinePtr;
         gosubstack[gosubindex++] = (unsigned char *)rti;                             // return from the subroutine to the dummy IRETURN command
         LocalIndex++;                                               // return from the subroutine will decrement LocalIndex
         skipelement(intaddr);                                       // point to the body of the subroutine
     }
-
     nextstmt = (unsigned char *)intaddr;                                             // the next command will be in the interrupt routine
     return 1;
 }

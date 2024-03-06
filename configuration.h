@@ -57,11 +57,12 @@ extern "C" {
 #ifdef PICOMITE
 #ifdef USBKEYBOARD
 #define MagicKey 0x15486343
+#define FLASH_TARGET_OFFSET (784 * 1024) 
 #else
 #define MagicKey 0x21343427
+#define FLASH_TARGET_OFFSET (752 * 1024) 
 #endif
 #define MAXVARS             512                     // 8 + MAXVARLEN + MAXDIM * 2  (ie, 56 bytes) - these do not incl array members
-#define FLASH_TARGET_OFFSET (752 * 1024) 
 #define HEAPTOP 0x2003e800
 #define HEAP_MEMORY_SIZE (132*1024) 
 #define MAX_CPU     378000

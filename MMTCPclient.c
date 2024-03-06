@@ -90,7 +90,7 @@ err_t tcp_client_recv(void *arg, struct tcp_pcb *tpcb, struct pbuf *p, err_t err
     // this method is callback from lwIP, so cyw43_arch_lwip_begin is not required, however you
     // can use this method to cause an assertion in debug mode, if this method is called when
     // cyw43_arch_lwip_begin IS needed
-    cyw43_arch_lwip_check();
+//    cyw43_arch_lwip_check();
     if (p->tot_len > 0) {
 //        DEBUG_printf("recv %d err %d\r\n", p->tot_len, err);
         // Receive the buffer
@@ -98,11 +98,11 @@ err_t tcp_client_recv(void *arg, struct tcp_pcb *tpcb, struct pbuf *p, err_t err
         state->buffer_len += pbuf_copy_partial(p, state->buffer + state->buffer_len,
                                                p->tot_len > buffer_left ? buffer_left : p->tot_len, 0);
         tcp_recved(tpcb, p->tot_len);
-        cyw43_arch_lwip_begin();
+//        cyw43_arch_lwip_begin();
         uint64_t *x=(uint64_t *)state->buffer;
         x--;
         *x=state->buffer_len;
-        cyw43_arch_lwip_end();
+//        cyw43_arch_lwip_end();
     }
     pbuf_free(p);
     return ERR_OK;
@@ -115,9 +115,9 @@ err_t tcp_client_recv_stream(void *arg, struct tcp_pcb *tpcb, struct pbuf *p, er
     // this method is callback from lwIP, so cyw43_arch_lwip_begin is not required, however you
     // can use this method to cause an assertion in debug mode, if this method is called when
     // cyw43_arch_lwip_begin IS needed
-    cyw43_arch_lwip_check();
+//    cyw43_arch_lwip_check();
     if (p->tot_len > 0) {
-        cyw43_arch_lwip_begin();
+//        cyw43_arch_lwip_begin();
         for(int j=0;j<p->tot_len;j++){
             state->buffer[*state->buffer_write]= ((char *)p->payload)[j];
             *state->buffer_write = (*state->buffer_write + 1) % state->BUF_SIZE;     // advance the head of the queue
@@ -125,7 +125,7 @@ err_t tcp_client_recv_stream(void *arg, struct tcp_pcb *tpcb, struct pbuf *p, er
                 *state->buffer_read = (*state->buffer_read + 1) % state->BUF_SIZE;  // throw away the oldest char
             }
         }
-        cyw43_arch_lwip_end();
+//        cyw43_arch_lwip_end();
         tcp_recved(tpcb, p->tot_len);
     }
     pbuf_free(p);
@@ -166,9 +166,9 @@ static bool tcp_client_open(void *arg) {
     // You can omit them if you are in a callback from lwIP. Note that when using pico_cyw_arch_poll
     // these calls are a no-op and can be omitted, but it is a good practice to use them in
     // case you switch the cyw43_arch type later.
-    cyw43_arch_lwip_begin();
+//    cyw43_arch_lwip_begin();
     err_t err = tcp_connect(state->tcp_pcb, &state->remote_addr, state->TCP_PORT, tcp_client_connected);
-    cyw43_arch_lwip_end();
+//    cyw43_arch_lwip_end();
 
     return err == ERR_OK;
 }

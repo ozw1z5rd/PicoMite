@@ -702,6 +702,7 @@ void cmd_math(void){
 			return;
 		}
 	} else if(toupper(*cmdline)=='C') {
+		unsigned char *tp1=NULL;
 		tp = checkstring(cmdline, (unsigned char *)"C_ADD");
 		if(tp) {
 			MMFLOAT *a1float=NULL,*a2float=NULL,*a3float=NULL;
@@ -718,8 +719,10 @@ void cmd_math(void){
 			}
 			return;
 		}
-		tp = checkstring(cmdline, (unsigned char *)"C_MULT");
-		if(tp) {
+		tp = checkstring(cmdline, (unsigned char *)"C_MUL");
+		tp1 = checkstring(cmdline, (unsigned char *)"C_MULT");
+		if(tp || tp1) {
+			if(tp1)tp=tp1;
 			MMFLOAT *a1float=NULL,*a2float=NULL,*a3float=NULL;
 			int64_t *a1int=NULL,*a2int=NULL,*a3int=NULL;
 			int card=parsearrays(tp, &a1float, &a2float, &a3float, &a1int, &a2int, &a3int);
@@ -1032,8 +1035,8 @@ void cmd_math(void){
 			if(numcols3!=numcols2 || numrows3!=numrows1)error("Output array size mismatch");
 			if(a3float==a1float || a3float==a2float)error("Destination array same as source");
 			MMFLOAT **matrix1=alloc2df(numcols1,numrows1);
-			MMFLOAT **matrix2=alloc2df(numrows2,numcols2);
-			MMFLOAT **matrix3=alloc2df(numrows3,numcols3);
+			MMFLOAT **matrix2=alloc2df(numcols2,numrows2);
+			MMFLOAT **matrix3=alloc2df(numcols3,numrows3);
 			for(i=0;i<numrows1;i++){ //load the first matrix
 				for(j=0;j<numcols1;j++){
 					matrix1[j][i]=*a1float++;
@@ -1044,6 +1047,7 @@ void cmd_math(void){
 					matrix2[j][i]=*a2float++;
 				}
 			}
+
 	// Now calculate the dot products
 			for(i=0;i<numrows3;i++){
 				for(j=0;j<numcols3;j++){
@@ -1835,8 +1839,8 @@ void fun_math(void){
 				numcols=dims[0];
 				numrows=dims[1];
 				df=numcols*numrows;
-				numcols++;
-				numrows++;
+				numcols+=(1-OptionBase);
+				numrows+=(1-OptionBase);
 				MMFLOAT **observed=alloc2df(numcols,numrows);
 				MMFLOAT **expected=alloc2df(numcols,numrows);
 				rows=alloc1df(numrows);

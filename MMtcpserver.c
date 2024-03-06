@@ -140,7 +140,7 @@ err_t tcp_server_recv(void *arg, struct tcp_pcb *tpcb, struct pbuf *p, err_t err
         // this method is callback from lwIP, so cyw43_arch_lwip_begin is not required, however you
         // can use this method to cause an assertion in debug mode, if this method is called when
         // cyw43_arch_lwip_begin IS needed
-        cyw43_arch_lwip_check();
+//        cyw43_arch_lwip_check();
         if (p->tot_len > 0) {
                 TCPreceived=1;
     	        if(!CurrentLinePtr){  // deal with requests when we don't want them
@@ -368,7 +368,7 @@ static bool tcp_server_open(void *arg) {
 void checksent(void *arg, int fn, int pcb){
     TCP_SERVER_T *state = (TCP_SERVER_T*)arg;
     Timer4=4000;
-    cyw43_arch_lwip_check();
+//    cyw43_arch_lwip_check();
     while(!(state->sent_len[pcb]==state->total_sent[pcb] )|| Timer4==0){ 
         CheckAbort();
     }

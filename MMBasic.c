@@ -48,7 +48,6 @@ const struct s_tokentbl commandtbl[] = {
     #include "Operators.h"
     #include "Custom.h"
     #include "Hardware_Includes.h"
-    { (unsigned char *)"",   0,                  0, cmd_null,    }                   // this dummy entry is always at the end
 };
 #undef INCLUDE_COMMAND_TABLE
 
@@ -64,7 +63,6 @@ const struct s_tokentbl tokentbl[] = {
     #include "Operators.h"
     #include "Custom.h"
     #include "Hardware_Includes.h"
-    { (unsigned char *)"",   0,                  0, cmd_null,    }                   // this dummy entry is always at the end
 };
 #undef INCLUDE_TOKEN_TABLE
 
@@ -247,8 +245,8 @@ extern long long int CallCFunction(unsigned char *CmdPtr, unsigned char *ArgList
 //void checktype(int *, int);
 unsigned char __not_in_flash_func(*getvalue)(unsigned char *p, MMFLOAT *fa, long long int  *ia, unsigned char **sa, int *oo, int *ta);
 unsigned char tokenTHEN, tokenELSE, tokenGOTO, tokenEQUAL, tokenTO, tokenSTEP, tokenWHILE, tokenUNTIL, tokenGOSUB, tokenAS, tokenFOR;
-unsigned char cmdIF, cmdENDIF, cmdELSEIF, cmdELSE, cmdSELECT_CASE, cmdFOR, cmdNEXT, cmdWHILE, cmdENDSUB, cmdENDFUNCTION, cmdLOCAL, cmdSTATIC, cmdCASE, cmdDO, cmdLOOP, cmdCASE_ELSE, cmdEND_SELECT;
-unsigned char cmdSUB, cmdFUN, cmdCFUN, cmdCSUB, cmdIRET, cmdComment, cmdEndComment;
+unsigned short cmdIF, cmdENDIF, cmdEND_IF, cmdELSEIF, cmdELSE_IF, cmdELSE, cmdSELECT_CASE, cmdFOR, cmdNEXT, cmdWHILE, cmdENDSUB, cmdENDFUNCTION, cmdLOCAL, cmdSTATIC, cmdCASE, cmdDO, cmdLOOP, cmdCASE_ELSE, cmdEND_SELECT;
+unsigned short cmdSUB, cmdFUN, cmdCFUN, cmdCSUB, cmdIRET, cmdComment, cmdEndComment;
 
 /********************************************************************************************************************************************
  Program management
@@ -277,12 +275,13 @@ void   MIPS16 InitBasic(void) {
     tokenGOSUB = GetTokenValue( (unsigned char *)"GoSub");
     tokenAS    = GetTokenValue( (unsigned char *)"As");
     tokenFOR   = GetTokenValue( (unsigned char *)"For");
+
     cmdLOOP  = GetCommandValue( (unsigned char *)"Loop");
     cmdIF      = GetCommandValue( (unsigned char *)"If");
     cmdENDIF   = GetCommandValue( (unsigned char *)"EndIf");
-//    cmdEND_IF  = GetCommandValue( (unsigned char *)"End If");
+    cmdEND_IF  = GetCommandValue( (unsigned char *)"End If");
     cmdELSEIF  = GetCommandValue( (unsigned char *)"ElseIf");
-//    cmdELSE_IF = GetCommandValue( (unsigned char *)"Else If");
+    cmdELSE_IF = GetCommandValue( (unsigned char *)"Else If");
     cmdELSE    = GetCommandValue( (unsigned char *)"Else");
     cmdSELECT_CASE = GetCommandValue( (unsigned char *)"Select Case");
     cmdCASE        = GetCommandValue( (unsigned char *)"Case");
@@ -301,9 +300,9 @@ void   MIPS16 InitBasic(void) {
     cmdCSUB = GetCommandValue( (unsigned char *)"CSub");
     cmdComment = GetCommandValue( (unsigned char *)"/*");
     cmdEndComment = GetCommandValue( (unsigned char *)"*/");
-//    SInt(CommandTableSize);
+    SInt(CommandTableSize);
 //    SIntComma(TokenTableSize);
-//    SSPrintString("\r\n");
+    SSPrintString("\r\n");
 
 }
 
@@ -355,16 +354,18 @@ void __not_in_flash_func(ExecuteProgram)(unsigned char *p) {
         }
 
         if(*p) {                                                    // if p is pointing to a command
-            nextstmt = cmdline = p + 1;
+            nextstmt = cmdline = p + 2;
             skipspace(cmdline);
             skipelement(nextstmt);
             if(*p && *p != '\'') {                                  // ignore a comment line
                 SaveLocalIndex = LocalIndex;                        // save this if we need to cleanup after an error
                 if(setjmp(ErrNext) == 0) {                          // return to the else leg of this if error and OPTION ERROR SKIP/IGNORE is in effect
-                    if(*(char*)p >= C_BASETOKEN && *(char*)p - C_BASETOKEN < CommandTableSize - 1 && (commandtbl[*(char*)p - C_BASETOKEN].type & T_CMD)) {
-                        cmdtoken = *(char*)p;
+                    if(p[0]>= C_BASETOKEN && p[1]>=C_BASETOKEN){
+//                    if(*(char*)p >= C_BASETOKEN && *(char*)p - C_BASETOKEN < CommandTableSize - 1 && (commandtbl[*(char*)p - C_BASETOKEN].type & T_CMD)) {
+                        cmdtoken=p[0] & 0x7f;
+                        cmdtoken |= ((unsigned short)(p[1] & 0x7f)<<7);
                         targ = T_CMD;
-                        commandtbl[*(char*)p - C_BASETOKEN].fptr(); // execute the command
+                        commandtbl[cmdtoken].fptr(); // execute the command
                     } else {
                         if(!isnamestart(*p)) error("Invalid character: @", (int)(*p));
                         i = FindSubFun(p, false);                   // it could be a defined command
@@ -464,10 +465,10 @@ void   MIPS16 PrepareProgram(int ErrAbort) {
     for(i = 0; i < MAXSUBFUN && subfun[i] != NULL; i++) {
         for(j = i + 1; j < MAXSUBFUN && subfun[j] != NULL; j++) {
             CurrentLinePtr = p1 = subfun[i];
-            p1++;
+            p1+=2;
             skipspace(p1);
             p2 = subfun[j];
-            p2++;
+            p2+=2;
             skipspace(p2);
             while(1) {
                 if(!isnamechar(*p1) && !isnamechar(*p2)) {
@@ -494,7 +495,9 @@ int   MIPS16 PrepareProgramExt(unsigned char *p, int i, unsigned char **CFunPtr,
     while(*p != 0xff) {
         p = GetNextCommand(p, &CurrentLinePtr, NULL);
         if(*p == 0) break;                                          // end of the program or module
-        if(*p == cmdSUB || *p == cmdFUN /*|| *p == cmdCFUN*/ || *p == cmdCSUB) {         // found a SUB, FUN, CFUNCTION or CSUB token
+		unsigned short tkn=p[0] & 0x7f;
+		tkn |= ((unsigned short)(p[1] & 0x7f)<<7);
+        if(tkn == cmdSUB || tkn == cmdFUN /*|| tkn == cmdCFUN*/ || tkn == cmdCSUB) {         // found a SUB, FUN, CFUNCTION or CSUB token
             if(i >= MAXSUBFUN) {
                 FlashWriteInit(PROGRAM_FLASH);
                 flash_range_erase(realflashpointer, MAX_PROG_SIZE);
@@ -511,6 +514,7 @@ int   MIPS16 PrepareProgramExt(unsigned char *p, int i, unsigned char **CFunPtr,
                 cmd_end();
             }
             subfun[i++] = p++;                                      // save the address and step over the token
+            p++;
             skipspace(p);
             if(!isnamestart(*p)) {
                 if(ErrAbort) error("Invalid identifier");
@@ -588,12 +592,14 @@ int __not_in_flash_func(FindSubFun)(unsigned char *p, int type) {
 
     for(i = 0;  i < MAXSUBFUN && subfun[i] != NULL; i++) {
         p2 = subfun[i];                                             // point to the command token
+		unsigned short tkn=p2[0] & 0x7f;
+		tkn |= ((p2[1] & 0x7f)>>9);
         if(type == 0) {                                             // if it is a sub and we want a fun or vice versa skip this one
-            if(!(*p2 == cmdSUB || *p2 == cmdCSUB)) continue;
+            if(!(tkn == cmdSUB || tkn == cmdCSUB)) continue;
         } else {
-            if(!(*p2 == cmdFUN /*|| *p2 == cmdCFUN*/)) continue;
+            if(!(tkn == cmdFUN /*|| tkn == cmdCFUN*/)) continue;
         }
-        p2++; skipspace(p2);                                        // point to the identifier
+        p2+=2; skipspace(p2);                                        // point to the identifier
         if(toupper(*p) != toupper(*p2)) continue;                   // quick first test
         p1 = p + 1;  p2++;
         while(isnamechar(*p1) && toupper(*p1) == toupper(*p2)) { p1++; p2++; };
@@ -631,7 +637,7 @@ void MIPS16 __not_in_flash_func(DefinedSubFun)(int isfun, unsigned char *cmd, in
 
     CallersLinePtr = CurrentLinePtr;
     SubLinePtr = subfun[index];                                     // used for error reporting
-    p =  SubLinePtr + 1;                                            // point to the sub or function definition
+    p =  SubLinePtr + 2;                                            // point to the sub or function definition
     skipspace(p);
     ttp = p;
     
@@ -681,7 +687,9 @@ void MIPS16 __not_in_flash_func(DefinedSubFun)(int isfun, unsigned char *cmd, in
     skipspace(tp); skipspace(p);
 
      // similar if this is a CSUB
-    if(*SubLinePtr == cmdCSUB) {
+    unsigned short tkn=SubLinePtr[0] & 0x7f;
+	tkn |= ((SubLinePtr[1] & 0x7f)>>9);
+    if(tkn == cmdCSUB) {
         CallCFunction(SubLinePtr, tp, p, CallersLinePtr);           // run the CSUB
         TempMemoryIsChanged = true;                                 // signal that temporary memory should be checked
         return;
@@ -1050,9 +1058,12 @@ void  MIPS16 tokenise(int console) {
 
         // copy anything after a comment (')
         if(*p == '\'' || multi==true) {
+            unsigned char t;
             do {
-                *op++ = *p++;
+                t = *p++;
+                *op++=t;
             } while(*p);
+            if(t=='\'')*op++=32;
             continue;
         }
 
@@ -1091,30 +1102,11 @@ void  MIPS16 tokenise(int console) {
             int match_i = -1, match_l = 0;
             // first test if it is a print shortcut char (?) - this needs special treatment
             if(*p == '?') {
-                match_i = GetCommandValue((unsigned char *)"Print") - C_BASETOKEN;
+                match_i = GetCommandValue((unsigned char *)"Print");
                 if(*++p == ' ') p++;                                // eat a trailing space
                 match_p = p;
-             // translate US spelling of COLOUR and therefor save a token slot
-            } else if((tp2 = checkstring(p, (unsigned char *)"COLOR")) != NULL) {
-                    match_i = GetCommandValue((unsigned char *)"Colour") - C_BASETOKEN;
-                    match_p = p = tp2;
-            } else if((tp2 = checkstring(p, (unsigned char *)"ELSE IF")) != NULL) {
-                    match_i = GetCommandValue((unsigned char *)"ElseIf") - C_BASETOKEN;
-                    match_p = p = tp2;
             } else if((tp2 = checkstring(p, (unsigned char *)"BITBANG")) != NULL) {
-                    match_i = GetCommandValue((unsigned char *)"Device") - C_BASETOKEN;
-                    match_p = p = tp2;
-            } else if((tp2 = checkstring(p, (unsigned char *)"REFRESH")) != NULL) {
-                    match_i = GetCommandValue((unsigned char *)"Flush") - C_BASETOKEN;
-                    match_p = p = tp2;
-            } else if((tp2 = checkstring(p, (unsigned char *)"END IF")) != NULL) {
-                    match_i = GetCommandValue((unsigned char *)"EndIf") - C_BASETOKEN;
-                    match_p = p = tp2;
-            } else if((tp2 = checkstring(p, (unsigned char *)"EXIT DO")) != NULL) {
-                    match_i = GetCommandValue((unsigned char *)"Exit") - C_BASETOKEN;
-                    match_p = p = tp2;
-            } else if((tp2 = checkstring(p, (unsigned char *)"CAT")) != NULL) {
-                    match_i = GetCommandValue((unsigned char *)"Inc") - C_BASETOKEN;
+                    match_i = GetCommandValue((unsigned char *)"Device");
                     match_p = p = tp2;
             } else {
                 // now try for a command in the command table
@@ -1147,17 +1139,19 @@ void  MIPS16 tokenise(int console) {
 
             if(match_i > -1) {
                 // we have found a command
-                *op++ = match_i + C_BASETOKEN;                      // insert the token found
+//                *op++ = match_i + C_BASETOKEN;                      // insert the token found
+                *op++ = (match_i & 0x7f ) + C_BASETOKEN;
+                *op++ = (match_i >> 7) + C_BASETOKEN; //tokens can be 14-bit
                 p = match_p;                                        // step over the command in the source
                 if(isalpha(*(p-1)) && *p == ' ') p++;               // if the command is followed by a space skip over it
-                if(match_i + C_BASETOKEN == GetCommandValue((unsigned char *)"Rem")) // check if it is a REM command
+                if(match_i == GetCommandValue((unsigned char *)"Rem")) // check if it is a REM command
                     while(*p) *op++ = *p++;                         // and in that case just copy everything
                 firstnonwhite = false;
                 labelvalid = false;                                 // we do not want any labels after this
-                if(match_i + C_BASETOKEN == GetCommandValue((unsigned char *)"/*")){
+                if(match_i == GetCommandValue((unsigned char *)"/*")){
                     multi= true;
                 }
-                if(match_i + C_BASETOKEN == GetCommandValue((unsigned char *)"*/"))multi= false;
+                if(match_i == GetCommandValue((unsigned char *)"*/"))multi= false;
 
                 continue;
             }
@@ -1207,9 +1201,12 @@ void  MIPS16 tokenise(int console) {
             if(firstnonwhite) {                                     // first entry on the line?
                 tp = skipvar(p, true);                              // find the char after the variable
                 skipspace(tp);
-                if(*tp == '=')                                      // is it an implied let?
-                    *op++ = GetCommandValue((unsigned char *)"Let");   // find let's token value and copy into memory
+                if(*tp == '=') {  
+                    unsigned short tkn = GetCommandValue((unsigned char *)"Let");                                   // is it an implied let?
+                    *op++ = (tkn & 0x7f ) + C_BASETOKEN;
+                    *op++ = (tkn >> 7) + C_BASETOKEN; //tokens can be 14-bit
                 }
+            }
             while(isnamechar(*p)) *op++ = *p++;                     // copy the variable name
             firstnonwhite = false;
             labelvalid = false;                                     // we do not want any labels after this
@@ -3140,7 +3137,7 @@ void MIPS16 ClearRuntime(void) {
     optionfastaudio=0;
     optionlogging=false;
 #ifndef PICOMITEVGA
-    clear320();
+    if(SSD16TYPE || Option.DISPLAY_TYPE==IPS_4_16)clear320();
 #endif
     MMerrno = 0;                                                    // clear the error flags
    *MMErrMsg = 0;
@@ -3216,7 +3213,7 @@ int GetCommandValue( unsigned char *n) {
     int i;
     for(i = 0; i < CommandTableSize - 1; i++)
         if(str_equal(n, commandtbl[i].name))
-            return i + C_BASETOKEN;
+            return i;
     error("Internal fault 3(sorry)");
     return 0;
 }

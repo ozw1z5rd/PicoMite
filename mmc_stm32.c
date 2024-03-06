@@ -662,7 +662,7 @@ int __not_in_flash_func(selectSD)(void)	/* 1:Successful, 0:Timeout */
 	else SPISpeedSet(SDFAST);
 #ifndef PICOMITEVGA
 	if(Option.CombinedCS){
-		gpio_put(TOUCH_CS_PIN,GPIO_PIN_SET);
+		gpio_put(TOUCH_CS_PIN,GPIO_PIN_RESET);
 		gpio_set_dir(TOUCH_CS_PIN, GPIO_OUT);
 	} else gpio_put(SD_CS_PIN,GPIO_PIN_RESET);
 #else

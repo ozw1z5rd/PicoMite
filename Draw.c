@@ -368,7 +368,7 @@ void  getargaddress (unsigned char *p, long long int **ip, MMFLOAT **fp, int *n)
         return;
     }
     ptr = findvar((unsigned char *)pp, V_FIND | V_EMPTY_OK | V_NOFIND_NULL);
-    if(ptr && vartbl[VarIndex].type & T_NBR) {
+    if(ptr && vartbl[VarIndex].type & (T_NBR | T_INT)) {
         if(vartbl[VarIndex].dims[0] <= 0){ //simple variable
             *n=1;
             return;
@@ -379,7 +379,7 @@ void  getargaddress (unsigned char *p, long long int **ip, MMFLOAT **fp, int *n)
             do {
                 p++;
             } while(isnamechar(*p));
-            if(*p == '!') p++;
+            if(*p == '!' || *p== '%') p++;
             if(*p == '(') {
                 p++;
                 skipspace(p);
@@ -390,34 +390,13 @@ void  getargaddress (unsigned char *p, long long int **ip, MMFLOAT **fp, int *n)
             }
         }
         if(vartbl[VarIndex].dims[1] != 0) error("Invalid variable");
-        *fp = (MMFLOAT*)ptr;
-    } else if(ptr && vartbl[VarIndex].type & T_INT) {
-        if(vartbl[VarIndex].dims[0] <= 0){
-            *n=1;
-            return;
-        } else {
-            if(*n == 0)*n=vartbl[VarIndex].dims[0] + 1 - OptionBase;
-            else *n = (vartbl[VarIndex].dims[0] + 1 - OptionBase)< *n ? (vartbl[VarIndex].dims[0] + 1 - OptionBase) : *n;
-            skipspace(p);
-            do {
-                p++;
-            } while(isnamechar(*p));
-            if(*p == '%') p++;
-            if(*p == '(') {
-                p++;
-                skipspace(p);
-                if(*p != ')') { //array element
-                    *n=1;
-                    return;
-                }
-            }
-        }
-        if(vartbl[VarIndex].dims[1] != 0) error("Invalid variable");
-        *ip = (long long int *)ptr;
+        if(vartbl[VarIndex].type & T_NBR)*fp = (MMFLOAT*)ptr;
+        else *ip = (long long int *)ptr;
     } else {
     	*n=1; //may be a function call
     }
 }
+
 /****************************************************************************************************
 
  General purpose drawing routines
@@ -6758,15 +6737,15 @@ void ScrollLCDSPI(int lines){
      unsigned char *buff=GetMemory(3*HRes);
      if(lines >= 0) {
         for(int i=0;i<VRes-lines;i++) {
-        	ReadBuffer(0, i+lines, HRes -1, i+lines, buff);
-			DrawBuffer(0, i, HRes - 1, i, buff);        	
+        	ReadBLITBuffer(0, i+lines, HRes -1, i+lines, buff);
+			DrawBLITBuffer(0, i, HRes - 1, i, buff);        	
         }
         DrawRectangle(0, VRes-lines, HRes - 1, VRes - 1, gui_bcolour); // erase the lines to be scrolled off
     } else {
     	lines=-lines;
         for(int i=VRes-1;i>=lines;i--) {
-        	ReadBuffer(0, i-lines, HRes -1, i-lines, buff);
-			DrawBuffer(0, i, HRes - 1, i, buff);        	
+        	ReadBLITBuffer(0, i-lines, HRes -1, i-lines, buff);
+			DrawBLITBuffer(0, i, HRes - 1, i, buff);        	
         }
         DrawRectangle(0, 0, HRes - 1, lines - 1, gui_bcolour); // erase the lines introduced at the top
     }
