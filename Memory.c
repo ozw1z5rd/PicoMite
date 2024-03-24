@@ -93,7 +93,7 @@ short StrTmpIndex = 0;                                                // index t
 /***********************************************************************************************************************
  MMBasic commands
 ************************************************************************************************************************/
-void cmd_memory(void) {
+void MIPS16 cmd_memory(void) {
 	unsigned char *p,*tp;
     tp = checkstring(cmdline, (unsigned char *)"PACK");
     if(tp){

@@ -72,6 +72,9 @@ uint32_t getProgramSize(void) {
 uint32_t getFreeProgramSpace() {
    return PICO_FLASH_SIZE_BYTES - getProgramSize();
 }
+static inline CommandToken commandtbl_decode(const unsigned char *p){
+    return ((CommandToken)(p[0] & 0x7f)) | ((CommandToken)(p[1] & 0x7f)<<7);
+}
 extern int busfault;
 //#include "pico/stdio_usb/reset_interface.h"
 const char *OrientList[] = {"LANDSCAPE", "PORTRAIT", "RLANDSCAPE", "RPORTRAIT"};
@@ -1215,8 +1218,7 @@ void MIPS16 cmd_library(void) {
 //                TempPtr = m;
                 skipspace(p);
             }
-            tkn=p[0] & 0x7f;
-            tkn |= ((unsigned short)(p[1] & 0x7f)<<7);
+            tkn=commandtbl_decode(p);
             //if(CmdExpected && ( *p == GetCommandValue("End CFunction") || *p == GetCommandValue("End CSub") || *p == GetCommandValue("End DefineFont"))) {
             if(CmdExpected && (  tkn == GetCommandValue((unsigned char *)"End CSub") || tkn == GetCommandValue((unsigned char *)"End DefineFont"))) {
                 InCFun = false;                                     // found an  END CSUB or END DEFINEFONT token
@@ -1227,16 +1229,14 @@ void MIPS16 cmd_library(void) {
                 continue;
             }
 
-            tkn=p[0] & 0x7f;
-            tkn |= ((unsigned short)(p[1] & 0x7f)<<7);
+            tkn=commandtbl_decode(p);
             if(CmdExpected && ( tkn == cmdCSUB || tkn == GetCommandValue((unsigned char *)"DefineFont"))) {    // found a  CSUB or DEFINEFONT token
                 CFunDefAddr[++j] = (unsigned int)m;                 // save its address so that the binary copy in the library can point to it
                 while(*p) *m++ = *p++;                              // copy the declaration
                 InCFun = true;
             }
 
-            tkn=p[0] & 0x7f;
-            tkn |= ((unsigned short)(p[1] & 0x7f)<<7);
+            tkn=commandtbl_decode(p);
             if(CmdExpected && tkn == rem) {                          // found a REM token
                 skipline(p);
                 m = TempPtr;                                        // don't copy the new line tokens
@@ -1561,7 +1561,7 @@ void PO5Int(char *s1, int n1, int n2, int n3, int n4) {
     PO(s1); PInt(n1); PIntComma(n2);  PIntComma(n3);  PIntComma(n4); MMPrintString("\r\n");
 }
 
-void printoptions(void){
+void MIPS16 printoptions(void){
 //	LoadOptions();
 #ifdef PICOMITEVGA
 #ifdef USBKEYBOARD
@@ -1696,7 +1696,19 @@ void printoptions(void){
         PInt(Option.CPU_Speed);
         MMPrintString(" 'KHz\r\n");
     }
-    if(Option.DISPLAY_CONSOLE == true) PO2Str("LCDPANEL", "CONSOLE");
+    if(Option.DISPLAY_CONSOLE == true) {
+        PO("LCDPANEL CONSOLE");
+        if(Option.DefaultFont != (Option.DISPLAY_TYPE==COLOURVGA? (6<<4) | 1 : 0x01 ))PInt((Option.DefaultFont>>4) +1);
+        else if(!(Option.DefaultFC==WHITE && Option.DefaultBC==BLACK && Option.DefaultBrightness == 100 && Option.NoScroll==0))MMputchar(',',1);
+        if(Option.DefaultFC!=WHITE)PIntHC(Option.DefaultFC);
+        else if(!(Option.DefaultBC==BLACK && Option.DefaultBrightness == 100 && Option.NoScroll==0))MMputchar(',',1);
+        if(Option.DefaultBC!=BLACK)PIntHC(Option.DefaultBC);
+        else if(!(Option.DefaultBrightness == 100 && Option.NoScroll==0))MMputchar(',',1);
+        if(Option.DefaultBrightness != 100)PIntComma(Option.DefaultBrightness);
+        else if(!(Option.DefaultBrightness == 100 && Option.NoScroll==0))MMputchar(',',1);
+        if(Option.NoScroll!=0)MMPrintString(",NOSCROLL");
+        PRet();
+    }
     if(Option.Height != 24 || Option.Width != 80) PO3Int("DISPLAY", Option.Height, Option.Width);
     if(Option.DISPLAY_TYPE == DISP_USER) PO3Int("LCDPANEL USER", HRes, VRes);
     if(Option.DISPLAY_TYPE > I2C_PANEL && Option.DISPLAY_TYPE < DISP_USER) {
@@ -1873,14 +1885,14 @@ void printoptions(void){
     if(Option.DefaultFont!=1)PO3Int("DEFAULT FONT",(Option.DefaultFont>>4)+1, Option.DefaultFont & 0xF);
 
 }
-int checkslice(int pin1,int pin2, int ignore){
+int MIPS16 checkslice(int pin1,int pin2, int ignore){
     if((PinDef[pin1].slice & 0xf) != (PinDef[pin2].slice &0xf)) error("Pins not on same PWM slice");
     if(!ignore){
         if(!((PinDef[pin1].slice - PinDef[pin2].slice == 128) || (PinDef[pin2].slice - PinDef[pin1].slice == 128))) error("Pins both same channel");
     }
     return PinDef[pin1].slice & 0xf;
 }
-void setterminal(void){
+void MIPS16 setterminal(void){
 	  char sp[20]={0};
 	  strcpy(sp,"\033[8;");
 	  IntToStr(&sp[strlen(sp)],Option.Height,10);
@@ -1908,12 +1920,12 @@ void fun_keydown(void) {
 	targ=T_INT;
 }
 #else
-void cmd_update(void){
+void MIPS16 cmd_update(void){
     uint gpio_mask = 0u;
     reset_usb_boot(gpio_mask, PICO_STDIO_USB_RESET_BOOTSEL_INTERFACE_DISABLE_MASK);
 }
 #endif
-void disable_systemspi(void){
+void MIPS16 disable_systemspi(void){
     if(!IsInvalidPin(Option.SYSTEM_MOSI))ExtCurrentConfig[Option.SYSTEM_MOSI] = EXT_DIG_IN ;   
     if(!IsInvalidPin(Option.SYSTEM_MISO))ExtCurrentConfig[Option.SYSTEM_MISO] = EXT_DIG_IN ;   
     if(!IsInvalidPin(Option.SYSTEM_CLK))ExtCurrentConfig[Option.SYSTEM_CLK] = EXT_DIG_IN ;   
@@ -1924,7 +1936,7 @@ void disable_systemspi(void){
     Option.SYSTEM_MISO=0;
     Option.SYSTEM_CLK=0;
 }
-void disable_systemi2c(void){
+void MIPS16 disable_systemi2c(void){
     if(!IsInvalidPin(Option.SYSTEM_I2C_SCL))ExtCurrentConfig[Option.SYSTEM_I2C_SCL] = EXT_DIG_IN ;   
     if(!IsInvalidPin(Option.SYSTEM_I2C_SDA))ExtCurrentConfig[Option.SYSTEM_I2C_SDA] = EXT_DIG_IN ;   
     if(!IsInvalidPin(Option.SYSTEM_I2C_SCL))ExtCfg(Option.SYSTEM_I2C_SCL, EXT_NOT_CONFIG, 0);
@@ -1932,7 +1944,7 @@ void disable_systemi2c(void){
     Option.SYSTEM_I2C_SCL=0;
     Option.SYSTEM_I2C_SDA=0;
 }
-void disable_sd(void){
+void MIPS16 disable_sd(void){
     if(!IsInvalidPin(Option.SD_CS))ExtCurrentConfig[Option.SD_CS] = EXT_DIG_IN ;   
     if(!IsInvalidPin(Option.SD_CS))ExtCfg(Option.SD_CS, EXT_NOT_CONFIG, 0);
     Option.SD_CS=0;
@@ -1998,7 +2010,7 @@ void disable_audio(void){
     Option.AUDIO_SLICE=99;
 }
 #ifndef PICOMITEVGA
-void ConfigDisplayUser(unsigned char *tp){
+void MIPS16 ConfigDisplayUser(unsigned char *tp){
     getargs(&tp, 13, (unsigned char *)",");
     if(str_equal(argv[0], (unsigned char *)"USER")) {
         if(Option.DISPLAY_TYPE) error("Display already configured");
@@ -2013,7 +2025,7 @@ void ConfigDisplayUser(unsigned char *tp){
     }  
 
 }
-void clear320(void){
+void MIPS16 clear320(void){
     screen320=0;
     DrawRectangle = DrawRectangleSSD1963;
     DrawBitmap = DrawBitmapSSD1963;
@@ -2037,9 +2049,336 @@ void clear320(void){
     return;
 }
 #endif
+
+void MIPS16 configure(unsigned char *p){
+    if(!*p){
+        ResetOptions();
+        _excep_code = RESET_COMMAND;
+        SoftReset();
+    } else {
+#ifdef PICOMITEVGA
+#ifdef USBKEYBOARD
+        if(checkstring(p,(unsigned char *) "CMM1.5"))  {
+            ResetOptions();
+            Option.AllPins = 1; 
+            Option.ColourCode = 1;
+            Option.NoHeartbeat = 1;
+            Option.SYSTEM_I2C_SDA=PINMAP[14];
+            Option.SYSTEM_I2C_SCL=PINMAP[15];
+            Option.RTC = true;
+            Option.SD_CS=PINMAP[13];
+            Option.SYSTEM_CLK=PINMAP[10];
+            Option.SYSTEM_MOSI=PINMAP[11];
+            Option.SYSTEM_MISO=PINMAP[12];
+            Option.VGA_HSYNC=PINMAP[23];
+            Option.VGA_BLUE=PINMAP[18];
+            Option.AUDIO_L=PINMAP[16];
+            Option.AUDIO_R=PINMAP[17];
+            Option.modbuffsize=512;
+            Option.modbuff = true; 
+            Option.AUDIO_SLICE=checkslice(PINMAP[16],PINMAP[17], 0);
+            strcpy((char *)Option.platform,"CMM1.5");
+            SaveOptions();
+            printoptions();uSec(100000);
+            _excep_code = RESET_COMMAND;
+            SoftReset();
+        }
+#else
+        if(checkstring(p,(unsigned char *) "PICOMITEVGA V1.1"))  {
+            ResetOptions();
+            Option.AllPins = 1; 
+            Option.ColourCode = 1;
+            Option.SYSTEM_I2C_SDA=PINMAP[14];
+            Option.SYSTEM_I2C_SCL=PINMAP[15];
+            Option.RTC = true;
+            Option.SD_CS=PINMAP[13];
+            Option.SYSTEM_CLK=PINMAP[10];
+            Option.SYSTEM_MOSI=PINMAP[11];
+            Option.SYSTEM_MISO=PINMAP[12];
+            Option.VGA_HSYNC=PINMAP[16];
+            Option.VGA_BLUE=PINMAP[18];
+            Option.AUDIO_CS_PIN=PINMAP[24];
+            Option.AUDIO_CLK_PIN=PINMAP[22];
+            Option.AUDIO_MOSI_PIN=PINMAP[23];
+            Option.AUDIO_SLICE=checkslice(PINMAP[22],PINMAP[22], 1);
+            Option.modbuffsize=512;
+            Option.modbuff = true; 
+
+            strcpy((char *)Option.platform,"PICOMITEVGA V1.1");
+            SaveOptions();
+            printoptions();uSec(100000);
+            _excep_code = RESET_COMMAND;
+            SoftReset();
+        }
+        if(checkstring(p,(unsigned char *) "PICOMITEVGA V1.0"))  {
+            ResetOptions();
+            Option.AllPins = 1; 
+            Option.ColourCode = 1;
+            Option.SYSTEM_I2C_SDA=PINMAP[14];
+            Option.SYSTEM_I2C_SCL=PINMAP[15];
+            Option.RTC = true;
+            Option.SD_CS=PINMAP[13];
+            Option.SYSTEM_CLK=PINMAP[10];
+            Option.SYSTEM_MOSI=PINMAP[11];
+            Option.SYSTEM_MISO=PINMAP[12];
+            Option.VGA_HSYNC=PINMAP[16];
+            Option.VGA_BLUE=PINMAP[18];
+            Option.AUDIO_L=PINMAP[22];
+            Option.AUDIO_R=PINMAP[23];
+            Option.modbuffsize=512;
+            Option.modbuff = true; 
+            Option.AUDIO_SLICE=checkslice(PINMAP[22],PINMAP[23], 0);
+            strcpy((char *)Option.platform,"PICOMITEVGA V1.0");
+            SaveOptions();
+            printoptions();uSec(100000);
+            _excep_code = RESET_COMMAND;
+            SoftReset();
+        }
+        if(checkstring(p,(unsigned char *) "VGA DESIGN 1"))  {
+            ResetOptions();
+            Option.ColourCode = 1;
+            Option.SYSTEM_CLK=PINMAP[10];
+            Option.SYSTEM_MOSI=PINMAP[11];
+            Option.SYSTEM_MISO=PINMAP[12];
+            Option.SD_CS=PINMAP[13];
+            Option.VGA_HSYNC=PINMAP[16];
+            Option.VGA_BLUE=PINMAP[18];
+            strcpy((char *)Option.platform,"VGA Design 1");
+            SaveOptions();
+            printoptions();uSec(100000);
+            _excep_code = RESET_COMMAND;
+            SoftReset();
+        }
+        if(checkstring(p,(unsigned char *) "VGA DESIGN 2"))  {
+            ResetOptions();
+            Option.ColourCode = 1;
+            Option.SYSTEM_I2C_SDA=PINMAP[14];
+            Option.SYSTEM_I2C_SCL=PINMAP[15];
+            Option.RTC = true;
+            Option.SYSTEM_CLK=PINMAP[10];
+            Option.SYSTEM_MOSI=PINMAP[11];
+            Option.SYSTEM_MISO=PINMAP[12];
+            Option.SD_CS=PINMAP[13];
+            Option.VGA_HSYNC=PINMAP[16];
+            Option.VGA_BLUE=PINMAP[18];
+            Option.AUDIO_L=PINMAP[6];
+            Option.AUDIO_R=PINMAP[7];
+            Option.modbuffsize=192;
+            Option.modbuff = true; 
+            Option.AUDIO_SLICE=checkslice(PINMAP[6],PINMAP[7], 0);
+            strcpy((char *)Option.platform,"VGA Design 2");
+            SaveOptions();
+            printoptions();uSec(100000);
+            _excep_code = RESET_COMMAND;
+            SoftReset();
+        }
+#endif
+#endif
+#if defined(PICOMITE) || defined(PICOMITEWEB)
+#ifndef USBKEYBOARD
+/*OPTION PLATFORM "Game*Mite"
+OPTION SYSTEM SPI GP6,GP3,GP4
+OPTION CPUSPEED 252000
+OPTION LCDPANEL ILI9341,RLANDSCAPE,GP2,GP1,GP0
+OPTION TOUCH GP5,GP7
+OPTION SDCARD GP22
+OPTION AUDIO GP20,GP21
+OPTION MODBUFF ENABLE 192 */
+       if(checkstring(p,(unsigned char *) "GAMEMITE"))  {
+            ResetOptions();
+            Option.CPU_Speed=252000;
+            Option.ColourCode = 1;
+            Option.SYSTEM_CLK=PINMAP[6];
+            Option.SYSTEM_MOSI=PINMAP[3];
+            Option.SYSTEM_MISO=PINMAP[4];
+            Option.AUDIO_L=PINMAP[20];
+            Option.AUDIO_R=PINMAP[21];
+            Option.modbuffsize=192;
+            Option.DISPLAY_TYPE=ILI9341;
+            Option.LCD_CD=PINMAP[2];
+            Option.LCD_Reset=PINMAP[1];
+            Option.LCD_CS=PINMAP[0];
+            Option.TOUCH_CS=PINMAP[5];
+            Option.TOUCH_IRQ=PINMAP[7];
+            Option.SD_CS=PINMAP[22];
+            Option.modbuff = true; 
+            Option.DISPLAY_ORIENTATION=3;
+            Option.AUDIO_SLICE=checkslice(PINMAP[20],PINMAP[21], 0);
+            Option.TOUCH_SWAPXY = 0;
+            Option.TOUCH_XZERO = 407;
+            Option.TOUCH_YZERO = 267;
+            Option.TOUCH_XSCALE = 0.0897;
+            Option.TOUCH_YSCALE = 0.0677;
+            strcpy((char *)Option.platform,"Game*Mite");
+            SaveOptions();
+            printoptions();uSec(100000);
+            _excep_code = RESET_COMMAND;
+            SoftReset();
+       }
+       if(checkstring(p,(unsigned char *) "PICORESTOUCHLCD3.5"))  {
+            ResetOptions();
+            Option.CPU_Speed=252000;
+            Option.ColourCode = 1;
+            Option.SYSTEM_CLK=PINMAP[10];
+            Option.SYSTEM_MOSI=PINMAP[11];
+            Option.SYSTEM_MISO=PINMAP[12];
+            Option.modbuffsize=192;
+            Option.DISPLAY_TYPE=ILI9488W;
+            Option.LCD_CD=PINMAP[8];
+            Option.LCD_Reset=PINMAP[15];
+            Option.LCD_CS=PINMAP[9];
+            Option.TOUCH_CS=PINMAP[16];
+            Option.TOUCH_IRQ=PINMAP[17];
+            Option.SD_CS=PINMAP[22];
+            Option.DISPLAY_BL=PINMAP[13];
+            Option.modbuff = true; 
+            Option.DISPLAY_ORIENTATION=1;
+            Option.TOUCH_SWAPXY = 0;
+            Option.TOUCH_XZERO = 3963;
+            Option.TOUCH_YZERO = 216;
+            Option.TOUCH_XSCALE = -0.1285;
+            Option.TOUCH_YSCALE = 0.0859;
+            strcpy((char *)Option.platform,"Pico-ResTouch-LCD-3.5");
+            SaveOptions();
+            printoptions();uSec(100000);
+            _excep_code = RESET_COMMAND;
+            SoftReset();
+       }
+       if(checkstring(p,(unsigned char *) "PICO BACKPACK"))  {
+            ResetOptions();
+            Option.CPU_Speed=252000;
+            Option.ColourCode = 1;
+            Option.SYSTEM_CLK=PINMAP[18];
+            Option.SYSTEM_MOSI=PINMAP[19];
+            Option.SYSTEM_MISO=PINMAP[16];
+            Option.DISPLAY_TYPE=ILI9341;
+            Option.LCD_CD=PINMAP[20];
+            Option.LCD_Reset=PINMAP[21];
+            Option.LCD_CS=PINMAP[17];
+            Option.TOUCH_CS=PINMAP[14];
+            Option.TOUCH_IRQ=PINMAP[15];
+            Option.SD_CS=PINMAP[22];
+            Option.DISPLAY_ORIENTATION=1;
+            Option.TOUCH_SWAPXY = 0;
+            Option.TOUCH_XZERO = 3963;
+            Option.TOUCH_YZERO = 216;
+            Option.TOUCH_XSCALE = -0.1285;
+            Option.TOUCH_YSCALE = 0.0859;
+            strcpy((char *)Option.platform,"Pico Backpack");
+            SaveOptions();
+            printoptions();uSec(100000);
+            _excep_code = RESET_COMMAND;
+            SoftReset();
+       }
+       if(checkstring(p,(unsigned char *) "PICORESTOUCHLCD2.8"))  {
+            ResetOptions();
+            Option.CPU_Speed=252000;
+            Option.ColourCode = 1;
+            Option.SYSTEM_CLK=PINMAP[10];
+            Option.SYSTEM_MOSI=PINMAP[11];
+            Option.SYSTEM_MISO=PINMAP[12];
+            Option.modbuffsize=192;
+            Option.DISPLAY_TYPE=ST7789B;
+            Option.LCD_CD=PINMAP[8];
+            Option.LCD_Reset=PINMAP[15];
+            Option.LCD_CS=PINMAP[9];
+            Option.TOUCH_CS=PINMAP[16];
+            Option.TOUCH_IRQ=PINMAP[17];
+            Option.SD_CS=PINMAP[22];
+            Option.DISPLAY_BL=PINMAP[13];
+            Option.modbuff = true; 
+            Option.DISPLAY_ORIENTATION=1;
+            Option.TOUCH_SWAPXY = 0;
+            Option.TOUCH_XZERO = 373;
+            Option.TOUCH_YZERO = 3859;
+            Option.TOUCH_XSCALE = 0.0894;
+            Option.TOUCH_YSCALE = -0.0657;
+            strcpy((char *)Option.platform,"Pico-ResTouch-LCD-2.8");
+            SaveOptions();
+            printoptions();uSec(100000);
+            _excep_code = RESET_COMMAND;
+            SoftReset();
+       }
+#ifndef PICOMITEWEB
+       if(checkstring(p,(unsigned char *) "RP2040LCD1.28"))  {
+            ResetOptions();
+            Option.CPU_Speed=252000;
+            Option.AllPins = 1; 
+            Option.ColourCode = 1;
+            Option.NoHeartbeat = 1;
+            Option.SYSTEM_CLK=PINMAP[10];
+            Option.SYSTEM_MOSI=PINMAP[11];
+            Option.SYSTEM_MISO=PINMAP[28];
+            Option.DISPLAY_TYPE=GC9A01;
+            Option.LCD_CD=PINMAP[8];
+            Option.LCD_Reset=PINMAP[12];
+            Option.LCD_CS=PINMAP[9];
+            Option.DISPLAY_BL=PINMAP[25];
+            Option.DISPLAY_ORIENTATION=1;
+            Option.SYSTEM_I2C_SDA=PINMAP[6];
+            Option.SYSTEM_I2C_SCL=PINMAP[7];
+            strcpy((char *)Option.platform,"RP2040-LCD-1.28");
+            SaveOptions();
+            printoptions();uSec(100000);
+            _excep_code = RESET_COMMAND;
+            SoftReset();
+       }
+       if(checkstring(p,(unsigned char *) "RP2040LCD0.96"))  {
+            ResetOptions();
+            Option.CPU_Speed=252000;
+            Option.ColourCode = 1;
+            Option.NoHeartbeat = 1;
+            Option.SYSTEM_CLK=PINMAP[10];
+            Option.SYSTEM_MOSI=PINMAP[11];
+            Option.SYSTEM_MISO=PINMAP[28];
+            Option.DISPLAY_TYPE=ST7735S;
+            Option.LCD_CD=PINMAP[8];
+            Option.LCD_Reset=PINMAP[12];
+            Option.LCD_CS=PINMAP[9];
+            Option.DISPLAY_BL=PINMAP[25];
+            Option.DISPLAY_ORIENTATION=1;
+            strcpy((char *)Option.platform,"RP2040-LCD-0.96");
+            SaveOptions();
+            printoptions();uSec(100000);
+            _excep_code = RESET_COMMAND;
+            SoftReset();
+       }
+       if(checkstring(p,(unsigned char *) "RP2040GEEK"))  {
+            ResetOptions();
+            Option.CPU_Speed=252000;
+            Option.ColourCode = 1;
+            Option.NoHeartbeat = 1;
+            Option.AllPins = 1; 
+            Option.SYSTEM_CLK=PINMAP[10];
+            Option.SYSTEM_MOSI=PINMAP[11];
+            Option.SYSTEM_MISO=PINMAP[24];
+            Option.DISPLAY_TYPE=ST7789A;
+            Option.LCD_CD=PINMAP[8];
+            Option.LCD_Reset=PINMAP[12];
+            Option.LCD_CS=PINMAP[23];
+            Option.SD_CLK_PIN=PINMAP[18];
+            Option.SD_MOSI_PIN=PINMAP[19];
+            Option.SD_MISO_PIN=PINMAP[20];
+            Option.DISPLAY_BL=PINMAP[25];
+            Option.DISPLAY_ORIENTATION=1;
+            strcpy((char *)Option.platform,"RP2040-GEEK");
+            SaveOptions();
+            printoptions();uSec(100000);
+            _excep_code = RESET_COMMAND;
+            SoftReset();
+       }
+#endif
+#endif
+#endif
+        error("Invalid board for this firmware");
+    }
+}
+void cmd_configure(void){
+    configure(cmdline);
+}
 void MIPS16 cmd_option(void) {
     unsigned char *tp;
-
+ 
     tp = checkstring(cmdline, (unsigned char *)"BASE");
     if(tp) {
         if(DimUsed) error("Must be before DIM or LOCAL");
@@ -2363,11 +2702,13 @@ void MIPS16 cmd_option(void) {
     if(tp){
         Option.Height = SCREENHEIGHT; Option.Width = SCREENWIDTH;
         Option.DISPLAY_CONSOLE = 0;
-        Option.ColourCode = false;
         Option.DefaultFC = WHITE;
         Option.DefaultBC = BLACK;
         SetFont((Option.DefaultFont = (Option.DISPLAY_TYPE==COLOURVGA? (6<<4) | 1 : 0x01 )));
         Option.DefaultBrightness = 100;
+        Option.NoScroll=0;
+        Option.Height = SCREENHEIGHT;
+        Option.Width = SCREENWIDTH;
         if(!CurrentLinePtr) {
             SaveOptions();
             ClearScreen(Option.DefaultBC);
@@ -2376,7 +2717,8 @@ void MIPS16 cmd_option(void) {
     }
     tp = checkstring(cmdline, (unsigned char *)"LCDPANEL CONSOLE");
     if(tp) {
-        if(!(Option.DISPLAY_TYPE==ST7789B || Option.DISPLAY_TYPE==ILI9488 || Option.DISPLAY_TYPE==ILI9341 || Option.DISPLAY_TYPE==ILI9481IPS || Option.DISPLAY_TYPE>=VGADISPLAY))error("Display does not support console");
+        Option.NoScroll = 0;
+        if(!(Option.DISPLAY_TYPE==ST7789B || Option.DISPLAY_TYPE==ILI9488 || Option.DISPLAY_TYPE==ILI9341 || Option.DISPLAY_TYPE>=VGADISPLAY))Option.NoScroll=1;
         if(!(Option.DISPLAY_ORIENTATION == DISPLAY_LANDSCAPE) && Option.DISPLAY_TYPE==SSDTYPE) error("Landscape only");
         skipspace(tp);
         Option.DefaultFC = WHITE;
@@ -2384,19 +2726,25 @@ void MIPS16 cmd_option(void) {
         int font;
         Option.DefaultBrightness = 100;
         if(!(*tp == 0 || *tp == '\'')) {
-            getargs(&tp, 7, (unsigned char *)",");                              // this is a macro and must be the first executable stmt in a block
+            getargs(&tp, 9, (unsigned char *)",");                              // this is a macro and must be the first executable stmt in a block
             if(argc > 0) {
                 if(*argv[0] == '#') argv[0]++;                  // skip the hash if used
                 font = (((getint(argv[0], 1, FONT_BUILTIN_NBR) - 1) << 4) | 1);
                 if(FontTable[font >> 4][0]*29>HRes)error("Font too wide for console mode");
                 Option.DefaultFont=font;
             }
-            if(argc > 2) Option.DefaultFC = getint(argv[2], BLACK, WHITE);
-            if(argc > 4) Option.DefaultBC = getint(argv[4], BLACK, WHITE);
+            if(argc > 2 && *argv[2]) Option.DefaultFC = getint(argv[2], BLACK, WHITE);
+            if(argc > 4 && *argv[4]) Option.DefaultBC = getint(argv[4], BLACK, WHITE);
             if(Option.DefaultFC == Option.DefaultBC) error("Same colours");
-            if(argc > 6) {
+            if(argc > 6 && *argv[6]) {
                 if(!Option.DISPLAY_BL)error("Backlight not available on this display");
                 Option.DefaultBrightness = getint(argv[6], 0, 100);
+            }
+            if(argc==9){
+                if(checkstring(argv[8],(unsigned char *)"NOSCROLL")){
+                    if(!FASTSCROLL)Option.NoScroll=1;
+                    else error("Invalid for this display");
+                } else error("Syntax");
             }
         }
         if(Option.DISPLAY_BL){
@@ -2548,7 +2896,7 @@ void MIPS16 cmd_option(void) {
     if(tp) {
    	    if(CurrentLinePtr) error("Invalid in a program");
         int CPU_Speed=getinteger(tp);
-        if(!(CPU_Speed==126000 || CPU_Speed==252000))error("CpuSpeed 126000, 252000 only");
+        if(!(CPU_Speed==126000 || CPU_Speed==252000 || CPU_Speed==378000))error("CpuSpeed 126000, 252000 or 378000 only");
         Option.CPU_Speed=CPU_Speed;
         Option.X_TILE=80;
         Option.Y_TILE=40;
@@ -2652,8 +3000,12 @@ void MIPS16 cmd_option(void) {
 #endif
     tp = checkstring(cmdline, (unsigned char *)"CPUSPEED");
     if(tp) {
+        uint32_t speed=0;    
    	    if(CurrentLinePtr) error("Invalid in a program");
-        Option.CPU_Speed=getint(tp,MIN_CPU,MAX_CPU);
+        speed=getint(tp,MIN_CPU,MAX_CPU);
+        uint vco, postdiv1, postdiv2;
+        if (!check_sys_clock_khz(speed, &vco, &postdiv1, &postdiv2))error("Invalid clock speed");
+        Option.CPU_Speed=speed;
         SaveOptions();
         _excep_code = RESET_COMMAND;
         SoftReset();
@@ -2679,6 +3031,10 @@ void MIPS16 cmd_option(void) {
             Option.SSD_DC = Option.SSD_WR = Option.SSD_RD;
     		Option.TOUCH_XZERO = Option.TOUCH_YZERO = 0;                    // record the touch feature as not calibrated
             Option.SSD_RESET = -1;
+            if(Option.DISPLAY_CONSOLE){
+                Option.Height = SCREENHEIGHT;
+                Option.Width = SCREENWIDTH;
+            }
             DrawRectangle = (void (*)(int , int , int , int , int ))DisplayNotSet;
             DrawBitmap =  (void (*)(int , int , int , int , int , int , int , unsigned char *))DisplayNotSet;
             ScrollLCD = (void (*)(int ))DisplayNotSet;
@@ -3278,9 +3634,7 @@ void MIPS16 cmd_option(void) {
           flash_range_erase(j, MAX_PROG_SIZE);
           enable_interrupts();
         }
-        ResetOptions();
-        _excep_code = RESET_COMMAND;
-        SoftReset();
+        configure(tp);
     }
     error("Invalid Option");
 }
@@ -4000,11 +4354,12 @@ void cmd_csubinterrupt(void){
     } else CSubComplete=1;  
 }
 void cmd_cfunction(void) {
-    char *p;
-    unsigned short EndToken, tkn;
+    unsigned char *p;
+    unsigned short EndToken;
+    CommandToken tkn;
     EndToken = GetCommandValue((unsigned char *)"End DefineFont");           // this terminates a DefineFont
     if(cmdtoken == cmdCSUB) EndToken = GetCommandValue((unsigned char *)"End CSub");                 // this terminates a CSUB
-    p = (char *)cmdline;
+    p = cmdline;
     while(*p != 0xff) {
         if(*p == 0) p++;                                            // if it is at the end of an element skip the zero marker
         if(*p == 0) error("Missing END declaration");               // end of the program
@@ -4015,8 +4370,7 @@ void cmd_cfunction(void) {
             p += p[1] + 2;                                          // skip over the label
             skipspace(p);                                           // and any following spaces
         }
-        tkn=p[0] & 0x7f;
-        tkn |= ((unsigned short)(p[1] & 0x7f)<<7);
+        tkn=commandtbl_decode(p);
         if(tkn == EndToken) {                                        // found an END token
             nextstmt = (unsigned char *)p;
             skipelement(nextstmt);
@@ -4153,6 +4507,7 @@ unsigned int GetCFunAddr(int *ip, int i,unsigned char *offset) {
 
 
 
+
 // utility function used by fun_peek() to validate an address
 unsigned int __not_in_flash_func(GetPeekAddr)(unsigned char *p) {
     unsigned int i;
@@ -4240,7 +4595,7 @@ void fun_peek(void) {
             unsigned char *q=getCstring(argv[0]);
             i = FindSubFun(q, true);                                    // search for a function first
             if(i == -1) i = FindSubFun(q, false);                       // and if not found try for a subroutine
-        } if(i == -1 || !(*subfun[i] == cmdCSUB)) error("Invalid argument");
+        } if(i == -1 || !(commandtbl_decode(subfun[i]) == cmdCSUB)) error("Invalid argument");
         // search through program flash and the library looking for a match to the function being called
         j = GetCFunAddr((int *)CFunctionFlash, i,ProgMemory);
         if(!j) j = GetCFunAddr((int *)CFunctionLibrary, i,LibMemory);         //Check the library
@@ -4613,8 +4968,7 @@ GotAnInterrupt:
     MMerrno = 0;
     InterruptReturn = nextstmt;                                     // for when IRETURN is executed
     // if the interrupt is pointing to a SUB token we need to call a subroutine
-    unsigned short tkn=intaddr[0] & 0x7f;
-    tkn |= (((unsigned short)intaddr[1] & 0x7f)<<7);
+    CommandToken tkn=commandtbl_decode((const unsigned char *)intaddr);
     if(tkn == cmdSUB) {
     	strncpy(CurrentInterruptName, intaddr + 2, MAXVARLEN);
         rti[0] = (cmdIRET & 0x7f ) + C_BASETOKEN;

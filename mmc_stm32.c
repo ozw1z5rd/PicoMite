@@ -164,6 +164,42 @@ BYTE MDD_SDSPI_WriteProtectState(void)
 {
 	return 0;
 }
+int __not_in_flash_func(getsound)(int i,int mode){
+	int j=0,phase;
+	if(mode % 2){
+		phase=(int)sound_PhaseAC_right[i];
+		if(sound_mode_left[i][0]==99){j = (phase > 2047 ? 3900 : 100); mode+=4;}
+		if(mode==1 && sound_mode_right[i][0]==98){
+			mode+=4;
+			j=phase*3800/4096+100;
+		}
+	} else {
+		phase=(int)sound_PhaseAC_left[i];
+		if(sound_mode_left[i][0]==99){j = (phase > 2047 ? 3900 : 100); mode+=4;}
+		if(sound_mode_left[i][0]==98){
+			mode+=4;
+			j=phase*3800/4096+100;
+		}
+	}
+	switch(mode){
+		case 0:
+			j = (int)sound_mode_left[i][phase];
+		case 4:
+			return (j-2000)*mapping[sound_v_left[i]]/2000;
+		case 1:
+			j = (int)sound_mode_right[i][phase];
+		case 5:
+			return (j-2000)*mapping[sound_v_right[i]]/2000;
+		case 2:
+			return (int)sound_mode_left[i][phase];
+		case 3:
+			return (int)sound_mode_right[i][phase];
+		case 6:
+		case 7:
+		    return j;
+	}
+	return 0;
+}
 void __not_in_flash_func(on_pwm_wrap)(void) {
 	static int noisedwellleft[MAXSOUNDS]={0}, noisedwellright[MAXSOUNDS]={0};
 	static uint32_t noiseleft[MAXSOUNDS]={0}, noiseright[MAXSOUNDS]={0};
@@ -223,8 +259,7 @@ void __not_in_flash_func(on_pwm_wrap)(void) {
 						if(sound_mode_left[i]!=whitenoise){
 							sound_PhaseAC_left[i] = sound_PhaseAC_left[i] + sound_PhaseM_left[i];
 							if(sound_PhaseAC_left[i]>=4096.0)sound_PhaseAC_left[i]-=4096.0;
-							j = (int)sound_mode_left[i][(int)sound_PhaseAC_left[i]];
-							leftv+=j;
+							leftv+=getsound(i,2);
 						} else {
 							if(noisedwellleft[i]<=0){
 								noisedwellleft[i]=sound_PhaseM_left[i];
@@ -240,8 +275,7 @@ void __not_in_flash_func(on_pwm_wrap)(void) {
 						if(sound_mode_right[i]!=whitenoise){
 							sound_PhaseAC_right[i] = sound_PhaseAC_right[i] + sound_PhaseM_right[i];
 							if(sound_PhaseAC_right[i]>=4096.0)sound_PhaseAC_right[i]-=4096.0;
-							j = (int)sound_mode_right[i][(int)sound_PhaseAC_right[i]];
-							rightv += j;
+							rightv += getsound(i,3);
 						}  else {
 							if(noisedwellright[i]<=0){
 								noisedwellright[i]=sound_PhaseM_right[i];
@@ -350,9 +384,7 @@ void __not_in_flash_func(on_pwm_wrap)(void) {
 						if(sound_mode_left[i]!=whitenoise){
 							sound_PhaseAC_left[i] = sound_PhaseAC_left[i] + sound_PhaseM_left[i];
 							if(sound_PhaseAC_left[i]>=4096.0)sound_PhaseAC_left[i]-=4096.0;
-							j = (int)sound_mode_left[i][(int)sound_PhaseAC_left[i]];
-							j= (j-2000)*mapping[sound_v_left[i]]/2000;
-							leftv+=j;
+							leftv+=getsound(i,0);
 						} else {
 							if(noisedwellleft[i]<=0){
 								noisedwellleft[i]=sound_PhaseM_left[i];
@@ -368,9 +400,7 @@ void __not_in_flash_func(on_pwm_wrap)(void) {
 						if(sound_mode_right[i]!=whitenoise){
 							sound_PhaseAC_right[i] = sound_PhaseAC_right[i] + sound_PhaseM_right[i];
 							if(sound_PhaseAC_right[i]>=4096.0)sound_PhaseAC_right[i]-=4096.0;
-							j = (int)sound_mode_right[i][(int)sound_PhaseAC_right[i]];
-							j= (j-2000)*mapping[sound_v_right[i]]/2000;
-							rightv += j;
+							rightv += getsound(i,1);
 						}  else {
 							if(noisedwellright[i]<=0){
 								noisedwellright[i]=sound_PhaseM_right[i];

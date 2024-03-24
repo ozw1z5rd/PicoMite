@@ -316,6 +316,8 @@ extern void __not_in_flash_func(spi_finish)(spi_inst_t *spi);
 #define TFT_SWRST 0x01
 #define SSDTYPE (Option.DISPLAY_TYPE>=SSDPANEL && Option.DISPLAY_TYPE<VIRTUAL_C && !(Option.DISPLAY_TYPE==ILI9341_16 || Option.DISPLAY_TYPE==ILI9341_8 || Option.DISPLAY_TYPE==IPS_4_16 || Option.DISPLAY_TYPE==ILI9486_16))
 #define SSD16TYPE (Option.DISPLAY_TYPE>SSD_PANEL_8 && Option.DISPLAY_TYPE<VIRTUAL_C && !(Option.DISPLAY_TYPE==ILI9341_16 || Option.DISPLAY_TYPE==IPS_4_16 || Option.DISPLAY_TYPE==ILI9486_16))
+#define SPIREAD (Option.DISPLAY_TYPE == ILI9341 || Option.DISPLAY_TYPE == ILI9488 || Option.DISPLAY_TYPE == ST7789B)
+#define FASTSCROLL (SSDTYPE || Option.DISPLAY_TYPE==MONOVGA ||  Option.DISPLAY_TYPE == COLOURVGA || Option.DISPLAY_TYPE == VIRTUAL_C || Option.DISPLAY_ORIENTATION == VIRTUAL_M)
 #define TFT_SLPIN 0x10
 #define TFT_SLPOUT 0x11
 
@@ -399,6 +401,8 @@ extern void __not_in_flash_func(spi_finish)(spi_inst_t *spi);
 #define SCREWUP_TIMEOUT    	9994                                // reset caused by the execute timer
 #define SOFT_RESET          9993
 #define POSSIBLE_WATCHDOG   9992
+#define INVALID_CLOCKSPEED  9991
+#define RESET_CLOCKSPEED  9990
 
 #define FLASH_SPI_SPEED 20000000
 #define LCD_SPI_SPEED   25000000                                   // the speed of the SPI bus when talking to an SPI LCD display controller

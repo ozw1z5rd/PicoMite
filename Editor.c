@@ -106,17 +106,25 @@ void DisplayPutS(char *s) {
     while(*s) DisplayPutC(*s++);
 }
 
+void printnothing(char * dummy){
 
+}
+char nothingchar(char dummy,int flush){
+    return 0;
+}
     int OriginalFC, OriginalBC;                                     // the original fore/background colours used by MMBasic
-
-    #define MMputchar           SerialConsolePutC
-    #define MMPrintString       SSPrintString
+static void (*PrintString)(char *buff)=SSPrintString;
+static char (*SSputchar)(char buff, int flush)=SerialConsolePutC;
+//    #define PrintString       SSPrintString
 #ifdef PICOMITEVGA
     #define MX470PutC(c)        DisplayPutClever(c)
 #else
     #define MX470PutC(c)        DisplayPutC(c)
 #endif
-    #define MX470Scroll(n)      if(Option.DISPLAY_CONSOLE)ScrollLCD(n)
+// Only SSD1963 displays support H/W scrolling so for other displays it is much quicker to redraw the screen than scroll it
+// However, we don't want to redraw the serial console so we dummy out the serial writes whiole re-drawing the physical screen
+    #define MX470Scroll(n)      if(Option.DISPLAY_CONSOLE){if(!(SPIREAD  || Option.NoScroll))ScrollLCD(n);\
+    else {PrintString=printnothing;SSputchar=nothingchar;printScreen();PrintString=SSPrintString;SSputchar=SerialConsolePutC;}}
 
 //    #define dx(...) {char s[140];sprintf(s,  __VA_ARGS__); SerUSBPutS(s); SerUSBPutS("\r\n");}
 
@@ -318,8 +326,8 @@ void cmd_edit(void) {
     *p = 0;                                                         // erase the last line terminator
     setterminal();
 
-    MMPrintString("\033[?1000h");                                   // Tera Term turn on mouse click report in VT200 mode
-    MMPrintString("\0337\033[2J\033[H");                            // vt100 clear screen and home cursor
+    PrintString("\033[?1000h");                                   // Tera Term turn on mouse click report in VT200 mode
+    PrintString("\0337\033[2J\033[H");                            // vt100 clear screen and home cursor
     MX470Display(DISPLAY_CLS);                                      // clear screen on the MX470 display only
     SCursor(0, 0);
     PrintFunctKeys(EDIT);
@@ -548,7 +556,7 @@ void FullScreenEditor(int xx, int yy, char *fname) {
                           if(lastkey == HOME || lastkey == CTRLKEY('U')) {
                               edx = edy = curx = cury = 0;
                               txtp = EdBuff;
-                              MMPrintString("\033[2J\033[H");                     // vt100 clear screen and home cursor
+                              PrintString("\033[2J\033[H");                     // vt100 clear screen and home cursor
                               MX470Display(DISPLAY_CLS);                          // clear screen on the MX470 display only
                               printScreen();
                               PrintFunctKeys(EDIT);
@@ -675,15 +683,15 @@ void FullScreenEditor(int xx, int yy, char *fname) {
               case CTRLKEY('W'):   // Save, exit and run
               case F2:             // Save, exit and run
                             c=buf[0];
-                            MMPrintString("\033[?1000l");                         // Tera Term turn off mouse click report in vt200 mode
-                            MMPrintString("\0338\033[2J\033[H");                  // vt100 clear screen and home cursor
+                            PrintString("\033[?1000l");                         // Tera Term turn off mouse click report in vt200 mode
+                            PrintString("\0338\033[2J\033[H");                  // vt100 clear screen and home cursor
                             gui_fcolour = GUI_C_NORMAL;
-                            MMPrintString(VT100_C_NORMAL);
+                            PrintString(VT100_C_NORMAL);
                             gui_fcolour = PromptFC;
                             gui_bcolour = PromptBC;
                             MX470Cursor(0, 0);                                // home the cursor
                             MX470Display(DISPLAY_CLS);                        // clear screen on the MX470 display only
-                            MMPrintString("\033[0m");
+                            PrintString("\033[0m");
                             BreakKey = BreakKeySave;
                             Option.ColourCode=optioncolourcodesave;
 #ifdef PICOMITEVGA
@@ -984,17 +992,17 @@ void MarkMode(unsigned char *cb, unsigned char *buf) {
             PositionCursor(oldmark);
             p = oldmark;
             while(p < mark) {
-                if(*p == '\n') { MMputchar('\r',0); MX470PutC('\r'); }// also print on the MX470 display
+                if(*p == '\n') { SSputchar('\r',0); MX470PutC('\r'); }// also print on the MX470 display
                 MX470PutC(*p);                                      // print on the MX470 display
-                MMputchar(*p++,0);
+                SSputchar(*p++,0);
             }
         } else if(oldmark > mark) {
             PositionCursor(mark);
             p = mark;
             while(oldmark > p) {
-                if(*p == '\n') { MMputchar('\r',0); MX470PutC('\r'); }// also print on the MX470 display
+                if(*p == '\n') { SSputchar('\r',0); MX470PutC('\r'); }// also print on the MX470 display
                 MX470PutC(*p);                                      // print on the MX470 display
-                MMputchar(*p++,0);
+                SSputchar(*p++,0);
             }
         }
         fflush(stdout);
@@ -1004,33 +1012,33 @@ void MarkMode(unsigned char *cb, unsigned char *buf) {
         // now draw the marked area
         if(mark < txtp) {
             PositionCursor(mark);
-            MMPrintString("\033[7m");
+            PrintString("\033[7m");
             MX470Display(REVERSE_VIDEO);                            // reverse video on the MX470 display only
             p = mark;
             while(p < txtp) {
                 if(*p == '\n') {
-                    MMputchar('\r',0); MX470PutC('\r');               // also print on the MX470 display
+                    SSputchar('\r',0); MX470PutC('\r');               // also print on the MX470 display
                 }
                 MX470PutC(*p);                                      // print on the MX470 display
-                MMputchar(*p++,0);
+                SSputchar(*p++,0);
             }
             MX470Display(REVERSE_VIDEO);                            // reverse video back to normal on the MX470 display only
         } else if(mark > txtp) {
             PositionCursor(txtp);
-            MMPrintString("\033[7m");
+            PrintString("\033[7m");
             MX470Display(REVERSE_VIDEO);                            // reverse video on the MX470 display only
             p = txtp;
             while(p < mark) {
                 if(*p == '\n') {
-                    MMputchar('\r',0); MX470PutC('\r');               // also print on the MX470 display
+                    SSputchar('\r',0); MX470PutC('\r');               // also print on the MX470 display
                 }
                 MX470PutC(*p);                                      // print on the MX470 display
-                MMputchar(*p++,0);
+                SSputchar(*p++,0);
             }
             MX470Display(REVERSE_VIDEO);                            // reverse video back to normal on the MX470 display only
         }
         markmode=false;
-        MMPrintString("\033[0m");                                   // normal video
+        PrintString("\033[0m");                                   // normal video
 
         oldx = x; oldy = y; oldmark = mark;
         PositionCursor(mark);
@@ -1121,7 +1129,7 @@ void SetColour(unsigned char *p, int DoVT100) {
         twokeyword = NULL;
         if(!multilinecomment){
             gui_fcolour = GUI_C_NORMAL;
-            if(DoVT100) MMPrintString(VT100_C_NORMAL);
+            if(DoVT100) PrintString(VT100_C_NORMAL);
         }
         return;
     }
@@ -1139,13 +1147,13 @@ void SetColour(unsigned char *p, int DoVT100) {
     // check for a comment char
     if(*p == '\'' && !inquote) {
         gui_fcolour = GUI_C_COMMENT;
-        if(DoVT100) MMPrintString(VT100_C_COMMENT);
+        if(DoVT100) PrintString(VT100_C_COMMENT);
         incomment = true;
         return;
     }
     if(*p == '/' && p[1]=='*' && !inquote) {
         gui_fcolour = GUI_C_COMMENT;
-        if(DoVT100) MMPrintString(VT100_C_COMMENT);
+        if(DoVT100) PrintString(VT100_C_COMMENT);
         multilinecomment = true;
         return;
     }
@@ -1158,7 +1166,7 @@ void SetColour(unsigned char *p, int DoVT100) {
         if(!inquote) {
             inquote = true;
             gui_fcolour = GUI_C_QUOTE;
-            if(DoVT100) MMPrintString(VT100_C_QUOTE);
+            if(DoVT100) PrintString(VT100_C_QUOTE);
             return;
         } else {
             inquote = false;
@@ -1172,7 +1180,7 @@ void SetColour(unsigned char *p, int DoVT100) {
     if(inkeyword) {
         if(isnamechar(*p) || *p == '$') return;
         gui_fcolour = GUI_C_NORMAL;
-        if(DoVT100) MMPrintString(VT100_C_NORMAL);
+        if(DoVT100) PrintString(VT100_C_NORMAL);
         inkeyword = false;
         return;
     }
@@ -1182,7 +1190,7 @@ void SetColour(unsigned char *p, int DoVT100) {
     if(innumber) {
         if(!isdigit(*p) && !(toupper(*p) >= 'A' && toupper(*p) <= 'F') && toupper(*p) != 'O' && toupper(*p) != 'H' && *p != '.') {
             gui_fcolour = GUI_C_NORMAL;
-            if(DoVT100) MMPrintString(VT100_C_NORMAL);
+            if(DoVT100) PrintString(VT100_C_NORMAL);
             innumber = false;
             return;
         } else {
@@ -1192,7 +1200,7 @@ void SetColour(unsigned char *p, int DoVT100) {
     } else if(!intext){
         if(isdigit(*p) || *p == '&' || ((*p == '-' || *p == '+' || *p == '.') && isdigit(p[1]))) {
             gui_fcolour = GUI_C_NUMBER;
-            if(DoVT100) MMPrintString(VT100_C_NUMBER);
+            if(DoVT100) PrintString(VT100_C_NUMBER);
             innumber = true;
             return;
         }
@@ -1200,7 +1208,7 @@ void SetColour(unsigned char *p, int DoVT100) {
         for(i = 0; i < 8; i++) if(!isxdigit(p[i])) break;
         if(i == 8 && (p[8] == ' ' || p[8] == '\'' || p[8] == 0)) {
             gui_fcolour = GUI_C_NUMBER;
-            if(DoVT100) MMPrintString(VT100_C_NUMBER);
+            if(DoVT100) PrintString(VT100_C_NUMBER);
             innumber = true;
             return;
         }
@@ -1212,11 +1220,11 @@ void SetColour(unsigned char *p, int DoVT100) {
             if(EditCompStr((char *)p, (char *)commandtbl[i].name) != 0) {
                 if(EditCompStr((char *)p, "REM") != 0) {                 // special case, REM is a comment
                     gui_fcolour = GUI_C_COMMENT;
-                    if(DoVT100) MMPrintString(VT100_C_COMMENT);
+                    if(DoVT100) PrintString(VT100_C_COMMENT);
                     incomment = true;
                 } else {
                     gui_fcolour = GUI_C_KEYWORD;
-                    if(DoVT100) MMPrintString(VT100_C_KEYWORD);
+                    if(DoVT100) PrintString(VT100_C_KEYWORD);
                     inkeyword = true;
                     if(EditCompStr((char *)p, "GUI") || EditCompStr((char *)p, "OPTION")) {
                         twokeyword = p;
@@ -1230,7 +1238,7 @@ void SetColour(unsigned char *p, int DoVT100) {
         for(i = 0; i < TokenTableSize - 1; i++) {                   // check the token table for a match
             if(EditCompStr((char *)p, (char *)tokentbl[i].name) != 0) {
                 gui_fcolour = GUI_C_KEYWORD;
-                if(DoVT100) MMPrintString(VT100_C_KEYWORD);
+                if(DoVT100) PrintString(VT100_C_KEYWORD);
                 inkeyword = true;
                 return;
             }
@@ -1242,7 +1250,7 @@ void SetColour(unsigned char *p, int DoVT100) {
                 if(EditCompStr((char *)p, (char *)*pp)) break;
             if(*pp) {
                 gui_fcolour = GUI_C_KEYWORD;
-                if(DoVT100) MMPrintString(VT100_C_KEYWORD);
+                if(DoVT100) PrintString(VT100_C_KEYWORD);
                 inkeyword = true;
                 return;
             }
@@ -1254,7 +1262,7 @@ void SetColour(unsigned char *p, int DoVT100) {
             if(EditCompStr((char *)p, (char *)*pp)) break;
         if(*pp) {
             gui_fcolour = GUI_C_KEYWORD;
-            if(DoVT100) MMPrintString(VT100_C_KEYWORD);
+            if(DoVT100) PrintString(VT100_C_KEYWORD);
             inkeyword = true;
             return;
         }
@@ -1267,7 +1275,7 @@ void SetColour(unsigned char *p, int DoVT100) {
     } else {
         intext = false;
         gui_fcolour = GUI_C_NORMAL;
-        if(DoVT100) MMPrintString(VT100_C_NORMAL);
+        if(DoVT100) PrintString(VT100_C_NORMAL);
     }
 
 }
@@ -1298,7 +1306,7 @@ void printLine(int ln) {
     p = findLine(ln, &inmulti);
     if(Option.ColourCode) {
         // if we are colour coding we need to redraw the whole line
-        MMputchar('\r',0);                                            // display the chars after the editing point
+        SSputchar('\r',0);                                            // display the chars after the editing point
         i = VWidth - 1;
     } else {
         // if we are NOT colour coding we can start drawing at the current cursor position
@@ -1312,14 +1320,14 @@ void printLine(int ln) {
             if(!inmulti)SetColour((unsigned char *)p, true);                   // if colour coding is used set the colour for the VT100 emulator
             else {
                 gui_fcolour = GUI_C_COMMENT;
-                MMPrintString(VT100_C_COMMENT);
+                PrintString(VT100_C_COMMENT);
             }
         }
-        MMputchar(*p++,0);                                            // display the chars after the editing point
+        SSputchar(*p++,0);                                            // display the chars after the editing point
         i--;
     }
 
-    MMPrintString("\033[K");                                        // all done, clear to the end of the line on a vt100 emulator
+    PrintString("\033[K");                                        // all done, clear to the end of the line on a vt100 emulator
     if(Option.ColourCode) SetColour(NULL, true);
     curx = VWidth - 1;
 }
@@ -1335,7 +1343,7 @@ void printScreen(void) {
     SCursor(0, 0);
     for(i = 0; i <VHeight; i++) {
         printLine(i + edy);
-        MMPrintString("\r\n");
+        PrintString("\r\n");
         MX470PutS("\r\n", gui_fcolour, gui_bcolour);
         curx = 0;
         cury = i + 1;
@@ -1344,14 +1352,13 @@ void printScreen(void) {
 }
 
 
-
 // position the cursor on the screen
 void SCursor(int x, int y) {
     char s[12];
 
-    MMPrintString("\033[");
-    IntToStr(s, y + 1, 10); MMPrintString(s); MMPrintString(";");
-    IntToStr(s, x + 1, 10); MMPrintString(s); MMPrintString("H");
+    PrintString("\033[");
+    IntToStr(s, y + 1, 10); PrintString(s); PrintString(";");
+    IntToStr(s, x + 1, 10); PrintString(s); PrintString("H");
     MX470Cursor(x * gui_font_width, y * gui_font_height);           // position the cursor on the MX470 display only
     curx = x; cury = y;
 }
@@ -1405,14 +1412,14 @@ void PrintFunctKeys(int typ) {
 
     x = curx; y = cury;
     SCursor(0, VHeight);
-    if(Option.ColourCode) MMPrintString(VT100_C_LINE);
-    MMPrintString("\033[4m");                                       // underline on
-    for(i = 0; i < VWidth; i++) MMputchar(' ',0);
-    MMPrintString("\033[0m\r\n");                                   // underline off
-    if(Option.ColourCode) MMPrintString(VT100_C_STATUS);
-    MMPrintString(p);
-    if(Option.ColourCode) MMPrintString(VT100_C_NORMAL);
-    MMPrintString("\033[K");                                        // clear to the end of the line on a vt100 emulator
+    if(Option.ColourCode) PrintString(VT100_C_LINE);
+    PrintString("\033[4m");                                       // underline on
+    for(i = 0; i < VWidth; i++) SSputchar(' ',0);
+    PrintString("\033[0m\r\n");                                   // underline off
+    if(Option.ColourCode) PrintString(VT100_C_STATUS);
+    PrintString(p);
+    if(Option.ColourCode) PrintString(VT100_C_NORMAL);
+    PrintString("\033[K");                                        // clear to the end of the line on a vt100 emulator
     SCursor(x, y);
 }
 
@@ -1435,9 +1442,9 @@ void PrintStatus(void) {
     MX470PutS(s, GUI_C_STATUS, gui_bcolour);                        // display the string on the display attached to the MX470
 
     SCursor(VWidth - 25, VHeight + 1);
-    if(Option.ColourCode) MMPrintString(VT100_C_STATUS);
-    MMPrintString(s);
-    if(Option.ColourCode) MMPrintString(VT100_C_NORMAL);
+    if(Option.ColourCode) PrintString(VT100_C_STATUS);
+    PrintString(s);
+    if(Option.ColourCode) PrintString(VT100_C_NORMAL);
 
     PositionCursor(txtp);
 }
@@ -1447,14 +1454,14 @@ void PrintStatus(void) {
 // display a message in the status line
 void editDisplayMsg(unsigned char *msg) {
     SCursor(0, VHeight + 1);
-    if(Option.ColourCode) MMPrintString(VT100_C_ERROR);
-    MMPrintString("\033[7m");
+    if(Option.ColourCode) PrintString(VT100_C_ERROR);
+    PrintString("\033[7m");
     MX470Cursor(0, VRes - gui_font_height);
-    MMPrintString((char *)msg);
+    PrintString((char *)msg);
     MX470PutS((char *)msg, BLACK, RED);
-    if(Option.ColourCode) MMPrintString(VT100_C_NORMAL);
-    MMPrintString("\033[0m");
-    MMPrintString("\033[K");                                        // clear to the end of the line on a vt100 emulator
+    if(Option.ColourCode) PrintString(VT100_C_NORMAL);
+    PrintString("\033[0m");
+    PrintString("\033[K");                                        // clear to the end of the line on a vt100 emulator
     MX470Display(CLEAR_TO_EOL);                                     // clear to the end of line on the MX470 display only
     PositionCursor(txtp);
     drawstatusline = true;
@@ -1484,11 +1491,11 @@ void GetInputString(unsigned char *prompt) {
     unsigned char *p;
 
     SCursor(0, VHeight + 1);
-    MMPrintString((char *)prompt);
+    PrintString((char *)prompt);
     MX470Cursor(0, VRes - gui_font_height);
     MX470PutS((char *)prompt, gui_fcolour, gui_bcolour);
     for(i = 0; i < VWidth - strlen((char *)prompt); i++) {
-        MMputchar(' ',1);
+        SSputchar(' ',1);
         MX470PutC(' ');
     }
     SCursor(strlen((char *)prompt), VHeight + 1);
@@ -1496,14 +1503,14 @@ void GetInputString(unsigned char *prompt) {
     for(p = inpbuf; (*p = MMgetchar()) != '\r'; p++) {              // get the input
         if(*p == 0xb3 || *p == F3 || *p == ESC) { p++; break; }     // return if it is SHIFT-F3, F3 or ESC
         if(isprint(*p)) {
-            MMputchar(*p,1);                                          // echo the char
+            SSputchar(*p,1);                                          // echo the char
             MX470PutC(*p);                                          // echo the char on the MX470 display
         }
         if(*p == '\b') {
             p--;                                                    // backspace over a backspace
             if(p >= inpbuf){
                 p--;                                                // and the char before
-                MMPrintString("\b \b");                             // erase on the screen
+                PrintString("\b \b");                             // erase on the screen
                 MX470PutS("\b \b", gui_fcolour, gui_bcolour);       // erase on the MX470 display
             }
         }
@@ -1518,7 +1525,7 @@ void GetInputString(unsigned char *prompt) {
 void Scroll(void) {
     edy++;
     SCursor(0, VHeight);
-    MMPrintString("\033[J\033[99B\n");                              // clear to end of screen, move to the end of the screen and force a scroll of one line
+    PrintString("\033[J\033[99B\n");                              // clear to end of screen, move to the end of the screen and force a scroll of one line
     MX470Cursor(0, VHeight * gui_font_height);
     MX470Scroll(gui_font_height);
     SCursor(0, VHeight);
@@ -1534,10 +1541,10 @@ void Scroll(void) {
 // scroll down the video screen
 void ScrollDown(void) {
     SCursor(0, VHeight);                                            // go to the end of the editing area
-    MMPrintString("\033[J");                                        // clear to end of screen
+    PrintString("\033[J");                                        // clear to end of screen
     edy--;
     SCursor(0, 0);
-    MMPrintString("\033M");                                         // scroll window down one line
+    PrintString("\033M");                                         // scroll window down one line
     MX470Scroll(-gui_font_height);
     printLine(edy);
     PrintFunctKeys(EDIT);

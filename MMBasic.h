@@ -161,14 +161,14 @@ extern const char namestart[256];
 extern const char namein[256];
 extern const char nameend[256];
 extern const char upper[256];
-#define mytoupper(a) upper[(unsigned int)a]
-#define isnamestart(c)  (namestart[(uint8_t)c])                    // true if valid start of a variable name
-#define isnamechar(c)   (namein[(uint8_t)c])        // true if valid part of a variable name
-#define isnameend(c)    (nameend[(uint8_t)c])        // true if valid at the end of a variable name
-//#define isnamestart(c)  (isalpha(c) || c == '_')                    // true if valid start of a variable name
-//#define isnamechar(c)   (isalnum(c) || c == '_' || c == '.')        // true if valid part of a variable name
-//#define isnameend(c)    (isalnum(c) || c == '_' || c == '.' || c == '$' || c == '!' || c == '%')        // true if valid at the end of a variable name
-
+//#define mytoupper(a) upper[(unsigned int)a]
+#define mytoupper(a) toupper(a)
+//#define isnamestart(c)  (namestart[(uint8_t)c])                    // true if valid start of a variable name
+//#define isnamechar(c)   (namein[(uint8_t)c])        // true if valid part of a variable name
+//#define isnameend(c)    (nameend[(uint8_t)c])        // true if valid at the end of a variable name
+#define isnamestart(c)  (isalpha((unsigned char)c) || c == '_')                    // true if valid start of a variable name
+#define isnamechar(c)   (isalnum((unsigned char)c) || c == '_' || c == '.')        // true if valid part of a variable name
+#define isnameend(c)    (isalnum((unsigned char)c) || c == '_' || c == '.' || c == '$' || c == '!' || c == '%')        // true if valid at the end of a variable name
 #define tokentype(i)    ((i >= C_BASETOKEN && i < TokenTableSize - 1 + C_BASETOKEN) ? (tokentbl[i - C_BASETOKEN].type) : 0)             // get the type of a token
 #define tokenfunction(i)((i >= C_BASETOKEN && i < TokenTableSize - 1 + C_BASETOKEN) ? (tokentbl[i - C_BASETOKEN].fptr) : (tokentbl[0].fptr))    // get the function pointer  of a token
 #define tokenname(i)    ((i >= C_BASETOKEN && i < TokenTableSize - 1 + C_BASETOKEN) ? (tokentbl[i - C_BASETOKEN].name) : (unsigned char *)"")            // get the name of a token
@@ -316,6 +316,7 @@ int str_equal(const unsigned char *s1, const unsigned char *s2);
 int  mystrncasecmp (const unsigned char *s1, const unsigned char *s2, size_t n);
 int mem_equal(unsigned char *s1, unsigned char *s2, int i);
 extern int emptyarray;
+typedef uint16_t CommandToken;
 
 #ifdef __cplusplus
 }

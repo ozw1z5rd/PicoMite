@@ -171,7 +171,7 @@ void DrawTriangle(int x0, int y0, int x1, int y1, int x2, int y2, int c, int fil
 // in the case of the MX170 this function is called directly by MMBasic when the GUI command is used
 // in the case of the MX470 it is called by MX470GUI in GUI.c
 const int colours[16]={0x00,0xFF,0x4000,0x40ff,0x8000,0x80ff,0xff00,0xffff,0xff0000,0xff00FF,0xff4000,0xff40ff,0xff8000,0xff80ff,0xffff00,0xffffff};
-void initFonts(void){    
+void MIPS16 initFonts(void){    
 	FontTable[0] = (unsigned char *)font1;
 	FontTable[1] = (unsigned char *)Misc_12x20_LE;
 	#ifdef PICOMITEVGA
@@ -650,7 +650,7 @@ Draw a box with rounded corners
      c      - the colour to use for sides
      fill   - the colour to fill the box (-1 for no fill)
 ***********************************************************************************************/
-void DrawRBox(int x1, int y1, int x2, int y2, int radius, int c, int fill) {
+void MIPS16 DrawRBox(int x1, int y1, int x2, int y2, int radius, int c, int fill) {
     int f, ddF_x, ddF_y, xx, yy;
 
     f = 1 - radius;
@@ -1624,7 +1624,7 @@ void cmd_circle(void) {
     if(Option.Refresh)Display_Refresh();
 }
 static short xb0,xb1,yb0,yb1;
-void drawAAPixel( int x , int y , MMFLOAT brightness, uint32_t c){
+void MIPS16 drawAAPixel( int x , int y , MMFLOAT brightness, uint32_t c){
     union colourmap
     {
         unsigned char rgbbytes[4];
@@ -1637,7 +1637,7 @@ void drawAAPixel( int x , int y , MMFLOAT brightness, uint32_t c){
  	if(((x>=xb0 && x<=xb1) && (y>=yb0 && y<=yb1)))DrawPixel(x,y,col.rgb);
 //    else PInt(x),PIntComma(y);PRet();
 }
-void drawAALine(MMFLOAT x0 , MMFLOAT y0 , MMFLOAT x1 , MMFLOAT y1, uint32_t c, int w)
+void MIPS16 drawAALine(MMFLOAT x0 , MMFLOAT y0 , MMFLOAT x1 , MMFLOAT y1, uint32_t c, int w)
 {
 // Ensure positive integer values for width
 	if(w < 1) w = 1;
@@ -1977,7 +1977,7 @@ void cmd_box(void) {
 }
 
 
-void bezier(float x0, float y0, float x1, float y1, float x2, float y2, float x3, float y3, int c){
+void MIPS16 bezier(float x0, float y0, float x1, float y1, float x2, float y2, float x3, float y3, int c){
     float tmp,tmp1,tmp2,tmp3,tmp4,tmp5,tmp6,tmp7,tmp8,t=0.0,xt=x0,yt=y0;
     int i, xti,yti,xtlast=-1, ytlast=-1;
     for (i=0; i<500; i++)
@@ -2006,7 +2006,7 @@ void bezier(float x0, float y0, float x1, float y1, float x2, float y2, float x3
 }
 
 
-void pointcalc(int angle, int x, int y, int r2, int *x0, int * y0){
+void MIPS16 pointcalc(int angle, int x, int y, int r2, int *x0, int * y0){
 	float c1,s1;
 	int quad;
 	angle %=360;
@@ -2083,7 +2083,7 @@ void pointcalc(int angle, int x, int y, int r2, int *x0, int * y0){
 		}
 	}
 }
-void cmd_arc(void){
+void MIPS16 cmd_arc(void){
 	// Parameters are:
 	// X coordinate of centre of arc
 	// Y coordinate of centre of arc
@@ -2466,7 +2466,7 @@ void cmd_polygon(void){
     polygon(cmdline,1);
 }
 
-void cmd_rbox(void) {
+void MIPS16 cmd_rbox(void) {
     int x1, y1, wi, h, w=0, c=0, f=0,  r=0, n=0 ,i, nc=0, nw=0, nf=0,hmod,wmod;
     long long int *x1ptr, *y1ptr, *wiptr, *hptr, *wptr, *cptr, *fptr;
     MMFLOAT *x1fptr, *y1fptr, *wifptr, *hfptr, *wfptr, *cfptr, *ffptr;
@@ -2542,7 +2542,7 @@ void cmd_rbox(void) {
     if(Option.Refresh)Display_Refresh();
 }
 // this function positions the cursor within a PRINT command
-void fun_at(void) {
+void MIPS16 fun_at(void) {
     char buf[27];
 	getargs(&ep, 5, (unsigned char *)",");
 	if(commandfunction(cmdtoken) != cmd_print) error("Invalid function");
@@ -2840,10 +2840,166 @@ void docompressed(char *fc,int x1, int y1, int w, int h, int8_t blank){
     }
 }
 
+void cmd_blitmemory(void){
+    int x1, y1, w, h;
+    int8_t blank=-1;
+    getargs(&cmdline, 7, (unsigned char*)",");
+    if(argc<5)error("Syntax");
+    char *from=(char *)GetPeekAddr(argv[0]);
+    x1 = (int)getinteger(argv[2]);
+    y1 = (int)getinteger(argv[4]);
+    uint16_t *size=(uint16_t *)from;
+    w=(size[0] & 0x7FFF);
+    h=(size[1] & 0x7FFF);
+    from+=4;
+    if(argc==7)blank=getint(argv[6],-1,15);
+    if(size[0] & 0x8000 || size[1] &  0x8000) {
+        docompressed(from, x1, y1, w, h, blank);
+    } else {
+#ifndef PICOMITEVGA
+        if(!WriteBuf){
+            if(blank==-1){
+                char *fc=from;
+                char tobuff[w/2], *to;
+                int ww=w;
+                int xx1=x1;
+                if(x1<0){
+                    ww+=x1;
+                    xx1=0;
+                }
+                if(x1+w>HRes){
+                    ww=HRes-x1;
+                }
+                getnextuncompressednibble(&fc,1); //reset the decoder
+                for(int y=y1;y<y1+h;y++){
+                    to=tobuff;
+                    int otoggle=0;
+                    for(int x=x1;x<x1+w;x++){
+                        if(y<0 || y>=VRes){
+                            getnextuncompressednibble(&fc,0);
+                            continue;
+                        }
+                        if(x>=0 && x<HRes){
+                            if(otoggle==0){
+                                *to=getnextuncompressednibble(&fc,0);
+                                otoggle ^=1;
+                            } else {
+                                *to|=(getnextuncompressednibble(&fc,0)<<4);
+                                otoggle^=1;
+                                to++;
+                            }
+                        } else getnextuncompressednibble(&fc,0);
+                    }
+                    if(ww>0 && xx1<HRes)copyframetoscreen((unsigned char *)tobuff,xx1, xx1+ww-1, y, y, 0);            
+                }
+            } else {
+                char *fc=from;
+                char tobuff[w/2], *to;
+                getnextuncompressednibble(&fc,1); //reset the decoder
+                for(int y=y1;y<y1+h;y++){
+                    int x=x1;
+                    while(1){
+                        to=tobuff;
+                        int otoggle=0;
+                        char c;
+                        int ww=0;
+                        int xx=-1;
+                        while((c=getnextuncompressednibble(&fc,0))==blank){
+                            x++;
+                            if(x==x1+w)break;
+                        }
+                        if(x==x1+w)break; //nothing found so exit
+                        *to=c;
+                        otoggle ^=1;
+                        xx=x;
+                        x++;
+                        ww=1;
+                        if(xx!=x1+w-1){
+                            while((c=getnextuncompressednibble(&fc,0))!=blank){
+                                x++;
+                                ww++;
+                                if(otoggle==0){
+                                    *to=c;
+                                    otoggle ^=1;
+                                } else {
+                                    *to|=(c<<4);
+                                    otoggle^=1;
+                                    to++;
+                                }
+                                if(x==x1+w)break;
+                            }
+                        }
+                        x++;
+                        if(xx+ww>HRes){
+                            ww=HRes-xx;
+                        }
+                        if(xx>=0 && ww>0 && y>=0 && y<VRes)copyframetoscreen((unsigned char *)tobuff,xx, xx+ww-1, y, y, 0);
+                        if(xx<0 && xx+ww>=0){
+                            char *t=tobuff-(xx/2)-(xx&1);
+                            ww+=xx;
+                            if(ww>0)copyframetoscreen((unsigned char *)t,0, ww-1, y, y, xx&1);
+                        }
+                        if(x>=x1+w)break;
+                    }           
+                }
+            }
+        } else 
+#endif
+        if(x1 %2 == 0 && w % 2 == 0 && blank==-1){
+            char c, *to;
+            for(int y=y1;y<y1+h;y++){
+                to=(char *)WriteBuf+y*(HRes>>1)+(x1>>1);
+                for(int x=x1;x<x1+w;x+=2){
+                    c=*from++;
+                    if(y<0 || y>=VRes)continue;
+                    if(x>=0 && x<HRes)*to=c;
+                    to++;
+                }               
+            }
+        } else { 
+            int otoggle=0,itoggle=0; //input will always start on a byte boundary
+            char c,*to;
+            for(int y=y1;y<y1+h;y++){ //loop though all of the output lines
+                to=(char *)WriteBuf+y*(HRes>>1)+(x1>>1); //get the byte that will start the output
+                if(x1 & 1)otoggle=1; // if x1 is odd then we will start on the high nibble
+                else otoggle=0;
+                for(int x=x1;x<x1+w;x++){
+                    if(itoggle==0){
+                        c=*from & 0x0f;
+                        itoggle=1;
+                    } else {
+                        c= *from >>4;
+                        from++;
+                        itoggle=0;
+                    }
+                    if(y<0 || y>=VRes)continue;
+                    if(otoggle==0){
+                        if(x>=0 && x<HRes){
+                            if(c!=blank){
+                                *to &= 0xF0;
+                                *to |=c;
+                            }
+                        }
+                    } else {
+                        if(x>=0 && x<HRes){
+                            if(c!=blank){
+                                *to &=0x0f;
+                                *to |= (c<<4);
+                            }
+                        }
+                        to++;
+                    }
+                    otoggle^=1;
+                }
+            }
+        }
+    }
+}
+
 int blitother(void){
     int x1, y1, x2, y2, w, h;
     unsigned char *p;
-    if ((p = checkstring(cmdline, (unsigned char*)"MEMORY"))) {
+/*    if ((p = checkstring(cmdline, (unsigned char*)"MEMORY"))) {
         int8_t blank=-1;
         getargs(&p, 7, (unsigned char*)",");
         if(argc<5)error("Syntax");
@@ -2997,7 +3153,7 @@ int blitother(void){
             }
         }
         return 1;
-    }  else if ((p = checkstring(cmdline, (unsigned char*)"COMPRESSED"))) {
+    }  else */if ((p = checkstring(cmdline, (unsigned char*)"COMPRESSED"))) {
         int8_t blank=-1;
         getargs(&p, 7, (unsigned char*)",");
         if(argc<5)error("Syntax");
@@ -3360,7 +3516,7 @@ void zeroLIFOswap(int n, int m) {
         if (zeroLIFO[i] == n)zeroLIFO[i] = m;
     }
 }
-void closeallsprites(void) {
+void MIPS16 closeallsprites(void) {
     int i;
     for (i = 0; i <= MAXBLITBUF; i++) {
         if (i <= MAXLAYER)layer_in_use[i] = 0;
@@ -3750,7 +3906,7 @@ void showsafe(int bnbr, int x, int y) {
     }
 
 }
-void loadsprite(unsigned char* p) {
+void MIPS16 loadsprite(unsigned char* p) {
     int fnbr, width, number, height = 0, newsprite = 1, startsprite = 1, bnbr, lc, i, toggle=0;;
     char *q, *fname;
     unsigned char buff[256], *z;
@@ -3857,7 +4013,7 @@ void loadsprite(unsigned char* p) {
     }
 }
 
-void loadarray(unsigned char* p) {
+void MIPS16 loadarray(unsigned char* p) {
     int bnbr, w, h, size, i, toggle=0;
     int maxH = VRes;
     int maxW =HRes;
@@ -4771,21 +4927,21 @@ void copyframetoscreen(uint8_t *s,int xstart, int xend, int ystart, int yend, in
     }
     int i;
     int cnt=2; 
+    if(Option.DISPLAY_TYPE==ILI9488 || Option.DISPLAY_TYPE==ILI9481IPS || (Option.DISPLAY_TYPE>=SSDPANEL && Option.DISPLAY_TYPE<=SSD_PANEL_8)){
+        cnt=3;
+    } 
     if(map[15]==0){
         for(i=0;i<16;i++){
             if(Option.DISPLAY_TYPE==ILI9488 || Option.DISPLAY_TYPE==ILI9481IPS){
                 col[0]=(RGB121map[i]>>16);
                 col[1]=(RGB121map[i]>>8) & 0xFF;
                 col[2]=(RGB121map[i] & 0xFF);
-                cnt=3;
             } else if(Option.DISPLAY_TYPE>=SSDPANEL && Option.DISPLAY_TYPE<=SSD_PANEL_8){
                 col[2]=(RGB121map[i]>>16);
                 col[1]=(RGB121map[i]>>8) & 0xFF;
                 col[0]=(RGB121map[i] & 0xFF);
-                cnt=3;
             } else if(Option.DISPLAY_TYPE>SSD_PANEL_8){
                 map[i]=((RGB121map[i]>>8) & 0xf800) | ((RGB121map[i]>>5) & 0x07e0) | ((RGB121map[i]>>3) & 0x001f);
-                cnt=3;
                 continue;
             } else {
                 col[0]= ((RGB121map[i] >> 16) & 0b11111000) | ((RGB121map[i] >> 13) & 0b00000111);
@@ -5859,7 +6015,7 @@ void cmd_blit(void) {
 #endif
 }
 
-void cmd_font(void) {
+void MIPS16 cmd_font(void) {
     getargs(&cmdline, 3, (unsigned char *)",");
     if(argc < 1) error("Argument count");
     if(*argv[0] == '#') ++argv[0];
@@ -6634,7 +6790,7 @@ void ReadBufferMonoFast(int x1, int y1, int x2, int y2, unsigned char *c){
     }
 }
 
-void ConfigDisplayVirtual(unsigned char *p) {
+void MIPS16 ConfigDisplayVirtual(unsigned char *p) {
 	getargs(&p, 13, (unsigned char *)",");
 	if(checkstring(argv[0], (unsigned char *)"VIRTUAL_M")) {
         DISPLAY_TYPE = VIRTUAL_M;
@@ -6644,7 +6800,7 @@ void ConfigDisplayVirtual(unsigned char *p) {
     Option.DISPLAY_TYPE=DISPLAY_TYPE;
     Option.DISPLAY_ORIENTATION = LANDSCAPE;
 }
-void InitDisplayVirtual(void){
+void MIPS16 InitDisplayVirtual(void){
     if(Option.DISPLAY_TYPE==0 || Option.DISPLAY_TYPE < VIRTUAL) return;
     DisplayHRes = HRes = display_details[Option.DISPLAY_TYPE].horizontal;
     DisplayVRes = VRes = display_details[Option.DISPLAY_TYPE].vertical;
@@ -6681,7 +6837,7 @@ void fun_getscanline(void){
 // this is the basic drawing primitive used by most drawing routines
 //    x1, y1, x2, y2 - the coordinates
 //    c - the colour
-void DrawRectangleUser(int x1, int y1, int x2, int y2, int c){
+void MIPS16 DrawRectangleUser(int x1, int y1, int x2, int y2, int c){
     char callstr[256];
     unsigned char *nextstmtSaved = nextstmt;
     if(FindSubFun((unsigned char *)"MM.USER_RECTANGLE", 0) >= 0) {
@@ -6708,7 +6864,7 @@ void DrawRectangleUser(int x1, int y1, int x2, int y2, int c){
 //    scale - how much to scale the bitmap
 //      fc, bc - foreground and background colour
 //    bitmap - pointer to the bitmap
-void DrawBitmapUser(int x1, int y1, int width, int height, int scale, int fc, int bc, unsigned char *bitmap){
+void MIPS16 DrawBitmapUser(int x1, int y1, int width, int height, int scale, int fc, int bc, unsigned char *bitmap){
     char callstr[256];
     unsigned char *nextstmtSaved = nextstmt;
     if(FindSubFun((unsigned char *)"MM.USER_BITMAP", 0) >= 0) {
@@ -6785,7 +6941,7 @@ void SetFont(int fnt) {
 }
 
 
-void ResetDisplay(void) {
+void MIPS16 ResetDisplay(void) {
         SetFont(Option.DefaultFont);
         gui_fcolour = Option.DefaultFC;
         gui_bcolour = Option.DefaultBC;
@@ -6919,8 +7075,11 @@ void DisplayPutC(char c) {
                     return;
         case '\n':  CurrentY += gui_font_height;
                     if(CurrentY + gui_font_height >= VRes) {
-                        ScrollLCD(CurrentY + gui_font_height - VRes);
-                        CurrentY -= (CurrentY + gui_font_height - VRes);
+                        if(Option.NoScroll && Option.DISPLAY_CONSOLE){ClearScreen(gui_bcolour);CurrentX=0;CurrentY=0;}
+                        else {
+                            ScrollLCD(CurrentY + gui_font_height - VRes);
+                            CurrentY -= (CurrentY + gui_font_height - VRes);
+                        }
                     }
                     return;
         case '\t':  do {
@@ -6993,7 +7152,7 @@ void DrawPolygon(int n, short *xcoord, short *ycoord, int face){
 }
 
 
-void Free3DMemory(int i){
+void MIPS16 Free3DMemory(int i){
 	FreeMemorySafe((void *)&struct3d[i]->q_vertices);//array of original vertices
 	FreeMemorySafe((void *)&struct3d[i]->r_vertices); //array of rotated vertices
 	FreeMemorySafe((void *)&struct3d[i]->q_centroids);//array of original vertices
@@ -7011,7 +7170,7 @@ void Free3DMemory(int i){
 	FreeMemorySafe((void *)&struct3d[i]->flags);
 	FreeMemorySafe((void *)&struct3d[i]);
 }
-void closeall3d(void){
+void MIPS16 closeall3d(void){
     int i;
     for(i = 0; i < MAX3D; i++) {
     	if(struct3d[i]!=NULL){
@@ -7205,7 +7364,7 @@ void display3d(int n, FLOAT3D x, FLOAT3D y, FLOAT3D z, int clear, int nonormals)
 
 }
 
-void diagnose3d(int n, FLOAT3D x, FLOAT3D y, FLOAT3D z, int sort){
+void MIPS16 diagnose3d(int n, FLOAT3D x, FLOAT3D y, FLOAT3D z, int sort){
 	s_vector ray, normals;
 	s_vector p1, p2, p3, U, V;
 	FLOAT3D tmp;
@@ -7257,7 +7416,7 @@ void diagnose3d(int n, FLOAT3D x, FLOAT3D y, FLOAT3D z, int sort){
 		MMPrintString(" so the face is ");MMPrintString(struct3d[n]->dots[sortindex]>0 ? "Hidden" : "Showing");PRet();
 	}
 }
-void cmd_3D(void){
+void MIPS16 cmd_3D(void){
 	unsigned char *p;
 	if((p=checkstring(cmdline, (unsigned char *)"CREATE"))) {
 	   // parameters are
@@ -7601,7 +7760,7 @@ void cmd_3D(void){
 		error("Syntax");
 	}
 }
-void fun_3D(void){
+void MIPS16 fun_3D(void){
 	unsigned char *p;
 	if((p=checkstring(ep, (unsigned char *)"XMIN"))) {
     	getargs(&p,1,(unsigned char *)",");

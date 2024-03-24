@@ -132,6 +132,7 @@ void getfullpath(char *p, char *q);
 void getfullfilepath(char *p, char *q);
 void fullpath(char *q);
 int FatFSFileSystemSave=0;
+#define overlap (VRes % (FontTable[gui_font >> 4][1] * (gui_font & 0b1111)) ? 0 : 1)
 /******************************************************************************************
 Text for the file related error messages reported by MMBasic
 ******************************************************************************************/
@@ -334,7 +335,7 @@ int __not_in_flash_func(fs_flash_sync)(const struct lfs_config *c)
 {
     return 0;
 }
-void cmd_disk(void){
+void MIPS16 cmd_disk(void){
     char *p=(char *)getCstring(cmdline);
     char *b=GetTempMemory(STRINGSIZE);
     for(int i=0;i<strlen(p);i++)b[i]=toupper(p[i]);
@@ -351,7 +352,7 @@ void cmd_disk(void){
     }
     error((char *)"Syntax");
 }
-void cmd_flash(void)
+void MIPS16 cmd_flash(void)
 {
     unsigned char *p;
     if ((p = checkstring(cmdline, (unsigned char *)"ERASE ALL")))
@@ -423,6 +424,7 @@ void cmd_flash(void)
             int i = getint(argv[0], 1, MAXFLASHSLOTS);
             if(Option.LIBRARY_FLASH_SIZE==MAX_PROG_SIZE && i==MAXFLASHSLOTS) error("Library is using Slot % ",MAXFLASHSLOTS);
             ProgMemory = (unsigned char *)(flash_target_contents + (i - 1) * MAX_PROG_SIZE);
+        	if(Option.DISPLAY_CONSOLE && (SPIREAD  || Option.NoScroll)){ClearScreen(gui_bcolour);CurrentX=0;CurrentY=0;}
             if (argc == 1)
                 ListProgram(ProgMemory, false);
             else if (argc == 3 && checkstring(argv[2], (unsigned char *)"ALL"))
@@ -1032,7 +1034,7 @@ void fun_dir(void)
     targ = T_STR;
 }
 
-void cmd_mkdir(void)
+void MIPS16 cmd_mkdir(void)
 {
     char *p;
     int i;
@@ -1051,7 +1053,7 @@ void cmd_mkdir(void)
     }
 }
 
-void cmd_rmdir(void)
+void MIPS16 cmd_rmdir(void)
 {
     char *p;
     int i;
@@ -1121,7 +1123,7 @@ void fun_cwd(void)
     targ = T_STR;
 }
 
-void cmd_kill(void)
+void MIPS16 cmd_kill(void)
 {
     char q[FF_MAX_LFN]={0};
     getargs(&cmdline,3,(unsigned char *)",");
@@ -1334,7 +1336,7 @@ void cmd_seek(void)
     positionfile(fnbr, idx);
 }
 
-void cmd_name(void)
+void MIPS16 cmd_name(void)
 {
     char *old, *new, ss[2];
     int i;
@@ -1362,7 +1364,7 @@ void cmd_name(void)
     }
 }
 
-void cmd_save(void)
+void MIPS16 cmd_save(void)
 {
     int fnbr;
     unsigned char *pp, *flinebuf, *outbuf, *p; // get the file name and change to the directory
@@ -1810,7 +1812,7 @@ int FileLoadProgram(unsigned char *fname)
     return true;
 }
 
-void cmd_load(void)
+void MIPS16 cmd_load(void)
 {
     int autorun = false;
     unsigned char *p;
@@ -2022,7 +2024,7 @@ int FindFreeFileNbr(void)
     return 0;
 }
 
-void CloseAllFiles(void)
+void MIPS16 CloseAllFiles(void)
 {
     int i;
     closeallsprites();
@@ -2337,7 +2339,7 @@ int drivecheck(char *p, int *waste){
         return FatFSFileSystem+1;
     }
 }
-void cmd_copy(void)
+void MIPS16 cmd_copy(void)
 {
     unsigned char *p=GetTempMemory(STRINGSIZE);
     memcpy(p,cmdline,STRINGSIZE);
@@ -2533,7 +2535,7 @@ void cmd_copy(void)
         return;
     }
     FatFSFileSystem=FatFSFileSystemSave;
-}
+} 
 
 int resolve_path(char *path, char *result, char *pos)
 {
@@ -2675,7 +2677,7 @@ void getfullfilepath(char *p, char *q){
     strcat(q,pp);
 }
 
-void cmd_files(void)
+void MIPS16 cmd_files(void)
 {
     if(CurrentLinePtr) error("Invalid in a program");
     int waste=0, t=FatFSFileSystem+1;
@@ -2694,6 +2696,7 @@ void cmd_files(void)
     char pp[FF_MAX_LFN] = {0};
     char q[FF_MAX_LFN] = {0};
     static s_flist *flist = NULL;
+    char outbuff[STRINGSIZE]={0};
     DIR djd;
     FILINFO fnod;
     memset(&djd, 0, sizeof(DIR));
@@ -2754,6 +2757,7 @@ void cmd_files(void)
         error((char *)FErrorMsg[20]); // setup the SD card
     FatFSFileSystem=t-1;
     fullpath(q);
+    if(Option.DISPLAY_CONSOLE){ClearScreen(gui_bcolour);CurrentX=0;CurrentY=0;}
     putConsole('A'+FatFSFileSystem,0);
     putConsole(':',1);
     MMPrintString(fullpathname[FatFSFileSystem]);PRet();
@@ -3018,8 +3022,11 @@ void cmd_files(void)
         }
        // list the files with a pause every screen full
         ListCnt = 2;
+        unsigned char noscroll=Option.NoScroll;
+        Option.NoScroll=0;
         for (i = dirs = 0; i < fcnt; i++)
         {
+            memset(outbuff,0,sizeof(outbuff));
             #ifdef PICOMITEWEB
                 ProcessWeb(1);
             #endif
@@ -3032,12 +3039,14 @@ void cmd_files(void)
                 WDTimer = 0; // turn off the watchdog timer
                 memset(inpbuf, 0, STRINGSIZE);
                 FatFSFileSystem=FatFSFileSystemSave;
+                Option.NoScroll=noscroll;
                 longjmp(mark, 1);
             }
             if (flist[i].fn[0] == 'D')
             {
                 dirs++;
-                MMPrintString("   <DIR>  ");
+                strcpy(outbuff,"   <DIR>  ");
+//                MMPrintString("   <DIR>  ");
             }
             else
             {
@@ -3052,15 +3061,31 @@ void cmd_files(void)
                 IntToStr(ts + 12, ((flist[i].fd >> 9) & 0x7F) + 1980, 10);
                 ts[16] = ' ';
                 IntToStrPad(ts + 17, flist[i].fs, ' ', 10, 10);
-                MMPrintString(ts);
-                MMPrintString("  ");
+                strcpy(outbuff,ts);
+                strcat(outbuff,"  ");
             }
-            MMPrintString(flist[i].fn + 1);
-            MMPrintString("\r\n");
+                strcat(outbuff,flist[i].fn + 1);
+//                ListCnt+=(strlen(outbuff)/Option.Width + 1);
+//                if((strlen(outbuff) % Option.Width)==0)ListCnt--;
+//                strcat(outbuff,"\r\n");
+//                MMPrintString(outbuff);
+                char *pp=outbuff;
+				while(*pp) {
+					if(MMCharPos >= Option.Width) ListNewLine(&ListCnt, 0);
+					MMputchar(*pp++,0);
+				}
+				fflush(stdout);
+				ListNewLine(&ListCnt, 0);
             // check if it is more than a screen full
-            if (++ListCnt >= Option.Height && i < fcnt)
+            if (ListCnt >= Option.Height-overlap && i < fcnt)
             {
+                unsigned char noscroll=Option.NoScroll;
+                Option.NoScroll=0;
+                #ifdef USBKEYBOARD
+                clearrepeat();
+                #endif
                 MMPrintString("PRESS ANY KEY ...");
+                Option.NoScroll=noscroll;
                 do
                 {
                     ShowCursor(1);
@@ -3088,6 +3113,7 @@ void cmd_files(void)
                 } while (c == -1);
                 ShowCursor(0);
                 MMPrintString("\r                 \r");
+    			if(Option.DISPLAY_CONSOLE){ClearScreen(gui_bcolour);CurrentX=0;CurrentY=0;}
                 ListCnt = 1;
             }
         }
@@ -3112,6 +3138,7 @@ void cmd_files(void)
         MMPrintString("\r\n");
         memset(inpbuf, 0, STRINGSIZE);
         FatFSFileSystem=FatFSFileSystemSave;
+        Option.NoScroll=noscroll;
         longjmp(mark, 1);
 
 }

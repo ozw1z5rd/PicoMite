@@ -1305,7 +1305,7 @@ void tuh_hid_mount_cb(uint8_t dev_addr, uint8_t instance, uint8_t const* desc_re
 		HID[slot].active=true;
 		HID[slot].report_requested=false;
 		MMPrintString((char *)KBrdList[(int)Option.USBKeyboard]);
-		MMPrintString(" USB Keyboard Connected on channel ");PInt(slot+1);MMPrintString("\r\n> ");
+		if(!CurrentLinePtr) {MMPrintString(" USB Keyboard Connected on channel ");PInt(slot+1);MMPrintString("\r\n> ");}
 		tuh_hid_set_report(HID[slot].Device_address, HID[slot].Device_instance, 0, HID_REPORT_TYPE_OUTPUT, &sendlights, sizeof(sendlights));
 		Current_USB_devices++;
 		return;
@@ -1324,7 +1324,7 @@ void tuh_hid_mount_cb(uint8_t dev_addr, uint8_t instance, uint8_t const* desc_re
 		HID[slot].report_timer=-(10+(slot+2)*500);
 		HID[slot].active=true;
 		HID[slot].report_requested=false;
-		MMPrintString("USB Mouse Connected on channel ");PInt(slot+1);MMPrintString("\r\n> ");
+		if(!CurrentLinePtr) {MMPrintString("USB Mouse Connected on channel ");PInt(slot+1);MMPrintString("\r\n> ");}
 //		tuh_hid_send_report(HID[slot].Device_address, HID[slot].Device_instance,5,mode, sizeof(mode));
 //		tuh_hid_set_report(HID[slot].Device_address, HID[slot].Device_instance, 0, HID_REPORT_TYPE_INPUT, mode, sizeof(mode));
 		Current_USB_devices++;
@@ -1336,7 +1336,7 @@ void tuh_hid_mount_cb(uint8_t dev_addr, uint8_t instance, uint8_t const* desc_re
 	// Sony DualShock 4 [CUH-ZCT2x]
 		if ( is_sony_ds4(dev_addr) )
 		{
-			MMPrintString("PS4 Controller Connected on channel ");PInt(slot+1);MMPrintString("\r\n> ");
+			if(!CurrentLinePtr) {MMPrintString("PS4 Controller Connected on channel ");PInt(slot+1);MMPrintString("\r\n> ");}
 			HID[slot].Device_address = dev_addr;
 			HID[slot].Device_instance = instance;
 			HID[slot].Device_type=PS4;
@@ -1349,7 +1349,7 @@ void tuh_hid_mount_cb(uint8_t dev_addr, uint8_t instance, uint8_t const* desc_re
 		}
 		else if ( is_sony_ds3(dev_addr) )
 		{
-			MMPrintString("PS3 Controller Connected on channel ");PInt(slot+1);MMPrintString("\r\n> ");
+			if(!CurrentLinePtr) {MMPrintString("PS3 Controller Connected on channel ");PInt(slot+1);MMPrintString("\r\n> ");}
 			HID[slot].Device_address = dev_addr;
 			HID[slot].Device_instance = instance;
 			HID[slot].Device_type=PS3;
@@ -1358,7 +1358,7 @@ void tuh_hid_mount_cb(uint8_t dev_addr, uint8_t instance, uint8_t const* desc_re
 			HID[slot].active=true;
 		 	HID[slot].report_requested=false;
 		} else {
-			MMPrintString("Generic Gamepad Connected on channel ");PInt(slot+1);MMPrintString("\r\n> ");
+			if(!CurrentLinePtr) {MMPrintString("Generic Gamepad Connected on channel ");PInt(slot+1);MMPrintString("\r\n> ");}
 			HID[slot].Device_address = dev_addr;
 			HID[slot].Device_instance = instance;
 			HID[slot].report_timer=-(10+(slot+2)*500);
@@ -1380,23 +1380,23 @@ void tuh_hid_umount_cb(uint8_t dev_addr, uint8_t instance)
 	for(i=0;i<4;i++){
 //		PInt(i);PIntHC(HID[i].Device_type);PRet();
 		if(instance==HID[i].Device_instance && dev_addr==HID[i].Device_address && HID[i].Device_type==HID_ITF_PROTOCOL_KEYBOARD){
-			MMPrintString("USB Keyboard Disconnected\r\n> ");
+			if(!CurrentLinePtr) MMPrintString("USB Keyboard Disconnected\r\n> ");
 			break;
 		}
 		else if(instance==HID[i].Device_instance && dev_addr==HID[i].Device_address && HID[i].Device_type==HID_ITF_PROTOCOL_MOUSE){
-			MMPrintString("USB Mouse Disconnected\r\n> ");
+			if(!CurrentLinePtr) MMPrintString("USB Mouse Disconnected\r\n> ");
 			break;
 		}
 		else if(instance==HID[i].Device_instance && dev_addr==HID[i].Device_address && HID[i].Device_type==PS4){
-			MMPrintString("PS4 Controller Disconnected\r\n> ");
+			if(!CurrentLinePtr) MMPrintString("PS4 Controller Disconnected\r\n> ");
 			break;
 		}
 		else if(instance==HID[i].Device_instance && dev_addr==HID[i].Device_address && HID[i].Device_type==PS3){
-			MMPrintString("PS3 Controller Disconnected\r\n> ");
+			if(!CurrentLinePtr) MMPrintString("PS3 Controller Disconnected\r\n> ");
 			break;
 		}
 		else if(instance==HID[i].Device_instance && dev_addr==HID[i].Device_address && HID[i].Device_type==SNES){
-			MMPrintString("Generic Gamepad Disconnected\r\n> ");
+			if(!CurrentLinePtr) MMPrintString("Generic Gamepad Disconnected\r\n> ");
 			break;
 		}
 	}

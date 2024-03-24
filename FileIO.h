@@ -159,10 +159,11 @@ struct option_s {
         char ipaddress[16];
         char mask[16];
         char gateway[16];
-        unsigned char x[4]; //108=256
+        unsigned char x[3]; //108=256
     #else
-        unsigned char x[88]; //112=256
+        unsigned char x[87]; //112=256
     #endif
+    unsigned char NoScroll;
     unsigned char CombinedCS;
     unsigned char USBKeyboard;
     unsigned char VGA_HSYNC;

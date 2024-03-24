@@ -776,7 +776,7 @@ void fun_eval(void) {
     strcpy((char *)inpbuf + 2, (char *)st);
 	multi=false;
     tokenise(true);                                                 // and tokenise it (the result is in tknbuf)
-    strcpy((char *)st, (char *)(tknbuf + 3));
+  	strcpy((char *)st, (char *)(tknbuf + 2 + sizeof(CommandToken)));
     targ = T_NOTYPE;
     evaluate(st, &fret, &iret, &s, &targ, false);                   // get the value and type of the argument
     if(targ & T_STR) {

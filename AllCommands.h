@@ -145,6 +145,8 @@ void cmd_gamepad(unsigned char *tp);
 void cmd_sprite(void);
 void cmd_comment(void);
 void cmd_endcomment(void);
+void cmd_blitmemory(void);
+void cmd_configure(void);
 #ifdef PICOMITEWEB
     void cmd_web(void);
 #endif
@@ -382,6 +384,7 @@ void fun_dev(void);
 	{ (unsigned char *)"Pulse",		T_CMD,			0, cmd_pulse        },
 	{ (unsigned char *)"Port(",		T_CMD | T_FUN,		0, cmd_port	    },
 	{ (unsigned char *)"IR",                 T_CMD,			0, cmd_ir           },
+	{ (unsigned char *)"Blit Memory",           T_CMD,                      0, cmd_blitmemory	},
 #ifdef PICOMITE
   	{ (unsigned char *)"GUI",            T_CMD,                      0, cmd_gui   },
 #else
@@ -446,6 +449,7 @@ void fun_dev(void);
 #ifndef USBKEYBOARD
 	{ (unsigned char *)"Update Firmware",		T_CMD,				0, cmd_update},
 #endif
+	{ (unsigned char *)"Configure",		T_CMD,				0, cmd_configure	},
     { (unsigned char *)"",   0,                  0, cmd_null,    }                   // this dummy entry is always at the end
 #endif
 /**********************************************************************************
@@ -580,6 +584,8 @@ void fun_dev(void);
 #ifdef PICOMITEVGA
 	{ (unsigned char*)"DRAW3D(",	    T_FUN | T_INT,		0, fun_3D, },
 	{ (unsigned char *)"GetScanLine",	    	T_FNA | T_INT,		0, fun_getscanline 	    },
+#else
+  	{ (unsigned char *)"Touch(",       T_FUN | T_INT,        0, fun_touch  },
 #endif
 #ifdef PICOMITEWEB
 	{ (unsigned char *)"Json$(",		T_FUN | T_STR,          0, fun_json		},

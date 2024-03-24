@@ -39,7 +39,7 @@ unsigned int *FindCFunction(unsigned int *p, unsigned char *CmdPtr, unsigned cha
     return p;
 }
 
-long long int CallCFunction(unsigned char *CmdPtr, unsigned char *ArgList, unsigned char *DefP, unsigned char *CallersLinePtr) {
+long long int MIPS16 CallCFunction(unsigned char *CmdPtr, unsigned char *ArgList, unsigned char *DefP, unsigned char *CallersLinePtr) {
     void *arg[10] = { NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL };
     int typ[10] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
     long long int ret, i64[10];

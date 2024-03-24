@@ -442,7 +442,7 @@ OTM8009A_16Init[] = {   // Initialization commands for OTM8009A_16 screen
 
 
 
-void InitILI9341(void){
+void MIPS16 InitILI9341(void){
 
     if(Option.SSD_RESET){
         PinSetBit(SSD1963_RESET_PIN, LATCLR);                              // reset the SSD1963
@@ -476,7 +476,7 @@ void InitILI9341(void){
 		ClearScreen(Option.DefaultBC);
 }
 
-void InitIPS_4_16(void){
+void MIPS16 InitIPS_4_16(void){
     if(Option.SSD_RESET){
         PinSetBit(SSD1963_RESET_PIN, LATCLR);                              // reset the SSD1963
         uSec(10000);
@@ -846,7 +846,7 @@ static void GPIO_WR(int pin, int state) {
 * Note: The base frequency of PWM set to around 300Hz with PLL set to 120MHz.
 *     This parameter is hardware dependent
 ********************************************************************/
-void SetBacklightSSD1963(int intensity) {
+void MIPS16 SetBacklightSSD1963(int intensity) {
   WriteComand(CMD_SET_PWM_CONF);                                   // Set PWM configuration for backlight control
 
   WriteData(0x0E);                                                  // PWMF[7:0] = 2, PWM base freq = PLL/(256*(1+5))/256 = 300Hz for a PLL freq = 120MHz
@@ -886,7 +886,7 @@ void SetTearingCfg(int state, int mode)
 * Function:  void InitSSD1963()
 * Initialise SSD1963 for PCLK,    HSYNC, VSYNC etc
 ***********************************************************************************************************************************/
-void InitILI9341_8(void){
+void MIPS16 InitILI9341_8(void){
     if(Option.SSD_RESET){
         PinSetBit(SSD1963_RESET_PIN, LATCLR);                              // reset the SSD1963
         uSec(10000);
@@ -1828,7 +1828,7 @@ void ReadBLITBuffer320(int x1, int y1, int x2, int y2, unsigned char* p) {
     HRes=320;
     VRes=240;
 }
-void fun_getscanline(void){
+void MIPS16 fun_getscanline(void){
     if(Option.DISPLAY_TYPE < SSDPANEL && !(Option.DISPLAY_TYPE==ILI9341 || Option.DISPLAY_TYPE==ST7789B || Option.DISPLAY_TYPE==ILI9488)) {
         iret=-1;
         targ = T_INT;

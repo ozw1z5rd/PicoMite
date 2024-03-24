@@ -368,7 +368,7 @@ void ClearPin(int pin){
 Configure an I/O pin
 *****************************************************************************************************************************/
 void MIPS16 ExtCfg(int pin, int cfg, int option) {
-  int i, tris, ana, edge;
+  int i, tris=0, ana=0, edge;
 
     CheckPin(pin, CP_IGNORE_INUSE | CP_IGNORE_RESERVED);
 
@@ -1531,7 +1531,7 @@ void setBacklight(int level){
         spi_write_command((uint8_t)level);
     } 
 }
-void cmd_backlight(void){
+void MIPS16 cmd_backlight(void){
     getargs(&cmdline,3,(unsigned char *)",");
     int level=getint(argv[0],0,100);
     if(((Option.DISPLAY_TYPE>I2C_PANEL && Option.DISPLAY_TYPE<BufferedPanel ) || (Option.DISPLAY_TYPE>=SSDPANEL && Option.DISPLAY_TYPE<VIRTUAL)) && Option.DISPLAY_BL){

@@ -33,6 +33,7 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 #ifdef PICOMITE
 #include "pico/multicore.h"
 #endif
+#define overlap (VRes % (FontTable[gui_font >> 4][1] * (gui_font & 0b1111)) ? 0 : 1)
 
 #include <math.h>
 void flist(int, int, int);
@@ -77,12 +78,15 @@ int MMerrno;                                                        // the error
 
 const unsigned int CaseOption = 0xffffffff;	// used to store the case of the listed output
 
+static inline CommandToken commandtbl_decode(const unsigned char *p){
+    return ((CommandToken)(p[0] & 0x7f)) | ((CommandToken)(p[1] & 0x7f)<<7);
+}
 
 void __not_in_flash_func(cmd_null)(void) {
 	// do nothing (this is just a placeholder for commands that have no action)
 }
 
-void __not_in_flash_func(cmd_inc)(void){
+void MIPS16 __not_in_flash_func(cmd_inc)(void){
 	unsigned char *p, *q;
     int vtype;
 	getargs(&cmdline,3,(unsigned char *)",");
@@ -206,7 +210,7 @@ void cmd_print(void) {
 // because the LET is implied (ie, line does not have a recognisable command)
 // it ends up as the place where mistyped commands are discovered.  This is why
 // the error message is "Unknown command"
-void  __not_in_flash_func(cmd_let)(void) {
+void  MIPS16 __not_in_flash_func(cmd_let)(void) {
 	int t, size;
 	MMFLOAT f;
     long long int  i64;
@@ -314,22 +318,27 @@ void MIPS16 cmd_list(void) {
 	int i,j,k,m,step;
     if((p = checkstring(cmdline, (unsigned char *)"ALL"))) {
         if(!(*p == 0 || *p == '\'')) {
+        	if(Option.DISPLAY_CONSOLE && (SPIREAD  || Option.NoScroll)){ClearScreen(gui_bcolour);CurrentX=0;CurrentY=0;}
         	getargs(&p,1,(unsigned char *)",");
         	char *buff=GetTempMemory(STRINGSIZE);
         	strcpy(buff,(char *)getCstring(argv[0]));
     		if(strchr(buff, '.') == NULL) strcat(buff, ".bas");
             ListFile(buff, true);
         } else {
+        	if(Option.DISPLAY_CONSOLE && (SPIREAD  || Option.NoScroll)){ClearScreen(gui_bcolour);CurrentX=0;CurrentY=0;}
         	ListProgram(ProgMemory, true);
         	checkend(p);
         }
    } else if((p = checkstring(cmdline, (unsigned char *)"COMMANDS"))) {
-    	step=5;
+    	int ListCnt = 1;
+    	step=Option.DISPLAY_CONSOLE ? HRes/gui_font_width/20 : 5;
+        if(Option.DISPLAY_CONSOLE && (SPIREAD  || Option.NoScroll)){ClearScreen(gui_bcolour);CurrentX=0;CurrentY=0;}
     	m=0;
 		int x=0;
 		char** c=GetTempMemory((CommandTableSize+x)*sizeof(*c)+(CommandTableSize+x)*18);
 		for(i=0;i<CommandTableSize+x;i++){
 				c[m]= (char *)((int)c + sizeof(char *) * (CommandTableSize+x) + m*18);
+				if(m<CommandTableSize)strcpy(c[m],(char *)commandtbl[i].name);
     			m++;
 		}
     	sortStrings(c,m);
@@ -340,12 +349,15 @@ void MIPS16 cmd_list(void) {
         			if(k!=(step-1))for(j=strlen(c[i+k]);j<15;j++)MMputchar(' ',1);
         		}
     		}
-    		MMPrintString("\r\n");
+			if(Option.DISPLAY_CONSOLE)ListNewLine(&ListCnt, 0);
+    		else MMPrintString("\r\n");
     	}
 		MMPrintString("Total of ");PInt(m-1);MMPrintString(" commands\r\n");
     } else if((p = checkstring(cmdline, (unsigned char *)"FUNCTIONS"))) {
     	m=0;
-    	step=5;
+    	int ListCnt = 1;
+    	step=Option.DISPLAY_CONSOLE ? HRes/gui_font_width/20 : 5;
+        if(Option.DISPLAY_CONSOLE && (SPIREAD  || Option.NoScroll)){ClearScreen(gui_bcolour);CurrentX=0;CurrentY=0;}
 		int x=7;
 		char** c=GetTempMemory((TokenTableSize+x)*sizeof(*c)+(TokenTableSize+x)*18);
 		for(i=0;i<TokenTableSize+x;i++){
@@ -367,17 +379,20 @@ void MIPS16 cmd_list(void) {
         			if(k!=(step-1))for(j=strlen(c[i+k]);j<15;j++)MMputchar(' ',1);
         		}
     		}
-    		MMPrintString("\r\n");
+			if(Option.DISPLAY_CONSOLE)ListNewLine(&ListCnt, 0);
+    		else MMPrintString("\r\n");
     	}
 		MMPrintString("Total of ");PInt(m-1);MMPrintString(" functions and operators\r\n");
     } else {
         if(!(*cmdline == 0 || *cmdline == '\'')) {
         	getargs(&cmdline,1,(unsigned char *)",");
+        	if(Option.DISPLAY_CONSOLE && (SPIREAD  || Option.NoScroll)){ClearScreen(gui_bcolour);CurrentX=0;CurrentY=0;}
         	char *buff=GetTempMemory(STRINGSIZE);
         	strcpy(buff,(char *)getCstring(argv[0]));
     		if(strchr(buff, '.') == NULL) strcat(buff, ".bas");
 			ListFile(buff, false);
         } else {
+        	if(Option.DISPLAY_CONSOLE && (SPIREAD  || Option.NoScroll)){ClearScreen(gui_bcolour);CurrentX=0;CurrentY=0;}
 			ListProgram(ProgMemory, false);
 			checkend(cmdline);
 		}
@@ -386,14 +401,21 @@ void MIPS16 cmd_list(void) {
 
 
 void MIPS16 ListNewLine(int *ListCnt, int all) {
+	unsigned char noscroll=Option.NoScroll;
+	if(!all)Option.NoScroll=0;
 	MMPrintString("\r\n");
 	(*ListCnt)++;
-    if(!all && *ListCnt >= Option.Height) {
+    if(!all && *ListCnt >= Option.Height-overlap) {
+		#ifdef USBKEYBOARD
+		clearrepeat();
+		#endif
     	MMPrintString("PRESS ANY KEY ...");
     	MMgetchar();
     	MMPrintString("\r                 \r");
+        if(Option.DISPLAY_CONSOLE){ClearScreen(gui_bcolour);CurrentX=0;CurrentY=0;}
     	*ListCnt = 1;
     }
+	Option.NoScroll=noscroll;
 }
 
 
@@ -457,7 +479,7 @@ void MIPS16 cmd_run(void) {
 
     ClearRuntime();
     PrepareProgram(true);
-
+    if(Option.DISPLAY_CONSOLE && (SPIREAD  || Option.NoScroll)){ClearScreen(gui_bcolour);CurrentX=0;CurrentY=0;}
     // Create a global constant MM.CMDLINE$ containing 'cmd_args'.
     void *ptr = findvar((unsigned char *)"MM.CMDLINE$", V_FIND | V_DIM_VAR | T_CONST);
     CtoM(pcmd_args);
@@ -579,7 +601,7 @@ void __no_inline_not_in_flash_func(cmd_goto)(void) {
 #ifdef PICOMITEWEB
 void cmd_if(void) {
 #else
-void __not_in_flash_func(cmd_if)(void) {
+void MIPS16 __not_in_flash_func(cmd_if)(void) {
 #endif
  	int r, i, testgoto, testelseif;
 	unsigned char ss[3];														// this will be used to split up the argument line
@@ -653,12 +675,11 @@ retest_an_if:
 				i = 1; p = nextstmt;
 				while(1) {
                     p = GetNextCommand(p, &rp, (unsigned char *)"No matching ENDIF");
-					unsigned short tkn=p[0] & 0x7f;
-					tkn |= ((unsigned short)(p[1] & 0x7f)<<7);
+        			CommandToken tkn=commandtbl_decode(p);
 					if(tkn == cmdtoken) {
 						// found a nested IF command, we now need to determine if it is a single or multiline IF
 						// search for a THEN, then check if only white space follows.  If so, it is multiline.
-						tp = p + 2;
+						tp = p + sizeof(CommandToken);
 						while(*tp && *tp != ss[0]) tp++;
 						if(*tp) tp++;								// step over the THEN
 						skipspace(tp);
@@ -680,7 +701,7 @@ retest_an_if:
 						// we have found an ELSEIF statement at the same level as our IF statement
 						// setup the environment to make this function evaluate the test following ELSEIF and jump back
 						// to the start of the function.  This is not very clean (it uses the dreaded goto for a start) but it works
-						p+=2;                                        // step over the token
+						p+=sizeof(CommandToken);                                        // step over the token
 						skipspace(p);
 						CurrentLinePtr = rp;
 						if(*p == 0) error("Syntax");        // there must be a test after the elseif
@@ -729,7 +750,7 @@ retest_an_if:
 #ifdef PICOMITEWEB
 void cmd_else(void) {
 #else
-void __not_in_flash_func(cmd_else)(void) {
+void MIPS16 __not_in_flash_func(cmd_else)(void) {
 #endif
 	int i;
 	unsigned char *p, *tp;
@@ -741,12 +762,11 @@ void __not_in_flash_func(cmd_else)(void) {
 
 	while(1) {
         p = GetNextCommand(p, NULL, (unsigned char *)"No matching ENDIF");
-		unsigned short tkn=p[0] & 0x7f;
-		tkn |= ((unsigned short)(p[1] & 0x7f)<<7);
+        CommandToken tkn=commandtbl_decode(p);
 		if(tkn == cmdIF) { 
 			// found a nested IF command, we now need to determine if it is a single or multiline IF
 			// search for a THEN, then check if only white space follows.  If so, it is multiline.
-			tp = p + 2;
+			tp = p + sizeof(CommandToken);
 			while(*tp && *tp != tokenTHEN) tp++;
 			if(*tp) tp++;											// step over the THEN
 			skipspace(tp);
@@ -771,7 +791,7 @@ void cmd_end(void) {
         busy_wait_ms(100);
     }
 #endif
-    hw_clear_bits(&watchdog_hw->ctrl, WATCHDOG_CTRL_ENABLE_BITS);
+    if(!(MMerrno == 16))hw_clear_bits(&watchdog_hw->ctrl, WATCHDOG_CTRL_ENABLE_BITS);
     irq_set_enabled(DMA_IRQ_1, false);
     dma_hw->abort = ((1u << dma_rx_chan2) | (1u << dma_rx_chan));
     if(dma_channel_is_busy(dma_rx_chan))dma_channel_abort(dma_rx_chan);
@@ -838,8 +858,7 @@ void cmd_select(void) {
     i = 1; p = nextstmt;
     while(1) {
         p = GetNextCommand(p, &rp, (unsigned char *)"No matching END SELECT");
-		unsigned short tkn=p[0] & 0x7f;
-        tkn |= ((unsigned short)(p[1] & 0x7f)<<7);
+        CommandToken tkn=commandtbl_decode(p);
 
         if(tkn == cmdSELECT_CASE) i++;                                  // found a nested SELECT CASE command, increase the nested count and carry on searching
         // is this a CASE stmt at the same level as this SELECT CASE.
@@ -850,7 +869,7 @@ void cmd_select(void) {
             unsigned char *st, *stt;
 
             CurrentLinePtr = rp;                                    // and report errors at the line we are on
-			p++;
+			p++; //step past rest of command token
             // loop through the comparison elements on the CASE line.  Each element is separated by a comma
             do {
                 p++;
@@ -917,7 +936,7 @@ void cmd_select(void) {
         // test if we have found a CASE ELSE statement at the same level as this SELECT CASE
         // if true it means that we did not find a matching CASE - so execute this code
         if(tkn == cmdCASE_ELSE && i == 1) {
-            p+=2;                                                    // step over the token
+            p+=sizeof(CommandToken);                                                    // step over the token
             checkend(p);
             skipelement(p);
             nextstmt = p;
@@ -948,8 +967,7 @@ void cmd_case(void) {
     i = 1; p = nextstmt;
     while(1) {
         p = GetNextCommand(p, NULL, (unsigned char *)"No matching END SELECT");
-		unsigned short tkn=p[0] & 0x7f;
-        tkn |= ((unsigned short)(p[1] & 0x7f)<<7);
+        CommandToken tkn=commandtbl_decode(p);
         if(tkn == cmdSELECT_CASE) i++;                               // found a nested SELECT CASE command, we now need to search for its END CASE
         if(tkn == cmdEND_SELECT) i--;                                // found an END SELECT so decrement our nested counter
         if(i == 0) {
@@ -1067,7 +1085,7 @@ void MIPS16 cmd_trace(void) {
 #ifndef PICOMITE
 void cmd_for(void) {
 #else
-void __not_in_flash_func(cmd_for)(void) {
+void MIPS16 __not_in_flash_func(cmd_for)(void) {
 #endif
 	int i, t, vlen, test;
 	unsigned char ss[4];														// this will be used to split up the argument line
@@ -1151,13 +1169,12 @@ void __not_in_flash_func(cmd_for)(void) {
               p = GetNextCommand(p, &tp, (unsigned char *)"No matching NEXT");
 //            if(*p == fortoken) t++;                                 // count the FOR
 //            if(*p == nexttoken) {                                   // is it NEXT
-              unsigned short tkn=p[0] & 0x7f;
-              tkn |= ((unsigned short)(p[1] & 0x7f)<<7);
+        	CommandToken tkn=commandtbl_decode(p);
 
             if(tkn == cmdFOR) t++;                                 // count the FOR
 
             if(tkn == cmdNEXT) {                                   // is it NEXT
-				xp = p + 2;											// point to after the NEXT token
+				xp = p + sizeof(CommandToken);											// point to after the NEXT token
 				while(*xp && mystrncasecmp(xp, vname, vlen)) xp++;	// step through looking for our variable
 				if(*xp && !isnamechar(xp[vlen]))					// is it terminated correctly?
 					t = 0;											// yes, found the matching NEXT
@@ -1191,7 +1208,7 @@ void __not_in_flash_func(cmd_for)(void) {
 #ifndef PICOMITE
 void cmd_next(void) {
 #else
-void __not_in_flash_func(cmd_next)(void) {
+void MIPS16 __not_in_flash_func(cmd_next)(void) {
 #endif
 	int i, vindex, test;
 	void *vtbl[MAXFORLOOPS];
@@ -1219,7 +1236,7 @@ void __not_in_flash_func(cmd_next)(void) {
 		// if no variables specified search the for stack looking for an entry with the same program position as
 		// this NEXT statement. This cheats by using the cmdline as an identifier and may not work inside an IF THEN ELSE
         for(i = 0; i < forindex; i++) {
-            p = forstack[i].nextptr + 2;
+            p = forstack[i].nextptr + sizeof(CommandToken);
             skipspace(p);
             if(p == cmdline) goto breakout;
         }
@@ -1275,7 +1292,7 @@ void __not_in_flash_func(cmd_next)(void) {
 #ifdef PICOMITEWEB
 void cmd_do(void) {
 #else
-void __not_in_flash_func(cmd_do)(void) {
+void MIPS16 __not_in_flash_func(cmd_do)(void) {
 #endif
 	int i;
 	unsigned char *p, *tp, *evalp;
@@ -1314,8 +1331,7 @@ void __not_in_flash_func(cmd_do)(void) {
 	i = 1; p = nextstmt;
 	while(1) {
         p = GetNextCommand(p, &tp, (unsigned char *)"No matching LOOP");
-		unsigned short tkn=p[0] & 0x7f;
-        tkn |= ((unsigned short)(p[1] & 0x7f)<<7);
+        CommandToken tkn=commandtbl_decode(p);
 		if(tkn == cmdtoken) i++;                                     // entered a nested DO or WHILE loop
 		if(tkn == cmdLOOP) i--;									// exited a nested loop
 
@@ -1328,7 +1344,7 @@ void __not_in_flash_func(cmd_do)(void) {
     if(dostack[doindex].evalptr != NULL) {
 		// if this is a DO WHILE ... LOOP statement
 		// search the LOOP statement for a WHILE or UNTIL token (p is pointing to the matching LOOP statement)
-		p+=2;
+		p+=sizeof(CommandToken);
 		while(*p && *p < 0x80) p++;
 		if(*p == tokenWHILE) error("LOOP has a WHILE test");
 		if(*p == tokenUNTIL) error("LOOP has an UNTIL test");
@@ -1351,7 +1367,7 @@ void __not_in_flash_func(cmd_do)(void) {
 #ifdef PICOMITEWEB
 void cmd_loop(void) {
 #else
-void __not_in_flash_func(cmd_loop)(void) {
+void MIPS16 __not_in_flash_func(cmd_loop)(void) {
 #endif
     unsigned char *p;
 	int tst = 0;                                                    // initialise tst to stop the compiler from complaining
@@ -1359,7 +1375,7 @@ void __not_in_flash_func(cmd_loop)(void) {
 
 	// search the do table looking for an entry with the same program position as this LOOP statement
 	for(i = 0; i < doindex ;i++) {
-        p = dostack[i].loopptr + 2;
+        p = dostack[i].loopptr + sizeof(CommandToken);
         skipspace(p);
         if(p == cmdline) {
 			// found a match
@@ -1477,8 +1493,7 @@ void cmd_subfun(void) {
 	p = nextstmt;
 	while(1) {
         p = GetNextCommand(p, NULL, (unsigned char *)"No matching END declaration");
-		unsigned short tkn=p[0] & 0x7f;
-		tkn |= ((unsigned short)(p[1] & 0x7f)<<7);
+        CommandToken tkn=commandtbl_decode(p);
         if(tkn == cmdSUB || tkn == cmdFUN || tkn == errtoken) error("No matching END declaration");
 		if(tkn == returntoken) {                                     // found the next return
     		skipelement(p);
@@ -1498,8 +1513,7 @@ void cmd_comment(void) {
 	p = nextstmt;
 	while(1) {
         p = GetNextCommand(p, NULL, (unsigned char *)"No matching END declaration");
-		unsigned short tkn=p[0] & 0x7f;
-		tkn |= ((unsigned short)(p[1] & 0x7f)<<7);
+        CommandToken tkn=commandtbl_decode(p);
         if(tkn == cmdComment) error("No matching END declaration");
 		if(tkn == returntoken) {                                     // found the next return
     		skipelement(p);
@@ -1556,7 +1570,7 @@ void cmd_mid(void){
 	}
 }
 
-void __not_in_flash_func(cmd_return)(void) {
+void MIPS16 __not_in_flash_func(cmd_return)(void) {
  	checkend(cmdline);
 	if(gosubindex == 0 || gosubstack[gosubindex - 1] == NULL) error("Nothing to return to");
     ClearVars(LocalIndex--);                                        // delete any local variables
@@ -1658,13 +1672,12 @@ search_again:
             p += p[1] + 2;                                          // skip over the label
             skipspace(p);                                           // and any following spaces
         }
-        unsigned short tkn=p[0] & 0x7f;
-        tkn |= ((unsigned short)(p[1] & 0x7f)<<7);
+        CommandToken tkn=commandtbl_decode(p);
         if(tkn == datatoken) break;                                  // found a DATA statement
         while(*p) p++;                                              // look for the zero marking the start of the next element
     }
     NextDataLine = lineptr;
-    p+=2;                                                            // step over the token
+    p+=sizeof(CommandToken);                                                            // step over the token
     skipspace(p);
     if(!*p || *p == '\'') { CurrentLinePtr = lineptr; error("No DATA to read"); }
 
@@ -2207,8 +2220,7 @@ unsigned char  *llist(unsigned char *b, unsigned char *p) {
 
 		if(*p >= C_BASETOKEN) {
 			if(firstnonwhite) {
-				unsigned short tkn=p[0] & 0x7f;
-				tkn |= (((unsigned short)p[1] & 0x007f)<<7);
+        		CommandToken tkn=commandtbl_decode(p);
 				if(tkn == GetCommandValue( (unsigned char *)"Let"))
 					*b = 0;											// use nothing if it LET
 				else {
@@ -2217,7 +2229,7 @@ unsigned char  *llist(unsigned char *b, unsigned char *p) {
                     if(isalpha(*(b - 1))) *b++ = ' ';               // add a space to the end of the command name
                 }
 				firstnonwhite = false;
-				p+=2;
+				p+=sizeof(CommandToken);
 			} else {												// not a command so must be a token
 				strCopyWithCase((char *)b, (char *)tokenname(*p));					// expand the token
                     b += strlen((char *)b);                                 // update pointer to the end of the buffer
@@ -2257,29 +2269,20 @@ unsigned char  *llist(unsigned char *b, unsigned char *p) {
 
 
 void execute_one_command(unsigned char *p) {
-    int cmd, i;
+    int i;
 
 	CheckAbort();
 	targ = T_CMD;
 	skipspace(p);													// skip any whitespace
 	if(p[0]>= C_BASETOKEN && p[1]>=C_BASETOKEN){
 //                    if(*(char*)p >= C_BASETOKEN && *(char*)p - C_BASETOKEN < CommandTableSize - 1 && (commandtbl[*(char*)p - C_BASETOKEN].type & T_CMD)) {
-		cmd=p[0] & 0x7f;
-		cmd |= ((unsigned short)(p[1] & 0x7f)<<7);
+        CommandToken cmd=commandtbl_decode(p);
         if(cmd == cmdWHILE || cmd == cmdDO || cmd == cmdFOR) error("Invalid inside THEN ... ELSE") ;
 		cmdtoken=cmd;
-		cmdline = p + 2;
+		cmdline = p + sizeof(CommandToken);
         skipspace(cmdline);
 		commandtbl[cmd].fptr(); // execute the command
 	} else {
-/*	if(*p >= C_BASETOKEN && *p - C_BASETOKEN < CommandTableSize - 1 && (commandtbl[*p - C_BASETOKEN].type & T_CMD)) {
-    	cmd = *p  - C_BASETOKEN;
-        if(*p == cmdWHILE || *p == cmdDO || *p == cmdFOR) error("Invalid inside THEN ... ELSE") ;
-		cmdtoken = *p;
-		cmdline = p + 1;
-        skipspace(cmdline);
-		commandtbl[cmd].fptr();						                // execute the command
-	} else {*/
 	    if(!isnamestart(*p)) error("Invalid character");
         i = FindSubFun(p, false);                                   // it could be a defined command
         if(i >= 0)                                                  // >= 0 means it is a user defined command
@@ -2330,8 +2333,8 @@ void execute(char* mycmd) {
 		char* q;
 //		char fn[STRINGSIZE] = { 0 };
         unsigned short tkn=GetCommandValue((unsigned char *)"RUN");
-                tknbuf[0] = (tkn & 0x7f ) + C_BASETOKEN;
-                tknbuf[1] = (tkn >> 7) + C_BASETOKEN; //tokens can be 14-bit
+        tknbuf[0] = (tkn & 0x7f ) + C_BASETOKEN;
+        tknbuf[1] = (tkn >> 7) + C_BASETOKEN; //tokens can be 14-bit
 		p[0] = (tkn & 0x7f ) + C_BASETOKEN;
 		p[1] = (tkn >> 7) + C_BASETOKEN; //tokens can be 14-bit
 		memmove(&p[2], &p[4], strlen((char *)p) - 4);

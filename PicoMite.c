@@ -171,7 +171,6 @@ unsigned char SPIatRisk = false;
 bool timer_callback(repeating_timer_t *rt);
 uint32_t __uninitialized_ram(_excep_code);
 unsigned char lastcmd[STRINGSIZE*2];                                           // used to store the last command in case it is needed by the EDIT command
-int QVGA_CLKDIV;	// SM divide clock ticks
 FATFS fs;                 // Work area (file system object) for logical drive
 bool timer_callback(repeating_timer_t *rt);
 static uint64_t __not_in_flash_func(uSecFunc)(uint64_t a){
@@ -202,6 +201,7 @@ MMFLOAT FDiv(MMFLOAT a, MMFLOAT b){ return a / b; }
 uint32_t CFunc_delay_us;
 #ifdef PICOMITEVGA
 volatile int VGAxoffset=0,VGAyoffset=0;
+int QVGA_CLKDIV;	// SM divide clock ticks
 #endif
 void PIOExecute(int pion, int sm, uint32_t ins){
     PIO pio = (pion ? pio1: pio0);
@@ -319,6 +319,11 @@ const struct s_PinDef PinDef[NBRPINS + 1]={
 };
 char alive[]="\033[?25h";
 const char DaysInMonth[] = { 0, 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31 };
+
+static inline CommandToken commandtbl_decode(const unsigned char *p){
+    return ((CommandToken)(p[0] & 0x7f)) | ((CommandToken)(p[1] & 0x7f)<<7);
+}
+
 void __not_in_flash_func(routinechecks)(void){
     static int when=0, classicread=0;
     if (CurrentlyPlaying == P_WAV || CurrentlyPlaying == P_FLAC || CurrentlyPlaying==P_MP3 || CurrentlyPlaying==P_MIDI ){
@@ -758,7 +763,7 @@ void MIPS16 EditInputLine(void) {
                          /*** F5 will clear the VT100  ***/
             	         SSPrintString("\e[2J\e[H");
             	         fflush(stdout);
-            	        // if(Option.DISPLAY_CONSOLE){MX470Display(DISPLAY_CLS);CurrentX=0;CurrentY=0;}
+                         if(Option.DISPLAY_CONSOLE){ClearScreen(gui_bcolour);CurrentX=0;CurrentY=0;}
             	         MMPrintString("> ");
             	         fflush(stdout);
                     }    
@@ -910,7 +915,7 @@ void __not_in_flash_func(mT4IntEnable)(int status){
 }
 
 volatile int onoff=0;
-bool __not_in_flash_func(timer_callback)(repeating_timer_t *rt)
+bool MIPS16 __not_in_flash_func(timer_callback)(repeating_timer_t *rt)
 {
     mSecTimer++;                                                      // used by the TIMER function
     if(processtick){
@@ -2049,6 +2054,7 @@ int MIPS16 main(){
     int i;
     char savewatchdog=false;
     LoadOptions();
+    uint32_t excep=_excep_code;
     if(  Option.Baudrate == 0 ||
         !(Option.Tab==2 || Option.Tab==3 || Option.Tab==4 ||Option.Tab==8) ||
         !(Option.Autorun>=0 && Option.Autorun<=MAXFLASHSLOTS+1) ||
@@ -2071,9 +2077,24 @@ int MIPS16 main(){
     m_alloc(M_PROG);                                           // init the variables for program memory
     LibMemory = (uint8_t *)flash_libmemory;
     uSec(100);
-    if(Option.CPU_Speed>200000)vreg_set_voltage(VREG_VOLTAGE_1_25);  // Std default @ boot is 1_10
+    if(_excep_code == RESET_CLOCKSPEED) {
+#ifdef PICOMITEVGA
+        Option.CPU_Speed=126000;              // init the options if this is the very first startup
+#else
+        Option.CPU_Speed=133000;              // init the options if this is the very first startup
+#endif
+        SaveOptions();
+        _excep_code=INVALID_CLOCKSPEED;
+        watchdog_enable(1, 1);
+        while(1);
+    } else {
+        _excep_code=RESET_CLOCKSPEED;
+        watchdog_enable(1000, 1);
+    }
+    if(Option.CPU_Speed>200000 && Option.CPU_Speed<=300000 )vreg_set_voltage(VREG_VOLTAGE_1_25);  // Std default @ boot is 1_10
+    if(Option.CPU_Speed>300000 )vreg_set_voltage(VREG_VOLTAGE_1_30);  // Std default @ boot is 1_10
     uSec(100);
-    set_sys_clock_khz(Option.CPU_Speed, true);
+    set_sys_clock_khz(Option.CPU_Speed, false);
     PWM_FREQ=44100;
 #ifndef USBKEYBOARD
     pico_get_unique_board_id_string (id_out,12);
@@ -2085,16 +2106,28 @@ int MIPS16 main(){
         Option.CPU_Speed * 1000,                               // Input frequency
         Option.CPU_Speed * 1000                                // Output (must be same as no divider)
     );
+    if(clock_get_hz(clk_usb)!=48000000){
+        ResetAllFlash();              // init the options if this is the very first startup
+        _excep_code=INVALID_CLOCKSPEED;
+        watchdog_enable(1, 1);
+        while(1);
+    }
+
     systick_hw->csr = 0x5;
     systick_hw->rvr = 0x00FFFFFF;
 #ifdef PICOMITE
 	mutex_init( &frameBufferMutex );						// create a mutex to lock frame buffer
 #endif
     if(Option.CPU_Speed<=200000)modclock(2);
+
     uSec(100);
+    hw_clear_bits(&watchdog_hw->ctrl, WATCHDOG_CTRL_ENABLE_BITS);
+    _excep_code=excep;
+#ifdef PICOMITEVGA
     if(Option.CPU_Speed==378000)QVGA_CLKDIV= 3;
     else if(Option.CPU_Speed==252000)QVGA_CLKDIV= 2;
     else QVGA_CLKDIV= 1;
+#endif
     ticks_per_second = Option.CPU_Speed*1000;
     // The serial clock won't vary from this point onward, so we can configure
     // the UART etc.
@@ -2159,7 +2192,7 @@ int MIPS16 main(){
 #endif
 #endif
     ResetDisplay();
-    if(!(_excep_code == RESTART_NOAUTORUN || _excep_code == WATCHDOG_TIMEOUT || (_excep_code==POSSIBLE_WATCHDOG && watchdog_caused_reboot()))){
+    if(!(_excep_code == RESTART_NOAUTORUN || _excep_code == INVALID_CLOCKSPEED || _excep_code == WATCHDOG_TIMEOUT || (_excep_code==POSSIBLE_WATCHDOG && watchdog_caused_reboot()))){
         if(Option.Autorun==0 ){
             if(!(_excep_code == RESET_COMMAND || _excep_code == SOFT_RESET))MMPrintString(MES_SIGNON); //MMPrintString(b);                                 // print sign on message
         } else {
@@ -2171,6 +2204,9 @@ int MIPS16 main(){
     }
     WatchdogSet = false;
 
+    if(_excep_code == INVALID_CLOCKSPEED) {
+        MMPrintString("\r\n\nInvalid clock speed - reset to default\r\n");
+    }
     if(_excep_code == WATCHDOG_TIMEOUT) {
         WatchdogSet = true;                                 // remember if it was a watchdog timeout
         MMPrintString("\r\n\nMMBasic Watchdog timeout\r\n");
@@ -2316,9 +2352,8 @@ int MIPS16 main(){
 autorun:
         i=0;
         WatchdogSet=savewatchdog;
-        unsigned short tkn=tknbuf[0] & 0x7f;
-        tkn |= ((tknbuf[1] & 0x7f)>>9);
-         if(tkn==GetCommandValue((unsigned char *)"RUN"))i=1;
+        CommandToken tkn=commandtbl_decode(tknbuf);
+        if(tkn==GetCommandValue((unsigned char *)"RUN"))i=1;
         if (setjmp(jmprun) != 0) {
             PrepareProgram(false);
             CurrentLinePtr = 0;

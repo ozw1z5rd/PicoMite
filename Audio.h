@@ -59,7 +59,8 @@ extern void checkWAVinput(void);
 extern volatile uint64_t SoundPlay;
 #define WAV_BUFFER_SIZE 8192
 extern const unsigned short SineTable[4096];
-extern const unsigned short nulltable[4096];
+extern const unsigned short *nulltable;
+extern const unsigned short squaretable[];
 extern volatile float PhaseM_left, PhaseM_right;
 extern volatile unsigned char PWM_count;
 extern uint16_t *playbuff;
