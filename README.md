@@ -9,7 +9,7 @@ anything/pico-sdk
 
 anything/PicoMite/all source and header files
 
-The code is developed under VSCODE on W11 using GCC 12.3.1 arm-none-eabi
+The code is developed under VSCODE on W11 using GCC 13.2.1 arm-none-eabi
 
 Compiled version and documentation is available on https://geoffg.net/picomite.html
 
@@ -17,9 +17,9 @@ Change list from V5.07.00
 **********************************************************************************************************************
 Source files for all PicoMite variants
 
-PicoMite V5.09.00b
+PicoMite V5.09.00RC1
 
-Support for 16-bit command tokens - refactoring of various commands
+Support for 16-bit command tokens - refactoring of various commands, Easy setup via OPTION RESET boardname
 
 PicoMite V5.09.00b3
 
