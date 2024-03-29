@@ -1015,7 +1015,6 @@ int caps_lock=0;
 int num_lock=0;
 int scroll_lock=0;
 int KeyDown[7];
-uint8_t sendlights=0;
 const int *keylayout;
 uint8_t Current_USB_devices=0;
 uint8_t Current_controllers=0;
@@ -1218,11 +1217,16 @@ void hid_app_task(void)
 	for(int i=0;i<4;i++){
 		if(HID[i].active==false || HID[i].report_requested)continue;
 		if(HID[i].report_timer>=HID[i].report_rate){
+			if(HID[i].Device_type==HID_ITF_PROTOCOL_KEYBOARD && HID[i].notfirsttime==0){
+				HID[i].notfirsttime=1;
+				tuh_hid_set_report(HID[i].Device_address, HID[i].Device_instance, 0, HID_REPORT_TYPE_OUTPUT, (void *)&HID[i].sendlights,1);
+
+			}
 			HID[i].report_requested=true;
 			if ( !tuh_hid_receive_report(HID[i].Device_address, HID[i].Device_instance) )
 			{
-			MMPrintString("Warning USB failure on channel ");PInt(i+1);MMPrintString("\r\n> ");
-			HID[i].active=false;
+				MMPrintString("Warning USB failure on channel ");PInt(i+1);MMPrintString("\r\n> ");
+				HID[i].active=false;
 			}
 
 		}
@@ -1265,13 +1269,13 @@ int FindFreeSlot(void){
 void tuh_hid_mount_cb(uint8_t dev_addr, uint8_t instance, uint8_t const* desc_report, uint16_t desc_len)
 {
 	__dsb();
-//  uint16_t pid,vid;
+  uint16_t pid,vid;
   uint8_t itf_protocol = tuh_hid_interface_protocol(dev_addr, instance);
 //  PInt(itf_protocol);
-//  tuh_vid_pid_get(dev_addr, &vid, &pid);
+  tuh_vid_pid_get(dev_addr, &vid, &pid);
   int slot=FindFreeSlot();
   if(slot==-1)error("USB device limit reached");
-
+//  char buff[STRINGSIZE];
 //  PIntHC(vid);PIntHC(pid);PRet();
 //  sprintf(buff,"HID device address = %d, instance = %d is mounted\r\n", dev_addr, instance);
   /* Start HID Interface */
@@ -1298,15 +1302,19 @@ void tuh_hid_mount_cb(uint8_t dev_addr, uint8_t instance, uint8_t const* desc_re
 		HID[slot].Device_type=HID_ITF_PROTOCOL_KEYBOARD;
 		caps_lock=Option.capslock;
 		num_lock=Option.numlock;
-		if(num_lock) sendlights|=(uint8_t)1;
-		if(caps_lock) sendlights|=(uint8_t)2;
+		if(num_lock) HID[slot].sendlights|=(uint8_t)1;
+		if(caps_lock) HID[slot].sendlights|=(uint8_t)2;
 		HID[slot].report_rate=20; //mSec between report
 		HID[slot].report_timer=-(10+(slot+2)*500);
 		HID[slot].active=true;
 		HID[slot].report_requested=false;
-		MMPrintString((char *)KBrdList[(int)Option.USBKeyboard]);
-		if(!CurrentLinePtr) {MMPrintString(" USB Keyboard Connected on channel ");PInt(slot+1);MMPrintString("\r\n> ");}
-		tuh_hid_set_report(HID[slot].Device_address, HID[slot].Device_instance, 0, HID_REPORT_TYPE_OUTPUT, &sendlights, sizeof(sendlights));
+		if(!CurrentLinePtr) {
+			MMPrintString((char *)KBrdList[(int)Option.USBKeyboard]);
+			MMPrintString(" USB Keyboard Connected on channel ");
+			PInt(slot+1);
+			MMPrintString("\r\n> ");
+		}
+//		tuh_hid_set_report(HID[slot].Device_address, HID[slot].Device_instance, 0, HID_REPORT_TYPE_OUTPUT, (void *)&HID[n].sendlights,1);
 		Current_USB_devices++;
 		return;
   	}
@@ -1335,7 +1343,7 @@ void tuh_hid_mount_cb(uint8_t dev_addr, uint8_t instance, uint8_t const* desc_re
 //		hid_info[instance].report_count = tuh_hid_parse_report_descriptor(hid_info[instance].report_info, MAX_REPORT, desc_report, desc_len);
 	// Sony DualShock 4 [CUH-ZCT2x]
 		if ( is_sony_ds4(dev_addr) )
-		{
+		{ 
 			if(!CurrentLinePtr) {MMPrintString("PS4 Controller Connected on channel ");PInt(slot+1);MMPrintString("\r\n> ");}
 			HID[slot].Device_address = dev_addr;
 			HID[slot].Device_instance = instance;
@@ -1400,12 +1408,7 @@ void tuh_hid_umount_cb(uint8_t dev_addr, uint8_t instance)
 			break;
 		}
 	}
-	HID[i].Device_type=0;
-	HID[i].report_rate=0;
-	HID[i].report_timer=0;
-	HID[i].Device_address=0;
-	HID[i].Device_instance=0;
-	HID[i].active=false;
+	memset((void *)&HID[i],0,sizeof(struct s_HID));
 	HID[i].report_requested=true;
 	Current_USB_devices--;
 //  sprintf(buff,"HID device address = %d, instance = %d is unmounted\r\n", dev_addr, instance);
@@ -1574,33 +1577,33 @@ static void process_kbd_report(hid_keyboard_report_t const *report, uint8_t n)
 //        bool const is_shift = report->modifier & (KEYBOARD_MODIFIER_LEFTSHIFT | KEYBOARD_MODIFIER_RIGHTSHIFT);
 			if(current_keys[0]==0x39){
 				if(caps_lock){
-					sendlights&=~(uint8_t)2;
+					HID[n].sendlights&=~(uint8_t)2;
 					caps_lock=0;
-          tuh_hid_set_report(HID[n].Device_address, HID[n].Device_instance, 0, HID_REPORT_TYPE_OUTPUT, &sendlights, sizeof(sendlights));
+          tuh_hid_set_report(HID[n].Device_address, HID[n].Device_instance, 0, HID_REPORT_TYPE_OUTPUT, (void *)&HID[n].sendlights,1);
 				} else {
-					sendlights|=0x02;
+					HID[n].sendlights|=0x02;
 					caps_lock=1;
-          tuh_hid_set_report(HID[n].Device_address, HID[n].Device_instance, 0, HID_REPORT_TYPE_OUTPUT, &sendlights, sizeof(sendlights));
+          tuh_hid_set_report(HID[n].Device_address, HID[n].Device_instance, 0, HID_REPORT_TYPE_OUTPUT, (void *)&HID[n].sendlights,1);
 				}
 			} else if(current_keys[0]==0x53){
 				if(num_lock){
-					sendlights&=~(uint8_t)1;
+					HID[n].sendlights&=~(uint8_t)1;
 					num_lock=0;
-          tuh_hid_set_report(HID[n].Device_address, HID[n].Device_instance, 0, HID_REPORT_TYPE_OUTPUT, &sendlights, sizeof(sendlights));
+          tuh_hid_set_report(HID[n].Device_address, HID[n].Device_instance, 0, HID_REPORT_TYPE_OUTPUT, (void *)&HID[n].sendlights,1);
 				} else {
-					sendlights|=0x01;
+					HID[n].sendlights|=0x01;
 					num_lock=1;
-          tuh_hid_set_report(HID[n].Device_address, HID[n].Device_instance, 0, HID_REPORT_TYPE_OUTPUT, &sendlights, sizeof(sendlights));
+          tuh_hid_set_report(HID[n].Device_address, HID[n].Device_instance, 0, HID_REPORT_TYPE_OUTPUT, (void *)&HID[n].sendlights,1);
 				}
 			} else if(current_keys[0]==0x47){
 				if(scroll_lock){
-					sendlights&=~(uint8_t)4;
+					HID[n].sendlights&=~(uint8_t)4;
 					scroll_lock=0;
-          tuh_hid_set_report(HID[n].Device_address, HID[n].Device_instance, 0, HID_REPORT_TYPE_OUTPUT, &sendlights, sizeof(sendlights));
+          tuh_hid_set_report(HID[n].Device_address, HID[n].Device_instance, 0, HID_REPORT_TYPE_OUTPUT, (void *)&HID[n].sendlights,1);
 				} else {
-					sendlights|=0x04;
+					HID[n].sendlights|=0x04;
 					scroll_lock=1;
-          tuh_hid_set_report(HID[n].Device_address, HID[n].Device_instance, 0, HID_REPORT_TYPE_OUTPUT, &sendlights, sizeof(sendlights));
+          tuh_hid_set_report(HID[n].Device_address, HID[n].Device_instance, 0, HID_REPORT_TYPE_OUTPUT, (void *)&HID[n].sendlights,1);
 				}
 			} else {
 				uint8_t c = APP_MapKeyToUsage(current_keys,0, modifier);
