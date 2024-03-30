@@ -109,13 +109,15 @@ typedef struct s_HID {
 	uint8_t Device_address;
 	uint8_t Device_instance;
 	uint8_t Device_type;
-	int16_t report_timer;
 	uint8_t report_rate;
+	int16_t report_timer;
 	bool active;
 	bool report_requested;
+	bool notfirsttime;
 	uint8_t motorleft;
 	uint8_t motorright;
 	uint8_t r,g,b;
+	uint8_t sendlights;
 } a_HID;
 extern volatile struct s_HID HID[4];
 extern uint32_t _excep_code;

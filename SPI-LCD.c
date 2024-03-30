@@ -206,7 +206,7 @@ void MIPS16 ConfigDisplaySPI(unsigned char *p) {
 		if(!code)CS=codemap(CS);
 		Option.LCDVOP=0xB1;
 		Option.I2Coffset=0;
-		if(argc>=11){
+		if(argc>=11 && *argv[10]){
 			if(DISPLAY_TYPE == N5110)Option.LCDVOP=getint(argv[10],0,255);
 			else if(DISPLAY_TYPE == SSD1306SPI)Option.I2Coffset=getint(argv[10],0,10);
 			else  {
@@ -219,6 +219,9 @@ void MIPS16 ConfigDisplaySPI(unsigned char *p) {
 		} 
 		CheckPin(CS, CP_IGNORE_INUSE);
 		Option.LCD_CS = CS;
+		if(argc==13){
+			if(checkstring(argv[12],(unsigned char *)"INVERT"))Option.BGR=1;
+		} else Option.BGR=0;
 	}
 	CheckPin(CD, CP_IGNORE_INUSE);
     CheckPin(RESET, CP_IGNORE_INUSE);
@@ -331,7 +334,7 @@ void MIPS16 InitDisplaySPI(int InitOnly) {
 
 				spi_write_command(0xB1); // Frame Rate Control
 				spi_write_data(0xA0);
-
+				if(Option.BGR)spi_write_command(0x21); 
 				spi_write_command(0xB4); // Display Inversion Control
 				spi_write_data(0x02);
 

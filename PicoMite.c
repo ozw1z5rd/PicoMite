@@ -2233,18 +2233,15 @@ int MIPS16 main(){
     *tknbuf = 0;
      ContinuePoint = nextstmt;                               // in case the user wants to use the continue command
 #ifdef USBKEYBOARD
-    uSec(1000000); //wait for any hub to power up
 	clearrepeat();
      for(int i=0;i<4;i++){
-        HID[i].Device_type=0;
-        HID[i].report_rate=0;
-        HID[i].report_timer=0;
-        HID[i].Device_address=0;
-        HID[i].Device_instance=0;
-        HID[i].active=false;
+        memset((void *)&HID[i],0,sizeof(struct s_HID));
         HID[i].report_requested=true;
     }
-    USB_bus_reset();
+//    USB_bus_reset();
+    hcd_port_reset(BOARD_TUH_RHPORT);
+    uSec(10000); //wait for any hub to power up
+    hcd_port_reset_end(BOARD_TUH_RHPORT);
     tuh_init(BOARD_TUH_RHPORT);
     USBenabled=true;
 

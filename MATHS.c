@@ -462,8 +462,8 @@ int parseintegerarray(unsigned char *tp, int64_t **a1int, int argno, int dimensi
 		if((uint32_t)ptr1!=(uint32_t)vartbl[VarIndex].val.s)error("Syntax");
 	} else error("Argument % must be an integer array",argno);
 	int card=1;
-	if(dimensions==1 && (dims[0]<=0 || dims[1]>0))error("Argument % must be a 1D floating point array",argno);
-	if(dimensions==2 && (dims[0]<=0 || dims[1]<=0 || dims[2]>0))error("Argument % must be a 2D floating point array",argno);
+	if(dimensions==1 && (dims[0]<=0 || dims[1]>0))error("Argument % must be a 1D integer point array",argno);
+	if(dimensions==2 && (dims[0]<=0 || dims[1]<=0 || dims[2]>0))error("Argument % must be a 2D integer point array",argno);
 	for(i=0;i<MAXDIM;i++){
 		j=(dims[i] - OptionBase + 1);
 		if(j)card *= j;
@@ -483,8 +483,8 @@ int parsenumberarray(unsigned char *tp, MMFLOAT **a1float, int64_t **a1int, int 
 		if((uint32_t)ptr1!=(uint32_t)vartbl[VarIndex].val.s)error("Syntax");
 	} else error("Argument % must be a numerical array",argno);
 	int card=1;
-	if(dimensions==1 && (dims[0]<=0 || dims[1]>0))error("Argument % must be a 1D floating point array",argno);
-	if(dimensions==2 && (dims[0]<=0 || dims[1]<=0 || dims[2]>0))error("Argument % must be a 2D floating point array",argno);
+	if(dimensions==1 && (dims[0]<=0 || dims[1]>0))error("Argument % must be a 1D numerical array",argno);
+	if(dimensions==2 && (dims[0]<=0 || dims[1]<=0 || dims[2]>0))error("Argument % must be a 2D numerical array",argno);
 	for(i=0;i<MAXDIM;i++){
 		j=(dims[i] - OptionBase + 1);
 		if(j)card *= j;

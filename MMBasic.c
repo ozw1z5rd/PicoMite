@@ -1155,6 +1155,7 @@ void  MIPS16 tokenise(int console) {
                     STR_REPLACE((char *)inpbuf,"RP2040-LCD-1.28","RP2040LCD1.28");
                     STR_REPLACE((char *)inpbuf,"RP2040-LCD-0.96","RP2040LCD0.96");
                     STR_REPLACE((char *)inpbuf,"RP2040-GEEK","RP2040GEEK");
+                    STR_REPLACE((char *)inpbuf,"PICOGAME 4-PWM","PICOGAME 4PWM");
                 }
                 continue;
             }
@@ -3140,7 +3141,7 @@ void MIPS16 ClearRuntime(void) {
     optionfastaudio=0;
     optionlogging=false;
 #ifndef PICOMITEVGA
-    if(SSD16TYPE || Option.DISPLAY_TYPE==IPS_4_16)clear320();
+    if(SSD16TYPE || Option.DISPLAY_TYPE==IPS_4_16 || SPI480)clear320();
 #endif
     MMerrno = 0;                                                    // clear the error flags
    *MMErrMsg = 0;

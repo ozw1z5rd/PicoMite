@@ -1715,13 +1715,16 @@ void MIPS16 printoptions(void){
         i=Option.DISPLAY_ORIENTATION;
         if(Option.DISPLAY_TYPE==ST7789 || Option.DISPLAY_TYPE == ST7789A)i=(i+2) % 4;
         PO("LCDPANEL"); MMPrintString((char *)display_details[Option.DISPLAY_TYPE].name); MMPrintString(", "); MMPrintString((char *)OrientList[(int)i - 1]);
-        MMputchar(',',1);;MMPrintString((char *)PinDef[Option.LCD_CD].pinname);
-        MMputchar(',',1);;MMPrintString((char *)PinDef[Option.LCD_Reset].pinname);
+        MMputchar(',',1);MMPrintString((char *)PinDef[Option.LCD_CD].pinname);
+        MMputchar(',',1);MMPrintString((char *)PinDef[Option.LCD_Reset].pinname);
         if(Option.DISPLAY_TYPE!=ST7920){
             MMputchar(',',1);;MMPrintString((char *)PinDef[Option.LCD_CS].pinname);
         }
         if(!(Option.DISPLAY_TYPE<=I2C_PANEL || Option.DISPLAY_TYPE>=BufferedPanel ) && Option.DISPLAY_BL){
             MMputchar(',',1);MMPrintString((char *)PinDef[Option.DISPLAY_BL].pinname);
+        }  else if(Option.BGR)MMputchar(',',1);
+        if(!(Option.DISPLAY_TYPE<=I2C_PANEL || Option.DISPLAY_TYPE>=BufferedPanel ) && Option.BGR){
+            MMputchar(',',1);MMPrintString((char *)"INVERT");
         }
         if(Option.DISPLAY_TYPE==SSD1306SPI && Option.I2Coffset)PIntComma(Option.I2Coffset);
         if(Option.DISPLAY_TYPE==N5110 && Option.LCDVOP!=0xC8)PIntComma(Option.LCDVOP);
@@ -2026,6 +2029,11 @@ void MIPS16 ConfigDisplayUser(unsigned char *tp){
 
 }
 void MIPS16 clear320(void){
+    if(SPI480){
+        HRes=480;
+        VRes=320;
+        return;
+    }
     screen320=0;
     DrawRectangle = DrawRectangleSSD1963;
     DrawBitmap = DrawBitmapSSD1963;
@@ -2048,6 +2056,12 @@ void MIPS16 clear320(void){
     FreeMemorySafe((void **)&buff320);
     return;
 }
+void MIPS16 clearSPI320(void){
+    HRes=480;
+    VRes=320;
+    return;
+}
+
 #endif
 
 void MIPS16 configure(unsigned char *p){
@@ -2056,13 +2070,91 @@ void MIPS16 configure(unsigned char *p){
         _excep_code = RESET_COMMAND;
         SoftReset();
     } else {
+        if(checkstring(p,(unsigned char *) "LIST")){
 #ifdef PICOMITEVGA
+            MMPrintString("PICOGAME 4-PWM\r\n");
+            MMPrintString("PICOGAME 4\r\n");
+#ifdef USBKEYBOARD
+            MMPrintString("CMM1.5\r\n");
+#else
+            MMPrintString("PICOMITEVGA V1.1\r\n");
+            MMPrintString("PICOMITEVGA V1.0\r\n");
+            MMPrintString("VGA Design 1\r\n");
+            MMPrintString("VGA Design 2\r\n");
+            MMPrintString("SWEETIEPI\r\n");
+            MMPrintString("VGA Basic\r\n");
+#endif
+#endif
+#if defined(PICOMITE) || defined(PICOMITEWEB)
+#ifndef USBKEYBOARD
+            MMPrintString("Game*Mite\r\n");
+            MMPrintString("Pico-ResTouch-LCD-3.5\r\n");
+            MMPrintString("Pico-ResTouch-LCD-2.8\r\n");
+            MMPrintString("PICO BACKPACK\r\n");
+#ifndef PICOMITEWEB
+            MMPrintString("RP2040-LCD-1.28\r\n");
+            MMPrintString("RP2040LCD-0.96\r\n");
+            MMPrintString("RP2040-GEEK\r\n");
+#endif
+#else
+            MMPrintString("USB Edition V1.0\r\n");
+#endif
+#endif
+            return;
+        }       
+#ifdef PICOMITEVGA
+        if(checkstring(p,(unsigned char *) "PICOGAME 4PWM"))  {
+            Option.ColourCode = 1;
+            Option.SYSTEM_I2C_SDA=PINMAP[12];
+            Option.SYSTEM_I2C_SCL=PINMAP[13];
+            Option.SD_CS=PINMAP[27];
+            Option.SD_CLK_PIN=PINMAP[15];
+            Option.SD_MOSI_PIN=PINMAP[28];
+            Option.SD_MISO_PIN=PINMAP[14];
+            Option.VGA_HSYNC=PINMAP[10];
+            Option.VGA_BLUE=PINMAP[4];
+            Option.AUDIO_L=PINMAP[18];
+            Option.AUDIO_R=PINMAP[19];
+            Option.modbuffsize=192;
+            Option.modbuff = true; 
+            Option.AUDIO_SLICE=checkslice(PINMAP[18],PINMAP[19], 0);
+            strcpy((char *)Option.platform,"PICOGAME 4-PWM");
+            SaveOptions();
+            printoptions();uSec(100000);
+            _excep_code = RESET_COMMAND;
+            SoftReset();
+        }
+        if(checkstring(p,(unsigned char *) "PICOGAME 4"))  {
+            Option.ColourCode = 1;
+            Option.SYSTEM_I2C_SDA=PINMAP[12];
+            Option.SYSTEM_I2C_SCL=PINMAP[13];
+            Option.SD_CS=PINMAP[27];
+            Option.SD_CLK_PIN=PINMAP[15];
+            Option.SD_MOSI_PIN=PINMAP[28];
+            Option.SD_MISO_PIN=PINMAP[14];
+            Option.VGA_HSYNC=PINMAP[10];
+            Option.VGA_BLUE=PINMAP[4];
+            Option.AUDIO_CLK_PIN=PINMAP[18];
+            Option.AUDIO_MOSI_PIN=PINMAP[19];
+            Option.AUDIO_MISO_PIN=PINMAP[20];
+            Option.AUDIO_CS_PIN=PINMAP[17];
+            Option.AUDIO_DCS_PIN=PINMAP[21];
+            Option.AUDIO_DREQ_PIN=PINMAP[22];
+            Option.AUDIO_RESET_PIN=PINMAP[16];
+            Option.AUDIO_SLICE=checkslice(PINMAP[19],PINMAP[19], 1);
+            Option.modbuffsize=192;
+            Option.modbuff = true; 
+            strcpy((char *)Option.platform,"PICOGAME 4");
+            SaveOptions();
+            printoptions();uSec(100000);
+            _excep_code = RESET_COMMAND;
+            SoftReset();
+        }
 #ifdef USBKEYBOARD
         if(checkstring(p,(unsigned char *) "CMM1.5"))  {
             ResetOptions();
             Option.AllPins = 1; 
             Option.ColourCode = 1;
-            Option.NoHeartbeat = 1;
             Option.SYSTEM_I2C_SDA=PINMAP[14];
             Option.SYSTEM_I2C_SCL=PINMAP[15];
             Option.RTC = true;
@@ -2103,7 +2195,6 @@ void MIPS16 configure(unsigned char *p){
             Option.AUDIO_SLICE=checkslice(PINMAP[22],PINMAP[22], 1);
             Option.modbuffsize=512;
             Option.modbuff = true; 
-
             strcpy((char *)Option.platform,"PICOMITEVGA V1.1");
             SaveOptions();
             printoptions();uSec(100000);
@@ -2172,6 +2263,65 @@ void MIPS16 configure(unsigned char *p){
             _excep_code = RESET_COMMAND;
             SoftReset();
         }
+/*OPTION PLATFORM "SWEETIEPI"
+OPTION CPUSPEED 252000
+OPTION PICO OFF
+OPTION SYSTEM I2C GP0, GP1
+OPTION SDCARD GP29, GP3, GP4, GP2
+OPTION AUDIO SPI GP5, GP6, GP7
+OPTION VGA PINS GP14, GP10*/
+        if(checkstring(p,(unsigned char *) "SWEETIEPI"))  {
+            Option.AllPins = 1; 
+            Option.ColourCode = 1;
+            Option.SYSTEM_I2C_SDA=PINMAP[0];
+            Option.SYSTEM_I2C_SCL=PINMAP[1];
+            Option.SD_CS=PINMAP[29];
+            Option.SD_CLK_PIN=PINMAP[3];
+            Option.SD_MOSI_PIN=PINMAP[4];
+            Option.SD_MISO_PIN=PINMAP[2];
+            Option.VGA_HSYNC=PINMAP[14];
+            Option.VGA_BLUE=PINMAP[10];
+            Option.AUDIO_CS_PIN=PINMAP[5];
+            Option.AUDIO_CLK_PIN=PINMAP[6];
+            Option.AUDIO_MOSI_PIN=PINMAP[7];
+            Option.AUDIO_SLICE=checkslice(PINMAP[6],PINMAP[6], 1);
+            Option.modbuffsize=192;
+            Option.modbuff = true; 
+            strcpy((char *)Option.platform,"SWEETIEPI");
+            SaveOptions();
+            printoptions();uSec(100000);
+            _excep_code = RESET_COMMAND;
+            SoftReset();
+        }
+/*OPTION PLATFORM VGA BASIC
+
+option reset
+option vga pins GP16, GP18
+option sdcard GP14,  GP13, GP15, GP12
+option audio GP6, GP7
+option system i2c GP26, GP27*/
+        if(checkstring(p,(unsigned char *) "VGA BASIC"))  {
+            Option.ColourCode = 1;
+            Option.SYSTEM_I2C_SDA=PINMAP[0];
+            Option.SYSTEM_I2C_SCL=PINMAP[1];
+            Option.SD_CS=PINMAP[14];
+            Option.SD_CLK_PIN=PINMAP[13];
+            Option.SD_MOSI_PIN=PINMAP[15];
+            Option.SD_MISO_PIN=PINMAP[12];
+            Option.VGA_HSYNC=PINMAP[16];
+            Option.VGA_BLUE=PINMAP[18];
+            Option.AUDIO_L=PINMAP[6];
+            Option.AUDIO_R=PINMAP[7];
+            Option.modbuffsize=192;
+            Option.modbuff = true; 
+            Option.AUDIO_SLICE=checkslice(PINMAP[6],PINMAP[7], 0);
+            strcpy((char *)Option.platform,"VGA BASIC");
+            SaveOptions();
+            printoptions();uSec(100000);
+            _excep_code = RESET_COMMAND;
+            SoftReset();
+        }
+
 #endif
 #endif
 #if defined(PICOMITE) || defined(PICOMITEWEB)
@@ -2355,7 +2505,8 @@ OPTION MODBUFF ENABLE 192 */
             Option.DISPLAY_TYPE=ST7789A;
             Option.LCD_CD=PINMAP[8];
             Option.LCD_Reset=PINMAP[12];
-            Option.LCD_CS=PINMAP[23];
+            Option.LCD_CS=PINMAP[9];
+            Option.SD_CS=PINMAP[23];
             Option.SD_CLK_PIN=PINMAP[18];
             Option.SD_MOSI_PIN=PINMAP[19];
             Option.SD_MISO_PIN=PINMAP[20];
@@ -2368,6 +2519,37 @@ OPTION MODBUFF ENABLE 192 */
             SoftReset();
        }
 #endif
+#else
+       if(checkstring(p,(unsigned char *) "USB Edition V1.0"))  {
+            ResetOptions();
+            Option.CPU_Speed=252000;
+            Option.ColourCode = 1;
+            Option.NoHeartbeat = 1;
+            Option.AllPins = 1; 
+            Option.SYSTEM_I2C_SDA=PINMAP[24];
+            Option.SYSTEM_I2C_SCL=PINMAP[25];
+            Option.RTC = true;
+            Option.TOUCH_CS=PINMAP[21];
+            Option.TOUCH_IRQ=PINMAP[19];
+            Option.SYSTEM_CLK=PINMAP[22];
+            Option.SYSTEM_MOSI=PINMAP[23];
+            Option.SYSTEM_MISO=PINMAP[20];
+            Option.AUDIO_L=PINMAP[26];
+            Option.AUDIO_R=PINMAP[27];
+            Option.SerialTX=PINMAP[28];
+            Option.SerialRX=PINMAP[29];
+            Option.SerialConsole=1;
+            Option.CombinedCS=1;
+            Option.SD_CS=0;
+            Option.modbuffsize=512;
+            Option.modbuff = true; 
+            Option.AUDIO_SLICE=checkslice(PINMAP[26],PINMAP[27], 0);
+            strcpy((char *)Option.platform,"USB Edition V1.0");
+            SaveOptions();
+            printoptions();uSec(100000);
+            _excep_code = RESET_COMMAND;
+            SoftReset();
+        }
 #endif
 #endif
         error("Invalid board for this firmware");
@@ -2407,23 +2589,35 @@ void MIPS16 cmd_option(void) {
 #ifndef PICOMITEVGA
 	tp = checkstring(cmdline, (unsigned char *)"LCD320");
 	if(tp) {
-        if(!( SSD16TYPE || Option.DISPLAY_TYPE==IPS_4_16))error("Only available on SSD1963 and IPS_4_16 displays");
-		if(checkstring(tp, (unsigned char *)"OFF"))	{ 
-            clear320();
-        }
-		else if(checkstring(tp, (unsigned char *)"ON"))	{ 
-            screen320=1; 
-            DrawRectangle = DrawRectangle320;
-            DrawBitmap = DrawBitmap320;
-            DrawBuffer = DrawBuffer320;
-            ReadBuffer = ReadBuffer320;
-            DrawBLITBuffer= DrawBLITBuffer320;
-            ReadBLITBuffer = ReadBLITBuffer320;
-            HRes=320;
-            VRes=240;
-            buff320=GetMemory(320*6);
-            return; 
-        } else error("Syntax");
+        if(!( SSD16TYPE || Option.DISPLAY_TYPE==IPS_4_16 || SPI480))error("Only available on SSD1963, 480x320 SPI displays and IPS_4_16 displays");
+        if(( SSD16TYPE || Option.DISPLAY_TYPE==IPS_4_16)){
+            if(checkstring(tp, (unsigned char *)"OFF"))	{ 
+                clear320();
+            }
+            else if(checkstring(tp, (unsigned char *)"ON"))	{ 
+                screen320=1; 
+                DrawRectangle = DrawRectangle320;
+                DrawBitmap = DrawBitmap320;
+                DrawBuffer = DrawBuffer320;
+                ReadBuffer = ReadBuffer320;
+                DrawBLITBuffer= DrawBLITBuffer320;
+                ReadBLITBuffer = ReadBLITBuffer320;
+                HRes=320;
+                VRes=240;
+                buff320=GetMemory(320*6);
+                return; 
+            } else error("Syntax");
+        } else if(SPI480){
+            if(checkstring(tp, (unsigned char *)"OFF"))	{ 
+                clear320();
+                return;
+            }
+            else if(checkstring(tp, (unsigned char *)"ON"))	{ 
+                HRes=320;
+                VRes=240;
+                return; 
+            } else error("Syntax");
+        } else error("Invalid display type");
 	}
 #endif 
     tp = checkstring(cmdline, (unsigned char *)"ESCAPE");
@@ -3635,6 +3829,7 @@ void MIPS16 cmd_option(void) {
           enable_interrupts();
         }
         configure(tp);
+        return;
     }
     error("Invalid Option");
 }

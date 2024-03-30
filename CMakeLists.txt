@@ -44,7 +44,7 @@ add_executable(PicoMite
 	hxcmod.c
     VS1053.c
 )
-set_source_files_properties(mmc_stm32.c PROPERTIES COMPILE_FLAGS -O3)
+set_source_files_properties(mmc_stm32.c PROPERTIES COMPILE_FLAGS -O2)
 set_source_files_properties(ff.c PROPERTIES COMPILE_FLAGS -Os)
 set_source_files_properties(GUI.c PROPERTIES COMPILE_FLAGS -Os)
 set_source_files_properties(BmpDecoder.c PROPERTIES COMPILE_FLAGS -Os)
