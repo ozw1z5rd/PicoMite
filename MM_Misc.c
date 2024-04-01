@@ -2735,7 +2735,7 @@ void MIPS16 cmd_option(void) {
 #ifndef USBKEYBOARD
         if(ExtCurrentConfig[KEYBOARD_CLOCK] != EXT_NOT_CONFIG && Option.KeyboardConfig == NO_KEYBOARD)  error("Pin %/| is in use",KEYBOARD_CLOCK,KEYBOARD_CLOCK);
         if(ExtCurrentConfig[KEYBOARD_DATA] != EXT_NOT_CONFIG && Option.KeyboardConfig == NO_KEYBOARD)  error("Pin %/| is in use",KEYBOARD_DATA,KEYBOARD_DATA);
-        if(checkstring(argv[0], (unsigned char *)"US"))	Option.USBKeyboard = CONFIG_US;
+        if(checkstring(argv[0], (unsigned char *)"US"))	Option.KeyboardConfig = CONFIG_US;
 		else if(checkstring(argv[0], (unsigned char *)"FR"))	Option.KeyboardConfig = CONFIG_FR;
 		else if(checkstring(argv[0], (unsigned char *)"GR"))	Option.KeyboardConfig = CONFIG_GR;
 		else if(checkstring(argv[0], (unsigned char *)"IT"))	Option.KeyboardConfig = CONFIG_IT;

@@ -51,7 +51,7 @@ extern const uint8_t *flash_progmemory;
 //LIBRARY
 extern const uint8_t *flash_libgmemory;
 extern void routinechecks(void);
-extern int mergedread;
+extern bool mergedread;
 struct option_s __attribute__ ((aligned (256))) Option;
 int dirflags;
 int GPSfnbr = 0;
