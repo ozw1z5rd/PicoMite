@@ -368,7 +368,7 @@ static bool tcp_server_open(void *arg) {
 void checksent(void *arg, int fn, int pcb){
     TCP_SERVER_T *state = (TCP_SERVER_T*)arg;
     Timer4=4000;
-//    cyw43_arch_lwip_check();
+ //   cyw43_arch_lwip_check();
     while(!(state->sent_len[pcb]==state->total_sent[pcb] )|| Timer4==0){ 
         CheckAbort();
     }
@@ -555,7 +555,7 @@ void cmd_transmit(unsigned char *cmd){
                                         inpbuf[0] = 'r'; inpbuf[1] = '=';                               // place a dummy assignment in the input buffer to keep the tokeniser happy
                                         strcpy((char *)inpbuf + 2, (char *)vartest);
                                         tokenise(true);                                                 // and tokenise it (the result is in tknbuf)
-                                        strcpy((char *)st, (char *)(tknbuf + 3));
+                                        strcpy((char *)st, (char *)(tknbuf + 2 + sizeof(CommandToken)));
                                         t = T_NOTYPE;
                                         int os=OptionExplicit;
                                         OptionExplicit = false;
