@@ -918,8 +918,7 @@ void i2cReceive(unsigned char *p) {
 	if(i2c_options & 0x01) I2C_Status = I2C_Status_BusHold;
 	I2C_Addr = addr;
 	rcvlen = getinteger(argv[4]);
-	if(rcvlen < 1 || rcvlen > 255) error("Number out of bounds");
-	
+	if(rcvlen < 1) error("Number out of bounds");
 	ptr = findvar(argv[6], V_FIND | V_EMPTY_OK);
     if(vartbl[VarIndex].type & T_CONST) error("Cannot change a constant");
 	if(ptr == NULL) error("Invalid variable");
@@ -942,6 +941,7 @@ void i2cReceive(unsigned char *p) {
         }
         I2C_Rcvbuf_Int = (long long int *)ptr;
     } else if(vartbl[VarIndex].type & T_STR) {
+		if(rcvlen < 1 || rcvlen > 255) error("Number out of bounds");
         if(vartbl[VarIndex].dims[0] != 0) error("Invalid variable");
         *(char *)ptr = rcvlen;
         I2C_Rcvbuf_String = (char *)ptr + 1;
@@ -1063,8 +1063,7 @@ void i2c2Receive(unsigned char *p) {
     I2C2_Rcvbuf_Int = NULL;
     I2C2_Rcvbuf_String = NULL;
 	rcvlen = getinteger(argv[4]);
-	if(rcvlen < 1 || rcvlen > 255) error("Number out of bounds");
-
+	if(rcvlen < 1) error("Number out of bounds");
 	ptr = findvar(argv[6], V_FIND | V_EMPTY_OK);
     if(vartbl[VarIndex].type & T_CONST) error("Cannot change a constant");
 	if(ptr == NULL) error("Invalid variable");
@@ -1087,6 +1086,7 @@ void i2c2Receive(unsigned char *p) {
         }
         I2C2_Rcvbuf_Int = (long long int *)ptr;
     } else if(vartbl[VarIndex].type & T_STR) {
+		if(rcvlen < 1 || rcvlen > 255) error("Number out of bounds");
         if(vartbl[VarIndex].dims[0] != 0) error("Invalid variable");
         *(char *)ptr = rcvlen;
         I2C2_Rcvbuf_String = (char *)ptr + 1;
