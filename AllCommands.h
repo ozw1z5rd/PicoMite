@@ -152,6 +152,8 @@ void cmd_colourmap(void);
     void cmd_web(void);
 #endif
 
+void cmd_hcg(void);
+
 void op_invalid(void);
 void op_exp(void);
 void op_mul(void);
@@ -295,6 +297,7 @@ void fun_dev(void);
 #ifdef INCLUDE_COMMAND_TABLE
 
 	{ (unsigned char *)"Call",		T_CMD,				0, cmd_call	    },
+	{ (unsigned char *)"HCG",		T_CMD,				0, cmd_hcg},
 	{ (unsigned char *)"Clear",		T_CMD,				0, cmd_clear	},
 	{ (unsigned char *)"Continue",  T_CMD,              0, cmd_continue	},
 	{ (unsigned char *)"Data",		T_CMD,				0, cmd_null	    },

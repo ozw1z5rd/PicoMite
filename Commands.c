@@ -1527,6 +1527,11 @@ void cmd_endcomment(void){
 }
 
 
+void cmd_hcg(void) { 
+     error("Implement me!");
+} 
+
+
 void cmd_gosub(void) {
    if(gosubindex >= MAXGOSUB) error("Too many nested GOSUB");
    char *return_to = (char *)nextstmt;
