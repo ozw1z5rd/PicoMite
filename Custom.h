@@ -91,6 +91,7 @@ extern char *pioTXinterrupts[4];
         volatile int telnet_pcb_no;
         volatile int telnet_init_sent;
     } TCP_SERVER_T;
+    
     typedef struct NTP_T_ {
         ip_addr_t ntp_server_address;
         bool dns_request_sent;
@@ -99,6 +100,7 @@ extern char *pioTXinterrupts[4];
         alarm_id_t ntp_resend_alarm;
         volatile bool complete;
     } NTP_T;
+    
     typedef struct TCP_CLIENT_T_ {
         struct tcp_pcb *tcp_pcb;
         ip_addr_t remote_addr;
@@ -112,11 +114,12 @@ extern char *pioTXinterrupts[4];
         int *buffer_read;
         char *hostname;
     } TCP_CLIENT_T;
+
     extern TCP_SERVER_T *TCPstate;
     extern void cleanserver(void);
     extern err_t tcp_server_close(void *arg, int pcb);
     extern err_t tcp_server_send_data(void *arg, struct tcp_pcb *tpcb, int pcb);
-    extern int checksent(void *arg, int fn, int pcb);
+    extern void checksent(void *arg, int fn, int pcb);
     extern TCP_CLIENT_T *TCP_CLIENT;
     extern TCP_CLIENT_T* tcp_client_init(void);
     extern void tcp_dns_found(const char *hostname, const ip_addr_t *ipaddr, void *arg);

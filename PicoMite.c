@@ -45,13 +45,15 @@ extern "C" {
 #include "hardware/structs/bus_ctrl.h"
 #ifndef USBKEYBOARD
 #include "pico/unique_id.h"
-#include "class/cdc/cdc_device.h" 
+#include "class/cdc/cdc_device.h"
 #endif
 #include <pico/bootrom.h>
 #include "hardware/irq.h"
 #include "hardware/pio.h"
 #include "hardware/pio_instructions.h"
 #ifdef PICOMITEWEB
+// Include include.h che prima non era presente.
+// #include "Include.h"
 #include "lwipopts.h"
 #include "pico/cyw43_arch.h"
 #include "lwip/pbuf.h"
