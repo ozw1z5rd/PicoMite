@@ -1,3 +1,33 @@
+
+### PLESE READ
+
+#### This repository is made of two or more main branches: xxxx and xxxx-WIFI, to build the PicoMite with no WIFI support just checkout xxxx, if you need the WIFI support ( thus you are using PICO PI W ), checkout xxxx-WIFI.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Now follows the text from the original repository.
+
+**********************************************************************************************************************
+
+
+
 Files to build the PicoMite. MMBasic running on the Raspberry Pi Pico
 
 NB: This should be built against pico-sdk version 1.5.1 with gpio.c replaced with the attached.
