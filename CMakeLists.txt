@@ -96,7 +96,7 @@ target_compile_options(PicoMiteWeb PRIVATE  -DPICOMITEWEB
 
 target_link_libraries(PicoMiteWeb
     pico_stdlib
-    pico_stdio_usb
+	#pico_stdio_usb
     hardware_flash
     hardware_irq
     hardware_adc
@@ -107,5 +107,5 @@ target_link_libraries(PicoMiteWeb
     hardware_exception 
     hardware_pio
     pico_cyw43_arch_lwip_poll
-    tinyusb_device
+    #    tinyusb_device
 ) 
