@@ -1,7 +1,7 @@
+### PICOMITE HGC
+<img src="https://github.com/ozw1z5rd/PicoMite/blob/main/IMAGES/SS3.png?raw=true" width="500" />
 
-### PLEASE READ ME
-
-At the moment the branch main is a copy of the original repository. The reworked source code are in different branches: you should switch to hcg20 if you want to build the code for the PICO PI or hcg20-wifi for the PICO PI W ( with wifi support ). 
+At the moment the branch main is a copy of the original repository. The reworked source code are in different branches: you should switch to `hcg20` if you want to build the code for the PICO PI or `hcg20-wifi` for the PICO PI W ( with wifi support ). 
 
 The code reworked and stored in this repository ( not the original one ) compiles with no issue with the pico-sdk@45984e2
 
@@ -14,8 +14,11 @@ The code reworked and stored in this repository ( not the original one ) compile
 
 PicoMite is the porting of MMBasic to PICO PI, it is a powerful BASIC intepreter with full PICO PI's hardware support.  Reading the manual is not an option. Visit https://geoffg.net/picomite.html for prebuild binaries, manuals and general information.
 
-To follow the NEXT project visiti https://homecomputer.group website, the PicoMite is covered in the Issue #20 ( available in September 2024 ) 
+To follow the NEXT project visiti https://homecomputer.group website, the PicoMite is covered in the Issue #20 ( available in September 2024 ), in this issue all the instruction to compile and uplod using the SWD and OpenOCD.
  
+<img src="https://github.com/ozw1z5rd/PicoMite/blob/main/IMAGES/SS1.png?raw=true" width="700" />
+
+Have fun!
 
 **********************************
 
