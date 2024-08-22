@@ -96,8 +96,8 @@
 #define CFG_TUSB_DEBUG        0
 #endif
 
-// Enable Host stack
-#define CFG_TUH_ENABLED       1
+// Disable host stack 
+#define CFG_TUH_ENABLED       0
 
 // Default is max speed that hardware controller could support with on-chip PHY
 #define CFG_TUH_MAX_SPEED     BOARD_TUH_MAX_SPEED
